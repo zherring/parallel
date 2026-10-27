@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EXAMPLE_PAIRINGS } from "@/lib/examples";
-import { FAMILY_NAME_OVERRIDES, pageHeading, shortName } from "@/lib/short-name";
+import { FAMILY_NAME_OVERRIDES, headingNames, pageHeading, shortName } from "@/lib/short-name";
 
 describe("shortName", () => {
   const cases: [string, string][] = [
@@ -158,5 +158,37 @@ describe("pageHeading", () => {
 
   it("handles no people", () => {
     expect(pageHeading([])).toEqual({ text: "", full: null });
+  });
+
+  describe("with short names forced", () => {
+    it("abbreviates one or two people to family names and keeps the full names for the tooltip", () => {
+      expect(pageHeading([person(564, "Richard Linklater"), person(569, "Ethan Hawke")], { short: true })).toEqual({
+        text: "Linklater & Hawke",
+        full: "Richard Linklater & Ethan Hawke",
+      });
+    });
+
+    it("still keeps full names for a shared family name", () => {
+      expect(pageHeading([person(1, "Joel Coen"), person(2, "Ethan Coen")], { short: true }).text).toBe(
+        "Joel Coen & Ethan Coen",
+      );
+    });
+  });
+});
+
+describe("headingNames", () => {
+  const person = (id: number, name: string) => ({ id, name });
+
+  it("lists full names for fewer than three people", () => {
+    expect(headingNames([person(1, "David Fincher"), person(2, "Jeff Cronenweth")])).toEqual([
+      "David Fincher",
+      "Jeff Cronenweth",
+    ]);
+  });
+
+  it("lists family names for three or more, or when asked", () => {
+    const people = [person(1, "David Fincher"), person(2, "Jeff Cronenweth"), person(3, "Brad Pitt")];
+    expect(headingNames(people)).toEqual(["Fincher", "Cronenweth", "Pitt"]);
+    expect(headingNames(people.slice(0, 2), true)).toEqual(["Fincher", "Cronenweth"]);
   });
 });

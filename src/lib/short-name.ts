@@ -119,18 +119,27 @@ function joinAmpersand(names: string[]): string {
 }
 
 /**
- * One or two people: full names ("A", "A & B"). Three or more: family names only, with an
- * Oxford comma before the ampersand ("Spielberg, Harrison, & Williams"). A family name shared
- * by two people on the page ("Coen, Coen") would be ambiguous, so those keep their full name.
+ * The label for each person in a heading, in order. One or two people: full names. Three or
+ * more (or `short`, which forces the abbreviation for one or two people too): family names
+ * only. A family name shared by two people on the page ("Coen, Coen") would be ambiguous, so
+ * those keep their full name.
  */
-export function pageHeading(people: readonly HeadingPerson[]): PageHeading {
+export function headingNames(people: readonly HeadingPerson[], short = false): string[] {
   const fullNames = people.map((p) => p.name);
-  if (people.length < 3) return { text: joinAmpersand(fullNames), full: null };
+  if (people.length < 3 && !short) return fullNames;
 
   const shorts = people.map((p) => shortName(p.name, p.id));
   const counts = new Map<string, number>();
-  for (const short of shorts) counts.set(short, (counts.get(short) ?? 0) + 1);
-  const parts = shorts.map((short, i) => ((counts.get(short) ?? 0) > 1 ? fullNames[i] : short));
+  for (const family of shorts) counts.set(family, (counts.get(family) ?? 0) + 1);
+  return shorts.map((family, i) => ((counts.get(family) ?? 0) > 1 ? fullNames[i] : family));
+}
 
-  return { text: joinAmpersand(parts), full: joinNames(fullNames) };
+/**
+ * One or two people: full names ("A", "A & B"). Three or more: family names only, with an
+ * Oxford comma before the ampersand ("Spielberg, Harrison, & Williams"); see `headingNames`.
+ * `short` forces family names for one or two people as well (used when the full names are too long).
+ */
+export function pageHeading(people: readonly HeadingPerson[], { short = false }: { short?: boolean } = {}): PageHeading {
+  if (people.length < 3 && !short) return { text: joinAmpersand(people.map((p) => p.name)), full: null };
+  return { text: joinAmpersand(headingNames(people, true)), full: joinNames(people.map((p) => p.name)) };
 }

@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { csvFilename, sharedFilmsToCsv } from "@/lib/csv";
+import type { ShareInput } from "@/lib/share";
 import type { SharedFilm } from "@/lib/types";
+import { ShareMenu } from "./share-menu";
 
 interface ShareActionsProps {
   /** Films to export; the export button only shows when `canExport`. */
@@ -10,6 +12,8 @@ interface ShareActionsProps {
   /** Names in lane order, used for the CSV file name. */
   names: string[];
   canExport: boolean;
+  /** What the Share menu posts about: the people and their film count as the page shows it by default. */
+  share: ShareInput;
   /**
    * When set (the "films together" section), the buttons share a row with it: heading on the
    * left, buttons on the right, with the helper text and status line underneath. Without it
@@ -23,7 +27,7 @@ const primaryClass =
 const secondaryClass =
   "inline-flex items-center justify-center rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-strong hover:border-muted";
 
-export function ShareActions({ shared, names, canExport, heading }: ShareActionsProps) {
+export function ShareActions({ shared, names, canExport, share, heading }: ShareActionsProps) {
   const [status, setStatus] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -58,6 +62,7 @@ export function ShareActions({ shared, names, canExport, heading }: ShareActions
     }
   };
 
+  const shareMenu = <ShareMenu input={share} onStatus={announce} className={heading ? "max-sm:grow" : ""} />;
   const exportButton = canExport && (
     <button
       type="button"
@@ -94,6 +99,7 @@ export function ShareActions({ shared, names, canExport, heading }: ShareActions
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
           {heading}
           <div className="flex flex-wrap items-center gap-3 max-sm:w-full">
+            {shareMenu}
             {exportButton}
             {copyButton}
           </div>
@@ -111,6 +117,7 @@ export function ShareActions({ shared, names, canExport, heading }: ShareActions
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-3">
+        {shareMenu}
         {exportButton}
         {copyButton}
         <p role="status" aria-live="polite" className="min-h-5 text-sm text-body">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { peopleDescription, peopleTitle } from "@/lib/seo";
+import { peopleDescription, peopleSocial, peopleTitle } from "@/lib/seo";
 import type { Film, PersonTimeline, SharedFilm } from "@/lib/types";
 
 const film = (id: number, year: number, minor = false): Film => ({
@@ -61,5 +61,28 @@ describe("peopleDescription", () => {
 
   it("handles a single person with no films", () => {
     expect(peopleDescription([timeline(1, "A", [])], [])).toBe("A: filmography timeline.");
+  });
+});
+
+describe("peopleSocial", () => {
+  const social = peopleSocial("A & B: films made together", "Films made together by A & B: Film 1.", "/p/1-a+2-b");
+
+  it("asks for the large image card, so the generated image is shown big", () => {
+    expect(social.twitter).toMatchObject({ card: "summary_large_image", title: "A & B: films made together" });
+  });
+
+  it("describes the page for Open Graph", () => {
+    expect(social.openGraph).toMatchObject({
+      title: "A & B: films made together",
+      description: "Films made together by A & B: Film 1.",
+      url: "/p/1-a+2-b",
+      type: "website",
+      siteName: "Parallel",
+    });
+  });
+
+  it("sets no image of its own, leaving og:image and twitter:image to the generated card", () => {
+    expect(social.openGraph).not.toHaveProperty("images");
+    expect(social.twitter).not.toHaveProperty("images");
   });
 });

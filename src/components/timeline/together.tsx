@@ -11,6 +11,8 @@ interface TogetherProps {
   pairwise: PairShared[];
   /** Films that would be added by turning minor credits on; 0 when already on. */
   minorExtra: number;
+  /** Films together as the page shows them by default (non-minor credits), for the share text. */
+  shareCount: number;
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
@@ -42,7 +44,7 @@ function Thumb({ film }: { film: Pick<SharedFilm, "title" | "posterPath"> }) {
   );
 }
 
-export function Together({ people, shared, pairwise, minorExtra, onSelect }: TogetherProps) {
+export function Together({ people, shared, pairwise, minorExtra, shareCount, onSelect }: TogetherProps) {
   const nameById = new Map(people.map((p) => [p.id, p.name]));
   const count = shared.length;
 
@@ -52,6 +54,7 @@ export function Together({ people, shared, pairwise, minorExtra, onSelect }: Tog
         shared={shared}
         names={people.map((p) => p.name)}
         canExport
+        share={{ people, count: shareCount }}
         heading={
           <h2 id="together" className="text-xl font-semibold text-strong">
             {count === 0 ? "No films together" : `${count} ${count === 1 ? "film" : "films"} together`}
