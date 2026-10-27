@@ -1,9 +1,15 @@
-import Link from "next/link";
+"use client";
+
+import { useCallback, useMemo, useRef, useState } from "react";
+import { FilmPanel } from "@/components/film-panel/film-panel";
+import { PersonSearch } from "@/components/person-search/person-search";
+import { ShareActions } from "@/components/timeline/share-actions";
+import { Timeline, type LaneData } from "@/components/timeline/timeline";
+import { Together } from "@/components/timeline/together";
 import { joinNames } from "@/lib/format";
-import { roleSummary } from "@/lib/roles";
-import { buildPeopleSlug } from "@/lib/slug";
-import type { PairShared } from "@/lib/shared";
-import type { Film, PersonTimeline, SharedFilm } from "@/lib/types";
+import { canAddPerson } from "@/lib/lanes";
+import { sharedFilms, sharedFilmsPairwise, type PairShared } from "@/lib/shared";
+import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
 interface Props {
   timelines: PersonTimeline[];
@@ -13,111 +19,99 @@ interface Props {
   pairwise: PairShared[];
 }
 
-const tmdbMovieUrl = (id: number) => `https://www.themoviedb.org/movie/${id}`;
-
-function FilmLink({ film }: { film: Pick<Film, "id" | "title"> }) {
-  return (
-    <a href={tmdbMovieUrl(film.id)} className="text-strong underline-offset-2 hover:underline">
-      {film.title}
-    </a>
-  );
+export function PeopleView(props: Props) {
+  // A different set of people is a different page: start over (zoom, selection, scroll).
+  const key = props.timelines.map((t) => t.person.id).join("+");
+  return <PeopleViewInner key={key} {...props} />;
 }
 
-export function PeopleView({ timelines, shared, pairwise }: Props) {
-  const nameById = new Map(timelines.map((t) => [t.person.id, t.person.name]));
+function todayUtc(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function PeopleViewInner({ timelines, shared, pairwise }: Props) {
+  const [includeMinor, setIncludeMinor] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [today] = useState(todayUtc);
+  const triggerRef = useRef<HTMLElement | null>(null);
+
+  const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
+  const multi = timelines.length > 1;
+
+  // The server sends the default (non-minor) lists; recompute only when the toggle is on.
+  const sharedNow = useMemo(
+    () => (includeMinor ? sharedFilms(timelines, { includeMinor: true }) : shared),
+    [includeMinor, shared, timelines],
+  );
+  const pairwiseNow = useMemo(
+    () => (includeMinor ? sharedFilmsPairwise(timelines, { includeMinor: true }) : pairwise),
+    [includeMinor, pairwise, timelines],
+  );
+  const minorExtra = useMemo(
+    () => (multi && !includeMinor && shared.length === 0 ? sharedFilms(timelines, { includeMinor: true }).length : 0),
+    [multi, includeMinor, shared.length, timelines],
+  );
+  const litIds = useMemo(() => new Set(sharedNow.map((film) => film.id)), [sharedNow]);
+
+  const lanes: LaneData[] = useMemo(
+    () =>
+      timelines.map(({ person, films }) => {
+        const visible = includeMinor ? films : films.filter((film) => !film.minor);
+        return { person, films: visible, hiddenMinor: films.length - visible.length };
+      }),
+    [timelines, includeMinor],
+  );
+
+  const handleSelect = useCallback((id: number, trigger: HTMLElement) => {
+    triggerRef.current = trigger;
+    setSelectedId(id);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setSelectedId(null);
+    const trigger = triggerRef.current;
+    triggerRef.current = null;
+    // Put focus back where the keyboard user left off.
+    if (trigger?.isConnected) requestAnimationFrame(() => trigger.focus({ preventScroll: true }));
+  }, []);
+
+  const names = people.map((p) => p.name);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-10">
-      <h1 className="text-3xl font-semibold text-strong">
-        {joinNames(timelines.map((t) => t.person.name))}
-      </h1>
+    <div className="mx-auto w-full min-w-0 max-w-6xl px-4 py-8">
+      <h1 className="break-words text-2xl font-semibold text-strong sm:text-3xl">{joinNames(names)}</h1>
 
-      {timelines.length > 1 && (
-        <section aria-labelledby="together" className="mt-8">
-          <h2 id="together" className="text-xl font-semibold text-strong">
-            Films together
-          </h2>
-          {shared.length === 0 ? (
-            <p className="mt-2 text-muted">No films together found on TMDB.</p>
-          ) : (
-            <ol className="mt-3 space-y-3">
-              {shared.map((film) => (
-                <li key={film.id}>
-                  <time dateTime={film.releaseDate} className="mr-2 tabular-nums text-muted">
-                    {film.year}
-                  </time>
-                  <FilmLink film={film} />
-                  <ul className="ml-12 text-sm text-muted">
-                    {timelines.map(({ person }) => (
-                      <li key={person.id}>
-                        {person.name}: {roleSummary(film.byPerson[person.id])}
-                      </li>
-                    ))}
-                  </ul>
-                </li>
-              ))}
-            </ol>
-          )}
+      <div className="mt-6">
+        <Timeline
+          lanes={lanes}
+          people={people}
+          litIds={litIds}
+          includeMinor={includeMinor}
+          onIncludeMinorChange={setIncludeMinor}
+          today={today}
+          selectedId={selectedId}
+          onSelect={handleSelect}
+        />
+      </div>
 
-          {pairwise.length > 0 && (
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold text-strong">By pair</h3>
-              {pairwise.map(({ a, b, films }) => (
-                <section key={`${a}-${b}`} className="mt-3">
-                  <h4 className="text-strong">
-                    {nameById.get(a)} & {nameById.get(b)}
-                  </h4>
-                  {films.length === 0 ? (
-                    <p className="text-sm text-muted">No films together found on TMDB.</p>
-                  ) : (
-                    <ul className="text-sm">
-                      {films.map((film) => (
-                        <li key={film.id}>
-                          <span className="mr-2 tabular-nums text-muted">{film.year}</span>
-                          <FilmLink film={film} />
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </section>
-              ))}
-            </div>
-          )}
-        </section>
+      {canAddPerson(people.length) && (
+        <div className="mt-6 max-w-md">
+          <p className="mb-2 text-sm font-medium text-strong">Add person</p>
+          <PersonSearch peopleInView={people} size="compact" />
+        </div>
       )}
 
-      {timelines.map(({ person, films }) => {
-        const listed = films.filter((f) => !f.minor);
-        return (
-          <section key={person.id} aria-labelledby={`person-${person.id}`} className="mt-10">
-            <h2 id={`person-${person.id}`} className="text-xl font-semibold text-strong">
-              {timelines.length > 1 ? (
-                <Link href={`/p/${buildPeopleSlug([person])}`}>{person.name}</Link>
-              ) : (
-                person.name
-              )}
-            </h2>
-            {person.knownFor && <p className="text-sm text-muted">Known for {person.knownFor}</p>}
-            {listed.length === 0 ? (
-              <p className="mt-3 text-muted">No films found on TMDB.</p>
-            ) : (
-              <ol className="mt-3 space-y-1">
-                {listed.map((film) => (
-                  <li key={film.id}>
-                    <time dateTime={film.releaseDate} className="mr-2 tabular-nums text-muted">
-                      {film.year}
-                    </time>
-                    <FilmLink film={film} />
-                    <span className="ml-2 text-sm text-muted">
-                      {roleSummary(film.credits.filter((c) => !c.minor))}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
-        );
-      })}
+      {multi ? (
+        <Together people={people} shared={sharedNow} pairwise={pairwiseNow} minorExtra={minorExtra} onSelect={handleSelect}>
+          <ShareActions shared={sharedNow} names={names} canExport />
+        </Together>
+      ) : (
+        <div className="mt-8">
+          <ShareActions shared={[]} names={names} canExport={false} />
+        </div>
+      )}
+
+      <FilmPanel filmId={selectedId} peopleInView={people} onClose={handleClose} />
     </div>
   );
 }
