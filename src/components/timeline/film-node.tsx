@@ -65,7 +65,8 @@ function FilmNodeImpl(props: FilmNodeProps) {
         aria-current={selected ? "true" : undefined}
         onClick={(event) => onSelect(id, event.currentTarget)}
         // The ring lives on the inner span so a squeezed hit area still shows a round focus mark.
-        className="group relative block size-full cursor-pointer focus-visible:outline-none"
+        // Important: the global :focus-visible outline is unlayered CSS and would beat a plain utility.
+        className="group relative block size-full cursor-pointer focus-visible:outline-none!"
       >
         <span
           aria-hidden
