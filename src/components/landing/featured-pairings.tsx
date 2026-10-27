@@ -20,7 +20,9 @@ const subscribeNever = () => () => {};
  * The server markup holds a fixed default sample instead (see defaultFeatured), so crawlers and
  * visitors without JavaScript still get real links, and the first client render matches it. Those
  * cards stay transparent, in the same grid so nothing shifts, until the random sample has
- * replaced them; then the list fades in (unless the visitor prefers reduced motion).
+ * replaced them; then the list fades in (unless the visitor prefers reduced motion). Until then
+ * they are drawn with initials only: they are never seen with JavaScript, and their photos would
+ * be downloaded for nothing.
  */
 export function FeaturedPairings({ cards, count }: Props) {
   const initial = useMemo(() => defaultFeatured(cards, count), [cards, count]);
@@ -43,7 +45,7 @@ export function FeaturedPairings({ cards, count }: Props) {
       >
         {(picked ?? initial).map((card) => (
           <li key={card.href}>
-            <PairingCard card={card} />
+            <PairingCard card={card} photos={picked !== null} />
           </li>
         ))}
       </ul>
