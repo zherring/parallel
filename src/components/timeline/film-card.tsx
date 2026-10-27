@@ -27,6 +27,8 @@ interface FilmCardProps {
   /** The same film is hovered or focused (in this or another lane). */
   emphasized: boolean;
   selected: boolean;
+  /** id of the hover card while it is open for this card. */
+  describedBy: string | undefined;
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
@@ -44,7 +46,7 @@ function accessibleName({ title, year, roles, tone, upcoming }: FilmCardProps): 
 }
 
 function FilmCardImpl(props: FilmCardProps) {
-  const { id, title, year, posterPath, left, top, tone, laneIndex, upcoming, emphasized, selected, onSelect } = props;
+  const { id, title, year, posterPath, left, top, tone, laneIndex, upcoming, emphasized, selected, describedBy, onSelect } = props;
   const src = tmdbImage(posterPath, "w185");
 
   return (
@@ -53,8 +55,8 @@ function FilmCardImpl(props: FilmCardProps) {
         type="button"
         data-film={id}
         data-lane={laneIndex ?? undefined}
-        title={title}
         aria-label={accessibleName(props)}
+        aria-describedby={describedBy}
         aria-current={selected ? "true" : undefined}
         onClick={(event) => onSelect(id, event.currentTarget)}
         // Opaque on purpose: the grid lines of the track must not show through the caption.

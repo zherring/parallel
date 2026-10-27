@@ -26,6 +26,8 @@ interface FilmNodeProps {
   /** The lane's one tab stop (roving tabindex); the arrow keys move focus between the others. */
   tabbable: boolean;
   selected: boolean;
+  /** id of the hover card while it is open for this node. */
+  describedBy: string | undefined;
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
@@ -49,7 +51,7 @@ function accessibleName({ title, year, roles, tone }: FilmNodeProps): string {
  * time (see `tabbable`).
  */
 function FilmNodeImpl(props: FilmNodeProps) {
-  const { id, title, year, x, lineY, hitWidth, tone, laneIndex, tabbable, selected, onSelect } = props;
+  const { id, title, year, x, lineY, hitWidth, tone, laneIndex, tabbable, selected, describedBy, onSelect } = props;
   return (
     <li className="absolute z-10" style={{ left: x - hitWidth / 2, top: lineY - NODE_HIT_HEIGHT / 2, width: hitWidth, height: NODE_HIT_HEIGHT }}>
       <button
@@ -58,8 +60,8 @@ function FilmNodeImpl(props: FilmNodeProps) {
         data-lane={laneIndex}
         data-film-node=""
         tabIndex={tabbable ? 0 : -1}
-        title={`${title} (${year})`}
         aria-label={accessibleName(props)}
+        aria-describedby={describedBy}
         aria-current={selected ? "true" : undefined}
         onClick={(event) => onSelect(id, event.currentTarget)}
         // The ring lives on the inner span so a squeezed hit area still shows a round focus mark.

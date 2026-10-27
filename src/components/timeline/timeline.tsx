@@ -14,6 +14,7 @@ import {
   type PointerEvent,
   type ReactNode,
 } from "react";
+import { filmCardContent } from "@/lib/film-credits";
 import { laneFacts, peopleHref, removePersonHref, yearSpan, type PersonRef } from "@/lib/lanes";
 import { laneScrollTop, mostVisibleLane } from "@/lib/lane-dock";
 import { MINOR_TOGGLE_LABEL, roleSummary } from "@/lib/roles";
@@ -60,6 +61,7 @@ import type { Film, PersonSummary } from "@/lib/types";
 import { cn } from "./cn";
 import { FilmCard } from "./film-card";
 import { FilmNode, type NodeTone } from "./film-node";
+import { FilmPopover, useFilmPopover, type PopoverTarget } from "./film-popover";
 import { LaneDock, DOCK_HEIGHT } from "./lane-dock";
 import { LaneHeader } from "./lane-header";
 import { MinimapBar, type MinimapFilm } from "./minimap";
@@ -104,6 +106,23 @@ function filmElement(target: EventTarget | null): HTMLElement | null {
   return target instanceof Element ? target.closest<HTMLElement>("[data-film]") : null;
 }
 
+function popoverTargetOf(element: HTMLElement): PopoverTarget {
+  return {
+    trigger: element,
+    filmId: Number(element.dataset.film),
+    laneIndex: element.dataset.lane === undefined ? null : Number(element.dataset.lane),
+  };
+}
+
+/** Whether the browser would draw a focus ring on the element: keyboard focus, not a mouse click. */
+function focusIsVisible(element: HTMLElement): boolean {
+  try {
+    return element.matches(":focus-visible");
+  } catch {
+    return true;
+  }
+}
+
 export function Timeline({
   heading,
   lanes,
@@ -128,6 +147,8 @@ export function Timeline({
   const [highlightLane, setHighlightLane] = useState<number | null>(null);
 
   const scrollerId = useId();
+  const popoverId = useId();
+  const { target: popoverTarget, show: showPopover, hide: hidePopover } = useFilmPopover();
   const scrollerRef = useRef<HTMLDivElement>(null);
   const cornerRef = useRef<HTMLDivElement>(null);
   const pendingCenter = useRef<number | null>(null);
@@ -399,6 +420,7 @@ export function Timeline({
     if (!element || element === hoverElement.current) return;
     hoverElement.current = element;
     setHoveredId(Number(element.dataset.film));
+    showPopover(popoverTargetOf(element), "hover");
   };
 
   const handlePointerOut = (event: PointerEvent<HTMLElement>) => {
@@ -407,12 +429,14 @@ export function Timeline({
     if (event.relatedTarget instanceof Node && element.contains(event.relatedTarget)) return;
     hoverElement.current = null;
     setHoveredId(null);
+    hidePopover(element);
   };
 
   const handleFocus = (event: FocusEvent<HTMLElement>) => {
     const element = filmElement(event.target);
     if (!element) return;
     setHoveredId(Number(element.dataset.film));
+    if (focusIsVisible(element)) showPopover(popoverTargetOf(element), "focus");
     // The focused node becomes its lane's tab stop, so Shift+Tab and Tab return to it.
     if (element.hasAttribute("data-film-node")) {
       const lane = Number(element.dataset.lane);
@@ -422,8 +446,35 @@ export function Timeline({
   };
 
   const handleBlur = (event: FocusEvent<HTMLElement>) => {
-    if (filmElement(event.target)) setHoveredId(null);
+    const element = filmElement(event.target);
+    if (!element) return;
+    setHoveredId(null);
+    hidePopover(element);
   };
+
+  // Opening the film panel closes the hover card, whether it was a click or Enter.
+  const handleSelect = useCallback(
+    (id: number, trigger: HTMLElement) => {
+      hidePopover();
+      onSelect(id, trigger);
+    },
+    [hidePopover, onSelect],
+  );
+
+  const popoverContent = useMemo(
+    () =>
+      popoverTarget
+        ? filmCardContent(popoverTarget.filmId, lanes, {
+            includeMinor,
+            firstPersonId: popoverTarget.laneIndex === null ? null : (lanes[popoverTarget.laneIndex]?.person.id ?? null),
+          })
+        : null,
+    [popoverTarget, lanes, includeMinor],
+  );
+  const describedByFor = (filmId: number, laneIndex: number | null) =>
+    popoverTarget && popoverContent && popoverTarget.filmId === filmId && popoverTarget.laneIndex === laneIndex
+      ? popoverId
+      : undefined;
 
   // Left/Right/Home/End move between the nodes of a lane; Enter and Space press the button as usual.
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -474,7 +525,8 @@ export function Timeline({
       upcoming={film.releaseDate > today}
       emphasized={hoveredId === film.id}
       selected={selectedId === film.id}
-      onSelect={onSelect}
+      describedBy={describedByFor(film.id, laneIndex)}
+      onSelect={handleSelect}
     />
   );
 
@@ -694,7 +746,8 @@ export function Timeline({
                                 laneIndex={laneIndex}
                                 tabbable={item.film.id === tabStop}
                                 selected={selectedId === item.film.id}
-                                onSelect={onSelect}
+                                describedBy={describedByFor(item.film.id, laneIndex)}
+                                onSelect={handleSelect}
                               />
                             ) : (
                               cardFor(item, laneIndex, cardTopInLane(item.row), info.rolesByFilm.get(item.film.id) ?? "")
@@ -777,6 +830,16 @@ export function Timeline({
           )}
         />
       </div>
+
+      {popoverTarget && popoverContent && (
+        <FilmPopover
+          id={popoverId}
+          target={popoverTarget}
+          content={popoverContent}
+          lit={layout.sharedIds.has(popoverTarget.filmId)}
+          onDismiss={hidePopover}
+        />
+      )}
     </div>
   );
 }
