@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { laneFacts, peopleHref, removePersonHref, yearSpan, type PersonRef } from "@/lib/lanes";
+import { laneScrollTop, mostVisibleLane } from "@/lib/lane-dock";
 import { MINOR_TOGGLE_LABEL, roleSummary } from "@/lib/roles";
 import {
   AXIS_HEIGHT,
@@ -36,7 +37,10 @@ import type { Film, PersonSummary } from "@/lib/types";
 import { cn } from "./cn";
 import { FilmCard, type CardTone } from "./film-card";
 import { FilmDot } from "./film-dot";
+import { LaneDock, DOCK_HEIGHT } from "./lane-dock";
 import { LaneHeader } from "./lane-header";
+import { MinimapBar, type MinimapFilm } from "./minimap";
+import { scrollBehavior } from "./scroll-behavior";
 
 export interface LaneData {
   person: PersonSummary;
@@ -47,6 +51,8 @@ export interface LaneData {
 }
 
 interface TimelineProps {
+  /** The page title (an h1); the minor-credits toggle sits at the right of its row. */
+  heading: ReactNode;
   lanes: LaneData[];
   /** Everyone on the page, in URL order; used for the remove links. */
   people: PersonRef[];
@@ -61,11 +67,16 @@ interface TimelineProps {
 }
 
 const END_INSET = 5;
+/** How long the lane a dock avatar jumped to keeps its highlight ring. */
+const HIGHLIGHT_MS = 1000;
+/** Quiet time after the last scroll event before a dock jump counts as finished. */
+const SETTLE_MS = 160;
 
 const buttonClass =
   "inline-flex size-9 items-center justify-center rounded-md border border-border bg-surface text-strong hover:border-muted disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border";
 
 export function Timeline({
+  heading,
   lanes,
   people,
   litIds,
@@ -81,10 +92,23 @@ export function Timeline({
   // Lanes (by person id) switched to unlimited rows with "Show all".
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<number>>(() => new Set());
 
+  // Lane most in view (green ring on its dock avatar) and the lane just jumped to (ring on the lane).
+  const [activeLane, setActiveLane] = useState(0);
+  const [highlightLane, setHighlightLane] = useState<number | null>(null);
+
+  const scrollerId = useId();
   const scrollerRef = useRef<HTMLDivElement>(null);
   const cornerRef = useRef<HTMLDivElement>(null);
   const pendingCenter = useRef<number | null>(null);
   const didInitialScroll = useRef(false);
+  const scrollFrame = useRef(0);
+  const highlightTimer = useRef<number | undefined>(undefined);
+  const settleTimer = useRef<number | undefined>(undefined);
+  /**
+   * A dock jump keeps its lane "active" even if the scroller cannot scroll far enough to make
+   * it the most visible one (the last lanes), until the visitor scrolls somewhere else.
+   */
+  const jump = useRef<{ lane: number; settledTop: number | null } | null>(null);
 
   const multi = lanes.length > 1;
 
@@ -129,6 +153,26 @@ export function Timeline({
 
   const { scale, width, boxes } = layout;
 
+  // What the minimap marks: green nodes for films every lane shares, else a muted tick per film.
+  const minimapFilms = useMemo(() => {
+    const toMinimap = (film: Film): MinimapFilm => ({
+      id: film.id,
+      title: film.title,
+      year: film.year,
+      releaseDate: film.releaseDate,
+    });
+    if (multi && litIds.size > 0) {
+      const shared = new Map<number, MinimapFilm>();
+      for (const lane of lanes) {
+        for (const film of lane.films) if (litIds.has(film.id) && !shared.has(film.id)) shared.set(film.id, toMinimap(film));
+      }
+      return { shared: [...shared.values()], ticks: [] };
+    }
+    const all = new Map<number, MinimapFilm>();
+    for (const lane of lanes) for (const film of lane.films) if (!all.has(film.id)) all.set(film.id, toMinimap(film));
+    return { shared: [], ticks: [...all.values()] };
+  }, [lanes, litIds, multi]);
+
   const laneInfo = useMemo(
     () =>
       lanes.map((lane) => {
@@ -161,6 +205,70 @@ export function Timeline({
     const right = scroller.scrollLeft + scroller.clientWidth < scroller.scrollWidth - 2;
     setEdges((prev) => (prev.left === left && prev.right === right ? prev : { left, right }));
   }, []);
+
+  const armSettle = useCallback(() => {
+    window.clearTimeout(settleTimer.current);
+    settleTimer.current = window.setTimeout(() => {
+      const scroller = scrollerRef.current;
+      if (jump.current && scroller) jump.current.settledTop = scroller.scrollTop;
+    }, SETTLE_MS);
+  }, []);
+
+  const updateActiveLane = useCallback(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const current = jump.current;
+    if (current) {
+      if (current.settledTop !== null && Math.abs(scroller.scrollTop - current.settledTop) > 4) {
+        jump.current = null; // the visitor scrolled on their own
+      } else {
+        if (current.settledTop === null) armSettle(); // still moving: wait for it to stop
+        setActiveLane(current.lane);
+        return;
+      }
+    }
+    const index = mostVisibleLane(boxes, scroller.scrollTop, scroller.clientHeight);
+    setActiveLane(index < 0 ? 0 : index);
+  }, [armSettle, boxes]);
+
+  // Scroll events can arrive faster than frames; do the (cheap, usually no-op) state checks once per frame.
+  const handleScroll = useCallback(() => {
+    if (scrollFrame.current) return;
+    scrollFrame.current = requestAnimationFrame(() => {
+      scrollFrame.current = 0;
+      updateEdges();
+      updateActiveLane();
+    });
+  }, [updateActiveLane, updateEdges]);
+
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(scrollFrame.current);
+      window.clearTimeout(highlightTimer.current);
+      window.clearTimeout(settleTimer.current);
+    },
+    [],
+  );
+
+  // Lane heights change with "Show all" and the minor toggle.
+  useLayoutEffect(() => {
+    updateActiveLane();
+  }, [updateActiveLane]);
+
+  const jumpToLane = useCallback(
+    (index: number) => {
+      const scroller = scrollerRef.current;
+      if (!scroller) return;
+      jump.current = { lane: index, settledTop: null };
+      armSettle();
+      setActiveLane(index);
+      scroller.scrollTo({ top: laneScrollTop(boxes, index), behavior: scrollBehavior() });
+      window.clearTimeout(highlightTimer.current);
+      setHighlightLane(index);
+      highlightTimer.current = window.setTimeout(() => setHighlightLane(null), HIGHLIGHT_MS);
+    },
+    [armSettle, boxes],
+  );
 
   // Edge fades follow the content size (zoom, minor toggle) and the container size.
   useLayoutEffect(() => {
@@ -239,7 +347,8 @@ export function Timeline({
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        {heading}
         <label className="flex max-w-xl cursor-pointer items-start gap-2 text-sm text-body">
           <input
             type="checkbox"
@@ -251,8 +360,17 @@ export function Timeline({
             <span className="text-strong">{MINOR_TOGGLE_LABEL}</span>
           </span>
         </label>
+      </div>
 
-        <div role="group" aria-label="Zoom" className="flex items-center gap-1.5">
+      <MinimapBar
+        scrollerRef={scrollerRef}
+        cornerRef={cornerRef}
+        scrollerId={scrollerId}
+        scale={scale}
+        sharedFilms={minimapFilms.shared}
+        filmTicks={minimapFilms.ticks}
+      >
+        <div role="group" aria-label="Zoom" className="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
             className={buttonClass}
@@ -264,7 +382,7 @@ export function Timeline({
               <path d="M3.5 8h9" />
             </svg>
           </button>
-          <span aria-live="polite" className="w-12 text-center text-xs tabular-nums text-muted">
+          <span aria-live="polite" className="w-12 text-center text-xs tabular-nums text-muted max-sm:sr-only">
             <span className="sr-only">Zoom </span>
             {zoomPercent}%
           </span>
@@ -280,15 +398,16 @@ export function Timeline({
             </svg>
           </button>
         </div>
-      </div>
+      </MinimapBar>
 
       <div className="relative isolate [--lane-head:84px] sm:[--lane-head:224px]">
         <div
           ref={scrollerRef}
+          id={scrollerId}
           role="region"
           aria-label="Film timeline. Scroll sideways to see more years."
           tabIndex={0}
-          onScroll={updateEdges}
+          onScroll={handleScroll}
           className="max-h-[min(85dvh,1100px)] overflow-auto overscroll-x-contain rounded-lg border border-border bg-canvas [scroll-padding-left:var(--lane-head)] [scroll-padding-top:44px] [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin]"
         >
           <div className="relative min-w-full" style={{ width: `calc(var(--lane-head) + ${width}px)` }}>
@@ -448,6 +567,28 @@ export function Timeline({
                 </section>
               );
             })}
+
+            {highlightLane !== null && boxes[highlightLane] && (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 z-[35] bg-lit/5 ring-2 ring-inset ring-lit"
+                style={{ top: AXIS_HEIGHT + boxes[highlightLane].top, height: boxes[highlightLane].height }}
+              />
+            )}
+
+            {multi && (
+              <>
+                {/* Room under the last lane for the dock, so it never sits on a lane header. */}
+                <div aria-hidden style={{ height: DOCK_HEIGHT }} />
+                <div className="sticky bottom-0 left-0 z-30 h-0 w-[var(--lane-head)]">
+                  <LaneDock
+                    people={lanes.map((lane) => lane.person)}
+                    activeIndex={activeLane}
+                    onJump={jumpToLane}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 

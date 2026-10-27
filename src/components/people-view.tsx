@@ -6,8 +6,8 @@ import { PersonSearch } from "@/components/person-search/person-search";
 import { ShareActions } from "@/components/timeline/share-actions";
 import { Timeline, type LaneData } from "@/components/timeline/timeline";
 import { Together } from "@/components/timeline/together";
-import { joinNames } from "@/lib/format";
 import { canAddPerson } from "@/lib/lanes";
+import { pageHeading } from "@/lib/short-name";
 import { sharedFilms, sharedFilmsPairwise, type PairShared } from "@/lib/shared";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
@@ -76,13 +76,21 @@ function PeopleViewInner({ timelines, shared, pairwise }: Props) {
   }, []);
 
   const names = people.map((p) => p.name);
+  // Three or more people: family names only, with the full names on hover.
+  const heading = pageHeading(people);
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-6xl px-4 py-8">
-      <h1 className="break-words text-2xl font-semibold text-strong sm:text-3xl">{joinNames(names)}</h1>
-
-      <div className="mt-6">
+      <div>
         <Timeline
+          heading={
+            <h1
+              title={heading.full ?? undefined}
+              className="min-w-0 break-words text-2xl font-semibold text-strong sm:text-3xl"
+            >
+              {heading.text}
+            </h1>
+          }
           lanes={lanes}
           people={people}
           litIds={litIds}
@@ -102,9 +110,7 @@ function PeopleViewInner({ timelines, shared, pairwise }: Props) {
       )}
 
       {multi ? (
-        <Together people={people} shared={sharedNow} pairwise={pairwiseNow} minorExtra={minorExtra} onSelect={handleSelect}>
-          <ShareActions shared={sharedNow} names={names} canExport />
-        </Together>
+        <Together people={people} shared={sharedNow} pairwise={pairwiseNow} minorExtra={minorExtra} onSelect={handleSelect} />
       ) : (
         <div className="mt-8">
           <ShareActions shared={[]} names={names} canExport={false} />
