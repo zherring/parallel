@@ -1,17 +1,12 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import { PersonAvatar } from "@/components/person-avatar";
-import {
-  CAST_PREVIEW,
-  filmMetaLine,
-  groupFilmCredits,
-  tmdbMovieUrl,
-  type PersonRow,
-} from "@/lib/film-people";
+import { filmMetaLine, groupFilmCredits, tmdbMovieUrl, type PersonRow } from "@/lib/film-people";
 import { tmdbImage } from "@/lib/images";
 import { MAX_PEOPLE, addState, isTimelineFull } from "@/lib/people-nav";
 import type { FilmDetails } from "@/lib/types";
+import { FilmTabs } from "./film-tabs";
 
 interface Props {
   film: FilmDetails;
@@ -20,19 +15,17 @@ interface Props {
   /** Person id currently being added (navigation in flight), if any. */
   addingId: number | null;
   onAdd: (person: PersonRow) => void;
+  /** The panel's scroll container, for the sticky cast/crew tabs. */
+  scrollRef: RefObject<HTMLElement | null>;
 }
 
 const FULL_TITLE = `A timeline holds up to ${MAX_PEOPLE} people`;
 
-export function FilmContent({ film, titleId, peopleInView, addingId, onAdd }: Props) {
-  const [expandedFor, setExpandedFor] = useState<number | null>(null);
-  const showAllCast = expandedFor === film.id;
-
+export function FilmContent({ film, titleId, peopleInView, addingId, onAdd, scrollRef }: Props) {
   const credits = groupFilmCredits(film, peopleInView);
   const full = isTimelineFull(peopleInView);
   const poster = tmdbImage(film.posterPath, "w342");
   const meta = filmMetaLine(film);
-  const visibleCast = showAllCast ? credits.cast : credits.cast.slice(0, CAST_PREVIEW);
 
   function row(person: PersonRow, inTimelineGroup = false) {
     const state = addState(peopleInView, person.id);
@@ -131,43 +124,14 @@ export function FilmContent({ film, titleId, peopleInView, addingId, onAdd }: Pr
         </section>
       )}
 
-      {credits.crew.length > 0 && (
-        <section aria-labelledby={`${titleId}-crew`} className="mt-6">
-          <h3
-            id={`${titleId}-crew`}
-            className="text-xs font-semibold uppercase tracking-wide text-strong"
-          >
-            Crew
-          </h3>
-          {credits.crew.map((group) => (
-            <div key={group.role} className="mt-3">
-              <h4 className="text-xs font-medium text-muted">{group.label}</h4>
-              <ul className="mt-0.5">{group.people.map((person) => row(person))}</ul>
-            </div>
-          ))}
-        </section>
-      )}
-
-      {credits.cast.length > 0 && (
-        <section aria-labelledby={`${titleId}-cast`} className="mt-6">
-          <h3
-            id={`${titleId}-cast`}
-            className="text-xs font-semibold uppercase tracking-wide text-strong"
-          >
-            Cast
-          </h3>
-          <ul className="mt-1">{visibleCast.map((person) => row(person))}</ul>
-          {credits.cast.length > CAST_PREVIEW && (
-            <button
-              type="button"
-              aria-expanded={showAllCast}
-              onClick={() => setExpandedFor(showAllCast ? null : film.id)}
-              className="mt-2 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-strong hover:bg-surface"
-            >
-              {showAllCast ? "Show fewer" : `Show all ${credits.cast.length} cast`}
-            </button>
-          )}
-        </section>
+      {(credits.cast.length > 0 || credits.crew.length > 0) && (
+        <FilmTabs
+          idBase={titleId}
+          cast={credits.cast}
+          crew={credits.crew}
+          renderRow={(person) => row(person)}
+          scrollRef={scrollRef}
+        />
       )}
     </>
   );

@@ -23,9 +23,6 @@ export interface FilmCredits {
   cast: PersonRow[];
 }
 
-/** How many cast rows the panel shows before "Show all". */
-export const CAST_PREVIEW = 12;
-
 // Panel order. Differs from ROLE_ORDER on purpose: producers (often many) come after the craft roles.
 export const CREW_GROUP_ORDER: readonly RoleKey[] = [
   "director",

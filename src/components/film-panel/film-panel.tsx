@@ -29,7 +29,7 @@ export interface FilmPanelProps {
 
 const TRIGGER_SELECTOR = "button, a[href], [role='button'], [tabindex]";
 const FOCUSABLE_SELECTOR =
-  "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
+  "a[href]:not([tabindex='-1']), button:not([disabled]):not([tabindex='-1']), input:not([disabled]):not([tabindex='-1']), select:not([disabled]):not([tabindex='-1']), textarea:not([disabled]):not([tabindex='-1']), [tabindex]:not([tabindex='-1'])";
 
 /** Safari and Firefox on macOS do not focus a button on click, so remember what was pressed. */
 let lastPressed: Element | null = null;
@@ -246,6 +246,7 @@ function FilmDialog({
               peopleInView={peopleInView}
               addingId={isAdding ? addingId : null}
               onAdd={add}
+              scrollRef={scrollRef}
             />
           )}
           {state.status === "loading" && <FilmSkeleton titleId={titleId} />}
@@ -304,7 +305,15 @@ function FilmSkeleton({ titleId }: { titleId: string }) {
           <div className={`h-3 w-full ${bar}`} />
           <div className={`h-3 w-4/5 ${bar}`} />
         </div>
-        <div className="mt-8 space-y-3">
+        <div className="-mx-4 mt-8 flex gap-6 border-b border-border px-4">
+          <div className="-mb-px border-b-2 border-surface px-0.5 pb-2.5 pt-3">
+            <div className={`h-3.5 w-9 ${bar}`} />
+          </div>
+          <div className="border-b-2 border-transparent px-0.5 pb-2.5 pt-3">
+            <div className={`h-3.5 w-9 ${bar}`} />
+          </div>
+        </div>
+        <div className="mt-4 space-y-3">
           {[0, 1, 2, 3, 4].map((i) => (
             <div key={i} className="flex items-center gap-3">
               <div className={`h-10 w-10 shrink-0 rounded-full ${bar}`} />
