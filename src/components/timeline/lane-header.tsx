@@ -26,6 +26,12 @@ interface LaneHeaderProps {
    * line, and the biography teaser gives way to just its More/Bio button as the room runs out.
    */
   compact: boolean;
+  /**
+   * Draws the line under the lane. The header and the track each draw their own half of it
+   * (rather than the lane's section drawing one border), so that the timeline's SVG, which runs
+   * under the sticky header, cannot show through the one-pixel row between two lanes.
+   */
+  divider: boolean;
 }
 
 function Avatar({ person, compact }: { person: PersonSummary; compact: boolean }) {
@@ -62,6 +68,7 @@ export function LaneHeader({
   expanded,
   onToggleExpanded,
   compact,
+  divider,
 }: LaneHeaderProps) {
   const details = [roles, facts].filter(Boolean).join(". ");
 
@@ -70,8 +77,8 @@ export function LaneHeader({
       data-lane-head
       title={details ? `${person.name}. ${details}` : person.name}
       className={`sticky left-0 z-20 flex w-[var(--lane-head)] shrink-0 flex-col border-r border-border bg-canvas px-1.5 sm:px-3 ${
-        compact ? "overflow-hidden pb-2 pt-6 sm:pt-3" : "pb-3 pt-7 sm:pt-4"
-      }`}
+        divider ? "border-b" : ""
+      } ${compact ? "overflow-hidden pb-2 pt-6 sm:pt-3" : "pb-3 pt-7 sm:pt-4"}`}
     >
       <Link
         href={removeHref}

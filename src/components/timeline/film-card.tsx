@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { tmdbImage } from "@/lib/images";
-import { CARD_WIDTH, POSTER_HEIGHT } from "@/lib/timeline-layout";
+import { CARD_HEIGHT, CARD_WIDTH, POSTER_HEIGHT } from "@/lib/timeline-layout";
 import { cn } from "./cn";
 
 /**
@@ -24,6 +24,12 @@ interface FilmCardProps {
   /** Index of the lane the card is in; null for the shared strip. Read by the timeline's delegated hover handlers. */
   laneIndex: number | null;
   upcoming: boolean;
+  /**
+   * The film's connector line continues below this card. The card is only as tall as its
+   * caption (a one-line title is shorter), so it draws the rest of its CARD_HEIGHT as a line
+   * that picks up where the timeline's SVG line resumes, with no gap in between.
+   */
+  tail: boolean;
   /** The same film is hovered or focused (in this or another lane). */
   emphasized: boolean;
   selected: boolean;
@@ -46,11 +52,15 @@ function accessibleName({ title, year, roles, tone, upcoming }: FilmCardProps): 
 }
 
 function FilmCardImpl(props: FilmCardProps) {
-  const { id, title, year, posterPath, left, top, tone, laneIndex, upcoming, emphasized, selected, describedBy, onSelect } = props;
+  const { id, title, year, posterPath, left, top, tone, laneIndex, upcoming, tail, emphasized, selected, describedBy, onSelect } =
+    props;
   const src = tmdbImage(posterPath, "w185");
 
   return (
-    <li className="absolute z-10" style={{ left, top, width: CARD_WIDTH }}>
+    <li
+      className={cn("absolute z-10", tail && "flex flex-col")}
+      style={{ left, top, width: CARD_WIDTH, height: tail ? CARD_HEIGHT : undefined }}
+    >
       <button
         type="button"
         data-film={id}
@@ -110,6 +120,17 @@ function FilmCardImpl(props: FilmCardProps) {
         <span className="mt-1 line-clamp-2 break-words hyphens-auto text-[11px] leading-[13px] text-strong">{title}</span>
         <span className="block text-[11px] leading-[13px] tabular-nums text-muted">{year}</span>
       </button>
+      {tail && (
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none mx-auto min-h-0 flex-1",
+            tone === "lit"
+              ? cn("bg-lit shadow-[0_0_3px_var(--lit-glow)]", emphasized ? "w-[3px]" : "w-0.5")
+              : cn("bg-accent-blue", emphasized ? "w-0.5" : "w-[1.25px]"),
+          )}
+        />
+      )}
     </li>
   );
 }

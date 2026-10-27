@@ -510,25 +510,31 @@ export function Timeline({
     laneIndex: number | null,
     top: number,
     roles: string,
-  ) => (
-    <FilmCard
-      key={film.id}
-      id={film.id}
-      title={film.title}
-      year={film.year}
-      posterPath={film.posterPath}
-      roles={roles}
-      left={x - CARD_WIDTH / 2}
-      top={top}
-      tone={toneFor(film.id)}
-      laneIndex={laneIndex}
-      upcoming={film.releaseDate > today}
-      emphasized={hoveredId === film.id}
-      selected={selectedId === film.id}
-      describedBy={describedByFor(film.id, laneIndex)}
-      onSelect={handleSelect}
-    />
-  );
+  ) => {
+    // The connector runs on below a card unless it is the last lane that shows the film.
+    const members = layout.membership.get(film.id) ?? [];
+    const tail = laneIndex === null || (members.length > 1 && laneIndex < members[members.length - 1]);
+    return (
+      <FilmCard
+        key={film.id}
+        id={film.id}
+        title={film.title}
+        year={film.year}
+        posterPath={film.posterPath}
+        roles={roles}
+        left={x - CARD_WIDTH / 2}
+        top={top}
+        tone={toneFor(film.id)}
+        laneIndex={laneIndex}
+        upcoming={film.releaseDate > today}
+        tail={tail}
+        emphasized={hoveredId === film.id}
+        selected={selectedId === film.id}
+        describedBy={describedByFor(film.id, laneIndex)}
+        onSelect={handleSelect}
+      />
+    );
+  };
 
   return (
     <div>
@@ -718,7 +724,7 @@ export function Timeline({
                 <Fragment key={person.id}>
                   <section
                     aria-labelledby={`person-${person.id}`}
-                    className="flex border-b border-border last:border-b-0"
+                    className="flex"
                     style={{ height: boxes[laneIndex].height }}
                   >
                     <LaneHeader
@@ -732,8 +738,12 @@ export function Timeline({
                       expanded={expandedIds.has(person.id)}
                       onToggleExpanded={() => toggleExpanded(person.id)}
                       compact={layout.nodes}
+                      divider={laneIndex < lanes.length - 1}
                     />
-                    <div className="relative shrink-0" style={{ width, ...gridStyle }}>
+                    <div
+                      className={cn("relative shrink-0", laneIndex < lanes.length - 1 && "border-b border-border")}
+                      style={{ width, ...gridStyle }}
+                    >
                       {items.length > 0 ? (
                         <ol className="m-0 list-none p-0">
                           {items.map((item) =>
@@ -772,10 +782,10 @@ export function Timeline({
                   {layout.strip && laneIndex === 0 && (
                     <section
                       aria-label="Films made together"
-                      className="flex border-b border-border"
+                      className="flex"
                       style={{ height: layout.strip.box.height }}
                     >
-                      <div className="sticky left-0 z-20 flex w-[var(--lane-head)] shrink-0 flex-col justify-center border-r border-border bg-canvas px-1.5 sm:px-3">
+                      <div className="sticky left-0 z-20 flex w-[var(--lane-head)] shrink-0 flex-col justify-center border-b border-r border-border bg-canvas px-1.5 sm:px-3">
                         <p className="text-[10px] font-semibold uppercase leading-tight tracking-wide text-lit sm:text-xs">
                           Made together
                         </p>
@@ -783,7 +793,7 @@ export function Timeline({
                           {layout.strip.posters.length} {layout.strip.posters.length === 1 ? "film" : "films"}
                         </p>
                       </div>
-                      <div className="relative shrink-0" style={{ width, ...gridStyle }}>
+                      <div className="relative shrink-0 border-b border-border" style={{ width, ...gridStyle }}>
                         <ol className="m-0 list-none p-0">
                           {layout.strip.posters.map((poster) =>
                             cardFor(poster, null, stripCardTop(poster.row), ""),
