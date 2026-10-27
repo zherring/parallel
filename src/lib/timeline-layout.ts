@@ -20,6 +20,16 @@ import { connectionSlot } from "@/lib/connections";
 
 export const CARD_WIDTH = 64;
 export const POSTER_HEIGHT = 96;
+/**
+ * Size of the card of a film that no other lane shares while another film on screen is shared
+ * (see `quietFilmIds`): the same 2:3 poster at 78% of the full size, so the linked films stand
+ * out. Rows keep the full card height, so lane heights do not change; only the packing does,
+ * because cards are packed by their own width.
+ */
+export const QUIET_CARD_WIDTH = 50;
+export const QUIET_POSTER_HEIGHT = 75;
+/** How much a quiet card grows to be back at full size (a poster of CARD_WIDTH by POSTER_HEIGHT) while it is hovered, focused or open. */
+export const QUIET_RESTORE_SCALE = CARD_WIDTH / QUIET_CARD_WIDTH;
 /** Title (2 lines) + year under the poster. */
 export const CAPTION_HEIGHT = 44;
 export const CARD_HEIGHT = POSTER_HEIGHT + CAPTION_HEIGHT;
@@ -175,6 +185,14 @@ export interface PackOptions {
   cardWidth?: number;
   gap?: number;
   /**
+   * Films whose card is the narrower quiet one (`quietCardWidth`, never wider than `cardWidth`):
+   * the films that only one lane shows while another film is shared (see `quietFilmIds`). Two
+   * cards are always `gap` apart whatever their widths, so quiet cards pack tighter. These are
+   * never priority films.
+   */
+  quietIds?: ReadonlySet<number>;
+  quietCardWidth?: number;
+  /**
    * Films placed first, so they claim the lowest rows, and exempt from `maxRows`: the films
    * shown in several lanes (see `sharedAcrossLanes`), which always keep a card in each.
    */
@@ -195,6 +213,11 @@ export interface PackOptions {
   obstacles?: readonly Obstacle[];
 }
 
+/** Width of a film's card: the full width, or the narrower one of a quiet film. */
+export function cardWidthOf(quiet: boolean): number {
+  return quiet ? QUIET_CARD_WIDTH : CARD_WIDTH;
+}
+
 /** Whether a card centred at `x` for `filmId` has the connector line of another film running over it. */
 export function isCrossed(filmId: number, x: number, obstacles: readonly Obstacle[], cardWidth: number = CARD_WIDTH): boolean {
   return obstacles.some((o) => o.filmId !== filmId && Math.abs(o.x - x) < cardWidth / 2 + LINE_HALO);
@@ -210,10 +233,18 @@ export function isCrossed(filmId: number, x: number, obstacles: readonly Obstacl
  * they are the ones that keep their cards.
  */
 export function packFilms<F extends PackableFilm>(films: readonly F[], options: PackOptions): PackedFilm<F>[] {
-  const { cardWidth = CARD_WIDTH, gap = CARD_GAP, pad = TRACK_PAD, priorityIds, obstacles = [] } = options;
+  const {
+    cardWidth = CARD_WIDTH,
+    quietCardWidth = QUIET_CARD_WIDTH,
+    gap = CARD_GAP,
+    pad = TRACK_PAD,
+    priorityIds,
+    quietIds,
+    obstacles = [],
+  } = options;
   const maxRows = Math.max(1, options.maxRows ?? Number.POSITIVE_INFINITY);
   const capped = Number.isFinite(maxRows);
-  const minDistance = cardWidth + gap;
+  const widthOf = (id: number) => (quietIds?.has(id) ? Math.min(quietCardWidth, cardWidth) : cardWidth);
   const scale = { pxPerYear: options.pxPerYear, axisStartYear: options.axisStartYear, pad };
 
   const placed = films
@@ -221,7 +252,8 @@ export function packFilms<F extends PackableFilm>(films: readonly F[], options: 
     .sort((a, b) => a.x - b.x || a.film.id - b.film.id);
 
   const priority = (id: number) => priorityIds?.has(id) === true;
-  const crossed = (p: { film: F; x: number }) => (!priority(p.film.id) && isCrossed(p.film.id, p.x, obstacles, cardWidth) ? 1 : 0);
+  const crossed = (p: { film: F; x: number }) =>
+    !priority(p.film.id) && isCrossed(p.film.id, p.x, obstacles, widthOf(p.film.id)) ? 1 : 0;
   const order = capped
     ? [...placed].sort(
         (a, b) =>
@@ -233,11 +265,16 @@ export function packFilms<F extends PackableFilm>(films: readonly F[], options: 
       )
     : [...placed.filter((p) => priority(p.film.id)), ...placed.filter((p) => !priority(p.film.id))];
 
-  const rows: number[][] = [];
+  // Centre and width of every card in each row. Two cards are `gap` apart when their centres are
+  // half of each width plus the gap apart (cardWidth + gap for two cards of the full width).
+  const rows: { x: number; width: number }[][] = [];
   const rowOf = new Map<number, number>();
   for (const { film, x } of order) {
     const limit = priority(film.id) ? Number.POSITIVE_INFINITY : maxRows;
-    let row = rows.findIndex((xs, i) => i < limit && xs.every((other) => Math.abs(other - x) >= minDistance));
+    const width = widthOf(film.id);
+    let row = rows.findIndex(
+      (cards, i) => i < limit && cards.every((other) => Math.abs(other.x - x) >= (other.width + width) / 2 + gap),
+    );
     if (row === -1 && rows.length < limit) {
       row = rows.length;
       rows.push([]);
@@ -246,7 +283,7 @@ export function packFilms<F extends PackableFilm>(films: readonly F[], options: 
       rowOf.set(film.id, OVERFLOW_ROW);
       continue;
     }
-    rows[row].push(x);
+    rows[row].push({ x, width });
     rowOf.set(film.id, row);
   }
 
@@ -292,6 +329,24 @@ export function sharedAcrossLanes(lanes: readonly { films: readonly { id: number
     }
   }
   return shared;
+}
+
+/**
+ * Ids of the films whose card is "quiet": smaller and fainter, so that the connected films stand
+ * out. That is every film that only one lane shows, but only when two or more lanes are on screen
+ * and at least one film is shared (by any pair of lanes, with 3+ of them); otherwise there is
+ * nothing to stand out from and every card keeps its full size. It is exactly the set of films
+ * `buildConnectors` draws no line for.
+ */
+export function quietFilmIds(lanes: readonly { films: readonly { id: number }[] }[]): Set<number> {
+  const quiet = new Set<number>();
+  if (lanes.length < 2) return quiet;
+  const shared = sharedAcrossLanes(lanes);
+  if (shared.size === 0) return quiet;
+  for (const lane of lanes) {
+    for (const film of lane.films) if (!shared.has(film.id)) quiet.add(film.id);
+  }
+  return quiet;
 }
 
 /**
