@@ -76,7 +76,7 @@ const SONG_ALBUM_LINKS = "wdt:P361|wdt:P13602|wdt:P1433";
  * in any way the query can follow (no film link, no soundtrack album). Each was found by listing
  * the unlinked Best Original Song items and matching them against the curated films; the film is
  * the one the song was written for. Harmless once Wikidata links the song: a song counts once.
- * The README's "Awards data" section explains how to find more (`--audit-songs`).
+ * The README's "Awards data" section says how to spot a film that needs one.
  */
 export const SONG_LINK_OVERRIDES: readonly { song: string; tmdb: number; note: string }[] = [
   { song: "Q257915", tmdb: 574, note: "Que Sera, Sera (The Man Who Knew Too Much, 1956; won)" },
@@ -275,7 +275,8 @@ export function tallyOscarCategories(rows: readonly AwardRow[], filmYear?: numbe
  * The festival top prizes a film won, in the fixed order Cannes, Venice, Berlin. Only statements
  * on the film item count: the top prizes are awarded to the film, every real winner in the curated
  * set has one, and a statement on a person is where Wikidata confuses neighbouring prizes (Park
- * Chan-wook is recorded with the Golden Lion for Lady Vengeance, which won the Little Golden Lion).
+ * Chan-wook is recorded with the Golden Lion for Lady Vengeance; the 2005 Golden Lion was
+ * Brokeback Mountain's).
  */
 export function festivalPrizesWon(rows: readonly AwardRow[]): FestivalPrize[] {
   const won = new Set(

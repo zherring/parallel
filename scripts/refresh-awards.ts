@@ -252,7 +252,9 @@ async function main(): Promise<void> {
     );
   }
   const inCorpus = new Set(corpus.films.map((film) => film.id));
-  problems.push(...checkTruth(computed, inCorpus).map((problem) => `validation film differs: ${problem}`));
+  const wrong = checkTruth(computed, inCorpus);
+  for (const problem of wrong.slice(0, 5)) problems.push(`validation film differs: ${problem}`);
+  if (wrong.length > 5) problems.push(`... and ${wrong.length - 5} more validation films differ (see --validate)`);
 
   if (problems.length > 0 && !force) {
     console.error("\nawards:refresh found problems. Nothing was written (use --force to write anyway):");
@@ -278,4 +280,9 @@ async function main(): Promise<void> {
   );
 }
 
-await main();
+try {
+  await main();
+} catch (error) {
+  console.error(`\nawards:refresh failed. Nothing was written.\n  ${error instanceof Error ? error.message : String(error)}`);
+  process.exitCode = 1;
+}

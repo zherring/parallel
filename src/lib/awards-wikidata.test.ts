@@ -128,7 +128,7 @@ describe("festivalPrizesWon", () => {
     ]);
   });
 
-  it("ignores nominations and statements on a person (Lady Vengeance won the Little Golden Lion)", () => {
+  it("ignores nominations and statements on a person (Lady Vengeance did not win the Golden Lion)", () => {
     const rows = [row(GOLDEN_LION, false), row(PALME, true, "person", "someone"), row(GOLDEN_BEAR, false, "person", "x")];
     expect(festivalPrizesWon(rows)).toEqual([]);
   });

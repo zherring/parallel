@@ -14,6 +14,8 @@ const MAX_IN_FLIGHT = 2;
 const MAX_ATTEMPTS = 5;
 const REQUEST_TIMEOUT_MS = 70_000;
 const MAX_WAIT_MS = 120_000;
+/** First wait after a failure, doubling each time; WDQS_RETRY_BASE_MS shortens it for local tests. */
+const RETRY_BASE_MS = Number(process.env.WDQS_RETRY_BASE_MS) || 5_000;
 
 export class QueryTimeout extends Error {
   constructor(message: string) {
@@ -93,7 +95,7 @@ export function createWikidataClient(endpoint = process.env.WDQS_ENDPOINT || DEF
       }
       if (n >= MAX_ATTEMPTS) throw new Error(`Wikidata query failed after ${n} attempts (${detail})`);
       stats.retries++;
-      const wait = Math.min(Math.max(retryAfterMs, 5_000 * 2 ** (n - 1)), MAX_WAIT_MS) + Math.random() * 500;
+      const wait = Math.min(Math.max(retryAfterMs, RETRY_BASE_MS * 2 ** (n - 1)), MAX_WAIT_MS) + Math.random() * 500;
       if (status === 429) pausedUntil = Math.max(pausedUntil, Date.now() + wait);
       else await sleep(wait);
     }
