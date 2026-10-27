@@ -35,6 +35,39 @@ export function nextTabIndex(key: string, current: number, count: number): numbe
 }
 
 /**
+ * The tab a URL hash points at ("#horror", case-insensitive, percent-decoded), or `fallback` when
+ * the hash is empty or names no tab.
+ */
+export function tabFromHash<T extends string>(hash: string, ids: readonly T[], fallback: T): T {
+  let wanted = hash.replace(/^#/, "");
+  try {
+    wanted = decodeURIComponent(wanted);
+  } catch {
+    return fallback;
+  }
+  wanted = wanted.toLowerCase();
+  return ids.find((id) => id === wanted) ?? fallback;
+}
+
+/** The hash that selects `id`: empty for the default tab, so its URL stays clean. */
+export function hashForTab(id: string, fallback: string): string {
+  return id === fallback ? "" : `#${id}`;
+}
+
+/** Which edges of a horizontally scrolling strip have more content past them. */
+export function scrollEdges(
+  scrollLeft: number,
+  clientWidth: number,
+  scrollWidth: number,
+): { start: boolean; end: boolean } {
+  const slack = 1; // scroll positions can be fractional
+  return {
+    start: scrollLeft > slack,
+    end: scrollLeft + clientWidth < scrollWidth - slack,
+  };
+}
+
+/**
  * Where to put the scroll position after switching tabs: keep it where it is while the tab bar has
  * not yet stuck to the top (the film header is still visible), otherwise bring it back to the point
  * where the bar just sticks so the top of the new tab's content is in view. `barTop` is the bar's
