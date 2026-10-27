@@ -66,6 +66,7 @@ import { LaneAvatars } from "./lane-avatars";
 import { LaneHeader } from "./lane-header";
 import { MinimapBar, type MinimapFilm } from "./minimap";
 import { scrollBehavior } from "./scroll-behavior";
+import { useDragPan } from "./use-drag-pan";
 
 export interface LaneData {
   person: PersonSummary;
@@ -157,6 +158,8 @@ export function Timeline({
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const cornerRef = useRef<HTMLDivElement>(null);
+  // Click-and-drag on the empty surface pans the scroller; starting one closes the hover card.
+  const { isPanning } = useDragPan(scrollerRef, hidePopover);
   const pendingCenter = useRef<number | null>(null);
   const didInitialScroll = useRef(false);
   const scrollFrame = useRef(0);
@@ -410,7 +413,7 @@ export function Timeline({
   // nodes. Cards and nodes carry `data-film` (and `data-lane`) for these to read.
 
   const handlePointerOver = (event: PointerEvent<HTMLElement>) => {
-    if (event.pointerType === "touch") return;
+    if (event.pointerType === "touch" || isPanning()) return;
     const element = filmElement(event.target);
     if (!element || element === hoverElement.current) return;
     hoverElement.current = element;
@@ -583,6 +586,11 @@ export function Timeline({
           layout.legend.length > 0 ? "[--chrome:14.5rem]" : "[--chrome:12rem]",
         )}
       >
+        {/*
+          The empty surface (lane tracks and the year axis) can be dragged to pan, see useDragPan: `grab` over it, `grabbing` and no
+          text selection on everything while a drag runs (data-panning). Films, buttons and links keep their cursor, the lane
+          headers (data-lane-head) are not part of the surface.
+        */}
         <div
           ref={scrollerRef}
           id={scrollerId}
@@ -595,7 +603,7 @@ export function Timeline({
           onFocus={handleFocus}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="max-h-[clamp(26rem,calc(100dvh-var(--chrome)),1100px)] overflow-auto overscroll-x-contain rounded-lg border border-border bg-canvas [scroll-padding-left:var(--lane-head)] [scroll-padding-bottom:44px] [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin]"
+          className="max-h-[clamp(26rem,calc(100dvh-var(--chrome)),1100px)] cursor-grab overflow-auto overscroll-x-contain rounded-lg border border-border bg-canvas [scroll-padding-left:var(--lane-head)] [scroll-padding-bottom:44px] [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin] data-[panning]:select-none [&[data-panning]_*]:cursor-grabbing! [&_[data-lane-head]]:cursor-auto"
         >
           <div className="relative min-w-full" style={{ width: `calc(var(--lane-head) + ${width}px)` }}>
             {/*
