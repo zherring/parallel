@@ -24,7 +24,6 @@ import { nodeOnlyIds, rovingIndex, tabStopId } from "@/lib/roving";
 import { shortName } from "@/lib/short-name";
 import {
   AXIS_HEIGHT,
-  CARD_WIDTH,
   DEFAULT_MAX_ROWS,
   DEFAULT_ZOOM,
   DOT_HIT_SIZE,
@@ -36,6 +35,7 @@ import {
   axisTicks,
   buildConnectors,
   cardTopInLane,
+  cardWidthOf,
   centerYear,
   filmMembership,
   initialAnchorX,
@@ -46,6 +46,7 @@ import {
   nodeHitWidths,
   overflowCount,
   packFilms,
+  quietFilmIds,
   rowCount,
   scrollLeftForCenter,
   sharedAcrossLanes,
@@ -180,10 +181,12 @@ export function Timeline({
     // A film shown in two or more lanes gets its own poster in each of them, placed first (ahead
     // of the row cap) so it keeps a card, on the lowest row it can have, in every lane that has it.
     const priorityIds = sharedAcrossLanes(lanes);
+    // While something is connected, the films that are not get a smaller card (and so pack tighter).
+    const quietIds = quietFilmIds(lanes);
 
     // Connector lines run through the poster rows of the lanes above their last node.
     const obstacles = laneObstacles(lanes, base);
-    const optionsFor = (index: number) => ({ ...base, priorityIds, obstacles: obstacles[index] });
+    const optionsFor = (index: number) => ({ ...base, priorityIds, quietIds, obstacles: obstacles[index] });
     const capped = lanes.map((lane, index) => packFilms(lane.films, { ...optionsFor(index), maxRows: DEFAULT_MAX_ROWS }));
     const overflow = capped.map(overflowCount);
     const items = lanes.map((lane, index) =>
@@ -213,6 +216,7 @@ export function Timeline({
     return {
       ...common,
       items,
+      quietIds,
       overflow,
       hitWidths: items.map(nodeHitWidths),
       boxes: stack,
@@ -514,6 +518,8 @@ export function Timeline({
     top: number,
     roles: string,
   ) => {
+    const tone = toneFor(film.id);
+    const quiet = layout.quietIds.has(film.id);
     return (
       <FilmCard
         key={film.id}
@@ -522,15 +528,16 @@ export function Timeline({
         year={film.year}
         posterPath={film.posterPath}
         roles={roles}
-        left={x - CARD_WIDTH / 2}
+        left={x - cardWidthOf(quiet) / 2}
         top={top}
-        tone={toneFor(film.id)}
+        tone={tone}
+        quiet={quiet}
         accent={layout.accents.get(film.id) ?? null}
         note={layout.notes.get(film.id) ?? ""}
         laneIndex={laneIndex}
         upcoming={film.releaseDate > today}
         emphasized={hoveredId === film.id}
-        dimmed={activeKey !== null && layout.keys.get(film.id) !== activeKey}
+        dimmed={tone !== "plain" && activeKey !== null && layout.keys.get(film.id) !== activeKey}
         selected={selectedId === film.id}
         describedBy={describedByFor(film.id, laneIndex)}
         onSelect={handleSelect}
