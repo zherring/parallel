@@ -14,6 +14,8 @@ export interface GenreTab {
   /** Also the URL hash that selects it (`/#horror`). */
   id: string;
   label: string;
+  /** Decorative icon shown before the label; the pill colors it (muted, or green when selected). */
+  icon: ReactNode;
   panel: ReactNode;
 }
 
@@ -120,7 +122,7 @@ export function GenreTabs({ idBase, label, tabs }: Props) {
           ref={stripRef}
           className="overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          <div ref={tabListRef} role="tablist" aria-label={label} className="flex w-max gap-2 px-4">
+          <div ref={tabListRef} role="tablist" aria-label={label} className="flex w-max gap-1 px-4">
             {tabs.map((tab, index) => {
               const isSelected = tab.id === selected;
               return (
@@ -137,12 +139,18 @@ export function GenreTabs({ idBase, label, tabs }: Props) {
                   tabIndex={isSelected ? 0 : -1}
                   onClick={() => select(tab.id)}
                   onKeyDown={(event) => onKeyDown(event, index)}
-                  className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  className={`group inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
                     isSelected
                       ? "border-accent-green/70 bg-surface text-strong"
                       : "border-transparent text-muted hover:bg-surface/60 hover:text-strong"
                   }`}
                 >
+                  <span
+                    aria-hidden="true"
+                    className={`flex shrink-0 ${isSelected ? "text-accent-green" : "text-muted"}`}
+                  >
+                    {tab.icon}
+                  </span>
                   {tab.label}
                 </button>
               );
