@@ -42,6 +42,8 @@ interface FilmCardProps {
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
+const CAPTION_OUTLINE = "[text-shadow:0_0_2px_var(--bg),0_0_2px_var(--bg),0_0_4px_var(--bg)]";
+
 function accessibleName({ title, year, roles, note, upcoming }: FilmCardProps): string {
   return [`${title}, ${year}`, roles, note, upcoming ? "Upcoming release" : "", "Open details"]
     .filter(Boolean)
@@ -56,7 +58,9 @@ function FilmCardImpl(props: FilmCardProps) {
 
   return (
     <li
-      className={cn("absolute z-10", tail && "flex flex-col")}
+      // A lane's posters sit under the timeline's connector lines (z-15, so no z-index) with the captions over them. The
+      // posters of the shared strip (no lane) sit over the lines: another film's line passes behind them instead of through.
+      className={cn("absolute", laneIndex === null && "z-[16]", tail && "flex flex-col")}
       style={{ left, top, width: CARD_WIDTH, height: tail ? CARD_HEIGHT : undefined }}
     >
       <button
@@ -118,8 +122,11 @@ function FilmCardImpl(props: FilmCardProps) {
             </span>
           )}
         </span>
-        <span className="mt-1 line-clamp-2 break-words hyphens-auto text-[11px] leading-[13px] text-strong">{title}</span>
-        <span className="block text-[11px] leading-[13px] tabular-nums text-muted">{year}</span>
+        {/* Above the connector lines (z-15), with a dark outline, so a line that crosses the caption never hides a letter. */}
+        <span className={cn("relative z-[16] mt-1 line-clamp-2 break-words hyphens-auto text-[11px] leading-[13px] text-strong", CAPTION_OUTLINE)}>
+          {title}
+        </span>
+        <span className={cn("relative z-[16] block text-[11px] leading-[13px] tabular-nums text-muted", CAPTION_OUTLINE)}>{year}</span>
       </button>
       {tail && (
         <span
