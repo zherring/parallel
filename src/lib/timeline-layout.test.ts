@@ -16,6 +16,10 @@ import {
   MAX_ZOOM,
   MIN_ZOOM,
   OVERFLOW_ROW,
+  POSTER_HEIGHT,
+  QUIET_CARD_WIDTH,
+  QUIET_POSTER_HEIGHT,
+  QUIET_RESTORE_SCALE,
   ROW_GAP,
   TRACK_PAD,
   ZOOM_STEPS,
@@ -23,6 +27,7 @@ import {
   axisTicks,
   buildConnectors,
   cardTopInLane,
+  cardWidthOf,
   centerYear,
   filmMembership,
   initialAnchorX,
@@ -36,6 +41,7 @@ import {
   nodeHitWidths,
   overflowCount,
   packFilms,
+  quietFilmIds,
   rowCount,
   scrollLeftForCenter,
   sharedAcrossLanes,
@@ -669,6 +675,160 @@ describe("sharedAcrossLanes", () => {
     expect(sharedAcrossLanes([lane(1, 2)])).toEqual(new Set());
     expect(sharedAcrossLanes([])).toEqual(new Set());
     expect(sharedAcrossLanes([lane(1), lane(2), lane(3)])).toEqual(new Set());
+  });
+});
+
+describe("quietFilmIds", () => {
+  const lane = (...ids: number[]) => ({ films: ids.map((id) => ({ id })) });
+
+  it("is every film of one lane only, when a film is shared", () => {
+    expect(quietFilmIds([lane(1, 2, 3), lane(3, 4)])).toEqual(new Set([1, 2, 4]));
+  });
+
+  it("is empty for a single lane, however many films it has", () => {
+    expect(quietFilmIds([lane(1, 2, 3)])).toEqual(new Set());
+    expect(quietFilmIds([])).toEqual(new Set());
+  });
+
+  it("is empty when nothing is shared: there is nothing to stand out from", () => {
+    expect(quietFilmIds([lane(1, 2), lane(3, 4)])).toEqual(new Set());
+    expect(quietFilmIds([lane(1), lane(2), lane(3)])).toEqual(new Set());
+    expect(quietFilmIds([lane(1, 1), lane(2)])).toEqual(new Set());
+  });
+
+  it("leaves a film shared by any pair of lanes out, with 3+ lanes", () => {
+    // 2 is shared by lanes 0 and 1, 3 by lanes 1 and 2; 1, 4 and 5 belong to one lane.
+    expect(quietFilmIds([lane(1, 2), lane(2, 3), lane(3, 4, 5)])).toEqual(new Set([1, 4, 5]));
+  });
+
+  it("is exactly the films that have no connector line", () => {
+    const lanes = [lane(1, 2, 3, 9), lane(2, 3, 4), lane(3, 5, 9), lane(6)];
+    const quiet = quietFilmIds(lanes);
+    const connected = new Set(
+      buildConnectors(
+        lanes.map((l, index) => ({
+          box: { top: index * 100, height: 100 },
+          items: l.films.map((film) => ({ film, x: film.id * 10 })),
+        })),
+      ).map((c) => c.filmId),
+    );
+    const all = new Set(lanes.flatMap((l) => l.films.map((film) => film.id)));
+    expect(connected.size).toBeGreaterThan(0);
+    for (const id of all) expect(quiet.has(id)).toBe(!connected.has(id));
+  });
+});
+
+describe("packFilms with quiet cards", () => {
+  const quietIds = (...ids: number[]) => new Set(ids);
+  const QUIET_DISTANCE = QUIET_CARD_WIDTH + CARD_GAP;
+
+  it("is the quiet card size, 78% of the full one with the same 2:3 poster", () => {
+    expect(QUIET_CARD_WIDTH).toBeLessThan(CARD_WIDTH);
+    expect(QUIET_CARD_WIDTH / CARD_WIDTH).toBeGreaterThanOrEqual(0.75);
+    expect(QUIET_CARD_WIDTH / CARD_WIDTH).toBeLessThanOrEqual(0.8);
+    expect(QUIET_POSTER_HEIGHT / QUIET_CARD_WIDTH).toBeCloseTo(POSTER_HEIGHT / CARD_WIDTH, 6);
+    expect(cardWidthOf(true)).toBe(QUIET_CARD_WIDTH);
+    expect(cardWidthOf(false)).toBe(CARD_WIDTH);
+    // Growing back by this much gives the full size poster.
+    expect(QUIET_CARD_WIDTH * QUIET_RESTORE_SCALE).toBeCloseTo(CARD_WIDTH, 6);
+    expect(QUIET_POSTER_HEIGHT * QUIET_RESTORE_SCALE).toBeCloseTo(POSTER_HEIGHT, 6);
+  });
+
+  it("changes nothing for films that are not quiet", () => {
+    const films = [f(1, "1999-01-01"), f(2, "1999-03-01"), f(3, "1999-04-01"), f(4, "2003-01-01")];
+    expect(packFilms(films, { ...base, quietIds: new Set() })).toEqual(packFilms(films, base));
+    expect(packFilms(films, { ...base, quietIds: quietIds(99) })).toEqual(packFilms(films, base));
+  });
+
+  it("keeps two quiet cards a gap apart, which is closer than two full ones", () => {
+    // About 66 px apart (11 months at 72 px/year): too close for two full cards (72), enough for two quiet ones (58).
+    const close = (months: number) => [f(1, "1992-01-01"), f(2, `1992-${String(months).padStart(2, "0")}-01`)];
+    const full = packFilms(close(11), base);
+    expect(full[1].x - full[0].x).toBeLessThan(MIN_DISTANCE);
+    expect(full.map((p) => p.row)).toEqual([0, 1]);
+    const quiet = packFilms(close(11), { ...base, quietIds: quietIds(1, 2) });
+    expect(quiet[1].x - quiet[0].x).toBeGreaterThanOrEqual(QUIET_DISTANCE);
+    expect(quiet.map((p) => p.row)).toEqual([0, 0]);
+  });
+
+  it("packs a quiet card against a full one by half of each width plus the gap", () => {
+    const mixed = (months: number, quiet: number[]) =>
+      packFilms([f(1, "1992-01-01"), f(2, `1992-${String(months).padStart(2, "0")}-01`)], { ...base, quietIds: quietIds(...quiet) });
+    const needed = (CARD_WIDTH + QUIET_CARD_WIDTH) / 2 + CARD_GAP; // 65
+    // At 72 px/year, January to November is about 60 px (too close for 65), January to December about 66 px (enough).
+    expect(mixed(12, [2])[1].x - mixed(12, [2])[0].x).toBeGreaterThanOrEqual(needed);
+    expect(mixed(12, [2]).map((p) => p.row)).toEqual([0, 0]);
+    expect(mixed(12, [1]).map((p) => p.row)).toEqual([0, 0]);
+    expect(mixed(11, [2]).map((p) => p.row)).toEqual([0, 1]);
+    expect(mixed(11, [1]).map((p) => p.row)).toEqual([0, 1]);
+  });
+
+  it("never overlaps two cards of a row, whatever their widths (dense pseudo-random years)", () => {
+    let seed = 99;
+    const rand = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+    const films = Array.from({ length: 300 }, (_, i) => {
+      const month = String(1 + Math.floor(rand() * 12)).padStart(2, "0");
+      const day = String(1 + Math.floor(rand() * 28)).padStart(2, "0");
+      return f(i + 1, `${1990 + Math.floor(rand() * 8)}-${month}-${day}`, Math.floor(rand() * 1000));
+    });
+    const quiet = new Set(films.filter((_, i) => i % 3 !== 0).map((film) => film.id));
+    const priority = new Set(films.filter((_, i) => i % 3 === 0 && i % 9 === 0).map((film) => film.id));
+    for (const pxPerYear of [24, 72, 200]) {
+      for (const maxRows of [undefined, 2]) {
+        const packed = packFilms(films, { pxPerYear, axisStartYear: 1989, quietIds: quiet, priorityIds: priority, maxRows });
+        const placed = packed.filter((p) => !p.overflow);
+        const width = (id: number) => (quiet.has(id) ? QUIET_CARD_WIDTH : CARD_WIDTH);
+        for (let i = 0; i < placed.length; i++) {
+          for (let j = i + 1; j < placed.length; j++) {
+            if (placed[i].row !== placed[j].row) continue;
+            const needed = (width(placed[i].film.id) + width(placed[j].film.id)) / 2 + CARD_GAP;
+            expect(Math.abs(placed[i].x - placed[j].x)).toBeGreaterThanOrEqual(needed - 1e-9);
+          }
+        }
+      }
+    }
+  });
+
+  it("overflows fewer cards under the row cap when the crowd is quiet", () => {
+    // Twelve films 152 days (about 30 px at 72 px/year) apart: every other card is 60 px from the last, which
+    // two quiet cards clear (58) and two full ones do not (72), so two rows hold all the quiet ones but not the full ones.
+    const films = Array.from({ length: 12 }, (_, i) =>
+      f(i + 1, new Date(Date.UTC(1990, 0, 1) + i * 152 * 86_400_000).toISOString().slice(0, 10), 100 - i),
+    );
+    const overflowWith = (quiet: ReadonlySet<number> | undefined) =>
+      overflowCount(packFilms(films, { ...base, axisStartYear: 1989, maxRows: DEFAULT_MAX_ROWS, quietIds: quiet }));
+    expect(overflowWith(undefined)).toBeGreaterThan(0);
+    expect(overflowWith(new Set(films.map((film) => film.id)))).toBe(0);
+  });
+
+  it("is deterministic and keeps every film's x and the output order", () => {
+    const films = [f(5, "2001-03-01", 3), f(2, "2001-02-01", 9), f(9, "2001-02-20", 1), f(1, "1999-01-01")];
+    const quiet = quietIds(2, 5);
+    const first = packFilms(films, { ...base, axisStartYear: 1998, maxRows: 2, quietIds: quiet });
+    const second = packFilms([...films].reverse(), { ...base, axisStartYear: 1998, maxRows: 2, quietIds: quiet });
+    expect(second).toEqual(first);
+    expect(first.map((p) => p.film.id)).toEqual(packFilms(films, { ...base, axisStartYear: 1998 }).map((p) => p.film.id));
+    expect(first.map((p) => p.x)).toEqual(packFilms(films, { ...base, axisStartYear: 1998 }).map((p) => p.x));
+  });
+
+  it("checks a quiet card against the lines of other films by its own width", () => {
+    // A line 30 px from the centre of a 64 px card runs over it, but is clear of a 50 px one.
+    const line = [{ filmId: 99, x: 100 + 30 }];
+    expect(isCrossed(1, 100, line, CARD_WIDTH)).toBe(true);
+    expect(isCrossed(1, 100, line, QUIET_CARD_WIDTH)).toBe(false);
+
+    // Packing agrees. Film 1 (many votes) is 30 px from the line, film 2 (few votes) 40 px on the other side; they
+    // collide, and one row is all there is. A full card of film 1 is under the line, so film 2 wins the slot; a quiet
+    // card of film 1 clears the line, so the votes decide and film 1 does.
+    const x1 = xForDate({ ...base, pad: TRACK_PAD }, "1992-01-01");
+    const crowd = [f(1, "1992-01-01", 900), f(2, "1991-11-10", 10)];
+    const obstacles = [{ filmId: 99, x: x1 + 30 }];
+    const overflowOf = (quiet: ReadonlySet<number>) =>
+      packFilms(crowd, { ...base, maxRows: 1, obstacles, quietIds: quiet })
+        .filter((p) => p.overflow)
+        .map((p) => p.film.id);
+    expect(overflowOf(new Set())).toEqual([1]);
+    expect(overflowOf(quietIds(1, 2))).toEqual([2]);
   });
 });
 
