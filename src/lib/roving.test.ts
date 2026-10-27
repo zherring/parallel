@@ -30,25 +30,20 @@ describe("rovingIndex", () => {
 });
 
 describe("tabStopId", () => {
-  const none = new Set<number>();
-
   it("keeps the node that was last focused while it is still in the lane", () => {
-    expect(tabStopId([1, 2, 3], 2, none)).toBe(2);
-    expect(tabStopId([1, 2, 3], 2, new Set([3]))).toBe(2);
+    expect(tabStopId([1, 2, 3], 2)).toBe(2);
   });
 
-  it("starts at the first shared film so a tab lands where the view starts", () => {
-    expect(tabStopId([1, 2, 3, 4], undefined, new Set([3, 4]))).toBe(3);
+  it("starts at the first node", () => {
+    expect(tabStopId([5, 6], undefined)).toBe(5);
   });
 
-  it("falls back to the first node, also when the stored one was filtered out", () => {
-    expect(tabStopId([5, 6], undefined, none)).toBe(5);
-    expect(tabStopId([5, 6], 99, none)).toBe(5);
-    expect(tabStopId([5, 6], 99, new Set([6]))).toBe(6);
+  it("falls back to the first node when the stored one has left the lane (it got a card, or was filtered out)", () => {
+    expect(tabStopId([5, 6], 99)).toBe(5);
   });
 
-  it("is null for an empty lane", () => {
-    expect(tabStopId([], undefined, none)).toBeNull();
-    expect(tabStopId([], 4, new Set([4]))).toBeNull();
+  it("is null when no film of the lane is only a node", () => {
+    expect(tabStopId([], undefined)).toBeNull();
+    expect(tabStopId([], 4)).toBeNull();
   });
 });

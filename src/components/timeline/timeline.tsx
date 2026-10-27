@@ -14,11 +14,14 @@ import {
   type PointerEvent,
   type ReactNode,
 } from "react";
+import { connectionKey, connectionLegend, slotColor } from "@/lib/connections";
 import { filmCardContent } from "@/lib/film-credits";
+import { joinNames } from "@/lib/format";
 import { laneFacts, peopleHref, removePersonHref, yearSpan, type PersonRef } from "@/lib/lanes";
 import { laneScrollTop, mostVisibleLane } from "@/lib/lane-dock";
 import { MINOR_TOGGLE_LABEL, roleSummary } from "@/lib/roles";
 import { rovingIndex, tabStopId } from "@/lib/roving";
+import { shortName } from "@/lib/short-name";
 import {
   AXIS_HEIGHT,
   CARD_WIDTH,
@@ -28,7 +31,6 @@ import {
   LINE_Y,
   MAX_ZOOM,
   MIN_ZOOM,
-  NODE_LINE_Y,
   NODE_RADIUS,
   axisRange,
   axisTicks,
@@ -36,21 +38,22 @@ import {
   cardTopInLane,
   centerYear,
   connectorSegments,
-  dotHitWidths,
   filmMembership,
   filmsInEveryLane,
   initialAnchorX,
   initialScrollLeft,
+  laneObstacles,
   layoutMode,
   makeScale,
   nextZoom,
+  nodeHitWidths,
   overflowCount,
   packFilms,
-  placeNodes,
+  packLane,
   rowCount,
   scrollLeftForCenter,
   stackLanes,
-  stackNodeLanes,
+  stackStripLanes,
   stripCardTop,
   totalHeight,
   trackWidth,
@@ -59,8 +62,9 @@ import {
 } from "@/lib/timeline-layout";
 import type { Film, PersonSummary } from "@/lib/types";
 import { cn } from "./cn";
-import { FilmCard } from "./film-card";
-import { FilmNode, type NodeTone } from "./film-node";
+import { ConnectionLegend } from "./connection-legend";
+import { FilmCard, type CardTone } from "./film-card";
+import { FilmNode } from "./film-node";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "./film-popover";
 import { LaneAvatars } from "./lane-avatars";
 import { LaneHeader } from "./lane-header";
@@ -100,6 +104,8 @@ const buttonClass =
   "inline-flex size-9 items-center justify-center rounded-md border border-border bg-surface text-strong hover:border-muted disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border";
 
 const LIT_GLOW = { filter: "drop-shadow(0 0 3px var(--lit-glow))" };
+/** Opacity of the connections the legend is not pointing at. */
+const DIMMED = 0.2;
 
 /** The element of a delegated pointer or focus event that stands for a film (a card or a node), if any. */
 function filmElement(target: EventTarget | null): HTMLElement | null {
@@ -137,10 +143,13 @@ export function Timeline({
   const [pxPerYear, setPxPerYear] = useState(DEFAULT_ZOOM);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [edges, setEdges] = useState({ left: false, right: true });
-  // Lanes (by person id) switched to unlimited rows with "Show all" (posters layout only).
+  // Lanes (by person id) switched to unlimited rows with "Show all".
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<number>>(() => new Set());
-  // The one node per lane (by lane index) that is a tab stop: the one last focused.
+  // The one card-less node per lane (by lane index) that is a tab stop: the one last focused.
   const [tabStops, setTabStops] = useState<Readonly<Record<number, number>>>({});
+  // The kind of connection (a legend chip's key) the lines emphasise: hovered or focused, or pressed to keep.
+  const [previewKey, setPreviewKey] = useState<string | null>(null);
+  const [pinnedKey, setPinnedKey] = useState<string | null>(null);
 
   // Lane most in view (green ring on its top-bar avatar) and the lane just jumped to (ring on the lane).
   const [activeLane, setActiveLane] = useState(0);
@@ -172,68 +181,79 @@ export function Timeline({
     const base = { pxPerYear, axisStartYear: scale.axisStartYear };
     const common = { scale, ticks: axisTicks(scale), width: trackWidth(scale) };
 
-    if (layoutMode(lanes, litIds) === "nodes") {
-      // Nodes first: every film is a node on its lane line, and the films every lane shares get
-      // one poster each in a strip under the first lane, with one green line through it all.
-      const sharedIds: ReadonlySet<number> = new Set(filmsInEveryLane(lanes, litIds));
-      const posters = packFilms(
-        lanes[0].films.filter((film) => sharedIds.has(film.id)),
-        base,
-      );
-      const stack = stackNodeLanes(lanes.length, rowCount(posters));
-      const items = lanes.map((lane) => placeNodes(lane.films, base));
-      const connectorLanes = items.map((laneItems, index) => ({ box: stack.lanes[index], lineY: NODE_LINE_Y, items: laneItems }));
-      const stripRows = new Map(posters.map((poster) => [poster.film.id, poster.row]));
+    // With a film every lane shares, those films get one lit poster each in a strip under the
+    // first lane (and only a green node on every lane's line); the rest of every lane keeps its
+    // own posters. Otherwise there is no strip and no film is left out of its lane.
+    const strip = layoutMode(lanes, litIds) === "strip";
+    const sharedIds: ReadonlySet<number> = strip ? new Set(filmsInEveryLane(lanes, litIds)) : new Set<number>();
 
-      return {
-        ...common,
-        nodes: true,
-        sharedIds,
-        items,
-        overflow: items.map(() => 0),
-        hitWidths: items.map(dotHitWidths),
-        boxes: stack.lanes,
-        lineY: NODE_LINE_Y,
-        strip: { box: stack.strip, posters },
-        height: totalHeight(stack.lanes),
-        membership: filmMembership(connectorLanes),
-        connectors: buildConnectors(connectorLanes, { box: stack.strip, rows: stripRows }),
-        anchorX: initialAnchorX(items, sharedIds),
-      };
-    }
-
-    // Posters: films shown in two or more lanes always keep a poster card; those shared by
-    // every lane (litIds) are also placed first.
+    // Films shown in two or more lanes always keep a poster card (it is where their line skips
+    // past); without a strip, those shared by every lane (litIds) are also placed first.
+    const priorityIds = strip ? undefined : litIds;
     const lanesShowing = new Map<number, number>();
     for (const lane of lanes) {
       for (const film of lane.films) lanesShowing.set(film.id, (lanesShowing.get(film.id) ?? 0) + 1);
     }
     const exemptIds = new Set<number>();
-    for (const [id, count] of lanesShowing) if (count > 1 && !litIds.has(id)) exemptIds.add(id);
+    for (const [id, count] of lanesShowing) if (count > 1 && !sharedIds.has(id) && !priorityIds?.has(id)) exemptIds.add(id);
 
-    const options = { ...base, priorityIds: litIds, exemptIds };
-    const capped = lanes.map((lane) => packFilms(lane.films, { ...options, maxRows: DEFAULT_MAX_ROWS }));
-    const overflow = capped.map(overflowCount);
-    const packed = lanes.map((lane, index) =>
-      expandedIds.has(lane.person.id) && overflow[index] > 0 ? packFilms(lane.films, options) : capped[index],
+    // Connector lines run through the poster rows of the lanes above their last node.
+    const obstacles = laneObstacles(lanes, base);
+    const optionsFor = (index: number) => ({ ...base, priorityIds, exemptIds, obstacles: obstacles[index] });
+    const capped = lanes.map((lane, index) =>
+      packLane(lane.films, sharedIds, { ...optionsFor(index), maxRows: DEFAULT_MAX_ROWS }),
     );
-    const boxes = stackLanes(packed.map(rowCount));
-    const connectorLanes = packed.map((items, index) => ({ box: boxes[index], lineY: LINE_Y, items }));
+    const overflow = capped.map((items) => overflowCount(items, sharedIds));
+    const items = lanes.map((lane, index) =>
+      expandedIds.has(lane.person.id) && overflow[index] > 0 ? packLane(lane.films, sharedIds, optionsFor(index)) : capped[index],
+    );
+
+    const posters = packFilms(
+      strip ? lanes[0].films.filter((film) => sharedIds.has(film.id)) : [],
+      base,
+    );
+    const rows = items.map(rowCount);
+    const stack = strip ? stackStripLanes(rows, rowCount(posters)) : { lanes: stackLanes(rows), strip: null };
+    const connectorLanes = items.map((laneItems, index) => ({ box: stack.lanes[index], items: laneItems }));
+    const stripRows = new Map(posters.map((poster) => [poster.film.id, poster.row]));
+    const connectors = buildConnectors(
+      connectorLanes,
+      stack.strip ? { box: stack.strip, rows: stripRows } : undefined,
+    );
+    const membership = filmMembership(connectorLanes);
+
+    // The kind of connection, the colour and the screen-reader note of each film shown in more than one lane.
+    const names = lanes.map((lane) => shortName(lane.person.name, lane.person.id));
+    const keys = new Map<number, string>();
+    const accents = new Map<number, string>();
+    const notes = new Map<number, string>();
+    for (const connector of connectors) {
+      keys.set(connector.filmId, connectionKey(connector.slot));
+      if (connector.slot === null) {
+        notes.set(connector.filmId, "Made together");
+      } else {
+        accents.set(connector.filmId, slotColor(connector.slot));
+        notes.set(connector.filmId, `Shared by ${joinNames(connector.lanes.map((lane) => names[lane]))}`);
+      }
+    }
 
     return {
       ...common,
-      nodes: false,
-      sharedIds: new Set<number>() as ReadonlySet<number>,
-      items: packed,
+      sharedIds,
+      items,
       overflow,
-      hitWidths: packed.map(dotHitWidths),
-      boxes,
-      lineY: LINE_Y,
-      strip: null,
-      height: totalHeight(boxes),
-      membership: filmMembership(connectorLanes),
-      connectors: buildConnectors(connectorLanes),
-      anchorX: initialAnchorX(packed, litIds),
+      hitWidths: items.map(nodeHitWidths),
+      boxes: stack.lanes,
+      strip: stack.strip ? { box: stack.strip, posters } : null,
+      height: totalHeight(stack.lanes),
+      membership,
+      connectors,
+      legend: connectionLegend(connectors, lanes.length),
+      names,
+      keys,
+      accents,
+      notes,
+      anchorX: initialAnchorX(items, strip ? sharedIds : litIds),
     };
   }, [expandedIds, lanes, litIds, pxPerYear, today]);
 
@@ -490,10 +510,16 @@ export function Timeline({
 
   // ---- render -------------------------------------------------------------
 
-  const toneFor = (id: number): NodeTone => {
-    if (layout.sharedIds.has(id)) return "lit";
-    return (layout.membership.get(id)?.length ?? 0) > 1 ? "some" : "plain";
+  // Green for a film every lane shows, the colour of its pair for one only some lanes show, grey for the rest.
+  const toneFor = (id: number): CardTone => {
+    const lanesShowing = layout.membership.get(id)?.length ?? 0;
+    if (lanesShowing < 2) return "plain";
+    return lanesShowing === lanes.length ? "lit" : "some";
   };
+
+  // The kind of connection the lines emphasise now; ignored when the toggles left nothing of that kind.
+  const wanted = previewKey ?? pinnedKey;
+  const activeKey = wanted !== null && layout.legend.some((entry) => entry.key === wanted) ? wanted : null;
 
   const firstDecade = Math.ceil(scale.axisStartYear / 10) * 10;
   const gridStyle = {
@@ -525,6 +551,8 @@ export function Timeline({
         left={x - CARD_WIDTH / 2}
         top={top}
         tone={toneFor(film.id)}
+        accent={layout.accents.get(film.id) ?? null}
+        note={layout.notes.get(film.id) ?? ""}
         laneIndex={laneIndex}
         upcoming={film.releaseDate > today}
         tail={tail}
@@ -552,6 +580,16 @@ export function Timeline({
           </span>
         </label>
       </div>
+
+      <ConnectionLegend
+        entries={layout.legend}
+        names={layout.names}
+        laneCount={lanes.length}
+        activeKey={activeKey}
+        pinnedKey={pinnedKey}
+        onPreview={setPreviewKey}
+        onTogglePin={(key) => setPinnedKey((prev) => (prev === key ? null : key))}
+      />
 
       <MinimapBar
         scrollerRef={scrollerRef}
@@ -646,8 +684,9 @@ export function Timeline({
             {/*
               Lane lines, connectors and nodes: pure geometry from the layout, drawn over the poster
               cards (but under the lane headers). A connector is one line from a film's node in the
-              first lane that shows it to its node in the last; it skips the film's own poster,
-              entering it from above and leaving below, and is never covered by another poster.
+              first lane that shows it to its node in the last. It skips the film's own poster,
+              entering it from above and leaving below, and runs over every other poster in its
+              way, 2px wide on a thin dark halo so it stays legible over the poster art.
             */}
             <svg
               aria-hidden
@@ -657,7 +696,7 @@ export function Timeline({
               height={layout.height}
             >
               {layout.items.map((items, laneIndex) => {
-                const y = boxes[laneIndex].top + layout.lineY;
+                const y = boxes[laneIndex].top + LINE_Y;
                 const first = items[0]?.x ?? width;
                 const last = items[items.length - 1]?.x ?? width;
                 return (
@@ -670,42 +709,66 @@ export function Timeline({
               })}
               {layout.connectors.map((c) => {
                 const all = c.kind === "all";
-                const active = hoveredId === c.filmId;
+                const hovered = hoveredId === c.filmId;
+                const key = connectionKey(c.slot);
+                const emphasized = hovered || activeKey === key;
+                const strokeWidth = emphasized ? 3 : 2;
+                const segments = connectorSegments(c);
                 return (
                   <g
                     key={c.filmId}
                     data-connector={c.filmId}
-                    style={all ? LIT_GLOW : undefined}
-                    opacity={active || all ? 1 : 0.8}
+                    data-connection={key}
+                    opacity={activeKey !== null && activeKey !== key ? DIMMED : 1}
                   >
-                    {connectorSegments(c).map((segment) => (
+                    {/* The halo first, so the coloured line sits on it. */}
+                    {segments.map((segment) => (
                       <line
                         key={segment.y1}
                         x1={c.x}
                         x2={c.x}
                         y1={segment.y1}
                         y2={segment.y2}
-                        strokeWidth={all ? (active ? 3 : 2) : active ? 2 : 1.25}
-                        className={all ? "stroke-lit" : "stroke-accent-blue"}
+                        strokeWidth={strokeWidth + 3}
+                        className="stroke-black/70"
                       />
                     ))}
+                    <g style={all ? LIT_GLOW : undefined}>
+                      {segments.map((segment) => (
+                        <line
+                          key={segment.y1}
+                          x1={c.x}
+                          x2={c.x}
+                          y1={segment.y1}
+                          y2={segment.y2}
+                          strokeWidth={strokeWidth}
+                          style={{ stroke: all ? "var(--lit)" : slotColor(c.slot ?? 0) }}
+                        />
+                      ))}
+                    </g>
                   </g>
                 );
               })}
               {layout.items.map((items, laneIndex) => {
-                const y = boxes[laneIndex].top + layout.lineY;
+                const y = boxes[laneIndex].top + LINE_Y;
                 return (
                   <g key={lanes[laneIndex].person.id}>
                     {items.map(({ film, x }) => {
                       const tone = toneFor(film.id);
+                      const dimmed = activeKey !== null && tone !== "plain" && layout.keys.get(film.id) !== activeKey;
                       return (
                         <circle
                           key={film.id}
                           cx={x}
                           cy={y}
                           r={NODE_RADIUS[tone]}
-                          style={tone === "lit" ? LIT_GLOW : undefined}
-                          className={tone === "lit" ? "fill-lit" : tone === "some" ? "fill-accent-blue" : "fill-muted"}
+                          opacity={dimmed ? DIMMED : 1}
+                          stroke={tone === "plain" ? undefined : "var(--bg)"}
+                          strokeWidth={tone === "plain" ? undefined : 1.5}
+                          style={{
+                            ...(tone === "lit" ? LIT_GLOW : undefined),
+                            fill: tone === "lit" ? "var(--lit)" : (layout.accents.get(film.id) ?? "var(--text-muted)"),
+                          }}
                         />
                       );
                     })}
@@ -718,8 +781,30 @@ export function Timeline({
               const { person } = lane;
               const items = layout.items[laneIndex];
               const info = laneInfo[laneIndex];
-              const nodeIds = items.filter((item) => item.overflow).map((item) => item.film.id);
-              const tabStop = tabStopId(nodeIds, tabStops[laneIndex], layout.sharedIds);
+              // A film with a poster card (its own, or the shared strip's) is reached through the card;
+              // the films that are only a node share the lane's one roving tab stop.
+              const hasCard = (item: PackedFilm<Film>) => !item.overflow || layout.sharedIds.has(item.film.id);
+              const nodeIds = items.filter((item) => !hasCard(item)).map((item) => item.film.id);
+              const tabStop = tabStopId(nodeIds, tabStops[laneIndex]);
+              const nodeFor = (item: PackedFilm<Film>, decorative: boolean) => (
+                <FilmNode
+                  key={item.film.id}
+                  id={item.film.id}
+                  title={item.film.title}
+                  year={item.film.year}
+                  roles={info.rolesByFilm.get(item.film.id) ?? ""}
+                  note={layout.notes.get(item.film.id) ?? ""}
+                  x={item.x}
+                  hitWidth={layout.hitWidths[laneIndex].get(item.film.id) ?? DOT_HIT_SIZE}
+                  tone={toneFor(item.film.id)}
+                  laneIndex={laneIndex}
+                  decorative={decorative}
+                  tabbable={item.film.id === tabStop}
+                  selected={selectedId === item.film.id}
+                  describedBy={describedByFor(item.film.id, laneIndex)}
+                  onSelect={handleSelect}
+                />
+              );
               return (
                 <Fragment key={person.id}>
                   <section
@@ -737,7 +822,6 @@ export function Timeline({
                       overflowCount={layout.overflow[laneIndex]}
                       expanded={expandedIds.has(person.id)}
                       onToggleExpanded={() => toggleExpanded(person.id)}
-                      compact={layout.nodes}
                       divider={laneIndex < lanes.length - 1}
                     />
                     <div
@@ -745,30 +829,17 @@ export function Timeline({
                       style={{ width, ...gridStyle }}
                     >
                       {items.length > 0 ? (
-                        <ol className="m-0 list-none p-0">
-                          {items.map((item) =>
-                            item.overflow ? (
-                              <FilmNode
-                                key={item.film.id}
-                                id={item.film.id}
-                                title={item.film.title}
-                                year={item.film.year}
-                                roles={info.rolesByFilm.get(item.film.id) ?? ""}
-                                x={item.x}
-                                lineY={layout.lineY}
-                                hitWidth={layout.hitWidths[laneIndex].get(item.film.id) ?? DOT_HIT_SIZE}
-                                tone={toneFor(item.film.id)}
-                                laneIndex={laneIndex}
-                                tabbable={item.film.id === tabStop}
-                                selected={selectedId === item.film.id}
-                                describedBy={describedByFor(item.film.id, laneIndex)}
-                                onSelect={handleSelect}
-                              />
-                            ) : (
-                              cardFor(item, laneIndex, cardTopInLane(item.row), info.rolesByFilm.get(item.film.id) ?? "")
-                            ),
-                          )}
-                        </ol>
+                        <>
+                          <ol className="m-0 list-none p-0">
+                            {items.map((item) =>
+                              item.overflow
+                                ? !hasCard(item) && nodeFor(item, false)
+                                : cardFor(item, laneIndex, cardTopInLane(item.row), info.rolesByFilm.get(item.film.id) ?? ""),
+                            )}
+                          </ol>
+                          {/* Mouse targets on the nodes of films that have a card: not part of the list or the tab order. */}
+                          {items.filter(hasCard).map((item) => nodeFor(item, true))}
+                        </>
                       ) : (
                         <p className="sticky left-[var(--lane-head)] w-max max-w-xs px-4 pt-8 text-sm text-muted">
                           {lane.hiddenMinor > 0
@@ -838,8 +909,7 @@ export function Timeline({
           id={popoverId}
           target={popoverTarget}
           content={popoverContent}
-          lit={layout.sharedIds.has(popoverTarget.filmId)}
-          onDismiss={hidePopover}
+          lit={toneFor(popoverTarget.filmId) === "lit"}          onDismiss={hidePopover}
         />
       )}
     </div>

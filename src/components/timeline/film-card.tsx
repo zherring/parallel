@@ -5,7 +5,7 @@ import { cn } from "./cn";
 
 /**
  * lit   - shared by every lane (green outline and glow)
- * some  - shared by some lanes only, 3+ lanes (thin blue outline)
+ * some  - shared by some lanes only, 3+ lanes (thin outline in that connection's colour)
  * plain - no emphasis
  */
 export type CardTone = "lit" | "some" | "plain";
@@ -21,6 +21,10 @@ interface FilmCardProps {
   left: number;
   top: number;
   tone: CardTone;
+  /** CSS colour of the connection a "some" card belongs to (see `slotColor`); unused for the other tones. */
+  accent: string | null;
+  /** Read after the roles, so the tone is not carried by colour alone: "Made together", "Shared by Fincher and Pitt". */
+  note: string;
   /** Index of the lane the card is in; null for the shared strip. Read by the timeline's delegated hover handlers. */
   laneIndex: number | null;
   upcoming: boolean;
@@ -38,21 +42,15 @@ interface FilmCardProps {
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
-function accessibleName({ title, year, roles, tone, upcoming }: FilmCardProps): string {
-  return [
-    `${title}, ${year}`,
-    roles,
-    tone === "lit" ? "Made together" : "",
-    upcoming ? "Upcoming release" : "",
-    "Open details",
-  ]
+function accessibleName({ title, year, roles, note, upcoming }: FilmCardProps): string {
+  return [`${title}, ${year}`, roles, note, upcoming ? "Upcoming release" : "", "Open details"]
     .filter(Boolean)
     .join(". ")
     .concat(".");
 }
 
 function FilmCardImpl(props: FilmCardProps) {
-  const { id, title, year, posterPath, left, top, tone, laneIndex, upcoming, tail, emphasized, selected, describedBy, onSelect } =
+  const { id, title, year, posterPath, left, top, tone, accent, laneIndex, upcoming, tail, emphasized, selected, describedBy, onSelect } =
     props;
   const src = tmdbImage(posterPath, "w185");
 
@@ -76,11 +74,13 @@ function FilmCardImpl(props: FilmCardProps) {
           className={cn(
             "relative block overflow-hidden rounded-[4px] bg-surface transition-shadow duration-150 motion-reduce:transition-none",
             tone === "lit" && "shadow-lit",
-            tone === "some" && "ring-1 ring-accent-blue",
             tone !== "lit" && emphasized && "ring-2 ring-strong/80",
             selected && "outline outline-2 outline-offset-2 outline-strong",
           )}
-          style={{ height: POSTER_HEIGHT }}
+          style={{
+            height: POSTER_HEIGHT,
+            boxShadow: tone === "some" && accent && !emphasized ? `0 0 0 1.5px ${accent}` : undefined,
+          }}
         >
           {src ? (
             <img
@@ -125,10 +125,10 @@ function FilmCardImpl(props: FilmCardProps) {
           aria-hidden
           className={cn(
             "pointer-events-none mx-auto min-h-0 flex-1",
-            tone === "lit"
-              ? cn("bg-lit shadow-[0_0_3px_var(--lit-glow)]", emphasized ? "w-[3px]" : "w-0.5")
-              : cn("bg-accent-blue", emphasized ? "w-0.5" : "w-[1.25px]"),
+            tone === "lit" && "bg-lit shadow-[0_0_3px_var(--lit-glow)]",
+            emphasized ? "w-[3px]" : "w-0.5",
           )}
+          style={tone === "lit" ? undefined : { backgroundColor: accent ?? "var(--text-muted)" }}
         />
       )}
     </li>
