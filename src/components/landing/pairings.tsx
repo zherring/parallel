@@ -34,14 +34,12 @@ export function Pairings({ sections }: { sections: GenreSection[] }) {
   }));
 
   return (
-    <section aria-labelledby="pairings-heading" className="mx-auto w-full max-w-6xl px-4 py-12">
-      <h2 id="pairings-heading" className="text-2xl font-semibold tracking-tight text-strong">
+    <section aria-labelledby="pairings-heading" className="mx-auto w-full max-w-6xl px-4 pb-12 pt-2">
+      {/* Not shown: the tabs follow the search field directly. Kept for the page's heading outline. */}
+      <h2 id="pairings-heading" className="sr-only">
         Try a pairing
       </h2>
-      <p className="mt-1.5 text-body">Pick a genre, start from a famous collaboration and keep going.</p>
-      <div className="mt-5">
-        <GenreTabs idBase="pairings" label="Genres" tabs={[featuredTab, ...genreTabs]} />
-      </div>
+      <GenreTabs idBase="pairings" label="Genres" tabs={[featuredTab, ...genreTabs]} />
     </section>
   );
 }

@@ -5,6 +5,7 @@ import {
   FEATURED_COUNT,
   FEATURED_TAB,
   GENRES,
+  HERO_POSTER_COUNT,
   MIN_SHARED_FILMS,
   pairingHref,
   pairingKey,
@@ -114,5 +115,31 @@ describe("examples.generated.json", () => {
       expect(entry.sharedCount).toBeGreaterThanOrEqual(MIN_SHARED_FILMS);
       for (const person of entry.people) expect(person.profilePath).toMatch(/^\/[\w-]+\.(jpg|png)$/);
     }
+  });
+
+  it("has the hero posters for every pairing: distinct films with a poster, oldest first", () => {
+    for (const [key, entry] of Object.entries(data)) {
+      expect(entry.posters, `posters for ${key}; run npm run examples:refresh`).toHaveLength(HERO_POSTER_COUNT);
+      for (const poster of entry.posters) {
+        expect(poster.path).toMatch(/^\/[\w-]+\.(jpg|png)$/);
+        expect(poster.title.trim().length).toBeGreaterThan(0);
+        expect(Number.isInteger(poster.year)).toBe(true);
+      }
+      expect(new Set(entry.posters.map((poster) => poster.path)).size).toBe(HERO_POSTER_COUNT);
+      const years = entry.posters.map((poster) => poster.year);
+      expect(years).toEqual([...years].sort((a, b) => a - b));
+    }
+  });
+
+  it("has the Ford and Lucas scene the hero opens on, and enough people in more than one pairing for single swaps", () => {
+    expect(data["1+3"]?.people.map((p) => p.name)).toEqual(["Harrison Ford", "George Lucas"]);
+    expect(data["3+488"]?.people.map((p) => p.name)).toEqual(["Harrison Ford", "Steven Spielberg"]);
+
+    const appearances = new Map<number, number>();
+    for (const pairing of EXAMPLE_PAIRINGS) {
+      for (const person of pairing.people) appearances.set(person.id, (appearances.get(person.id) ?? 0) + 1);
+    }
+    const repeated = [...appearances.values()].filter((count) => count >= 2);
+    expect(repeated.length).toBeGreaterThanOrEqual(8);
   });
 });

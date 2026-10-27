@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGenreSections } from "@/lib/example-cards";
+import { buildGenreSections, buildHeroPairings } from "@/lib/example-cards";
 import { EXAMPLE_PAIRINGS, GENRES, type GeneratedExamples } from "@/lib/examples";
 
 // Classic, Horror, and Comedy (no pairings below).
@@ -11,6 +11,9 @@ const pairings = [
   { genre: "classic", people: [{ id: 6, name: "Fay Wray" }, { id: 5, name: "Ed Wood" }], blurb: "Third pair" },
 ];
 
+const posters = (tag: string) =>
+  [1, 2, 3].map((n) => ({ path: `/${tag}${n}.jpg`, title: `Film ${tag}${n}`, year: 1990 + n }));
+
 const data: GeneratedExamples = {
   "1+2": {
     sharedCount: 7,
@@ -18,6 +21,7 @@ const data: GeneratedExamples = {
       { id: 1, name: "Ada Lovelace", profilePath: "/a.jpg" },
       { id: 2, name: "Bo Peep", profilePath: "/b.jpg" },
     ],
+    posters: posters("x"),
   },
   "3+4": {
     sharedCount: 3,
@@ -25,6 +29,7 @@ const data: GeneratedExamples = {
       { id: 3, name: "Cy Twombly", profilePath: "/c.jpg" },
       { id: 4, name: "Di Prince", profilePath: "/d.jpg" },
     ],
+    posters: posters("y"),
   },
   "5+6": {
     sharedCount: 1,
@@ -32,8 +37,43 @@ const data: GeneratedExamples = {
       { id: 6, name: "Fay Wray", profilePath: "/f.jpg" },
       { id: 5, name: "Ed Wood", profilePath: "/e.jpg" },
     ],
+    posters: posters("z"),
   },
 };
+
+describe("buildHeroPairings", () => {
+  it("carries the key, count, people (in pairing order) and posters of every pairing", () => {
+    const [first, , third] = buildHeroPairings(pairings, data);
+    expect(first).toEqual({
+      key: "1+2",
+      sharedCount: 7,
+      people: data["1+2"].people,
+      posters: posters("x"),
+    });
+    expect(third.key).toBe("5+6");
+    expect(third.people.map((person) => person.id)).toEqual([6, 5]);
+  });
+
+  it("leaves out pairings of more than two people", () => {
+    const trio = { people: [{ id: 1, name: "Ada Lovelace" }, { id: 2, name: "Bo Peep" }, { id: 3, name: "Cy Twombly" }], blurb: "x" };
+    const trioData: GeneratedExamples = {
+      "1+2+3": { sharedCount: 3, people: [...data["1+2"].people, data["3+4"].people[0]], posters: posters("t") },
+    };
+    expect(buildHeroPairings([trio], trioData)).toEqual([]);
+  });
+
+  it("throws when the generated data is stale", () => {
+    const stale = { ...data };
+    delete stale["3+4"];
+    expect(() => buildHeroPairings(pairings, stale)).toThrow(/examples:refresh/);
+  });
+
+  it("builds an entry with three posters for every real pairing", () => {
+    const all = buildHeroPairings();
+    expect(all).toHaveLength(EXAMPLE_PAIRINGS.length);
+    for (const entry of all) expect(entry.posters).toHaveLength(3);
+  });
+});
 
 describe("buildGenreSections", () => {
   it("groups cards by genre in genre order and leaves out empty genres", () => {
