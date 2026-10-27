@@ -6,7 +6,7 @@ export function SiteHeader() {
     <header className="border-b border-border">
       <div className="mx-auto flex h-12 w-full max-w-6xl items-center px-4">
         <Link href="/" aria-label="Parallel home" className="no-underline">
-          <Wordmark className="text-xl" />
+          <Wordmark className="text-2xl" />
         </Link>
       </div>
     </header>
