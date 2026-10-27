@@ -11,7 +11,7 @@ export interface MotionOptions {
   delay?: number;
 }
 
-export type CardKind = "person" | "poster";
+export type CardKind = "person" | "poster" | "label";
 
 // A damped spring (zeta 0.62) sampled into linear(): about 8% overshoot, settled by the end.
 const SPRING =
@@ -40,15 +40,19 @@ export const TIMING = {
   posterLeaveStagger: 40,
   nodDelay: 200,
   nod: 460,
-  draw: 760,
-  drawDelay: 260,
-  pulse: 640,
-  pulseDelay: 420,
-  pulseStagger: 90,
+  /** The "+N more" label fades in and out; it never moves. */
+  labelArrive: 360,
+  labelLeave: 200,
 } as const;
 
-/** A portrait or poster arriving: from the bottom right with a spring (a plain fade if reduced). */
+/**
+ * A portrait or poster arriving: from the bottom right with a spring (a plain fade if reduced).
+ * The "+N more" label only ever fades.
+ */
 export function arrive(el: HTMLElement, kind: CardKind, { reduced, delay = 0 }: MotionOptions): Animation[] {
+  if (kind === "label") {
+    return [el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: TIMING.labelArrive, delay, easing: EASE_OUT, fill: "backwards" })];
+  }
   if (reduced) {
     return [el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, delay, easing: "ease-out", fill: "backwards" })];
   }
@@ -78,6 +82,9 @@ export function arrive(el: HTMLElement, kind: CardKind, { reduced, delay = 0 }: 
  * its opacity falls faster, so it is nearly gone before the next card arrives in its place.
  */
 export function depart(el: HTMLElement, kind: CardKind, { reduced, delay = 0 }: MotionOptions): Animation[] {
+  if (kind === "label") {
+    return [el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: TIMING.labelLeave, delay, easing: "ease-in", fill: "forwards" })];
+  }
   if (reduced) {
     return [el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, delay, easing: "ease-in", fill: "forwards" })];
   }
@@ -116,47 +123,6 @@ export function nod(el: HTMLElement, { reduced, delay = 0 }: MotionOptions): Ani
     ],
     { duration: TIMING.nod, delay, easing: EASE_IN_OUT },
   );
-}
-
-/** Draws the connector again and pulses the shared-film nodes once. */
-export function redraw(svg: SVGElement, { reduced }: { reduced: boolean }): Animation[] {
-  const animations: Animation[] = [];
-  const connector = svg.querySelector<SVGElement>("[data-connector]");
-  if (connector) {
-    const total = TIMING.drawDelay + TIMING.draw;
-    const fadedBy = 140 / total;
-    const drawFrom = TIMING.drawDelay / total;
-    animations.push(
-      reduced
-        ? connector.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400, delay: 200, fill: "backwards" })
-        : // The old connector fades away, then the new one draws itself from the people to the posters.
-          connector.animate(
-            [
-              { strokeDashoffset: 0, opacity: 0.75, offset: 0 },
-              { strokeDashoffset: 0, opacity: 0, offset: fadedBy },
-              { strokeDashoffset: 1, opacity: 0, offset: fadedBy + 0.001 },
-              { strokeDashoffset: 1, opacity: 0.75, offset: drawFrom },
-              { strokeDashoffset: 0, opacity: 0.75, offset: 1, easing: EASE_OUT },
-            ],
-            { duration: total, easing: "linear", fill: "backwards" },
-          ),
-    );
-  }
-  if (!reduced) {
-    svg.querySelectorAll<SVGElement>("[data-pulse]").forEach((node, index) => {
-      animations.push(
-        node.animate(
-          [
-            { transform: "scale(1)", opacity: 1 },
-            { transform: "scale(2.1)", opacity: 0.55, offset: 0.35 },
-            { transform: "scale(1)", opacity: 1 },
-          ],
-          { duration: TIMING.pulse, delay: TIMING.pulseDelay + index * TIMING.pulseStagger, easing: EASE_IN_OUT },
-        ),
-      );
-    });
-  }
-  return animations;
 }
 
 /** The idle float: a slow, small, endless rise and fall. Starts paused. Phase offsets the card. */

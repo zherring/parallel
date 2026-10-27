@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { buildGenreSections, buildHeroPairings } from "@/lib/example-cards";
-import { EXAMPLE_PAIRINGS, GENRES, type GeneratedExamples } from "@/lib/examples";
+import {
+  EXAMPLE_PAIRINGS,
+  GENRES,
+  HERO_POSTER_COUNT,
+  HERO_POSTER_MIN,
+  type GeneratedExamples,
+} from "@/lib/examples";
 
 // Classic, Horror, and Comedy (no pairings below).
 const genres = GENRES.filter((g) => ["classic", "horror", "comedy"].includes(g.id));
@@ -11,8 +17,12 @@ const pairings = [
   { genre: "classic", people: [{ id: 6, name: "Fay Wray" }, { id: 5, name: "Ed Wood" }], blurb: "Third pair" },
 ];
 
-const posters = (tag: string) =>
-  [1, 2, 3].map((n) => ({ path: `/${tag}${n}.jpg`, title: `Film ${tag}${n}`, year: 1990 + n }));
+const posters = (tag: string, count = 3) =>
+  Array.from({ length: count }, (_, i) => i + 1).map((n) => ({
+    path: `/${tag}${n}.jpg`,
+    title: `Film ${tag}${n}`,
+    year: 1990 + n,
+  }));
 
 const data: GeneratedExamples = {
   "1+2": {
@@ -54,6 +64,13 @@ describe("buildHeroPairings", () => {
     expect(third.people.map((person) => person.id)).toEqual([6, 5]);
   });
 
+  it("carries up to five posters through untouched, and the film count they are drawn from", () => {
+    const five = { ...data, "1+2": { ...data["1+2"], sharedCount: 11, posters: posters("x", 5) } };
+    const [first] = buildHeroPairings(pairings, five);
+    expect(first.posters).toEqual(posters("x", 5));
+    expect(first.sharedCount).toBe(11);
+  });
+
   it("leaves out pairings of more than two people", () => {
     const trio = { people: [{ id: 1, name: "Ada Lovelace" }, { id: 2, name: "Bo Peep" }, { id: 3, name: "Cy Twombly" }], blurb: "x" };
     const trioData: GeneratedExamples = {
@@ -68,10 +85,13 @@ describe("buildHeroPairings", () => {
     expect(() => buildHeroPairings(pairings, stale)).toThrow(/examples:refresh/);
   });
 
-  it("builds an entry with three posters for every real pairing", () => {
+  it("builds an entry with three to five posters for every real pairing", () => {
     const all = buildHeroPairings();
     expect(all).toHaveLength(EXAMPLE_PAIRINGS.length);
-    for (const entry of all) expect(entry.posters).toHaveLength(3);
+    for (const entry of all) {
+      expect(entry.posters.length).toBeGreaterThanOrEqual(HERO_POSTER_MIN);
+      expect(entry.posters.length).toBeLessThanOrEqual(HERO_POSTER_COUNT);
+    }
   });
 });
 

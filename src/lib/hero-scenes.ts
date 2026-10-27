@@ -1,5 +1,5 @@
 /**
- * The landing hero is a collage of one pairing at a time (two portraits, three shared-film
+ * The landing hero is a collage of one pairing at a time (two portraits, up to five shared-film
  * posters) that changes every few seconds. This module is the pure part: which pairing comes
  * next, which portrait slot changes, and the timing and pause rules. It has no DOM and takes its
  * randomness as an argument, so tests drive it with a seeded generator (see featured.ts).
@@ -28,6 +28,7 @@ export interface HeroPairing {
   /** Films the pair shares by the pair page's default rules. */
   sharedCount: number;
   people: readonly [HeroPerson, HeroPerson];
+  /** The most-voted shared films that have a poster, oldest first: three to five. */
   posters: readonly HeroPoster[];
 }
 
@@ -74,15 +75,21 @@ export function sceneOf(pairing: HeroPairing): Scene {
   return { pairing, people: pairing.people };
 }
 
+/** How many of the pair's shared films have no poster on the collage: the "+N more" hint. */
+export function moreFilms(pairing: HeroPairing): number {
+  return Math.max(0, pairing.sharedCount - pairing.posters.length);
+}
+
 function sharedPersonIds(a: HeroPairing, b: HeroPairing): number[] {
   const ids = new Set(a.people.map((person) => person.id));
   return b.people.filter((person) => ids.has(person.id)).map((person) => person.id);
 }
 
 /**
- * The pairings the hero rotates through: those with two people and enough posters, and which
- * share a person with at least one other, so a single swap is always on the table. (A pairing
- * nobody else touches could only ever come in as a full swap.)
+ * The pairings the hero rotates through: those with two people and enough posters (at least
+ * `posterCount`, examples.ts's HERO_POSTER_MIN), and which share a person with at least one
+ * other, so a single swap is always on the table. (A pairing nobody else touches could only ever
+ * come in as a full swap.)
  */
 export function heroPool(pairings: readonly HeroPairing[], posterCount = 3): HeroPairing[] {
   const usable = pairings.filter((pairing) => pairing.posters.length >= posterCount);

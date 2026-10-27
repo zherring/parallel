@@ -15,7 +15,7 @@ export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
     >
       {/* Centered above the headline: two people, the films they share, on the timeline line. */}
       {initial && (
-        <div className="mb-5 sm:mb-6">
+        <div className="mb-5 max-[359px]:mb-10 sm:mb-6">
           <HeroCollage pool={pool} initial={initial} />
         </div>
       )}

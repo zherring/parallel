@@ -27,7 +27,7 @@ interface Options {
 
 interface Plan {
   transition: Transition;
-  /** Resolves true once all five images of the next scene are loaded. */
+  /** Resolves true once every image of the next scene (two portraits, up to five posters) is loaded. */
   ready: Promise<boolean>;
   dispose: () => void;
 }
