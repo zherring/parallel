@@ -1,3 +1,5 @@
+import type { AwardsSummary } from "@/lib/awards";
+
 export type RoleKey =
   | "actor"
   | "director"
@@ -98,4 +100,22 @@ export interface PersonSearchResult {
   knownFor: string | null;
   /** Up to three titles from TMDB's known_for list. */
   knownForTitles: string[];
+}
+
+/** The numbers TMDB holds for a film (`getMovieMetrics`). */
+export interface MovieMetrics {
+  /** TMDB's 0-10 audience score; null when it has none. */
+  voteAverage: number | null;
+  voteCount: number;
+  /** US dollars; null when TMDB has none (it stores 0). */
+  budget: number | null;
+  /** Worldwide gross in US dollars; null when TMDB has none (it stores 0). */
+  revenue: number | null;
+  /** ISO yyyy-mm-dd; null when TMDB has none. */
+  releaseDate: string | null;
+}
+
+/** What `/api/film-metrics/{id}` returns for the hover card: TMDB's numbers plus curated awards. */
+export interface FilmMetrics extends MovieMetrics {
+  awards: AwardsSummary | null;
 }

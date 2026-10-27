@@ -5,8 +5,10 @@ import { createPortal } from "react-dom";
 import { PersonAvatar } from "@/components/person-avatar";
 import type { CreditsRow, FilmCardContent } from "@/lib/film-credits";
 import { tmdbImage } from "@/lib/images";
-import { placePopover } from "@/lib/popover-position";
+import { placePopover, type Placement } from "@/lib/popover-position";
 import { cn } from "./cn";
+import { FilmMetricsRows } from "./film-metrics-rows";
+import { useFilmMetrics } from "./use-film-metrics";
 
 /** Hover time before the card opens (keyboard focus opens it at once). */
 export const POPOVER_DELAY_MS = 120;
@@ -134,7 +136,9 @@ function RoleText({ row }: { row: CreditsRow }) {
 /**
  * The film card shown while hovering or focusing a poster or node: poster on the left; on the
  * right the title, then one row per person on the timeline with a credit on the film (avatar
- * and roles). Rendered in a portal on the body with fixed positioning, because the timeline's
+ * and roles), and at the foot the film's metrics (box office, rating, awards), which are fetched
+ * once the card has stayed open for a moment and leave out whatever they have no data for.
+ * Rendered in a portal on the body with fixed positioning, because the timeline's
  * scroller clips anything that overflows it. Never interactive: it ignores the pointer, so it
  * cannot cover the nodes around its trigger, and it never takes focus. The poster is only
  * fetched while the card is open.
@@ -142,10 +146,15 @@ function RoleText({ row }: { row: CreditsRow }) {
 export function FilmPopover({ id, target, content, lit, bottomEdge, onDismiss }: FilmPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
+  const side = useRef<{ trigger: HTMLElement; placement: Placement["placement"] } | null>(null);
   const animated = useRef(false);
   const poster = tmdbImage(content.posterPath, "w342");
+  const metrics = useFilmMetrics(content.filmId, place !== null);
 
-  // Measure the card and its trigger, then place it before the first paint.
+  // Measure the card and its trigger, then place it before the first paint. It runs again when the
+  // metrics arrive (the card's height changes), still before paint: the card keeps its side of the
+  // trigger, so the edge facing the trigger stays put and only the far edge moves.
+  const metricsStatus = metrics.status;
   useLayoutEffect(() => {
     const card = ref.current;
     if (!card) return;
@@ -153,13 +162,16 @@ export function FilmPopover({ id, target, content, lit, bottomEdge, onDismiss }:
       onDismiss();
       return;
     }
-    const { left, top } = placePopover(
+    const prefer = side.current?.trigger === target.trigger ? side.current.placement : undefined;
+    const { left, top, placement } = placePopover(
       target.trigger.getBoundingClientRect(),
       { width: card.offsetWidth, height: card.offsetHeight },
       { width: document.documentElement.clientWidth, height: Math.min(window.innerHeight, bottomEdge?.() ?? window.innerHeight) },
+      { prefer },
     );
-    setPlace({ left, top });
-  }, [target, content, bottomEdge, onDismiss]);
+    side.current = { trigger: target.trigger, placement };
+    setPlace((current) => (current && current.left === left && current.top === top ? current : { left, top }));
+  }, [target, content, metricsStatus, bottomEdge, onDismiss]);
 
   // Slide up from just below while fading in; no exit animation, and none at all for reduced motion.
   const placed = place !== null;
@@ -218,6 +230,9 @@ export function FilmPopover({ id, target, content, lit, bottomEdge, onDismiss }:
             ))}
           </ul>
         )}
+        <div className="pt-1 empty:hidden">
+          <FilmMetricsRows state={metrics} />
+        </div>
       </div>
     </div>,
     document.body,

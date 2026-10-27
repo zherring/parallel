@@ -30,16 +30,27 @@ export const POPOVER_MARGIN = 8;
  * Centres the card under the trigger and flips it above when it does not fit below and
  * there is more room above. With too little room either way it takes the roomier side and
  * is clamped so it never leaves the viewport (a card taller than the viewport sticks to the top).
+ *
+ * `prefer` keeps the side the card already has while it still fits there. It is for re-placing a
+ * card whose height changed after it opened (its metrics arrived): the card then never hops to
+ * the other side of its trigger, the edge facing the trigger stays put and only the far edge moves.
  */
 export function placePopover(
   trigger: Box,
   size: Size,
   viewport: Size,
-  { gap = POPOVER_GAP, margin = POPOVER_MARGIN }: { gap?: number; margin?: number } = {},
+  {
+    gap = POPOVER_GAP,
+    margin = POPOVER_MARGIN,
+    prefer,
+  }: { gap?: number; margin?: number; prefer?: Placement["placement"] } = {},
 ): Placement {
   const roomBelow = viewport.height - margin - (trigger.bottom + gap);
   const roomAbove = trigger.top - gap - margin;
-  const below = roomBelow >= size.height || (roomAbove < size.height && roomBelow >= roomAbove);
+  const keepsSide = prefer === "below" ? roomBelow >= size.height : prefer === "above" && roomAbove >= size.height;
+  const below = keepsSide
+    ? prefer === "below"
+    : roomBelow >= size.height || (roomAbove < size.height && roomBelow >= roomAbove);
   const placement = below ? "below" : "above";
 
   const idealTop = below ? trigger.bottom + gap : trigger.top - gap - size.height;

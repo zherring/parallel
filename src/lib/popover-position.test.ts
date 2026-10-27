@@ -70,3 +70,52 @@ describe("placePopover", () => {
     expect(placePopover(box(0, 200), card, viewport, { margin: 0 }).left).toBe(0);
   });
 });
+
+describe("placePopover: keeping a side when the card's height changes", () => {
+  it("stays above, anchored at the trigger, when a card that opened above shrinks", () => {
+    const trigger = box(700, 800);
+    const tall = { width: 400, height: 300 };
+    const short = { width: 400, height: 240 };
+    const opened = placePopover(trigger, tall, viewport);
+    expect(opened.placement).toBe("above");
+
+    const resized = placePopover(trigger, short, viewport, { prefer: opened.placement });
+    expect(resized.placement).toBe("above");
+    // The edge facing the trigger did not move; only the far edge did.
+    expect(resized.top + short.height).toBe(opened.top + tall.height);
+  });
+
+  it("stays below with the same top edge when a card that opened below shrinks", () => {
+    const trigger = box(700, 200);
+    const tall = { width: 400, height: 300 };
+    const short = { width: 400, height: 240 };
+    const opened = placePopover(trigger, tall, viewport);
+    const resized = placePopover(trigger, short, viewport, { prefer: opened.placement });
+    expect(resized.placement).toBe("below");
+    expect(resized.top).toBe(opened.top);
+  });
+
+  it("does not hop below just because a card that opened above got short enough to fit there", () => {
+    const trigger = box(700, 450);
+    const small = { width: 1440, height: 700 }; // 204px of room below, 432px above
+    const tall = { width: 400, height: 300 };
+    const short = { width: 400, height: 200 };
+    expect(placePopover(trigger, tall, small).placement).toBe("above");
+    expect(placePopover(trigger, short, small).placement).toBe("below"); // what a fresh placement would do
+    expect(placePopover(trigger, short, small, { prefer: "above" }).placement).toBe("above");
+  });
+
+  it("gives the preference up when the card no longer fits on that side", () => {
+    const trigger = box(700, 450);
+    const tall = { width: 400, height: 300 };
+    const small_viewport = { width: 1440, height: 700 };
+    // 700 - 8 - 488 = 204 below: too small; above has room.
+    expect(placePopover(trigger, tall, small_viewport, { prefer: "below" }).placement).toBe("above");
+    expect(placePopover(trigger, tall, viewport, { prefer: "above" }).placement).toBe("above");
+  });
+
+  it("still clamps into the viewport with a preference", () => {
+    const result = placePopover(box(1420, 300), card, viewport, { prefer: "below" });
+    expect(result.left + card.width).toBe(viewport.width - POPOVER_MARGIN);
+  });
+});

@@ -4,11 +4,12 @@ import type {
   RawDiscoverMovies,
   RawMovieCredits,
   RawMovieDetails,
+  RawMovieMetrics,
   RawPerson,
   RawSearchPeople,
   RawSearchPerson,
 } from "@/lib/tmdb-types";
-import type { FilmDetails, PersonSearchResult, PersonSummary, PersonTimeline } from "@/lib/types";
+import type { FilmDetails, MovieMetrics, PersonSearchResult, PersonSummary, PersonTimeline } from "@/lib/types";
 
 const BASE_URL = "https://api.themoviedb.org/3";
 const HOUR = 60 * 60;
@@ -176,4 +177,24 @@ export async function getFilmDetails(id: number): Promise<FilmDetails> {
     append_to_response: "credits",
   });
   return normalizeFilmDetails(movie);
+}
+
+/** TMDB stores 0 for an unknown budget or revenue. */
+const positiveOrNull = (value: number | null | undefined): number | null =>
+  typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+
+/**
+ * The numbers for the hover card: a plain `/movie/{id}` (no credits appended, so the payload is
+ * small), cached for a day like the other film lookups. Unknown figures come back as null.
+ */
+export async function getMovieMetrics(id: number): Promise<MovieMetrics> {
+  const movie = await tmdbGet<RawMovieMetrics>(`/movie/${id}`, DAY);
+  const votes = typeof movie.vote_count === "number" && movie.vote_count > 0 ? movie.vote_count : 0;
+  return {
+    voteAverage: votes > 0 ? positiveOrNull(movie.vote_average) : null,
+    voteCount: votes,
+    budget: positiveOrNull(movie.budget),
+    revenue: positiveOrNull(movie.revenue),
+    releaseDate: movie.release_date || null,
+  };
 }

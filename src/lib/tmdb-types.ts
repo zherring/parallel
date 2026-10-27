@@ -76,3 +76,15 @@ export interface RawMovieDetails {
     crew: (RawFilmPerson & { job: string })[];
   };
 }
+
+/** `/movie/{id}` without `append_to_response`; only the numbers the hover card shows. */
+export interface RawMovieMetrics {
+  id: number;
+  release_date?: string | null;
+  vote_average?: number | null;
+  vote_count?: number | null;
+  /** US dollars; TMDB stores 0 when unknown. */
+  budget?: number | null;
+  /** Worldwide, US dollars; TMDB stores 0 when unknown. */
+  revenue?: number | null;
+}

@@ -5,6 +5,7 @@ vi.mock("server-only", () => ({}));
 import {
   TmdbError,
   getFilmDetails,
+  getMovieMetrics,
   getPersonMovieCredits,
   getShortMovieIds,
   searchPeople,
@@ -384,5 +385,76 @@ describe("errors and retries", () => {
     expect((error as TmdbError).status).toBe(404);
     expect((error as Error).message).not.toContain(TOKEN);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("getMovieMetrics", () => {
+  const movie = (extra: object = {}) => ({
+    id: 550,
+    title: "Fight Club",
+    release_date: "1999-10-15",
+    vote_average: 8.4,
+    vote_count: 33145,
+    budget: 63000000,
+    revenue: 100853753,
+    ...extra,
+  });
+
+  it("asks for the plain movie (no appended credits) and caches for a day", async () => {
+    fetchMock.mockResolvedValueOnce(json(movie()));
+    await getMovieMetrics(550);
+
+    const { url, init } = lastCall();
+    expect(url.pathname).toBe("/3/movie/550");
+    expect(url.searchParams.has("append_to_response")).toBe(false);
+    expect(init.headers).toMatchObject({ Authorization: `Bearer ${TOKEN}` });
+    expect(init.next).toEqual({ revalidate: 86400 });
+  });
+
+  it("returns only the numbers the card needs", async () => {
+    fetchMock.mockResolvedValueOnce(json(movie({ overview: "x", genres: [] })));
+    expect(await getMovieMetrics(550)).toEqual({
+      voteAverage: 8.4,
+      voteCount: 33145,
+      budget: 63000000,
+      revenue: 100853753,
+      releaseDate: "1999-10-15",
+    });
+  });
+
+  it("turns TMDB's zeros and blanks into null", async () => {
+    fetchMock.mockResolvedValueOnce(
+      json(movie({ budget: 0, revenue: 0, vote_average: 0, vote_count: 0, release_date: "" })),
+    );
+    expect(await getMovieMetrics(1)).toEqual({
+      voteAverage: null,
+      voteCount: 0,
+      budget: null,
+      revenue: null,
+      releaseDate: null,
+    });
+  });
+
+  it("tolerates missing fields", async () => {
+    fetchMock.mockResolvedValueOnce(json({ id: 1 }));
+    expect(await getMovieMetrics(1)).toEqual({
+      voteAverage: null,
+      voteCount: 0,
+      budget: null,
+      revenue: null,
+      releaseDate: null,
+    });
+  });
+
+  it("drops an average that has no votes behind it", async () => {
+    fetchMock.mockResolvedValueOnce(json(movie({ vote_average: 7.5, vote_count: 0 })));
+    expect(await getMovieMetrics(1)).toMatchObject({ voteAverage: null, voteCount: 0 });
+  });
+
+  it("throws a TmdbError with TMDB's status", async () => {
+    fetchMock.mockResolvedValueOnce(json({ status_message: "nope" }, 404));
+    const error = await getMovieMetrics(1).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TmdbError);
+    expect((error as TmdbError).status).toBe(404);
   });
 });
