@@ -50,6 +50,8 @@ interface MinimapBarProps {
   sharedFilms: MinimapFilm[];
   /** Muted ticks, one per film; shown when there are no shared films so the bar is never empty. */
   filmTicks: MinimapFilm[];
+  /** Rendered at the left end of the bar's row, before the track (the lane avatars). */
+  leading?: ReactNode;
   /** Rendered at the right end of the bar's row (the zoom controls). */
   children?: ReactNode;
 }
@@ -62,7 +64,16 @@ interface MinimapBarProps {
  * Scrolling never re-renders React: the window is moved by writing its style directly from a
  * requestAnimationFrame-throttled scroll listener.
  */
-export function MinimapBar({ scrollerRef, cornerRef, scrollerId, scale, sharedFilms, filmTicks, children }: MinimapBarProps) {
+export function MinimapBar({
+  scrollerRef,
+  cornerRef,
+  scrollerId,
+  scale,
+  sharedFilms,
+  filmTicks,
+  leading,
+  children,
+}: MinimapBarProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const windowRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -263,6 +274,7 @@ export function MinimapBar({ scrollerRef, cornerRef, scrollerId, scale, sharedFi
           stuck ? "border-b border-border shadow-[0_8px_10px_-8px_rgb(0_0_0/0.8)]" : "border-b border-transparent",
         )}
       >
+        {leading}
         <div
           ref={trackRef}
           onPointerDown={onPointerDown}

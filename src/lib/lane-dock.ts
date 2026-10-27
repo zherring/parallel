@@ -1,5 +1,5 @@
 /**
- * Pure helpers for the avatar dock: which lane is most in view, and where to scroll to bring
+ * Pure helpers for the top-bar lane avatars: which lane is most in view, and where to scroll to bring
  * a lane to the top. Lane boxes are the ones from `stackLanes` (y from the first lane's top).
  */
 

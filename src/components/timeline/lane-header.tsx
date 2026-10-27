@@ -20,10 +20,23 @@ interface LaneHeaderProps {
   overflowCount: number;
   expanded: boolean;
   onToggleExpanded: () => void;
+  /**
+   * Short header for the nodes layout, where a lane is only about 130px tall: the facts and
+   * year-span lines are left out (they stay in the header's tooltip), the roles shrink to one
+   * line, and the biography teaser gives way to just its More/Bio button as the room runs out.
+   */
+  compact: boolean;
+  /**
+   * Draws the line under the lane. The header and the track each draw their own half of it
+   * (rather than the lane's section drawing one border), so that the timeline's SVG, which runs
+   * under the sticky header, cannot show through the one-pixel row between two lanes.
+   */
+  divider: boolean;
 }
 
-function Avatar({ person }: { person: PersonSummary }) {
+function Avatar({ person, compact }: { person: PersonSummary; compact: boolean }) {
   const src = tmdbImage(person.profilePath, "w92");
+  const size = compact ? "size-8 sm:size-12" : "size-9 sm:size-12";
   return src ? (
     <img
       src={src}
@@ -32,12 +45,12 @@ function Avatar({ person }: { person: PersonSummary }) {
       height={48}
       loading="lazy"
       decoding="async"
-      className="size-9 shrink-0 rounded-full border border-strong/20 object-cover sm:size-12"
+      className={`${size} shrink-0 rounded-full border border-strong/20 object-cover`}
     />
   ) : (
     <span
       aria-hidden
-      className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-xs font-semibold text-body sm:size-12 sm:text-sm"
+      className={`flex ${size} shrink-0 items-center justify-center rounded-full border border-border bg-surface text-xs font-semibold text-body sm:text-sm`}
     >
       {initials(person.name)}
     </span>
@@ -54,6 +67,8 @@ export function LaneHeader({
   overflowCount,
   expanded,
   onToggleExpanded,
+  compact,
+  divider,
 }: LaneHeaderProps) {
   const details = [roles, facts].filter(Boolean).join(". ");
 
@@ -61,7 +76,9 @@ export function LaneHeader({
     <div
       data-lane-head
       title={details ? `${person.name}. ${details}` : person.name}
-      className="sticky left-0 z-20 flex w-[var(--lane-head)] shrink-0 flex-col border-r border-border bg-canvas px-1.5 pb-3 pt-7 sm:px-3 sm:pt-4"
+      className={`sticky left-0 z-20 flex w-[var(--lane-head)] shrink-0 flex-col border-r border-border bg-canvas px-1.5 sm:px-3 ${
+        divider ? "border-b" : ""
+      } ${compact ? "overflow-hidden pb-2 pt-6 sm:pt-3" : "pb-3 pt-7 sm:pt-4"}`}
     >
       <Link
         href={removeHref}
@@ -76,11 +93,13 @@ export function LaneHeader({
       </Link>
 
       <div className="flex shrink-0 flex-col items-center gap-1.5 text-center sm:flex-row sm:items-start sm:gap-3 sm:text-left">
-        <Avatar person={person} />
+        <Avatar person={person} compact={compact} />
         <div className="min-w-0 sm:pr-5">
           <h2
             id={`person-${person.id}`}
-            className="break-words text-[11px] font-semibold leading-tight text-strong sm:text-base"
+            className={`break-words text-[11px] font-semibold leading-tight text-strong sm:text-base ${
+              compact ? "line-clamp-2" : ""
+            }`}
           >
             {soloHref ? (
               <Link href={soloHref} prefetch={false} className="hover:underline">
@@ -90,12 +109,18 @@ export function LaneHeader({
               person.name
             )}
           </h2>
-          {roles && <p className="mt-0.5 hidden text-xs leading-snug text-body sm:line-clamp-2">{roles}</p>}
+          {roles && (
+            <p className={`mt-0.5 hidden text-xs leading-snug text-body ${compact ? "sm:line-clamp-1" : "sm:line-clamp-2"}`}>
+              {roles}
+            </p>
+          )}
         </div>
       </div>
 
-      {facts && <p className="mt-2 hidden shrink-0 text-xs leading-snug text-muted sm:block">{facts}</p>}
-      {span && <p className="mt-1 shrink-0 text-center text-[10px] tabular-nums text-muted sm:hidden">{span}</p>}
+      {!compact && facts && <p className="mt-2 hidden shrink-0 text-xs leading-snug text-muted sm:block">{facts}</p>}
+      {!compact && span && (
+        <p className="mt-1 shrink-0 text-center text-[10px] tabular-nums text-muted sm:hidden">{span}</p>
+      )}
 
       <PersonBio person={person} roles={roles} />
 

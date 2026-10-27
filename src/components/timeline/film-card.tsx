@@ -1,15 +1,14 @@
 import { memo } from "react";
 import { tmdbImage } from "@/lib/images";
-import { CARD_WIDTH, POSTER_HEIGHT } from "@/lib/timeline-layout";
+import { CARD_HEIGHT, CARD_WIDTH, POSTER_HEIGHT } from "@/lib/timeline-layout";
 import { cn } from "./cn";
 
 /**
  * lit   - shared by every lane (green outline and glow)
  * some  - shared by some lanes only, 3+ lanes (thin blue outline)
- * dim   - not shared while something else is lit
- * plain - no emphasis either way
+ * plain - no emphasis
  */
-export type CardTone = "lit" | "some" | "dim" | "plain";
+export type CardTone = "lit" | "some" | "plain";
 
 interface FilmCardProps {
   id: number;
@@ -18,16 +17,25 @@ interface FilmCardProps {
   posterPath: string | null;
   /** "Director, Writer" for this person on this film. */
   roles: string;
-  /** Left edge and top edge inside the lane's track. */
+  /** Left edge and top edge inside the lane's track (or the shared strip). */
   left: number;
   top: number;
   tone: CardTone;
+  /** Index of the lane the card is in; null for the shared strip. Read by the timeline's delegated hover handlers. */
+  laneIndex: number | null;
   upcoming: boolean;
+  /**
+   * The film's connector line continues below this card. The card is only as tall as its
+   * caption (a one-line title is shorter), so it draws the rest of its CARD_HEIGHT as a line
+   * that picks up where the timeline's SVG line resumes, with no gap in between.
+   */
+  tail: boolean;
   /** The same film is hovered or focused (in this or another lane). */
   emphasized: boolean;
   selected: boolean;
+  /** id of the hover card while it is open for this card. */
+  describedBy: string | undefined;
   onSelect: (id: number, trigger: HTMLElement) => void;
-  onHover: (id: number | null) => void;
 }
 
 function accessibleName({ title, year, roles, tone, upcoming }: FilmCardProps): string {
@@ -44,23 +52,24 @@ function accessibleName({ title, year, roles, tone, upcoming }: FilmCardProps): 
 }
 
 function FilmCardImpl(props: FilmCardProps) {
-  const { id, title, year, posterPath, left, top, tone, upcoming, emphasized, selected, onSelect, onHover } = props;
+  const { id, title, year, posterPath, left, top, tone, laneIndex, upcoming, tail, emphasized, selected, describedBy, onSelect } =
+    props;
   const src = tmdbImage(posterPath, "w185");
-  const dimmed = tone === "dim" && !emphasized;
 
   return (
-    <li className="absolute z-10" style={{ left, top, width: CARD_WIDTH }}>
+    <li
+      className={cn("absolute z-10", tail && "flex flex-col")}
+      style={{ left, top, width: CARD_WIDTH, height: tail ? CARD_HEIGHT : undefined }}
+    >
       <button
         type="button"
-        title={title}
+        data-film={id}
+        data-lane={laneIndex ?? undefined}
         aria-label={accessibleName(props)}
+        aria-describedby={describedBy}
         aria-current={selected ? "true" : undefined}
         onClick={(event) => onSelect(id, event.currentTarget)}
-        onPointerEnter={() => onHover(id)}
-        onPointerLeave={() => onHover(null)}
-        onFocus={() => onHover(id)}
-        onBlur={() => onHover(null)}
-        // Opaque on purpose: connector lines run behind cards and must not show through them.
+        // Opaque on purpose: the grid lines of the track must not show through the caption.
         className="group block w-full cursor-pointer rounded-[4px] bg-canvas text-left"
       >
         <span
@@ -95,13 +104,6 @@ function FilmCardImpl(props: FilmCardProps) {
           <span
             aria-hidden
             className={cn(
-              "pointer-events-none absolute inset-0 bg-canvas/55 transition-opacity duration-150 motion-reduce:transition-none",
-              dimmed ? "opacity-100 group-hover:opacity-0 group-focus-visible:opacity-0" : "opacity-0",
-            )}
-          />
-          <span
-            aria-hidden
-            className={cn(
               "pointer-events-none absolute inset-0 rounded-[4px] border",
               upcoming ? "border-dashed border-muted" : "border-strong/20",
             )}
@@ -115,16 +117,20 @@ function FilmCardImpl(props: FilmCardProps) {
             </span>
           )}
         </span>
-        <span
-          className={cn(
-            "mt-1 line-clamp-2 break-words hyphens-auto text-[11px] leading-[13px] group-hover:text-strong group-focus-visible:text-strong",
-            dimmed ? "text-muted" : "text-strong",
-          )}
-        >
-          {title}
-        </span>
+        <span className="mt-1 line-clamp-2 break-words hyphens-auto text-[11px] leading-[13px] text-strong">{title}</span>
         <span className="block text-[11px] leading-[13px] tabular-nums text-muted">{year}</span>
       </button>
+      {tail && (
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none mx-auto min-h-0 flex-1",
+            tone === "lit"
+              ? cn("bg-lit shadow-[0_0_3px_var(--lit-glow)]", emphasized ? "w-[3px]" : "w-0.5")
+              : cn("bg-accent-blue", emphasized ? "w-0.5" : "w-[1.25px]"),
+          )}
+        />
+      )}
     </li>
   );
 }
