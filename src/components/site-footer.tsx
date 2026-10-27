@@ -2,16 +2,25 @@ export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-border text-sm text-muted">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
-        <p>
-          A project by{" "}
-          <a href="https://zachherring.com" className="underline hover:text-strong">
-            Zach Herring
-          </a>
-          <span aria-hidden="true"> · </span>
-          <a href="https://github.com/zherring/parallel" className="underline hover:text-strong">
-            Open source on GitHub
-          </a>
-        </p>
+        <div className="flex flex-col gap-1">
+          <p>
+            A project by{" "}
+            <a href="https://zachherring.com" className="underline hover:text-strong">
+              Zach Herring
+            </a>
+            <span aria-hidden="true"> · </span>
+            <a href="https://github.com/zherring/parallel" className="underline hover:text-strong">
+              Open source on GitHub
+            </a>
+          </p>
+          <p className="text-xs">
+            Awards data from{" "}
+            <a href="https://www.wikidata.org/" className="underline hover:text-strong">
+              Wikidata
+            </a>{" "}
+            (CC0)
+          </p>
+        </div>
         <div className="flex items-center gap-3">
           {/* Official TMDB mark; kept smaller than the Parallel wordmark per their guidelines. */}
           <a href="https://www.themoviedb.org/" aria-label="TMDB" className="shrink-0">
