@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  CAST_PREVIEW,
   CREW_GROUP_ORDER,
   filmMetaLine,
   formatRuntime,
@@ -138,10 +137,6 @@ describe("groupFilmCredits", () => {
   it("labels an actor without a character plainly", () => {
     const { inTimeline } = groupFilmCredits({ crew: [], cast: [cast(5, "Extra", undefined, 3)] }, [{ id: 5 }]);
     expect(inTimeline[0].detail).toBe("Actor");
-  });
-
-  it("exposes the cast preview size", () => {
-    expect(CAST_PREVIEW).toBe(12);
   });
 });
 
