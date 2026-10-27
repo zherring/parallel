@@ -5,16 +5,17 @@
 //
 // It fails, and writes nothing, when a person id does not resolve, a name differs from TMDB's
 // (the slug would redirect), a pairing shares fewer than MIN_SHARED_FILMS films, a person has no
-// photo, a pairing has fewer than HERO_POSTER_COUNT shared films with a poster, or a pairing is
+// photo, a pairing has fewer than HERO_POSTER_MIN shared films with a poster, or a pairing is
 // listed twice. The count comes from the same code the pair page uses (getPersonMovieCredits,
 // then sharedFilms with the default non-minor rules), so a card's number always matches its page.
-// The hero's posters are the most-voted of those same shared films.
+// The hero's posters are the (up to HERO_POSTER_COUNT) most-voted of those same shared films.
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
   EXAMPLE_PAIRINGS,
   GENRES,
   HERO_POSTER_COUNT,
+  HERO_POSTER_MIN,
   MIN_SHARED_FILMS,
   pairingKey,
   type GeneratedExamples,
@@ -157,9 +158,9 @@ async function main(): Promise<void> {
     }
 
     const posters = topPosters(shared, loaded as PersonTimeline[], HERO_POSTER_COUNT);
-    if (posters.length < HERO_POSTER_COUNT) {
+    if (posters.length < HERO_POSTER_MIN) {
       problems.push(
-        `${label}: only ${posters.length} shared film(s) have a poster, needs at least ${HERO_POSTER_COUNT}`,
+        `${label}: only ${posters.length} shared film(s) have a poster, needs at least ${HERO_POSTER_MIN}`,
       );
       ok = false;
     }

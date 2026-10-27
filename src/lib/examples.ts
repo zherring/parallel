@@ -642,8 +642,11 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
 /** A pairing needs at least this many shared films (default rules) to be worth showing. */
 export const MIN_SHARED_FILMS = 3;
 
-/** How many shared-film posters each pairing records for the landing hero. */
-export const HERO_POSTER_COUNT = 3;
+/** The most shared-film posters each pairing records for the landing hero. */
+export const HERO_POSTER_COUNT = 5;
+
+/** A pairing needs at least this many shared films with a poster for the hero to use it. */
+export const HERO_POSTER_MIN = 3;
 
 /** A shared film's poster, with what its `alt` and `title` need. */
 export interface GeneratedPoster {
@@ -660,8 +663,8 @@ export interface GeneratedPairing {
   /** In the same order as the pairing's people, with TMDB's canonical names and photos. */
   people: { id: number; name: string; profilePath: string }[];
   /**
-   * Posters of the HERO_POSTER_COUNT most-voted shared films that have one, oldest film first
-   * (so they read left to right like the timeline).
+   * Posters of the (up to HERO_POSTER_COUNT, at least HERO_POSTER_MIN) most-voted shared films
+   * that have one, oldest film first (so they read left to right like the timeline).
    */
   posters: GeneratedPoster[];
 }

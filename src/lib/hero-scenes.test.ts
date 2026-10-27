@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { HERO_POSTER_MIN } from "@/lib/examples";
 import {
   FIRST_SCENE_KEY,
   MIN_RESUME_MS,
@@ -11,6 +12,7 @@ import {
   firstScene,
   heroPool,
   isRunning,
+  moreFilms,
   nextScene,
   resumeDelay,
   sceneDuration,
@@ -34,13 +36,17 @@ function seeded(seed: number): () => number {
 
 const person = (id: number): HeroPerson => ({ id, name: `Person ${id}`, profilePath: `/p${id}.jpg` });
 
-function pairing(a: number, b: number): HeroPairing {
+function pairing(a: number, b: number, posterCount = 3): HeroPairing {
   const [low, high] = a < b ? [a, b] : [b, a];
   return {
     key: `${low}+${high}`,
     sharedCount: 3 + a + b,
     people: [person(a), person(b)],
-    posters: [1, 2, 3].map((n) => ({ path: `/f${a}-${b}-${n}.jpg`, title: `Film ${n}`, year: 2000 + n })),
+    posters: Array.from({ length: posterCount }, (_, i) => i + 1).map((n) => ({
+      path: `/f${a}-${b}-${n}.jpg`,
+      title: `Film ${n}`,
+      year: 2000 + n,
+    })),
   };
 }
 
@@ -77,6 +83,32 @@ describe("heroPool", () => {
     const noPosters = { ...pairing(3, 77), posters: [] };
     const pool = heroPool([...CHAIN, loner, noPosters]);
     expect(pool.map((p) => p.key)).toEqual(CHAIN.map((p) => p.key));
+  });
+
+  it("wants at least HERO_POSTER_MIN posters, and takes up to five", () => {
+    const short = pairing(3, 77, HERO_POSTER_MIN - 1);
+    const full = pairing(3, 78, 5);
+    const pool = heroPool([FORD_LUCAS, pairing(3, 76, HERO_POSTER_MIN), short, full]);
+    expect(pool.map((p) => p.key)).toEqual([FORD_LUCAS.key, "3+76", "3+78"]);
+  });
+});
+
+describe("moreFilms", () => {
+  it("counts the shared films the collage has no poster for", () => {
+    // Ford and Lucas: 11 films together, five posters shown.
+    expect(moreFilms({ ...pairing(3, 1, 5), sharedCount: 11 })).toBe(6);
+    expect(moreFilms({ ...pairing(3, 1, 5), sharedCount: 6 })).toBe(1);
+  });
+
+  it("is zero when every film is shown, however few there are", () => {
+    // Ford and Spielberg: four films, four posters.
+    expect(moreFilms({ ...pairing(3, 488, 4), sharedCount: 4 })).toBe(0);
+    expect(moreFilms({ ...pairing(3, 488, 5), sharedCount: 5 })).toBe(0);
+    expect(moreFilms({ ...pairing(3, 488, 3), sharedCount: 3 })).toBe(0);
+  });
+
+  it("never goes below zero if the data is off", () => {
+    expect(moreFilms({ ...pairing(3, 1, 5), sharedCount: 4 })).toBe(0);
   });
 });
 

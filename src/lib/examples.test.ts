@@ -6,11 +6,13 @@ import {
   FEATURED_TAB,
   GENRES,
   HERO_POSTER_COUNT,
+  HERO_POSTER_MIN,
   MIN_SHARED_FILMS,
   pairingHref,
   pairingKey,
   type GeneratedExamples,
 } from "@/lib/examples";
+import { POSTER_SLOTS } from "@/lib/hero-layout";
 import { MAX_PEOPLE } from "@/lib/people-nav";
 import { buildPeopleSlug, parsePeopleSlug } from "@/lib/slug";
 
@@ -117,18 +119,33 @@ describe("examples.generated.json", () => {
     }
   });
 
-  it("has the hero posters for every pairing: distinct films with a poster, oldest first", () => {
+  it("has the hero posters for every pairing: three to five distinct films with a poster, oldest first", () => {
     for (const [key, entry] of Object.entries(data)) {
-      expect(entry.posters, `posters for ${key}; run npm run examples:refresh`).toHaveLength(HERO_POSTER_COUNT);
+      const count = entry.posters.length;
+      expect(count, `posters for ${key}; run npm run examples:refresh`).toBeGreaterThanOrEqual(HERO_POSTER_MIN);
+      expect(count, `posters for ${key}; run npm run examples:refresh`).toBeLessThanOrEqual(HERO_POSTER_COUNT);
+      expect(count, `${key} cannot show more posters than it has films`).toBeLessThanOrEqual(entry.sharedCount);
       for (const poster of entry.posters) {
         expect(poster.path).toMatch(/^\/[\w-]+\.(jpg|png)$/);
         expect(poster.title.trim().length).toBeGreaterThan(0);
         expect(Number.isInteger(poster.year)).toBe(true);
       }
-      expect(new Set(entry.posters.map((poster) => poster.path)).size).toBe(HERO_POSTER_COUNT);
+      expect(new Set(entry.posters.map((poster) => poster.path)).size).toBe(count);
       const years = entry.posters.map((poster) => poster.year);
       expect(years).toEqual([...years].sort((a, b) => a - b));
     }
+  });
+
+  it("was refreshed with the current poster count: some pairing has a full row", () => {
+    // A JSON written when HERO_POSTER_COUNT was smaller tops out below it.
+    const longest = Math.max(...Object.values(data).map((entry) => entry.posters.length));
+    expect(longest, "run npm run examples:refresh").toBe(HERO_POSTER_COUNT);
+  });
+
+  it("records as many posters as the collage has slots for", () => {
+    expect(HERO_POSTER_COUNT).toBe(POSTER_SLOTS);
+    expect(HERO_POSTER_MIN).toBeLessThanOrEqual(HERO_POSTER_COUNT);
+    expect(MIN_SHARED_FILMS).toBeGreaterThanOrEqual(HERO_POSTER_MIN);
   });
 
   it("has the Ford and Lucas scene the hero opens on, and enough people in more than one pairing for single swaps", () => {
