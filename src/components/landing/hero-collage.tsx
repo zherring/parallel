@@ -11,12 +11,25 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { HeroConnector, STAGE, TimelineLine } from "@/components/landing/hero-timeline";
+import { TimelineLine } from "@/components/landing/hero-timeline";
 import { TIMING, arrive, depart, float, nod } from "@/components/landing/hero-motion";
 import { personImageUrl, posterImageUrl, useHeroRotation } from "@/components/landing/use-hero-rotation";
 import { useHeroPause } from "@/components/landing/use-hero-pause";
 import {
+  LINE_Y,
+  MORE_LEFT,
+  NO_PLACE,
+  POSTER_SLOTS,
+  POSTER_TOP,
+  STAGE,
+  moreLabelPlace,
+  posterPlace,
+  posterSlotLeft,
+  type Place,
+} from "@/lib/hero-layout";
+import {
   isRunning,
+  moreFilms,
   type HeroPairing,
   type Scene,
   type Transition,
@@ -32,14 +45,19 @@ interface Props {
 
 type Phase = "idle" | "entering" | "leaving";
 
-/** One card on the stage: a portrait (slot 0 or 1) or a poster (slot 0 to 2). */
+/**
+ * One piece on the stage: a portrait (slot 0 or 1), a poster (slot 0 to 4) or the "+N more"
+ * label beside the posters (slot 0).
+ */
 interface Item {
   id: string;
-  type: "person" | "poster";
+  type: "person" | "poster" | "label";
   slot: number;
   src: string;
-  /** A person's name, or a poster's "Title (year)". */
+  /** A person's name, a poster's "Title (year)" or the label's "+N more". */
   text: string;
+  /** Where a poster or label sits, which depends on how many posters its scene has. */
+  place: Place;
   phase: Phase;
   delay: number;
   /** The `seq` of the transition in which this person stays and nods; 0 for none. */
@@ -59,6 +77,7 @@ const personItem = (scene: Scene, slot: 0 | 1, id: string, phase: Phase, delay: 
   slot,
   src: personImageUrl(scene.people[slot].profilePath),
   text: scene.people[slot].name,
+  place: NO_PLACE,
   phase,
   delay,
   nod: 0,
@@ -70,19 +89,34 @@ const posterItem = (pairing: HeroPairing, slot: number, id: string, phase: Phase
   slot,
   src: posterImageUrl(pairing.posters[slot].path),
   text: `${pairing.posters[slot].title} (${pairing.posters[slot].year})`,
+  place: posterPlace(slot, pairing.posters.length),
   phase,
   delay,
   nod: 0,
 });
 
+/** The "+N more" hint of a pairing with films beyond its posters; null when it shows them all. */
+const moreText = (pairing: HeroPairing): string | null => {
+  const more = moreFilms(pairing);
+  return more > 0 ? `+${more} more` : null;
+};
+
+const labelItem = (pairing: HeroPairing, id: string, phase: Phase, delay: number): Item | null => {
+  const text = moreText(pairing);
+  if (!text) return null;
+  return { id, type: "label", slot: 0, src: "", text, place: moreLabelPlace(pairing.posters.length), phase, delay, nod: 0 };
+};
+
 function initialState(scene: Scene): State {
+  const label = labelItem(scene.pairing, "label-0", "idle", 0);
   return {
     scene,
     seq: 0,
     items: [
       personItem(scene, 0, "person-0-0", "idle", 0),
       personItem(scene, 1, "person-1-0", "idle", 0),
-      ...[0, 1, 2].map((slot) => posterItem(scene.pairing, slot, `poster-${slot}-0`, "idle", 0)),
+      ...scene.pairing.posters.map((_, slot) => posterItem(scene.pairing, slot, `poster-${slot}-0`, "idle", 0)),
+      ...(label ? [label] : []),
     ],
   };
 }
@@ -92,10 +126,14 @@ function applyTransition(state: State, transition: Transition): State {
   const seq = state.seq + 1;
   const { scene } = transition;
   const posters = scene.pairing.posters;
-  const samePoster = (slot: number) => state.scene.pairing.posters[slot]?.path === posters[slot]?.path;
+  // The row is centred, so a poster holds its place only if the row is as long as it was.
+  const sameRow = state.scene.pairing.posters.length === posters.length;
+  const samePoster = (slot: number) => sameRow && state.scene.pairing.posters[slot]?.path === posters[slot]?.path;
+  const sameMore = sameRow && moreText(state.scene.pairing) === moreText(scene.pairing);
 
   const items = state.items.map((item): Item => {
     if (item.phase === "leaving") return item;
+    if (item.type === "label") return sameMore ? item : { ...item, phase: "leaving", delay: 0 };
     if (item.type === "person") {
       if (transition.changed.includes(item.slot as 0 | 1)) return { ...item, phase: "leaving", delay: 0 };
       return transition.stayed === item.slot ? { ...item, nod: seq } : item;
@@ -113,6 +151,11 @@ function applyTransition(state: State, transition: Transition): State {
       posterItem(scene.pairing, slot, `poster-${slot}-${seq}`, "entering", TIMING.posterArriveDelay + slot * TIMING.posterStagger),
     );
   }
+  // The label comes in just after the last poster is dealt.
+  const label = sameMore
+    ? null
+    : labelItem(scene.pairing, `label-${seq}`, "entering", TIMING.posterArriveDelay + posters.length * TIMING.posterStagger);
+  if (label) items.push(label);
   return { scene, seq, items };
 }
 
@@ -124,6 +167,9 @@ function subscribeReduced(onChange: () => void) {
 }
 const useReducedMotion = () =>
   useSyncExternalStore(subscribeReduced, () => window.matchMedia(REDUCED_QUERY).matches, () => false);
+
+/** How far each poster slot drifts with the pointer: the middle ones come forward. */
+const POSTER_DEPTH = [-2.5, 1, 3, 1, -2.5];
 
 const GRAIN = `url("data:image/svg+xml,${encodeURIComponent(
   "<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(#n)'/></svg>",
@@ -213,12 +259,13 @@ function PersonCard({ item, tilt, priority, flip }: { item: Item; tilt: number; 
   );
 }
 
-function PosterCard({ item, tilt }: { item: Item; tilt: number }) {
+function PosterCard({ item }: { item: Item }) {
+  const { dx, dy, tilt } = item.place;
   return (
     <div
       title={item.text}
       className="absolute inset-0 overflow-hidden rounded-[6px] bg-surface shadow-[0_0_0_1px_var(--lit),0_0_14px_-3px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)] transition-shadow duration-300 group-hover:shadow-[0_0_0_1.5px_var(--lit),0_0_20px_-2px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)] group-focus-visible:shadow-[0_0_0_2px_var(--focus),0_0_18px_-2px_var(--focus),0_10px_18px_-6px_rgb(0_0_0/0.7)]"
-      style={{ rotate: `${tilt}deg` }}
+      style={{ translate: `${dx}px ${dy}px`, rotate: `${tilt}deg` }}
     >
       <img
         src={item.src}
@@ -232,6 +279,27 @@ function PosterCard({ item, tilt }: { item: Item; tilt: number }) {
         className="absolute inset-0 size-full select-none object-cover"
       />
     </div>
+  );
+}
+
+/**
+ * "+N more" at the right end of the poster row, a quiet pill sitting on the line. It is drawn in
+ * the stage's scaled space, so its size is divided by the scale to stay a readable 12px at every
+ * width; padding and border are in em and the border's width is counter-scaled the same way.
+ */
+function MoreLabel({ item }: { item: Item }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute left-0 top-0 whitespace-nowrap rounded-full border border-border bg-canvas px-[0.75em] py-[0.3em] font-medium leading-none tracking-[0.02em] text-muted transition-colors duration-300 group-hover:border-accent-green/50 group-hover:text-strong"
+      style={{
+        translate: `${item.place.dx}px -50%`,
+        fontSize: "calc(12px / var(--s))",
+        borderWidth: "calc(1px / var(--s))",
+      }}
+    >
+      {item.text}
+    </span>
   );
 }
 
@@ -348,7 +416,8 @@ export function HeroCollage({ pool, initial }: Props) {
     <div
       ref={root}
       data-hero-collage=""
-      className="relative mx-auto h-[calc(var(--s)_*_446px)] w-[calc(var(--s)_*_380px)] shrink-0 [--s:.56] sm:[--s:.66] lg:[--s:.7] wide:[--s:.76]"
+      className="relative mx-auto shrink-0 [--s:.56] sm:[--s:.66] lg:[--s:.7] wide:[--s:.76]"
+      style={{ width: `calc(var(--s) * ${STAGE.width}px)`, height: `calc(var(--s) * ${STAGE.height}px)` }}
     >
       <TimelineLine />
       {/* The whole collage is one link to the pair; its decorative images carry no text of their own. */}
@@ -373,8 +442,6 @@ export function HeroCollage({ pool, initial }: Props) {
             style={{ backgroundImage: GRAIN }}
           />
 
-          <HeroConnector seq={state.seq} reduced={reduced} />
-
           {STAGE.person.map((place, slot) => (
             <div
               key={slot}
@@ -391,21 +458,31 @@ export function HeroCollage({ pool, initial }: Props) {
             </div>
           ))}
 
-          {STAGE.poster.map((place, slot) => (
+          {/* The slots of a full row; a card shifts itself within its slot to centre a shorter one. */}
+          {Array.from({ length: POSTER_SLOTS }, (_, slot) => (
             <div
               key={slot}
               className={`absolute ${lift}`}
-              style={{ left: place.left, top: place.top, ...STAGE.posterSize, zIndex: 12 + slot * 2 }}
+              style={{ left: posterSlotLeft(slot), top: POSTER_TOP, ...STAGE.posterSize, zIndex: 12 + slot * 2 }}
             >
-              <div data-drift="" data-kind="poster" data-depth={slot === 1 ? 3 : -2.5} className="absolute inset-0">
+              <div data-drift="" data-kind="poster" data-depth={POSTER_DEPTH[slot]} className="absolute inset-0">
                 {byType("poster", slot).map((item) => (
                   <Motion key={item.id} item={item} reduced={reduced} onGone={onGone}>
-                    <PosterCard item={item} tilt={place.tilt} />
+                    <PosterCard item={item} />
                   </Motion>
                 ))}
               </div>
             </div>
           ))}
+
+          {/* On the line, past the right end of the row: it stays put while the posters float. */}
+          <div className="absolute" style={{ left: MORE_LEFT, top: LINE_Y, zIndex: 30 }}>
+            {byType("label", 0).map((item) => (
+              <Motion key={item.id} item={item} reduced={reduced} onGone={onGone}>
+                <MoreLabel item={item} />
+              </Motion>
+            ))}
+          </div>
         </div>
       </Link>
 
