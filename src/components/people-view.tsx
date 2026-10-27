@@ -76,6 +76,8 @@ function PeopleViewInner({ timelines, shared, pairwise }: Props) {
   }, []);
 
   const names = people.map((p) => p.name);
+  // The link opens the default view, so the share text counts the non-minor films, not what the toggle shows.
+  const soloFilmCount = timelines[0].films.filter((film) => !film.minor).length;
   // Three or more people: family names only, with the full names on hover.
   const heading = pageHeading(people);
 
@@ -110,10 +112,17 @@ function PeopleViewInner({ timelines, shared, pairwise }: Props) {
       )}
 
       {multi ? (
-        <Together people={people} shared={sharedNow} pairwise={pairwiseNow} minorExtra={minorExtra} onSelect={handleSelect} />
+        <Together
+          people={people}
+          shared={sharedNow}
+          pairwise={pairwiseNow}
+          minorExtra={minorExtra}
+          shareCount={shared.length}
+          onSelect={handleSelect}
+        />
       ) : (
         <div className="mt-8">
-          <ShareActions shared={[]} names={names} canExport={false} />
+          <ShareActions shared={[]} names={names} canExport={false} share={{ people, count: soloFilmCount }} />
         </div>
       )}
 
