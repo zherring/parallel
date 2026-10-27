@@ -5,23 +5,26 @@
 //
 // It fails, and writes nothing, when a person id does not resolve, a name differs from TMDB's
 // (the slug would redirect), a pairing shares fewer than MIN_SHARED_FILMS films, a person has no
-// photo, or a pairing is listed twice. The count comes from the same code the pair page uses
-// (getPersonMovieCredits, then sharedFilms with the default non-minor rules), so a card's
-// number always matches its page.
+// photo, a pairing has fewer than HERO_POSTER_COUNT shared films with a poster, or a pairing is
+// listed twice. The count comes from the same code the pair page uses (getPersonMovieCredits,
+// then sharedFilms with the default non-minor rules), so a card's number always matches its page.
+// The hero's posters are the most-voted of those same shared films.
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
   EXAMPLE_PAIRINGS,
   GENRES,
+  HERO_POSTER_COUNT,
   MIN_SHARED_FILMS,
   pairingKey,
   type GeneratedExamples,
+  type GeneratedPoster,
 } from "../src/lib/examples";
 import { joinNames } from "../src/lib/format";
 import { MAX_PEOPLE } from "../src/lib/people-nav";
 import { sharedFilms } from "../src/lib/shared";
 import { TmdbError, getPersonMovieCredits } from "../src/lib/tmdb";
-import type { PersonTimeline } from "../src/lib/types";
+import type { PersonTimeline, SharedFilm } from "../src/lib/types";
 
 const OUTPUT = fileURLToPath(new URL("../src/lib/examples.generated.json", import.meta.url));
 /** TMDB asks clients to stay well under its rate limit; this keeps a run polite and quick. */
@@ -48,6 +51,25 @@ function describeFailure(id: number, name: string, error: unknown): string {
   const who = `person ${id} (${name})`;
   if (error instanceof TmdbError && error.status === 404) return `${who} does not exist on TMDB`;
   return `${who} could not be loaded: ${error instanceof Error ? error.message : String(error)}`;
+}
+
+/**
+ * Posters of the `count` most-voted shared films that have one (ties: older, then lower id),
+ * returned oldest first. Fewer than `count` when there are not enough films with a poster.
+ */
+function topPosters(shared: SharedFilm[], timelines: PersonTimeline[], count: number): GeneratedPoster[] {
+  const votes = new Map<number, number>();
+  for (const { films } of timelines) {
+    for (const film of films) votes.set(film.id, Math.max(votes.get(film.id) ?? 0, film.voteCount));
+  }
+  const oldestFirst = (a: SharedFilm, b: SharedFilm) =>
+    a.releaseDate.localeCompare(b.releaseDate) || a.id - b.id;
+  return shared
+    .filter((film): film is SharedFilm & { posterPath: string } => Boolean(film.posterPath))
+    .sort((a, b) => (votes.get(b.id) ?? 0) - (votes.get(a.id) ?? 0) || oldestFirst(a, b))
+    .slice(0, count)
+    .sort(oldestFirst)
+    .map((film) => ({ path: film.posterPath, title: film.title, year: film.year }));
 }
 
 function fail(problems: string[]): void {
@@ -104,7 +126,7 @@ async function main(): Promise<void> {
   });
 
   const generated: GeneratedExamples = {};
-  const rows: { genre: string; pair: string; sharedCount: number }[] = [];
+  const rows: { genre: string; pair: string; sharedCount: number; posters: string }[] = [];
   const genreLabels = new Map<string, string>(GENRES.map((genre) => [genre.id, genre.label]));
 
   for (const pairing of EXAMPLE_PAIRINGS) {
@@ -127,18 +149,28 @@ async function main(): Promise<void> {
       people.push({ id: expected.id, name: person.name, profilePath: person.profilePath ?? "" });
     });
 
-    const sharedCount = sharedFilms(loaded as PersonTimeline[], { includeMinor: false }).length;
+    const shared = sharedFilms(loaded as PersonTimeline[], { includeMinor: false });
+    const sharedCount = shared.length;
     if (sharedCount < MIN_SHARED_FILMS) {
       problems.push(`${label}: shares ${sharedCount} film(s), needs at least ${MIN_SHARED_FILMS}`);
       ok = false;
     }
 
+    const posters = topPosters(shared, loaded as PersonTimeline[], HERO_POSTER_COUNT);
+    if (posters.length < HERO_POSTER_COUNT) {
+      problems.push(
+        `${label}: only ${posters.length} shared film(s) have a poster, needs at least ${HERO_POSTER_COUNT}`,
+      );
+      ok = false;
+    }
+
     if (ok) {
-      generated[pairingKey(pairing)] = { sharedCount, people };
+      generated[pairingKey(pairing)] = { sharedCount, people, posters };
       rows.push({
         genre: genreLabels.get(pairing.genre) ?? pairing.genre,
         pair: joinNames(people.map((p) => p.name)),
         sharedCount,
+        posters: posters.map((poster) => poster.title).join(" / "),
       });
     }
   }
@@ -149,9 +181,11 @@ async function main(): Promise<void> {
 
   const genreWidth = Math.max(5, ...rows.map((row) => row.genre.length));
   const pairWidth = Math.max(4, ...rows.map((row) => row.pair.length));
-  console.log(`\n${"Genre".padEnd(genreWidth)}  ${"Pair".padEnd(pairWidth)}  Films`);
+  console.log(`\n${"Genre".padEnd(genreWidth)}  ${"Pair".padEnd(pairWidth)}  Films  Hero posters`);
   for (const row of rows) {
-    console.log(`${row.genre.padEnd(genreWidth)}  ${row.pair.padEnd(pairWidth)}  ${String(row.sharedCount).padStart(5)}`);
+    console.log(
+      `${row.genre.padEnd(genreWidth)}  ${row.pair.padEnd(pairWidth)}  ${String(row.sharedCount).padStart(5)}  ${row.posters}`,
+    );
   }
   console.log(`\nWrote ${rows.length} pairings to src/lib/examples.generated.json.`);
 }

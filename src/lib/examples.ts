@@ -101,6 +101,14 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
     ],
     blurb: "Director and actor: Mean Streets, Taxi Driver, Raging Bull, GoodFellas, Casino.",
   },
+  {
+    genre: "classic",
+    people: [
+      { id: 380, name: "Robert De Niro" },
+      { id: 1158, name: "Al Pacino" },
+    ],
+    blurb: "Two actors on screen together: The Godfather Part II, Heat, Righteous Kill, The Irishman.",
+  },
 
   // Horror
   {
@@ -201,6 +209,22 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
     ],
     blurb: "A writer-director and a cinematographer: Ex Machina, Annihilation, Men, Civil War.",
   },
+  {
+    genre: "sci-fi",
+    people: [
+      { id: 3, name: "Harrison Ford" },
+      { id: 1, name: "George Lucas" },
+    ],
+    blurb: "An actor and a writer: Star Wars, The Empire Strikes Back, Return of the Jedi, Raiders of the Lost Ark.",
+  },
+  {
+    genre: "sci-fi",
+    people: [
+      { id: 525, name: "Christopher Nolan" },
+      { id: 947, name: "Hans Zimmer" },
+    ],
+    blurb: "Director and composer: Batman Begins, Inception, Interstellar, Dunkirk.",
+  },
 
   // Crime & Thriller
   {
@@ -266,6 +290,30 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 976, name: "Jason Statham" },
     ],
     blurb: "Director and actor: Lock, Stock and Two Smoking Barrels, Snatch, Revolver, Wrath of Man.",
+  },
+  {
+    genre: "crime-thriller",
+    people: [
+      { id: 1032, name: "Martin Scorsese" },
+      { id: 6193, name: "Leonardo DiCaprio" },
+    ],
+    blurb: "Director and actor: Gangs of New York, The Aviator, Shutter Island, The Wolf of Wall Street.",
+  },
+  {
+    genre: "crime-thriller",
+    people: [
+      { id: 138, name: "Quentin Tarantino" },
+      { id: 139, name: "Uma Thurman" },
+    ],
+    blurb: "Director and actor: Pulp Fiction, Kill Bill: Vol. 1, Kill Bill: Vol. 2.",
+  },
+  {
+    genre: "crime-thriller",
+    people: [
+      { id: 138, name: "Quentin Tarantino" },
+      { id: 287, name: "Brad Pitt" },
+    ],
+    blurb: "A writer-director and an actor: True Romance, Inglourious Basterds, Once Upon a Time... in Hollywood.",
   },
 
   // Comedy
@@ -383,6 +431,30 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
     ],
     blurb: "Director and cinematographer: Medicine for Melancholy, Moonlight, If Beale Street Could Talk.",
   },
+  {
+    genre: "drama",
+    people: [
+      { id: 488, name: "Steven Spielberg" },
+      { id: 31, name: "Tom Hanks" },
+    ],
+    blurb: "Director and actor: Saving Private Ryan, Catch Me If You Can, The Terminal, Bridge of Spies.",
+  },
+  {
+    genre: "drama",
+    people: [
+      { id: 24, name: "Robert Zemeckis" },
+      { id: 31, name: "Tom Hanks" },
+    ],
+    blurb: "Director and actor: Forrest Gump, Cast Away, The Polar Express, Pinocchio.",
+  },
+  {
+    genre: "drama",
+    people: [
+      { id: 380, name: "Robert De Niro" },
+      { id: 6193, name: "Leonardo DiCaprio" },
+    ],
+    blurb: "Two actors on screen together: This Boy's Life, Marvin's Room, Killers of the Flower Moon.",
+  },
 
   // Action & Western
   {
@@ -432,6 +504,30 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 500, name: "Tom Cruise" },
     ],
     blurb: "A writer-director and an actor: Jack Reacher, Edge of Tomorrow, Mission: Impossible - Fallout, Top Gun: Maverick.",
+  },
+  {
+    genre: "action-western",
+    people: [
+      { id: 3, name: "Harrison Ford" },
+      { id: 488, name: "Steven Spielberg" },
+    ],
+    blurb: "Actor and director: Raiders of the Lost Ark, Indiana Jones and the Temple of Doom, Indiana Jones and the Last Crusade.",
+  },
+  {
+    genre: "action-western",
+    people: [
+      { id: 1, name: "George Lucas" },
+      { id: 488, name: "Steven Spielberg" },
+    ],
+    blurb: "A writer and a director: Raiders of the Lost Ark, Indiana Jones and the Temple of Doom, Indiana Jones and the Last Crusade.",
+  },
+  {
+    genre: "action-western",
+    people: [
+      { id: 525, name: "Christopher Nolan" },
+      { id: 3894, name: "Christian Bale" },
+    ],
+    blurb: "Director and actor: Batman Begins, The Prestige, The Dark Knight, The Dark Knight Rises.",
   },
 
   // World Cinema
@@ -546,12 +642,28 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
 /** A pairing needs at least this many shared films (default rules) to be worth showing. */
 export const MIN_SHARED_FILMS = 3;
 
+/** How many shared-film posters each pairing records for the landing hero. */
+export const HERO_POSTER_COUNT = 3;
+
+/** A shared film's poster, with what its `alt` and `title` need. */
+export interface GeneratedPoster {
+  /** TMDB `poster_path`, e.g. "/abc.jpg". */
+  path: string;
+  title: string;
+  year: number;
+}
+
 /** What `npm run examples:refresh` records per pairing, keyed by `pairingKey`. */
 export interface GeneratedPairing {
   /** Films all people share by the pair page's default rules (non-minor credits). */
   sharedCount: number;
   /** In the same order as the pairing's people, with TMDB's canonical names and photos. */
   people: { id: number; name: string; profilePath: string }[];
+  /**
+   * Posters of the HERO_POSTER_COUNT most-voted shared films that have one, oldest film first
+   * (so they read left to right like the timeline).
+   */
+  posters: GeneratedPoster[];
 }
 
 export type GeneratedExamples = Record<string, GeneratedPairing>;
