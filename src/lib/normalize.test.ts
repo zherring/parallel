@@ -27,7 +27,28 @@ describe("normalizePerson", () => {
       knownFor: "Directing",
       birthday: "1962-08-28",
       deathday: null,
+      biography: null,
     });
+  });
+
+  const person = { id: 1, name: "Someone", profile_path: null };
+
+  it("keeps the biography, trimmed and with normalized line endings", () => {
+    expect(normalizePerson({ ...person, biography: "  First.\r\n\r\nSecond.\r\n" }).biography).toBe("First.\n\nSecond.");
+  });
+
+  it("makes a missing, empty or whitespace-only biography null", () => {
+    expect(normalizePerson(person).biography).toBeNull();
+    expect(normalizePerson({ ...person, biography: null }).biography).toBeNull();
+    expect(normalizePerson({ ...person, biography: "" }).biography).toBeNull();
+    expect(normalizePerson({ ...person, biography: " \r\n\t " }).biography).toBeNull();
+  });
+
+  it("caps a very long biography", () => {
+    const biography = normalizePerson({ ...person, biography: `${"A sentence about a career. ".repeat(400)}` }).biography;
+    expect(biography).not.toBeNull();
+    expect(biography!.length).toBeLessThanOrEqual(4000);
+    expect(biography!.endsWith("…")).toBe(true);
   });
 });
 

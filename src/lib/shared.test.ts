@@ -19,7 +19,7 @@ function film(id: number, releaseDate: string, credits: Credit[]): Film {
 }
 
 const timeline = (id: number, films: Film[]): PersonTimeline => ({
-  person: { id, name: `Person ${id}`, profilePath: null, knownFor: null, birthday: null, deathday: null },
+  person: { id, name: `Person ${id}`, profilePath: null, knownFor: null, birthday: null, deathday: null, biography: null },
   films,
 });
 

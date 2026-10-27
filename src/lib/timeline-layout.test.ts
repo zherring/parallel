@@ -642,7 +642,7 @@ describe("buildConnectors", () => {
       minor: false,
     });
     const person = (id: number, films: Film[]): PersonTimeline => ({
-      person: { id, name: `P${id}`, profilePath: null, knownFor: null, birthday: null, deathday: null },
+      person: { id, name: `P${id}`, profilePath: null, knownFor: null, birthday: null, deathday: null, biography: null },
       films,
     });
     const timelines = [

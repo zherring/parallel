@@ -14,7 +14,7 @@ const film = (id: number, year: number, minor = false): Film => ({
 });
 
 const timeline = (id: number, name: string, films: Film[]): PersonTimeline => ({
-  person: { id, name, profilePath: null, knownFor: null, birthday: null, deathday: null },
+  person: { id, name, profilePath: null, knownFor: null, birthday: null, deathday: null, biography: null },
   films,
 });
 

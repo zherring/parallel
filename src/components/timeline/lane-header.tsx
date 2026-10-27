@@ -2,6 +2,7 @@ import Link from "next/link";
 import { tmdbImage } from "@/lib/images";
 import { initials } from "@/lib/lanes";
 import type { PersonSummary } from "@/lib/types";
+import { PersonBio } from "./person-bio";
 
 interface LaneHeaderProps {
   person: PersonSummary;
@@ -60,7 +61,7 @@ export function LaneHeader({
     <div
       data-lane-head
       title={details ? `${person.name}. ${details}` : person.name}
-      className="sticky left-0 z-20 w-[var(--lane-head)] shrink-0 border-r border-border bg-canvas px-1.5 pb-3 pt-7 sm:px-3 sm:pt-4"
+      className="sticky left-0 z-20 flex w-[var(--lane-head)] shrink-0 flex-col border-r border-border bg-canvas px-1.5 pb-3 pt-7 sm:px-3 sm:pt-4"
     >
       <Link
         href={removeHref}
@@ -74,7 +75,7 @@ export function LaneHeader({
         </svg>
       </Link>
 
-      <div className="flex flex-col items-center gap-1.5 text-center sm:flex-row sm:items-start sm:gap-3 sm:text-left">
+      <div className="flex shrink-0 flex-col items-center gap-1.5 text-center sm:flex-row sm:items-start sm:gap-3 sm:text-left">
         <Avatar person={person} />
         <div className="min-w-0 sm:pr-5">
           <h2
@@ -93,15 +94,17 @@ export function LaneHeader({
         </div>
       </div>
 
-      {facts && <p className="mt-2 hidden text-xs leading-snug text-muted sm:block">{facts}</p>}
-      {span && <p className="mt-1 text-center text-[10px] tabular-nums text-muted sm:hidden">{span}</p>}
+      {facts && <p className="mt-2 hidden shrink-0 text-xs leading-snug text-muted sm:block">{facts}</p>}
+      {span && <p className="mt-1 shrink-0 text-center text-[10px] tabular-nums text-muted sm:hidden">{span}</p>}
+
+      <PersonBio person={person} roles={roles} />
 
       {overflowCount > 0 && (
         <button
           type="button"
           aria-expanded={expanded}
           onClick={onToggleExpanded}
-          className="mt-2 flex w-full cursor-pointer flex-col items-center rounded-md border border-border bg-surface px-1 py-1 text-[10px] leading-tight text-body hover:border-muted hover:text-strong sm:flex-row sm:justify-center sm:gap-1 sm:px-2 sm:text-xs"
+          className="mt-2 flex w-full shrink-0 cursor-pointer flex-col items-center rounded-md border border-border bg-surface px-1 py-1 text-[10px] leading-tight text-body hover:border-muted hover:text-strong sm:flex-row sm:justify-center sm:gap-1 sm:px-2 sm:text-xs"
         >
           {expanded ? (
             "Show fewer"
