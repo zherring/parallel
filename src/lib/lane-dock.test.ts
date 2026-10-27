@@ -16,11 +16,30 @@ describe("mostVisibleLane", () => {
     expect(mostVisibleLane(boxes, boxes[3].top, 400)).toBe(3);
   });
 
-  it("picks the lane with more of its area showing when two are cut off", () => {
-    // Visible lane area is [scrollTop + 44, scrollTop + 400]. At scrollTop 250, lane 0 shows
-    // 88px of itself (content y 294 to 382) and lane 1 shows 268px.
+  it("picks the lane with the larger share showing when two are cut off", () => {
+    // Visible lane area is [scrollTop + 44, scrollTop + 400]. At scrollTop 250 that is y 294..650:
+    // lane 0 (content y 44..382) shows 88 of its 338px, lane 1 (382..720) shows 268 of its 338px.
     expect(mostVisibleLane(boxes, 250, 400)).toBe(1);
+    // At scrollTop 100 (y 144..500) it is 238px of lane 0 against 118px of lane 1.
     expect(mostVisibleLane(boxes, 100, 400)).toBe(0);
+  });
+
+  it("does not let a tall lane beat a short first lane while both are fully on screen", () => {
+    // 188px, 338px and 338px lanes in a 633px scroller: the first two are completely visible.
+    const mixed = stackLanes([1, 2, 2]);
+    expect(mostVisibleLane(mixed, 0, 633)).toBe(0);
+  });
+
+  it("prefers the lane that is fully visible over a partly hidden one", () => {
+    const mixed = stackLanes([1, 2, 2]);
+    // Scrolled to the bottom (content is 44 + 864 tall): lane 1 is cut off, lane 2 is complete.
+    expect(mostVisibleLane(mixed, 44 + 864 - 633, 633)).toBe(2);
+  });
+
+  it("treats a lane taller than the viewport as fully visible when it fills it", () => {
+    const tall = stackLanes([3, 3]);
+    expect(mostVisibleLane(tall, tall[1].top, 300)).toBe(1);
+    expect(mostVisibleLane(tall, 0, 300)).toBe(0);
   });
 
   it("ignores the area hidden under the sticky axis header", () => {
