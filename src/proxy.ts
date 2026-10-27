@@ -9,8 +9,8 @@ const checkApi = createRateLimiter();
  * cannot starve the other. Every id combination is its own image and each one costs a render
  * (a fraction of a second of CPU) plus up to eight TMDB image downloads, so the URL space is a
  * free way to burn the server and the TMDB budget. Real use is far below this: a link unfurl
- * fetches the card once, and finished cards are cached for a day (`Cache-Control` on the route,
- * `revalidate` in it). The limiter lives in process memory, which is enough for one instance.
+ * fetches the card once, and caches in front of the app keep it for a day (`Cache-Control` on the
+ * route). The limiter lives in process memory, which is enough for one instance.
  */
 const checkImage = createRateLimiter({ limit: 30 });
 

@@ -10,12 +10,11 @@ export const size = OG_SIZE;
 export const contentType = "image/png";
 
 /**
- * Regenerate at most daily: TMDB data changes slowly and the images are costly to draw. Note that
- * `next dev` honours this too and keeps serving the first render of a card; comment it out while
- * working on the design.
+ * Cards are cached by whatever sits in front of the app (browsers, a CDN, the crawlers' own
+ * caches): a day fresh, a week stale-while-revalidate. Next itself draws one on every request that
+ * reaches it, which the proxy's per-client budget keeps affordable. (A `revalidate` export would
+ * not change that in production, and in `next dev` it pins the first render of a card.)
  */
-export const revalidate = 86400;
-
 const CACHE_CONTROL = "public, s-maxage=86400, stale-while-revalidate=604800";
 
 /** A TMDB image as a data URI; null when TMDB has none or it cannot be fetched. */
