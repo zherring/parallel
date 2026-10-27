@@ -32,6 +32,18 @@ export const FAMILY_NAME_OVERRIDES: Readonly<Record<number, string>> = {
   607: "Zhang", // Zhang Yimou
   643: "Gong", // Gong Li
   1619: "Chow", // Chow Yun-Fat
+  // More directors and actors whose TMDB names put the family name first (ids checked against TMDB).
+  64992: "Hou", // Hou Hsiao-hsien
+  71174: "Tsai", // Tsai Ming-liang
+  24011: "Jia", // Jia Zhangke
+  1339: "Zhang", // Zhang Ziyi
+  1188: "Kim", // Kim Ki-duk
+  69081: "Kim", // Kim Jee-woon
+  96657: "Lee", // Lee Chang-dong
+  25002: "Lee", // Lee Byung-hun
+  64880: "Choi", // Choi Min-sik
+  21687: "Park", // Park Hae-il
+  21688: "Bae", // Bae Doona
 };
 
 const SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv"]);

@@ -65,6 +65,17 @@ describe("shortName", () => {
       ["Zhang Yimou", 607, "Zhang"],
       ["Gong Li", 643, "Gong"],
       ["Chow Yun-Fat", 1619, "Chow"],
+      ["Hou Hsiao-hsien", 64992, "Hou"],
+      ["Tsai Ming-liang", 71174, "Tsai"],
+      ["Jia Zhangke", 24011, "Jia"],
+      ["Zhang Ziyi", 1339, "Zhang"],
+      ["Kim Ki-duk", 1188, "Kim"],
+      ["Kim Jee-woon", 69081, "Kim"],
+      ["Lee Chang-dong", 96657, "Lee"],
+      ["Lee Byung-hun", 25002, "Lee"],
+      ["Choi Min-sik", 64880, "Choi"],
+      ["Park Hae-il", 21687, "Park"],
+      ["Bae Doona", 21688, "Bae"],
     ];
 
     it.each(overrides)("%s (%i) -> %s", (name, id, expected) => {
