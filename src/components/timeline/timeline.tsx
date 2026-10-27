@@ -62,7 +62,7 @@ import { cn } from "./cn";
 import { FilmCard } from "./film-card";
 import { FilmNode, type NodeTone } from "./film-node";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "./film-popover";
-import { LaneDock, DOCK_HEIGHT } from "./lane-dock";
+import { LaneAvatars } from "./lane-avatars";
 import { LaneHeader } from "./lane-header";
 import { MinimapBar, type MinimapFilm } from "./minimap";
 import { scrollBehavior } from "./scroll-behavior";
@@ -91,9 +91,9 @@ interface TimelineProps {
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
-/** How long the lane a dock avatar jumped to keeps its highlight ring. */
+/** How long the lane a top-bar avatar jumped to keeps its highlight ring. */
 const HIGHLIGHT_MS = 1000;
-/** Quiet time after the last scroll event before a dock jump counts as finished. */
+/** Quiet time after the last scroll event before an avatar jump counts as finished. */
 const SETTLE_MS = 160;
 
 const buttonClass =
@@ -142,7 +142,7 @@ export function Timeline({
   // The one node per lane (by lane index) that is a tab stop: the one last focused.
   const [tabStops, setTabStops] = useState<Readonly<Record<number, number>>>({});
 
-  // Lane most in view (green ring on its dock avatar) and the lane just jumped to (ring on the lane).
+  // Lane most in view (green ring on its top-bar avatar) and the lane just jumped to (ring on the lane).
   const [activeLane, setActiveLane] = useState(0);
   const [highlightLane, setHighlightLane] = useState<number | null>(null);
 
@@ -158,7 +158,7 @@ export function Timeline({
   const settleTimer = useRef<number | undefined>(undefined);
   const hoverElement = useRef<HTMLElement | null>(null);
   /**
-   * A dock jump keeps its lane "active" even if the scroller cannot scroll far enough to make
+   * An avatar jump keeps its lane "active" even if the scroller cannot scroll far enough to make
    * it the most visible one (the last lanes), until the visitor scrolls somewhere else.
    */
   const jump = useRef<{ lane: number; settledTop: number | null } | null>(null);
@@ -554,6 +554,11 @@ export function Timeline({
         scale={scale}
         sharedFilms={minimapFilms.shared}
         filmTicks={minimapFilms.ticks}
+        leading={
+          multi ? (
+            <LaneAvatars people={lanes.map((lane) => lane.person)} activeIndex={activeLane} onJump={jumpToLane} />
+          ) : null
+        }
       >
         <div role="group" aria-label="Zoom" className="flex shrink-0 items-center gap-1.5">
           <button
@@ -799,19 +804,6 @@ export function Timeline({
               />
             )}
 
-            {multi && (
-              <>
-                {/* Room under the last lane for the dock, so it never sits on a lane header. */}
-                <div aria-hidden style={{ height: DOCK_HEIGHT }} />
-                <div className="sticky bottom-0 left-0 z-30 h-0 w-[var(--lane-head)]">
-                  <LaneDock
-                    people={lanes.map((lane) => lane.person)}
-                    activeIndex={activeLane}
-                    onJump={jumpToLane}
-                  />
-                </div>
-              </>
-            )}
           </div>
         </div>
 
