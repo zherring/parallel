@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rovingIndex, tabStopId } from "@/lib/roving";
+import { nodeOnlyIds, rovingIndex, tabStopId } from "@/lib/roving";
 
 describe("rovingIndex", () => {
   it("moves one node along the line", () => {
@@ -45,5 +45,27 @@ describe("tabStopId", () => {
   it("is null when no film of the lane is only a node", () => {
     expect(tabStopId([], undefined)).toBeNull();
     expect(tabStopId([], 4)).toBeNull();
+  });
+});
+
+describe("nodeOnlyIds", () => {
+  const item = (id: number, overflow: boolean) => ({ film: { id }, overflow });
+
+  it("lists only the films without a card in the lane, in order", () => {
+    expect(nodeOnlyIds([item(1, false), item(2, true), item(3, false), item(4, true)])).toEqual([2, 4]);
+  });
+
+  it("is empty when every film of the lane has a card: no node is a control then", () => {
+    expect(nodeOnlyIds([item(1, false), item(2, false)])).toEqual([]);
+    expect(tabStopId(nodeOnlyIds([item(1, false)]), undefined)).toBeNull();
+    expect(nodeOnlyIds([])).toEqual([]);
+  });
+
+  it("gives a film one control per lane: a card in one lane and a node in another is a roving stop only in the second", () => {
+    const first = [item(7, false), item(8, true)];
+    const second = [item(7, true), item(8, false)];
+    expect(nodeOnlyIds(first)).toEqual([8]);
+    expect(nodeOnlyIds(second)).toEqual([7]);
+    expect(tabStopId(nodeOnlyIds(second), 8)).toBe(7);
   });
 });

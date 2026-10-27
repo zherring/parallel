@@ -1,12 +1,15 @@
 import { memo } from "react";
 import { tmdbImage } from "@/lib/images";
-import { CARD_HEIGHT, CARD_WIDTH, POSTER_HEIGHT } from "@/lib/timeline-layout";
+import { CARD_WIDTH, POSTER_HEIGHT } from "@/lib/timeline-layout";
 import { cn } from "./cn";
 
 /**
  * lit   - shared by every lane (green outline and glow)
  * some  - shared by some lanes only, 3+ lanes (thin outline in that connection's colour)
- * plain - no emphasis
+ * plain - a film of this lane only, no emphasis
+ *
+ * A lit or "some" card is the film's poster in this lane; the same film has one in each lane
+ * that shows it, linked by the connector line between their nodes.
  */
 export type CardTone = "lit" | "some" | "plain";
 
@@ -17,7 +20,7 @@ interface FilmCardProps {
   posterPath: string | null;
   /** "Director, Writer" for this person on this film. */
   roles: string;
-  /** Left edge and top edge inside the lane's track (or the shared strip). */
+  /** Left edge and top edge inside the lane's track. */
   left: number;
   top: number;
   tone: CardTone;
@@ -25,17 +28,13 @@ interface FilmCardProps {
   accent: string | null;
   /** Read after the roles, so the tone is not carried by colour alone: "Made together", "Shared by Fincher and Pitt". */
   note: string;
-  /** Index of the lane the card is in; null for the shared strip. Read by the timeline's delegated hover handlers. */
-  laneIndex: number | null;
+  /** Index of the lane the card is in. Read by the timeline's delegated hover handlers. */
+  laneIndex: number;
   upcoming: boolean;
-  /**
-   * The film's connector line continues below this card. The card is only as tall as its
-   * caption (a one-line title is shorter), so it draws the rest of its CARD_HEIGHT as a line
-   * that picks up where the timeline's SVG line resumes, with no gap in between.
-   */
-  tail: boolean;
   /** The same film is hovered or focused (in this or another lane). */
   emphasized: boolean;
+  /** The legend is pointing at another kind of connection: a lit or "some" card drops its outline and reads as a plain poster. */
+  dimmed: boolean;
   selected: boolean;
   /** id of the hover card while it is open for this card. */
   describedBy: string | undefined;
@@ -52,21 +51,22 @@ function accessibleName({ title, year, roles, note, upcoming }: FilmCardProps): 
 }
 
 function FilmCardImpl(props: FilmCardProps) {
-  const { id, title, year, posterPath, left, top, tone, accent, laneIndex, upcoming, tail, emphasized, selected, describedBy, onSelect } =
+  const { id, title, year, posterPath, left, top, tone, accent, laneIndex, upcoming, emphasized, dimmed, selected, describedBy, onSelect } =
     props;
   const src = tmdbImage(posterPath, "w185");
 
   return (
     <li
-      // A lane's posters sit under the timeline's connector lines (z-15, so no z-index) with the captions over them. The
-      // posters of the shared strip (no lane) sit over the lines: another film's line passes behind them instead of through.
-      className={cn("absolute", laneIndex === null && "z-[16]", tail && "flex flex-col")}
-      style={{ left, top, width: CARD_WIDTH, height: tail ? CARD_HEIGHT : undefined }}
+      // The posters of a film that is in one lane only sit under the timeline's connector lines (z-15, so no z-index) with
+      // the captions over them. The posters of shared films sit over the lines: a line passes behind them (its own
+      // film's too, so it shows again right below the caption) instead of through them.
+      className={cn("absolute", tone !== "plain" && "z-[16]")}
+      style={{ left, top, width: CARD_WIDTH }}
     >
       <button
         type="button"
         data-film={id}
-        data-lane={laneIndex ?? undefined}
+        data-lane={laneIndex}
         aria-label={accessibleName(props)}
         aria-describedby={describedBy}
         aria-current={selected ? "true" : undefined}
@@ -78,13 +78,13 @@ function FilmCardImpl(props: FilmCardProps) {
         <span
           className={cn(
             "relative block overflow-hidden rounded-[4px] bg-surface transition-shadow duration-150 motion-reduce:transition-none",
-            tone === "lit" && "shadow-lit",
+            tone === "lit" && !dimmed && (emphasized ? "shadow-[0_0_0_2px_var(--lit),0_0_32px_6px_var(--lit-glow)]" : "shadow-lit"),
             tone !== "lit" && emphasized && "ring-2 ring-strong/80",
             selected && "outline outline-2 outline-offset-2 outline-strong",
           )}
           style={{
             height: POSTER_HEIGHT,
-            boxShadow: tone === "some" && accent && !emphasized ? `0 0 0 1.5px ${accent}` : undefined,
+            boxShadow: tone === "some" && accent && !emphasized && !dimmed ? `0 0 0 1.5px ${accent}` : undefined,
           }}
         >
           {src ? (
@@ -128,17 +128,6 @@ function FilmCardImpl(props: FilmCardProps) {
         </span>
         <span className={cn("relative z-[16] block text-[11px] leading-[13px] tabular-nums text-muted", CAPTION_OUTLINE)}>{year}</span>
       </button>
-      {tail && (
-        <span
-          aria-hidden
-          className={cn(
-            "pointer-events-none mx-auto min-h-0 flex-1",
-            tone === "lit" && "bg-lit shadow-[0_0_3px_var(--lit-glow)]",
-            emphasized ? "w-[3px]" : "w-0.5",
-          )}
-          style={tone === "lit" ? undefined : { backgroundColor: accent ?? "var(--text-muted)" }}
-        />
-      )}
     </li>
   );
 }

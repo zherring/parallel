@@ -25,9 +25,9 @@ interface FilmNodeProps {
   /** Index of the lane the node belongs to; read by the timeline's delegated hover handlers. */
   laneIndex: number;
   /**
-   * The film has a poster card (in this lane or in the shared strip), which is its keyboard and
-   * screen-reader control. The node is then only a mouse target for the hover card and a click:
-   * hidden from assistive technology, out of the tab order and the roving set, with no text.
+   * The film has a poster card in this lane, which is its keyboard and screen-reader control.
+   * The node is then only a mouse target for the hover card and a click: hidden from
+   * assistive technology, out of the tab order and the roving set, with no text.
    */
   decorative: boolean;
   /** The lane's one tab stop (roving tabindex) among the nodes that are not decorative; the arrow keys move between them. */

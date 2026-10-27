@@ -17,7 +17,6 @@ import {
   MIN_ZOOM,
   OVERFLOW_ROW,
   ROW_GAP,
-  STRIP_PAD,
   TRACK_PAD,
   ZOOM_STEPS,
   axisRange,
@@ -25,29 +24,22 @@ import {
   buildConnectors,
   cardTopInLane,
   centerYear,
-  connectorSegments,
   filmMembership,
-  filmsInEveryLane,
   initialAnchorX,
   initialScrollLeft,
   isCrossed,
   labelStep,
   laneHeight,
   laneObstacles,
-  layoutMode,
   makeScale,
   nextZoom,
   nodeHitWidths,
   overflowCount,
   packFilms,
-  packLane,
-  placeNodes,
   rowCount,
   scrollLeftForCenter,
+  sharedAcrossLanes,
   stackLanes,
-  stackStripLanes,
-  stripCardTop,
-  stripHeight,
   totalHeight,
   trackWidth,
   xForDate,
@@ -421,18 +413,6 @@ describe("packFilms with a row cap", () => {
     expect(packed.get(9)).toMatchObject({ overflow: true });
   });
 
-  it("exempts exemptIds from the cap without putting them ahead of priority films", () => {
-    const films = [f(1, "2000-01-01", 900), f(2, "2000-01-02", 800), f(3, "2000-01-03", 1), f(4, "2000-01-04", 2)];
-    const packed = byId(
-      packFilms(films, { ...base, maxRows: 2, priorityIds: new Set([4]), exemptIds: new Set([3]) }),
-    );
-
-    expect(packed.get(4)).toMatchObject({ row: 0 });
-    expect(packed.get(3)).toMatchObject({ row: 1, overflow: false }); // exempt, so ahead of the 900-vote film
-    expect(packed.get(1)).toMatchObject({ overflow: true });
-    expect(packed.get(2)).toMatchObject({ overflow: true });
-  });
-
   it("keeps every film's x, with or without the cap", () => {
     const uncapped = packFilms(cluster, base);
     const capped = packFilms(cluster, { ...base, maxRows: 1 });
@@ -543,12 +523,12 @@ describe("packFilms with soft obstacles", () => {
     expect(packed.map((p) => p.overflow)).toEqual([false, true]);
   });
 
-  it("does not touch films that are exempt from the cap", () => {
+  it("does not touch priority films", () => {
     const packed = packFilms(pair, {
       ...base,
       axisStartYear: 1999,
       maxRows: 1,
-      exemptIds: new Set([1]),
+      priorityIds: new Set([1]),
       obstacles: [{ filmId: 99, x: at1 }],
     });
     expect(packed[0]).toMatchObject({ overflow: false, row: 0 });
@@ -617,40 +597,6 @@ describe("laneObstacles", () => {
   });
 });
 
-describe("packLane", () => {
-  const films = [f(1, "1995-01-01", 5), f(2, "1999-01-01", 9), f(3, "2004-01-01", 7)];
-
-  it("packs everything when no film is shared", () => {
-    expect(packLane(films, new Set(), base)).toEqual(packFilms(films, base));
-  });
-
-  it("leaves the shared films as nodes without a card, and packs the rest", () => {
-    const lane = packLane(films, new Set([2]), { ...base, maxRows: 2 });
-    expect(lane.map((p) => p.film.id)).toEqual([1, 2, 3]);
-    expect(lane.find((p) => p.film.id === 2)).toMatchObject({ row: OVERFLOW_ROW, overflow: true });
-    expect(lane.filter((p) => p.film.id !== 2).every((p) => !p.overflow)).toBe(true);
-  });
-
-  it("keeps the x of a shared film identical to the x of its poster in the strip", () => {
-    const lane = packLane(films, new Set([2]), base);
-    const strip = packFilms([films[1]], base);
-    expect(lane.find((p) => p.film.id === 2)!.x).toBe(strip[0].x);
-  });
-
-  it("does not count shared nodes as lost cards", () => {
-    const shared = new Set([2]);
-    const lane = packLane(films, shared, { ...base, maxRows: 2 });
-    expect(overflowCount(lane)).toBe(1);
-    expect(overflowCount(lane, shared)).toBe(0);
-  });
-
-  it("is only as tall as the unshared posters need", () => {
-    const dense = [f(1, "2000-01-01", 1), f(2, "2000-01-02", 1), f(3, "2000-01-03", 1)];
-    expect(rowCount(packLane(dense, new Set([1, 2, 3]), base))).toBe(1);
-    expect(rowCount(packLane(dense, new Set([1]), base))).toBe(2);
-  });
-});
-
 describe("lane geometry", () => {
   it("grows with rows", () => {
     expect(laneHeight(1)).toBe(CARD_TOP + CARD_HEIGHT + LANE_PAD_BOTTOM);
@@ -686,6 +632,18 @@ describe("lane geometry", () => {
     expect(rowCount(packed)).toBe(4);
   });
 
+  it("uses the poster view's heights: about 188px for one row, 338px for two", () => {
+    expect(laneHeight(1)).toBe(188);
+    expect(laneHeight(2)).toBe(338);
+  });
+
+  it("stacks lanes from y = 0 with nothing between them: the page loses no height to a shared strip", () => {
+    expect(stackLanes([1, 2]).map((b) => b.top)).toEqual([0, 188]);
+    expect(totalHeight(stackLanes([1, 2]))).toBe(526);
+    expect(totalHeight(stackLanes([2, 2]))).toBe(676);
+    expect(totalHeight(stackLanes([2, 2, 2, 2]))).toBe(4 * laneHeight(2));
+  });
+
   it("stacks lanes with cumulative tops", () => {
     const boxes = stackLanes([1, 3, 2]);
     expect(boxes[0].top).toBe(0);
@@ -696,280 +654,206 @@ describe("lane geometry", () => {
   });
 });
 
-describe("placeNodes", () => {
-  it("places every film at its date's x, ordered by x then id, all as nodes", () => {
-    const nodes = placeNodes([f(3, "2000-01-01"), f(1, "1995-01-01"), f(2, "1995-01-01")], base);
-    expect(nodes.map((n) => n.film.id)).toEqual([1, 2, 3]);
-    expect(nodes.every((n) => n.overflow && n.row === OVERFLOW_ROW)).toBe(true);
-    expect(nodes[2].x).toBe(xForDate(makeScale({ startYear: 1990, endYear: 2010 }, 72), "2000-01-01"));
-  });
-
-  it("uses the same x as packFilms, so a poster and a node of one film line up", () => {
-    const films = [f(1, "1999-10-15"), f(2, "2001-03-04")];
-    const nodes = placeNodes(films, base);
-    const packed = packFilms(films, base);
-    expect(nodes.map((n) => n.x)).toEqual(packed.map((p) => p.x));
-  });
-
-  it("takes no card rows: a lane of nodes is as tall as a one-row lane", () => {
-    expect(rowCount(placeNodes([f(1, "2000-01-01"), f(2, "2000-01-02")], base))).toBe(1);
-    expect(overflowCount(placeNodes([f(1, "2000-01-01"), f(2, "2000-01-02")], base))).toBe(2);
-  });
-});
-
-describe("layoutMode and filmsInEveryLane", () => {
+describe("sharedAcrossLanes", () => {
   const lane = (...ids: number[]) => ({ films: ids.map((id) => ({ id })) });
 
-  it("is strip with 2+ lanes and a film every lane shows", () => {
-    expect(layoutMode([lane(1, 2), lane(2, 3)], new Set([2]))).toBe("strip");
-    expect(filmsInEveryLane([lane(1, 2), lane(2, 3)], new Set([2]))).toEqual([2]);
+  it("is the films that two or more lanes show", () => {
+    expect(sharedAcrossLanes([lane(1, 2), lane(2, 3), lane(3, 4, 2)])).toEqual(new Set([2, 3]));
   });
 
-  it("is plain for a single lane, even when the film is in the shared set", () => {
-    expect(layoutMode([lane(1, 2)], new Set([1, 2]))).toBe("plain");
-    expect(filmsInEveryLane([lane(1, 2)], new Set([1, 2]))).toEqual([]);
+  it("counts a film once per lane", () => {
+    expect(sharedAcrossLanes([lane(1, 1), lane(2)])).toEqual(new Set());
   });
 
-  it("is plain when nothing is shared by all lanes", () => {
-    expect(layoutMode([lane(1), lane(2)], new Set())).toBe("plain");
-    expect(layoutMode([lane(1, 2), lane(2, 3), lane(1, 3)], new Set())).toBe("plain");
-  });
-
-  it("only counts shared films that every lane actually shows (the minor toggle can hide one)", () => {
-    expect(layoutMode([lane(1, 2), lane(2), lane(3)], new Set([2]))).toBe("plain");
-    expect(filmsInEveryLane([lane(5, 2, 9), lane(9, 2), lane(2, 9)], new Set([2, 9, 5]))).toEqual([2, 9]);
-  });
-
-  it("is plain with no lanes at all", () => {
-    expect(layoutMode([], new Set([1]))).toBe("plain");
+  it("is empty for a single lane, no lanes, or lanes with nothing in common", () => {
+    expect(sharedAcrossLanes([lane(1, 2)])).toEqual(new Set());
+    expect(sharedAcrossLanes([])).toEqual(new Set());
+    expect(sharedAcrossLanes([lane(1), lane(2), lane(3)])).toEqual(new Set());
   });
 });
 
-describe("strip layout geometry", () => {
-  it("sizes each lane by its poster rows, with the strip under the first one", () => {
-    const stack = stackStripLanes([1, 2], 1);
-    expect(stack.lanes[0]).toEqual({ top: 0, height: laneHeight(1) });
-    expect(stack.strip).toEqual({ top: laneHeight(1), height: stripHeight(1) });
-    expect(stack.lanes[1]).toEqual({ top: laneHeight(1) + stripHeight(1), height: laneHeight(2) });
-    expect(totalHeight(stack.lanes)).toBe(laneHeight(1) + stripHeight(1) + laneHeight(2));
+describe("packing shared films into every lane", () => {
+  const byId = <T extends { film: { id: number } }>(packed: T[]) => new Map(packed.map((p) => [p.film.id, p]));
+  // Films 7 and 8 are shown by both lanes; they come out a few days apart, so their cards collide.
+  const waking = f(7, "2001-10-19", 40);
+  const tape = f(8, "2001-10-31", 30);
+  const crowd = [f(1, "2001-10-01", 900), f(2, "2001-10-10", 800), f(3, "2001-11-05", 700)];
+  const shared = new Set([7, 8]);
+  const lanes = [
+    [...crowd, waking, tape],
+    [waking, tape, f(4, "2001-10-25", 950), f(5, "1995-01-01", 10)],
+  ];
+  const packed = lanes.map((films) => byId(packFilms(films, { ...base, axisStartYear: 2000, maxRows: DEFAULT_MAX_ROWS, priorityIds: shared })));
+
+  it("gives a shared film a card in every lane that shows it, whatever the cap", () => {
+    for (const lane of packed) for (const id of shared) expect(lane.get(id)).toMatchObject({ overflow: false });
   });
 
-  it("puts the strip only in the first gap; further lanes follow directly", () => {
-    const stack = stackStripLanes([2, 1, 1, 3], 2);
-    expect(stack.lanes.map((l) => l.top)).toEqual([
-      0,
-      laneHeight(2) + stripHeight(2),
-      laneHeight(2) + stripHeight(2) + laneHeight(1),
-      laneHeight(2) + stripHeight(2) + laneHeight(1) * 2,
-    ]);
-    expect(stack.lanes.map((l) => l.height)).toEqual([laneHeight(2), laneHeight(1), laneHeight(1), laneHeight(3)]);
+  it("places shared films ahead of better-voted films of the lane, on the lowest rows", () => {
+    expect(packed[0].get(7)).toMatchObject({ row: 0 });
+    expect(packed[0].get(8)).toMatchObject({ row: 1 });
+    // The crowd that is not shared only gets what is left: nothing, in this lane.
+    for (const id of [1, 2, 3]) expect(packed[0].get(id)).toMatchObject({ overflow: true });
+    expect(packed[1].get(7)).toMatchObject({ row: 0 });
+    expect(packed[1].get(8)).toMatchObject({ row: 1 });
+    expect(packed[1].get(4)).toMatchObject({ overflow: true });
   });
 
-  it("is the plain stack plus the strip", () => {
-    const rows = [2, 1, 2];
-    const stack = stackStripLanes(rows, 3);
-    expect(totalHeight(stack.lanes)).toBe(totalHeight(stackLanes(rows)) + stripHeight(3));
+  it("puts a shared film at the same x in every lane, and on the same row while the lanes share the same crowd", () => {
+    for (const id of shared) {
+      expect(packed[0].get(id)!.x).toBe(packed[1].get(id)!.x);
+      expect(packed[0].get(id)!.row).toBe(packed[1].get(id)!.row);
+    }
   });
 
-  it("returns the lane heights the poster view needs: about 188px for one row, 338px for two", () => {
-    expect(laneHeight(1)).toBe(188);
-    expect(laneHeight(2)).toBe(338);
+  it("exempts shared films from the cap, so a lane can need more rows than the cap for them", () => {
+    const films = Array.from({ length: 4 }, (_, i) => f(i + 1, `2001-10-0${i + 1}`, 1));
+    const lane = packFilms(films, { ...base, axisStartYear: 2000, maxRows: DEFAULT_MAX_ROWS, priorityIds: new Set([1, 2, 3, 4]) });
+    expect(lane.every((p) => !p.overflow)).toBe(true);
+    expect(rowCount(lane)).toBe(4);
   });
 
-  it("grows the strip by one card row per packed row", () => {
-    expect(stripHeight(1)).toBe(STRIP_PAD * 2 + CARD_HEIGHT);
-    expect(stripHeight(3)).toBe(STRIP_PAD * 2 + 3 * CARD_HEIGHT + 2 * ROW_GAP);
-    expect(stripHeight(0)).toBe(stripHeight(1));
+  it("keeps a lane at one row of posters when its shared films do not collide", () => {
+    const lane = packFilms([f(1, "1995-01-01"), f(2, "2000-01-01"), f(3, "2005-01-01")], {
+      ...base,
+      maxRows: DEFAULT_MAX_ROWS,
+      priorityIds: new Set([2]),
+    });
+    expect(lane.every((p) => p.row === 0)).toBe(true);
+    expect(laneHeight(rowCount(lane))).toBe(188);
   });
 
-  it("keeps the last strip row inside the strip", () => {
-    for (const rows of [1, 2, 4]) expect(stripCardTop(rows - 1) + CARD_HEIGHT + STRIP_PAD).toBe(stripHeight(rows));
-  });
-
-  it("packs strip posters into extra rows when they collide, with no cap", () => {
-    const films = Array.from({ length: 5 }, (_, i) => f(i + 1, `2000-01-0${i + 1}`));
-    const posters = packFilms(films, base);
-    expect(rowCount(posters)).toBe(5);
-    expect(posters.every((p) => !p.overflow)).toBe(true);
-    // Well-spaced shared films share row 0.
-    expect(rowCount(packFilms([f(1, "1992-01-01"), f(2, "1995-01-01")], base))).toBe(1);
+  it("counts only films without a card as overflow, which is what 'Show all' offers", () => {
+    expect(overflowCount([...packed[0].values()])).toBe(3);
+    expect(overflowCount([...packed[1].values()])).toBe(1);
   });
 });
 
 describe("buildConnectors", () => {
-  /** A lane's films: those with a `row` have a poster card there, the others are only nodes. */
-  const makeLane = (box: { top: number; height: number }, items: { id: number; x: number; row?: number }[]) => ({
+  /** A lane's films, each a node on its line. */
+  const makeLane = (box: { top: number; height: number }, items: { id: number; x: number }[]) => ({
     box,
-    items: items.map(({ id, x, row }) => ({
-      film: { id },
-      x,
-      row: row ?? OVERFLOW_ROW,
-      overflow: row === undefined,
-    })),
+    items: items.map(({ id, x }) => ({ film: { id }, x })),
   });
 
-  describe("with the shared strip", () => {
-    it("runs one continuous line from the first lane's node to the last lane's node", () => {
-      const stack = stackStripLanes([1, 1], 1);
-      const lanes = stack.lanes.map((box) => makeLane(box, [{ id: 1, x: 300 }]));
-      const connectors = buildConnectors(lanes, { box: stack.strip, rows: new Map([[1, 0]]) });
-      expect(connectors).toHaveLength(1);
-      const top = stack.strip.top + stripCardTop(0);
-      expect(connectors[0]).toEqual({
+  it("runs one continuous line from the first lane's node to the last lane's node", () => {
+    const boxes = stackLanes([1, 1]);
+    const connectors = buildConnectors(boxes.map((box) => makeLane(box, [{ id: 1, x: 300 }])));
+    expect(connectors).toEqual([
+      {
         filmId: 1,
         x: 300,
         y1: LINE_Y,
-        y2: stack.lanes[1].top + LINE_Y,
+        y2: boxes[1].top + LINE_Y,
         fromLane: 0,
         toLane: 1,
         lanes: [0, 1],
         kind: "all",
         slot: null,
-        gaps: [{ y1: top, y2: top + CARD_HEIGHT }],
-      });
-    });
-
-    it("keeps the line unbroken apart from the film's own poster in the strip", () => {
-      const stack = stackStripLanes([2, 1], 1);
-      const lanes = stack.lanes.map((box) => makeLane(box, [{ id: 1, x: 300 }]));
-      const [c] = buildConnectors(lanes, { box: stack.strip, rows: new Map([[1, 0]]) });
-      const segments = connectorSegments(c);
-      expect(segments).toHaveLength(2);
-      // It runs the whole height of the first lane's two poster rows, enters the strip poster from above and leaves it below.
-      expect(segments[0].y1).toBe(c.y1);
-      expect(segments[0].y2).toBe(stack.strip.top + STRIP_PAD);
-      expect(segments[1].y1).toBe(stack.strip.top + STRIP_PAD + CARD_HEIGHT);
-      expect(segments[1].y2).toBe(c.y2);
-      expect(segments[0].y2).toBe(c.gaps[0].y1);
-      expect(segments[1].y1).toBe(c.gaps[0].y2);
-    });
-
-    it("continues through the lanes below the strip with 3 lanes", () => {
-      const stack = stackStripLanes([1, 2, 1], 1);
-      const lanes = stack.lanes.map((box) => makeLane(box, [{ id: 1, x: 80 }]));
-      const [c] = buildConnectors(lanes, { box: stack.strip, rows: new Map([[1, 0]]) });
-      expect(c).toMatchObject({ fromLane: 0, toLane: 2, lanes: [0, 1, 2], kind: "all", slot: null });
-      expect(c.y1).toBe(LINE_Y);
-      expect(c.y2).toBe(stack.lanes[2].top + LINE_Y);
-      const segments = connectorSegments(c);
-      expect(segments).toHaveLength(2);
-      expect(segments[1].y2).toBe(c.y2);
-    });
-
-    it("ends every line on a node, whichever strip row the poster is in", () => {
-      const stack = stackStripLanes([1, 1], 3);
-      const lanes = stack.lanes.map((box) => makeLane(box, [{ id: 1, x: 5 }, { id: 2, x: 9 }]));
-      const connectors = buildConnectors(lanes, { box: stack.strip, rows: new Map([[1, 2], [2, 0]]) });
-      for (const c of connectors) {
-        expect(c.y1).toBe(lanes[0].box.top + LINE_Y);
-        expect(c.y2).toBe(lanes[1].box.top + LINE_Y);
-        const segments = connectorSegments(c);
-        expect(segments[0].y1).toBe(c.y1);
-        expect(segments[segments.length - 1].y2).toBe(c.y2);
-      }
-      const [one] = connectors.filter((c) => c.filmId === 1);
-      expect(one.gaps[0].y1).toBe(stack.strip.top + stripCardTop(2));
-    });
-
-    it("does not skip the unshared posters it runs over: only the film's own poster is skipped", () => {
-      const stack = stackStripLanes([1, 1], 1);
-      const lanes = [
-        // Film 9 is a poster of the first lane right under the shared film's line.
-        makeLane(stack.lanes[0], [{ id: 1, x: 300 }, { id: 9, x: 310, row: 0 }]),
-        makeLane(stack.lanes[1], [{ id: 1, x: 300 }]),
-      ];
-      const [c] = buildConnectors(lanes, { box: stack.strip, rows: new Map([[1, 0]]) });
-      expect(c.gaps).toHaveLength(1);
-      expect(c.gaps[0].y1).toBe(stack.strip.top + STRIP_PAD);
-    });
-
-    it("colours a partial share by its pair and skips its own card in every lane above the last", () => {
-      const stack = stackStripLanes([1, 1, 1], 1);
-      const lanes = [
-        makeLane(stack.lanes[0], [{ id: 1, x: 40 }, { id: 7, x: 90, row: 0 }]),
-        makeLane(stack.lanes[1], [{ id: 7, x: 90, row: 0 }, { id: 8, x: 200 }]),
-        makeLane(stack.lanes[2], [{ id: 1, x: 40 }, { id: 8, x: 200, row: 0 }]),
-      ];
-      // Film 1 is in lanes 0 and 2, film 7 in lanes 0 and 1, film 8 in lanes 1 and 2; none is in all three.
-      const connectors = buildConnectors(lanes, { box: stack.strip, rows: new Map() });
-      const byFilm = new Map(connectors.map((c) => [c.filmId, c]));
-
-      expect(byFilm.get(1)).toMatchObject({ kind: "some", fromLane: 0, toLane: 2, lanes: [0, 2], slot: pairIndex(0, 2), gaps: [] });
-      expect(byFilm.get(7)).toMatchObject({ kind: "some", fromLane: 0, toLane: 1, slot: pairIndex(0, 1) });
-      expect(byFilm.get(8)).toMatchObject({ kind: "some", fromLane: 1, toLane: 2, slot: pairIndex(1, 2) });
-      expect(new Set(connectors.map((c) => c.slot)).size).toBe(3);
-
-      // 7 has a card in lane 0 (it hangs below the node, in the line's way) and its end node in lane 1 is the last.
-      expect(byFilm.get(7)!.gaps).toEqual([{ y1: cardTopInLane(0), y2: cardTopInLane(0) + CARD_HEIGHT }]);
-      // 8 has no card in lane 1: nothing to skip there, and the card in lane 2 is at the line's end.
-      expect(byFilm.get(8)!.gaps).toEqual([]);
-      expect(byFilm.get(1)!.y1).toBe(LINE_Y);
-      expect(byFilm.get(1)!.y2).toBe(stack.lanes[2].top + LINE_Y);
-    });
-
-    it("draws a film of every lane green and one of fewer lanes in a pair colour, with 4 lanes too", () => {
-      const stack = stackStripLanes([1, 1, 1, 1], 1);
-      const lanes = stack.lanes.map((box, i) =>
-        makeLane(box, [{ id: 1, x: 10 }, ...(i >= 2 ? [{ id: 2, x: 50 }] : []), ...(i >= 1 ? [{ id: 3, x: 90 }] : [])]),
-      );
-      const connectors = buildConnectors(lanes, { box: stack.strip, rows: new Map([[1, 0]]) });
-      expect(connectors.find((c) => c.filmId === 1)).toMatchObject({ kind: "all", slot: null });
-      expect(connectors.find((c) => c.filmId === 2)).toMatchObject({ kind: "some", lanes: [2, 3], slot: pairIndex(2, 3) });
-      // Three of the four lanes share the group slot.
-      expect(connectors.find((c) => c.filmId === 3)).toMatchObject({ kind: "some", lanes: [1, 2, 3], slot: GROUP_SLOT });
-    });
+      },
+    ]);
   });
 
-  describe("without a strip", () => {
-    it("joins the nodes on the lane lines and skips the upper lane's own card", () => {
-      const boxes = stackLanes([1, 1]);
-      const lanes = [makeLane(boxes[0], [{ id: 1, x: 300, row: 0 }]), makeLane(boxes[1], [{ id: 1, x: 300, row: 0 }])];
-      const [c] = buildConnectors(lanes);
+  it("ends on the node of the last lane, wherever the lane heights put it", () => {
+    for (const rows of [[1, 1], [2, 1], [2, 2], [1, 3]]) {
+      const boxes = stackLanes(rows);
+      const [c] = buildConnectors(boxes.map((box) => makeLane(box, [{ id: 1, x: 5 }])));
       expect(c.y1).toBe(LINE_Y);
-      expect(c.y2).toBe(boxes[1].top + LINE_Y);
-      expect(c.gaps).toEqual([{ y1: CARD_TOP, y2: CARD_TOP + CARD_HEIGHT }]);
-      expect(connectorSegments(c)).toEqual([
-        { y1: LINE_Y, y2: CARD_TOP },
-        { y1: CARD_TOP + CARD_HEIGHT, y2: boxes[1].top + LINE_Y },
-      ]);
-    });
+      expect(c.y2).toBe(laneHeight(rows[0]) + LINE_Y);
+    }
+  });
 
-    it("accounts for sub-rows in the upper lane", () => {
-      const boxes = stackLanes([3, 2]);
-      const lanes = [makeLane(boxes[0], [{ id: 1, x: 100, row: 2 }]), makeLane(boxes[1], [{ id: 1, x: 100, row: 1 }])];
-      const [c] = buildConnectors(lanes);
-      expect(c.gaps).toEqual([{ y1: cardTopInLane(2), y2: cardTopInLane(2) + CARD_HEIGHT }]);
-      expect(c.y2).toBe(boxes[1].top + LINE_Y);
-    });
+  it("continues through the lanes between with 3 lanes", () => {
+    const boxes = stackLanes([1, 2, 1]);
+    const [c] = buildConnectors(boxes.map((box) => makeLane(box, [{ id: 1, x: 80 }])));
+    expect(c).toMatchObject({ fromLane: 0, toLane: 2, lanes: [0, 1, 2], kind: "all", slot: null });
+    expect(c.y1).toBe(LINE_Y);
+    expect(c.y2).toBe(boxes[2].top + LINE_Y);
+  });
 
-    it("counts nodes without a card as lane members and has nothing to skip for them", () => {
-      const boxes = stackLanes([2, 1]);
-      const lanes = [makeLane(boxes[0], [{ id: 1, x: 100 }]), makeLane(boxes[1], [{ id: 1, x: 100, row: 0 }])];
-      expect(filmMembership(lanes).get(1)).toEqual([0, 1]);
-      const [c] = buildConnectors(lanes);
-      expect(c.gaps).toEqual([]);
-      expect(connectorSegments(c)).toEqual([{ y1: LINE_Y, y2: boxes[1].top + LINE_Y }]);
-    });
+  it("links the posters of a shared film: it leaves the first lane's poster by its caption and reaches the last lane's node above its poster", () => {
+    const films = [f(1, "2001-01-01", 5), f(9, "2001-01-20", 900)];
+    const lanes = [films, [films[0]]].map((laneFilms) =>
+      packFilms(laneFilms, { ...base, axisStartYear: 2000, maxRows: DEFAULT_MAX_ROWS, priorityIds: new Set([1]) }),
+    );
+    const boxes = stackLanes(lanes.map(rowCount));
+    const [c] = buildConnectors(lanes.map((items, i) => ({ box: boxes[i], items })));
+    const poster = (lane: number) => boxes[lane].top + cardTopInLane(lanes[lane].find((p) => p.film.id === 1)!.row);
 
-    it("connects shared films in a capped layout, even in a row beyond the cap", () => {
-      const upper = packFilms(
-        [f(1, "2000-01-01", 1), f(2, "2000-01-02", 2), f(3, "2000-01-03", 3), f(7, "2000-01-04", 1)],
-        { ...base, maxRows: 2, priorityIds: new Set([7]) },
-      );
-      const lower = packFilms([f(7, "2000-01-04", 1)], { ...base, maxRows: 2, priorityIds: new Set([7]) });
-      const boxes = stackLanes([rowCount(upper), rowCount(lower)]);
-      const lanes = [
-        { box: boxes[0], items: upper },
-        { box: boxes[1], items: lower },
-      ];
+    expect(c.filmId).toBe(1);
+    // Node above the poster in the first lane, and the poster's caption ends inside the lane: the line shows below it.
+    expect(c.y1).toBeLessThan(poster(0));
+    expect(poster(0) + CARD_HEIGHT).toBeLessThanOrEqual(boxes[0].top + boxes[0].height);
+    // The line ends on the node that sits above the same film's poster in the last lane.
+    expect(c.y2).toBeLessThan(poster(1));
+    expect(poster(1) - c.y2).toBe(poster(0) - c.y1);
+    // Both posters, and both nodes, are at the line's x.
+    expect(lanes.map((items) => items.find((p) => p.film.id === 1)!.x)).toEqual([c.x, c.x]);
+  });
 
-      const connectors = buildConnectors(lanes);
-      expect(connectors).toHaveLength(1);
-      expect(connectors[0]).toMatchObject({ filmId: 7, kind: "all", x: upper.find((p) => p.film.id === 7)!.x });
-      expect(connectors[0].y2).toBe(boxes[1].top + LINE_Y);
-      expect(connectors[0].y2).toBeGreaterThan(connectors[0].y1);
-      expect(boxes[0].height).toBe(laneHeight(rowCount(upper)));
-    });
+  it("colours a partial share by its pair, whichever lanes show it", () => {
+    const boxes = stackLanes([1, 1, 1]);
+    const lanes = [
+      makeLane(boxes[0], [{ id: 1, x: 40 }, { id: 7, x: 90 }]),
+      makeLane(boxes[1], [{ id: 7, x: 90 }, { id: 8, x: 200 }]),
+      makeLane(boxes[2], [{ id: 1, x: 40 }, { id: 8, x: 200 }]),
+    ];
+    // Film 1 is in lanes 0 and 2, film 7 in lanes 0 and 1, film 8 in lanes 1 and 2; none is in all three.
+    const byFilm = new Map(buildConnectors(lanes).map((c) => [c.filmId, c]));
+
+    expect(byFilm.get(1)).toMatchObject({ kind: "some", fromLane: 0, toLane: 2, lanes: [0, 2], slot: pairIndex(0, 2) });
+    expect(byFilm.get(7)).toMatchObject({ kind: "some", fromLane: 0, toLane: 1, slot: pairIndex(0, 1) });
+    expect(byFilm.get(8)).toMatchObject({ kind: "some", fromLane: 1, toLane: 2, slot: pairIndex(1, 2) });
+    expect(new Set([...byFilm.values()].map((c) => c.slot)).size).toBe(3);
+    expect(byFilm.get(1)!.y1).toBe(LINE_Y);
+    expect(byFilm.get(1)!.y2).toBe(boxes[2].top + LINE_Y);
+  });
+
+  it("draws a film of every lane green and one of fewer lanes in a pair colour, with 4 lanes too", () => {
+    const boxes = stackLanes([1, 1, 1, 1]);
+    const lanes = boxes.map((box, i) =>
+      makeLane(box, [{ id: 1, x: 10 }, ...(i >= 2 ? [{ id: 2, x: 50 }] : []), ...(i >= 1 ? [{ id: 3, x: 90 }] : [])]),
+    );
+    const connectors = buildConnectors(lanes);
+    expect(connectors.find((c) => c.filmId === 1)).toMatchObject({ kind: "all", slot: null });
+    expect(connectors.find((c) => c.filmId === 2)).toMatchObject({ kind: "some", lanes: [2, 3], slot: pairIndex(2, 3) });
+    // Three of the four lanes share the group slot.
+    expect(connectors.find((c) => c.filmId === 3)).toMatchObject({ kind: "some", lanes: [1, 2, 3], slot: GROUP_SLOT });
+  });
+
+  it("counts every film of a lane as a member, with a card or without", () => {
+    const upper = packFilms(
+      [f(1, "2000-01-01", 1), f(2, "2000-01-02", 2), f(3, "2000-01-03", 3), f(7, "2000-01-04", 1)],
+      { ...base, maxRows: 2, priorityIds: new Set([7]) },
+    );
+    const lower = packFilms([f(7, "2000-01-04", 1), f(2, "2000-01-02", 2)], { ...base, maxRows: 2, priorityIds: new Set([7]) });
+    const boxes = stackLanes([rowCount(upper), rowCount(lower)]);
+    const lanes = [
+      { box: boxes[0], items: upper },
+      { box: boxes[1], items: lower },
+    ];
+    expect(filmMembership(lanes).get(7)).toEqual([0, 1]);
+    // 2 is in both lanes too, even though it is only a node in the first one (no card: over the cap).
+    expect(upper.find((p) => p.film.id === 2)).toMatchObject({ overflow: true });
+    expect(filmMembership(lanes).get(2)).toEqual([0, 1]);
+  });
+
+  it("connects shared films in a capped layout, even in a row beyond the cap", () => {
+    const options = { ...base, maxRows: 2, priorityIds: new Set([7]) };
+    const upper = packFilms([f(1, "2000-01-01", 1), f(2, "2000-01-02", 2), f(3, "2000-01-03", 3), f(7, "2000-01-04", 1)], options);
+    const lower = packFilms([f(7, "2000-01-04", 1)], options);
+    const boxes = stackLanes([rowCount(upper), rowCount(lower)]);
+    const lanes = [
+      { box: boxes[0], items: upper },
+      { box: boxes[1], items: lower },
+    ];
+
+    const connectors = buildConnectors(lanes);
+    expect(connectors).toHaveLength(1);
+    expect(connectors[0]).toMatchObject({ filmId: 7, kind: "all", x: upper.find((p) => p.film.id === 7)!.x });
+    expect(connectors[0].y2).toBe(boxes[1].top + LINE_Y);
+    expect(connectors[0].y2).toBeGreaterThan(connectors[0].y1);
+    expect(boxes[0].height).toBe(laneHeight(rowCount(upper)));
   });
 
   it("ignores films that appear in one lane only", () => {
@@ -1000,13 +884,14 @@ describe("buildConnectors", () => {
       person(2, [film(20, "1999-01-01"), film(30, "2004-01-01"), film(40, "2010-01-01")]),
       person(3, [film(20, "1999-01-01"), film(40, "2010-01-01")]),
     ];
-    const stack = stackStripLanes([1, 1, 1], 1);
-    const lanes = timelines.map((t, i) => ({ box: stack.lanes[i], items: placeNodes(t.films, base) }));
+    const boxes = stackLanes([1, 1, 1]);
+    const priorityIds = sharedAcrossLanes(timelines);
+    const lanes = timelines.map((t, i) => ({ box: boxes[i], items: packFilms(t.films, { ...base, priorityIds }) }));
 
     const all = new Set(buildConnectors(lanes).filter((c) => c.kind === "all").map((c) => c.filmId));
     expect(all).toEqual(new Set(sharedFilms(timelines, { includeMinor: false }).map((s) => s.id)));
     expect(filmMembership(lanes).get(30)).toEqual([0, 1]);
-    expect(filmsInEveryLane(timelines.map((t) => ({ films: t.films })), new Set([20, 30, 40]))).toEqual([20]);
+    expect(priorityIds).toEqual(new Set([20, 30, 40]));
   });
 
   it("is deterministic and ordered by x then film", () => {
@@ -1018,34 +903,14 @@ describe("buildConnectors", () => {
     expect(buildConnectors(lanes).map((c) => c.filmId)).toEqual([1, 2]);
   });
 
-  it("puts a film's node at the same x in every lane, so the line stands exactly vertical", () => {
+  it("puts a film's node and poster at the same x in every lane, so the line stands exactly vertical", () => {
     const films = [f(1, "1995-03-04"), f(2, "2001-07-19")];
-    const lanes = [packLane([...films, f(5, "1998-01-01", 3)], new Set([1, 2]), base), packLane(films, new Set([1, 2]), base)];
+    const options = { ...base, priorityIds: new Set([1, 2]) };
+    const lanes = [packFilms([...films, f(5, "1998-01-01", 3)], options), packFilms(films, options)];
     for (const film of films) {
       const xs = lanes.map((items) => items.find((p) => p.film.id === film.id)!.x);
       expect(new Set(xs).size).toBe(1);
     }
-  });
-});
-
-describe("connectorSegments", () => {
-  it("is the whole line without gaps", () => {
-    expect(connectorSegments({ y1: 10, y2: 100, gaps: [] })).toEqual([{ y1: 10, y2: 100 }]);
-  });
-
-  it("leaves out each gap, in order", () => {
-    expect(
-      connectorSegments({ y1: 0, y2: 100, gaps: [{ y1: 60, y2: 80 }, { y1: 20, y2: 30 }] }),
-    ).toEqual([
-      { y1: 0, y2: 20 },
-      { y1: 30, y2: 60 },
-      { y1: 80, y2: 100 },
-    ]);
-  });
-
-  it("never draws a zero-length piece", () => {
-    expect(connectorSegments({ y1: 0, y2: 100, gaps: [{ y1: 0, y2: 40 }] })).toEqual([{ y1: 40, y2: 100 }]);
-    expect(connectorSegments({ y1: 0, y2: 100, gaps: [{ y1: 60, y2: 100 }] })).toEqual([{ y1: 0, y2: 60 }]);
   });
 });
 
