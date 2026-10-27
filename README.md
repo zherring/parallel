@@ -67,4 +67,4 @@ This product uses the TMDB API but is not endorsed or certified by TMDB.
 
 ## License
 
-To be decided.
+[MIT](LICENSE). Film data and images come from TMDB and remain subject to [TMDB's terms](https://www.themoviedb.org/api-terms-of-use).
