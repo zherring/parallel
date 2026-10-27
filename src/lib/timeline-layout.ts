@@ -1,6 +1,7 @@
 /**
  * Pure geometry for the timeline: one shared time axis, collision packing of poster
- * cards into sub-rows, connector lines between lanes, and zoom/scroll math.
+ * cards into a capped number of sub-rows (the rest become dots on the lane line),
+ * connector lines between lanes, and zoom/scroll math.
  *
  * Nothing here touches the DOM. Every pixel the UI draws (card positions, lane
  * heights, connector endpoints) is derived from these functions, so a film shared
@@ -26,6 +27,12 @@ export const LANE_PAD_BOTTOM = 18;
 export const AXIS_HEIGHT = 44;
 /** Empty space before the first and after the last year so edge cards are not clipped. */
 export const TRACK_PAD = CARD_WIDTH / 2 + CARD_GAP;
+/** Rows of poster cards a lane shows before the rest collapse into dots. */
+export const DEFAULT_MAX_ROWS = 2;
+/** Height (and widest width) of the invisible hit area around an overflow dot. */
+export const DOT_HIT_SIZE = 24;
+/** Narrowest hit area an overflow dot is squeezed to when its neighbours are close. */
+export const DOT_HIT_MIN = 8;
 
 // ---- Time ------------------------------------------------------------------
 
@@ -124,13 +131,21 @@ export function axisTicks(scale: Scale): AxisTick[] {
 export interface PackableFilm {
   id: number;
   releaseDate: string;
+  /** TMDB vote_count; with a row cap, the most voted films get the poster cards. */
+  voteCount?: number;
 }
+
+/** `row` of a film that did not get a poster card. */
+export const OVERFLOW_ROW = -1;
 
 export interface PackedFilm<F extends PackableFilm = PackableFilm> {
   film: F;
-  /** Centre of the card, in track coordinates. */
+  /** Centre of the card (or dot), in track coordinates. */
   x: number;
+  /** Sub-row of the poster card, or OVERFLOW_ROW. */
   row: number;
+  /** Over the row cap: drawn as a dot on the lane line instead of a poster card. */
+  overflow: boolean;
 }
 
 export interface PackOptions {
@@ -139,17 +154,35 @@ export interface PackOptions {
   pad?: number;
   cardWidth?: number;
   gap?: number;
-  /** Films placed first, so they claim the lowest rows (shared films line up on row 0). */
+  /**
+   * Films placed first, so they claim the lowest rows (shared films line up on row 0),
+   * and exempt from `maxRows`: a film shared by several lanes always gets a card, so its
+   * connector has both ends.
+   */
   priorityIds?: ReadonlySet<number>;
+  /** Also exempt from `maxRows`, but placed with everything else. */
+  exemptIds?: ReadonlySet<number>;
+  /**
+   * Rows of poster cards to allow (default: unlimited). Films are then placed by
+   * priority, vote count (high first) and date, each into the lowest row it fits;
+   * a film that fits none of the first `maxRows` rows is overflow.
+   */
+  maxRows?: number;
 }
 
 /**
  * Places each film at the x of its release date and bumps cards that would overlap
  * (closer than cardWidth + gap) into the lowest free sub-row. Output is ordered by
  * x then id, which is also the sensible tab order.
+ *
+ * Without `maxRows`, films are placed left to right, which makes the greedy first-fit
+ * use the fewest rows possible. With it, the most important films are placed first so
+ * they are the ones that keep their cards.
  */
 export function packFilms<F extends PackableFilm>(films: readonly F[], options: PackOptions): PackedFilm<F>[] {
-  const { cardWidth = CARD_WIDTH, gap = CARD_GAP, pad = TRACK_PAD, priorityIds } = options;
+  const { cardWidth = CARD_WIDTH, gap = CARD_GAP, pad = TRACK_PAD, priorityIds, exemptIds } = options;
+  const maxRows = Math.max(1, options.maxRows ?? Number.POSITIVE_INFINITY);
+  const capped = Number.isFinite(maxRows);
   const minDistance = cardWidth + gap;
   const scale = { pxPerYear: options.pxPerYear, axisStartYear: options.axisStartYear, pad };
 
@@ -157,29 +190,63 @@ export function packFilms<F extends PackableFilm>(films: readonly F[], options: 
     .map((film) => ({ film, x: xForDate(scale, film.releaseDate) }))
     .sort((a, b) => a.x - b.x || a.film.id - b.film.id);
 
-  // Priority films go first so they win row 0; the rest follow left to right, which
-  // makes the greedy first-fit use the fewest rows possible.
-  const order = priorityIds
-    ? [...placed.filter((p) => priorityIds.has(p.film.id)), ...placed.filter((p) => !priorityIds.has(p.film.id))]
-    : placed;
+  const tier = (id: number) => (priorityIds?.has(id) ? 0 : exemptIds?.has(id) && capped ? 1 : 2);
+  const order = capped
+    ? [...placed].sort(
+        (a, b) =>
+          tier(a.film.id) - tier(b.film.id) ||
+          (b.film.voteCount ?? 0) - (a.film.voteCount ?? 0) ||
+          a.x - b.x ||
+          a.film.id - b.film.id,
+      )
+    : [...placed.filter((p) => tier(p.film.id) === 0), ...placed.filter((p) => tier(p.film.id) !== 0)];
 
   const rows: number[][] = [];
   const rowOf = new Map<number, number>();
   for (const { film, x } of order) {
-    let row = rows.findIndex((xs) => xs.every((other) => Math.abs(other - x) >= minDistance));
-    if (row === -1) {
+    const limit = tier(film.id) < 2 ? Number.POSITIVE_INFINITY : maxRows;
+    let row = rows.findIndex((xs, i) => i < limit && xs.every((other) => Math.abs(other - x) >= minDistance));
+    if (row === -1 && rows.length < limit) {
       row = rows.length;
       rows.push([]);
+    }
+    if (row === -1) {
+      rowOf.set(film.id, OVERFLOW_ROW);
+      continue;
     }
     rows[row].push(x);
     rowOf.set(film.id, row);
   }
 
-  return placed.map(({ film, x }) => ({ film, x, row: rowOf.get(film.id) ?? 0 }));
+  return placed.map(({ film, x }) => {
+    const row = rowOf.get(film.id) ?? 0;
+    return { film, x, row, overflow: row === OVERFLOW_ROW };
+  });
 }
 
-export function rowCount(packed: readonly { row: number }[]): number {
-  return packed.reduce((max, p) => Math.max(max, p.row + 1), 1);
+/** Rows of poster cards actually used (at least 1); overflow dots take no room. */
+export function rowCount(packed: readonly { row: number; overflow?: boolean }[]): number {
+  return packed.reduce((max, p) => (p.overflow ? max : Math.max(max, p.row + 1)), 1);
+}
+
+/** How many films of a packed lane are dots rather than cards. */
+export function overflowCount(packed: readonly { overflow?: boolean }[]): number {
+  return packed.reduce((n, p) => (p.overflow ? n + 1 : n), 0);
+}
+
+/**
+ * Hit-area width per overflow dot, by film id: DOT_HIT_SIZE, narrowed (down to
+ * DOT_HIT_MIN) so that neighbouring dots on the line never overlap. Input in x order.
+ */
+export function dotHitWidths(packed: readonly { film: { id: number }; x: number; overflow: boolean }[]): Map<number, number> {
+  const dots = packed.filter((p) => p.overflow);
+  const widths = new Map<number, number>();
+  dots.forEach((dot, i) => {
+    const before = i > 0 ? dot.x - dots[i - 1].x : Number.POSITIVE_INFINITY;
+    const after = i < dots.length - 1 ? dots[i + 1].x - dot.x : Number.POSITIVE_INFINITY;
+    widths.set(dot.film.id, Math.max(DOT_HIT_MIN, Math.min(DOT_HIT_SIZE, before, after)));
+  });
+  return widths;
 }
 
 // ---- Lane geometry ---------------------------------------------------------
@@ -218,7 +285,7 @@ export function totalHeight(boxes: LaneBox[]): number {
 
 export interface ConnectorLane {
   box: LaneBox;
-  items: readonly { film: { id: number }; x: number; row: number }[];
+  items: readonly { film: { id: number }; x: number; row: number; overflow?: boolean }[];
 }
 
 export interface Connector {
@@ -232,11 +299,14 @@ export interface Connector {
   kind: "all" | "some";
 }
 
-/** For each film id, the indexes (ascending) of the lanes that show it. */
-export function filmMembership(lanes: readonly { items: readonly { film: { id: number } }[] }[]): Map<number, number[]> {
+/** For each film id, the indexes (ascending) of the lanes that show it as a poster card (dots do not count). */
+export function filmMembership(
+  lanes: readonly { items: readonly { film: { id: number }; overflow?: boolean }[] }[],
+): Map<number, number[]> {
   const membership = new Map<number, number[]>();
   lanes.forEach((lane, index) => {
-    for (const { film } of lane.items) {
+    for (const { film, overflow } of lane.items) {
+      if (overflow) continue;
       const list = membership.get(film.id);
       if (list) list.push(index);
       else membership.set(film.id, [index]);
