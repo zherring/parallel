@@ -13,11 +13,11 @@ export const POPOVER_DELAY_MS = 120;
 /** A scroll this soon after opening is the browser bringing a focused node into view: move the card, do not close it. */
 const SETTLE_MS = 120;
 
-/** The card's trigger: a film's poster card or node, and the lane it is in (null for the shared strip). */
+/** The card's trigger: a film's poster card or node, and the lane it is in. */
 export interface PopoverTarget {
   trigger: HTMLElement;
   filmId: number;
-  laneIndex: number | null;
+  laneIndex: number;
 }
 
 interface OpenState {

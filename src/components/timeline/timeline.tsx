@@ -20,7 +20,7 @@ import { joinNames } from "@/lib/format";
 import { laneFacts, peopleHref, removePersonHref, yearSpan, type PersonRef } from "@/lib/lanes";
 import { laneScrollTop, mostVisibleLane } from "@/lib/lane-dock";
 import { MINOR_TOGGLE_LABEL, roleSummary } from "@/lib/roles";
-import { rovingIndex, tabStopId } from "@/lib/roving";
+import { nodeOnlyIds, rovingIndex, tabStopId } from "@/lib/roving";
 import { shortName } from "@/lib/short-name";
 import {
   AXIS_HEIGHT,
@@ -37,24 +37,19 @@ import {
   buildConnectors,
   cardTopInLane,
   centerYear,
-  connectorSegments,
   filmMembership,
-  filmsInEveryLane,
   initialAnchorX,
   initialScrollLeft,
   laneObstacles,
-  layoutMode,
   makeScale,
   nextZoom,
   nodeHitWidths,
   overflowCount,
   packFilms,
-  packLane,
   rowCount,
   scrollLeftForCenter,
+  sharedAcrossLanes,
   stackLanes,
-  stackStripLanes,
-  stripCardTop,
   totalHeight,
   trackWidth,
   xForYear,
@@ -116,7 +111,7 @@ function popoverTargetOf(element: HTMLElement): PopoverTarget {
   return {
     trigger: element,
     filmId: Number(element.dataset.film),
-    laneIndex: element.dataset.lane === undefined ? null : Number(element.dataset.lane),
+    laneIndex: Number(element.dataset.lane),
   };
 }
 
@@ -182,45 +177,22 @@ export function Timeline({
     const base = { pxPerYear, axisStartYear: scale.axisStartYear };
     const common = { scale, ticks: axisTicks(scale), width: trackWidth(scale) };
 
-    // With a film every lane shares, those films get one lit poster each in a strip under the
-    // first lane (and only a green node on every lane's line); the rest of every lane keeps its
-    // own posters. Otherwise there is no strip and no film is left out of its lane.
-    const strip = layoutMode(lanes, litIds) === "strip";
-    const sharedIds: ReadonlySet<number> = strip ? new Set(filmsInEveryLane(lanes, litIds)) : new Set<number>();
-
-    // Films shown in two or more lanes always keep a poster card (it is where their line skips
-    // past); without a strip, those shared by every lane (litIds) are also placed first.
-    const priorityIds = strip ? undefined : litIds;
-    const lanesShowing = new Map<number, number>();
-    for (const lane of lanes) {
-      for (const film of lane.films) lanesShowing.set(film.id, (lanesShowing.get(film.id) ?? 0) + 1);
-    }
-    const exemptIds = new Set<number>();
-    for (const [id, count] of lanesShowing) if (count > 1 && !sharedIds.has(id) && !priorityIds?.has(id)) exemptIds.add(id);
+    // A film shown in two or more lanes gets its own poster in each of them, placed first (ahead
+    // of the row cap) so it keeps a card, on the lowest row it can have, in every lane that has it.
+    const priorityIds = sharedAcrossLanes(lanes);
 
     // Connector lines run through the poster rows of the lanes above their last node.
     const obstacles = laneObstacles(lanes, base);
-    const optionsFor = (index: number) => ({ ...base, priorityIds, exemptIds, obstacles: obstacles[index] });
-    const capped = lanes.map((lane, index) =>
-      packLane(lane.films, sharedIds, { ...optionsFor(index), maxRows: DEFAULT_MAX_ROWS }),
-    );
-    const overflow = capped.map((items) => overflowCount(items, sharedIds));
+    const optionsFor = (index: number) => ({ ...base, priorityIds, obstacles: obstacles[index] });
+    const capped = lanes.map((lane, index) => packFilms(lane.films, { ...optionsFor(index), maxRows: DEFAULT_MAX_ROWS }));
+    const overflow = capped.map(overflowCount);
     const items = lanes.map((lane, index) =>
-      expandedIds.has(lane.person.id) && overflow[index] > 0 ? packLane(lane.films, sharedIds, optionsFor(index)) : capped[index],
+      expandedIds.has(lane.person.id) && overflow[index] > 0 ? packFilms(lane.films, optionsFor(index)) : capped[index],
     );
 
-    const posters = packFilms(
-      strip ? lanes[0].films.filter((film) => sharedIds.has(film.id)) : [],
-      base,
-    );
-    const rows = items.map(rowCount);
-    const stack = strip ? stackStripLanes(rows, rowCount(posters)) : { lanes: stackLanes(rows), strip: null };
-    const connectorLanes = items.map((laneItems, index) => ({ box: stack.lanes[index], items: laneItems }));
-    const stripRows = new Map(posters.map((poster) => [poster.film.id, poster.row]));
-    const connectors = buildConnectors(
-      connectorLanes,
-      stack.strip ? { box: stack.strip, rows: stripRows } : undefined,
-    );
+    const stack = stackLanes(items.map(rowCount));
+    const connectorLanes = items.map((laneItems, index) => ({ box: stack[index], items: laneItems }));
+    const connectors = buildConnectors(connectorLanes);
     const membership = filmMembership(connectorLanes);
 
     // The kind of connection, the colour and the screen-reader note of each film shown in more than one lane.
@@ -240,13 +212,11 @@ export function Timeline({
 
     return {
       ...common,
-      sharedIds,
       items,
       overflow,
       hitWidths: items.map(nodeHitWidths),
-      boxes: stack.lanes,
-      strip: stack.strip ? { box: stack.strip, posters } : null,
-      height: totalHeight(stack.lanes),
+      boxes: stack,
+      height: totalHeight(stack),
       membership,
       connectors,
       legend: connectionLegend(connectors, lanes.length),
@@ -254,7 +224,7 @@ export function Timeline({
       keys,
       accents,
       notes,
-      anchorX: initialAnchorX(items, strip ? sharedIds : litIds),
+      anchorX: initialAnchorX(items, litIds),
     };
   }, [expandedIds, lanes, litIds, pxPerYear, today]);
 
@@ -493,7 +463,7 @@ export function Timeline({
       popoverTarget
         ? filmCardContent(popoverTarget.filmId, lanes, {
             includeMinor,
-            firstPersonId: popoverTarget.laneIndex === null ? null : (lanes[popoverTarget.laneIndex]?.person.id ?? null),
+            firstPersonId: lanes[popoverTarget.laneIndex]?.person.id ?? null,
           })
         : null,
     [popoverTarget, lanes, includeMinor],
@@ -540,13 +510,10 @@ export function Timeline({
 
   const cardFor = (
     { film, x }: PackedFilm<Film>,
-    laneIndex: number | null,
+    laneIndex: number,
     top: number,
     roles: string,
   ) => {
-    // The connector runs on below a card unless it is the last lane that shows the film.
-    const members = layout.membership.get(film.id) ?? [];
-    const tail = laneIndex === null || (members.length > 1 && laneIndex < members[members.length - 1]);
     return (
       <FilmCard
         key={film.id}
@@ -562,8 +529,8 @@ export function Timeline({
         note={layout.notes.get(film.id) ?? ""}
         laneIndex={laneIndex}
         upcoming={film.releaseDate > today}
-        tail={tail}
         emphasized={hoveredId === film.id}
+        dimmed={activeKey !== null && layout.keys.get(film.id) !== activeKey}
         selected={selectedId === film.id}
         describedBy={describedByFor(film.id, laneIndex)}
         onSelect={handleSelect}
@@ -598,7 +565,17 @@ export function Timeline({
         onTogglePin={(key) => setPinnedKey((prev) => (prev === key ? null : key))}
       />
 
-      <div className="relative isolate [--lane-head:84px] sm:[--lane-head:224px]">
+      {/*
+        --chrome: what sits above the scroller, the title and the legend, plus the pinned bar below it. The scroller is as
+        tall as what is left of the viewport, so that the year axis at its bottom edge shows right above the bar when the page
+        is at the top, instead of under it (but never shorter than 26rem; a phone scrolls the page instead).
+      */}
+      <div
+        className={cn(
+          "relative isolate [--lane-head:84px] sm:[--lane-head:224px]",
+          layout.legend.length > 0 ? "[--chrome:14.5rem]" : "[--chrome:12rem]",
+        )}
+      >
         <div
           ref={scrollerRef}
           id={scrollerId}
@@ -611,51 +588,22 @@ export function Timeline({
           onFocus={handleFocus}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="max-h-[min(85dvh,1100px)] overflow-auto overscroll-x-contain rounded-lg border border-border bg-canvas [scroll-padding-left:var(--lane-head)] [scroll-padding-top:44px] [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin]"
+          className="max-h-[clamp(26rem,calc(100dvh-var(--chrome)),1100px)] overflow-auto overscroll-x-contain rounded-lg border border-border bg-canvas [scroll-padding-left:var(--lane-head)] [scroll-padding-bottom:44px] [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin]"
         >
           <div className="relative min-w-full" style={{ width: `calc(var(--lane-head) + ${width}px)` }}>
-            <div
-              className="sticky top-0 z-40 flex border-b border-border bg-canvas"
-              style={{ height: AXIS_HEIGHT }}
-            >
-              <div
-                ref={cornerRef}
-                className="sticky left-0 z-50 w-[var(--lane-head)] shrink-0 border-r border-border bg-canvas"
-              />
-              <div aria-hidden className="relative shrink-0" style={{ width }}>
-                {layout.ticks.map((tick) => (
-                  <span
-                    key={tick.year}
-                    className="absolute bottom-0 flex -translate-x-1/2 flex-col items-center"
-                    style={{ left: tick.x }}
-                  >
-                    {tick.label && (
-                      <span
-                        className={cn(
-                          "mb-0.5 tabular-nums",
-                          tick.kind === "decade" ? "text-xs font-semibold text-strong" : "text-[10px] text-muted",
-                        )}
-                      >
-                        {tick.label}
-                      </span>
-                    )}
-                    <span className={cn("w-px", tick.kind === "decade" ? "h-3 bg-muted" : "h-1.5 bg-border")} />
-                  </span>
-                ))}
-              </div>
-            </div>
-
             {/*
               Lane lines, connectors and nodes: pure geometry from the layout, drawn over the poster
-              cards (but under the lane headers). A connector is one line from a film's node in the
-              first lane that shows it to its node in the last. It skips the film's own poster,
-              entering it from above and leaving below, and runs over every other poster in its
-              way, 2px wide on a thin dark halo so it stays legible over the poster art.
+              cards of films that are in one lane only (but under the lane headers and under the
+              posters of shared films). A connector is one line from a film's node in the first lane
+              that shows it to its node in the last. It runs behind the shared posters in its way,
+              its own included (so it enters its poster from above and leaves below the caption),
+              and over every other poster, 2px wide on a thin dark halo so it stays legible over
+              the poster art.
             */}
             <svg
               aria-hidden
-              className="pointer-events-none absolute z-[15]"
-              style={{ left: "var(--lane-head)", top: AXIS_HEIGHT }}
+              className="pointer-events-none absolute top-0 z-[15]"
+              style={{ left: "var(--lane-head)" }}
               width={width}
               height={layout.height}
             >
@@ -671,46 +619,39 @@ export function Timeline({
                   </g>
                 );
               })}
+              {/* Every halo first, so that no film's halo dims the coloured line of a film released days from it. */}
               {layout.connectors.map((c) => {
-                const all = c.kind === "all";
-                const hovered = hoveredId === c.filmId;
                 const key = connectionKey(c.slot);
-                const emphasized = hovered || activeKey === key;
-                const strokeWidth = emphasized ? 3 : 2;
-                const segments = connectorSegments(c);
+                const strokeWidth = hoveredId === c.filmId || activeKey === key ? 3 : 2;
                 return (
-                  <g
+                  <line
+                    key={c.filmId}
+                    x1={c.x}
+                    x2={c.x}
+                    y1={c.y1}
+                    y2={c.y2}
+                    strokeWidth={strokeWidth + 3}
+                    opacity={activeKey !== null && activeKey !== key ? DIMMED : 1}
+                    className="stroke-black/70"
+                  />
+                );
+              })}
+              {layout.connectors.map((c) => {
+                const key = connectionKey(c.slot);
+                const strokeWidth = hoveredId === c.filmId || activeKey === key ? 3 : 2;
+                return (
+                  <line
                     key={c.filmId}
                     data-connector={c.filmId}
                     data-connection={key}
+                    x1={c.x}
+                    x2={c.x}
+                    y1={c.y1}
+                    y2={c.y2}
+                    strokeWidth={strokeWidth}
                     opacity={activeKey !== null && activeKey !== key ? DIMMED : 1}
-                  >
-                    {/* The halo first, so the coloured line sits on it. */}
-                    {segments.map((segment) => (
-                      <line
-                        key={segment.y1}
-                        x1={c.x}
-                        x2={c.x}
-                        y1={segment.y1}
-                        y2={segment.y2}
-                        strokeWidth={strokeWidth + 3}
-                        className="stroke-black/70"
-                      />
-                    ))}
-                    <g style={all ? LIT_GLOW : undefined}>
-                      {segments.map((segment) => (
-                        <line
-                          key={segment.y1}
-                          x1={c.x}
-                          x2={c.x}
-                          y1={segment.y1}
-                          y2={segment.y2}
-                          strokeWidth={strokeWidth}
-                          style={{ stroke: all ? "var(--lit)" : slotColor(c.slot ?? 0) }}
-                        />
-                      ))}
-                    </g>
-                  </g>
+                    style={{ stroke: c.kind === "all" ? "var(--lit)" : slotColor(c.slot ?? 0), ...(c.kind === "all" ? LIT_GLOW : undefined) }}
+                  />
                 );
               })}
               {layout.items.map((items, laneIndex) => {
@@ -745,11 +686,9 @@ export function Timeline({
               const { person } = lane;
               const items = layout.items[laneIndex];
               const info = laneInfo[laneIndex];
-              // A film with a poster card (its own, or the shared strip's) is reached through the card;
-              // the films that are only a node share the lane's one roving tab stop.
-              const hasCard = (item: PackedFilm<Film>) => !item.overflow || layout.sharedIds.has(item.film.id);
-              const nodeIds = items.filter((item) => !hasCard(item)).map((item) => item.film.id);
-              const tabStop = tabStopId(nodeIds, tabStops[laneIndex]);
+              // A film with a poster card in this lane is reached through the card; the films that
+              // are only a node share the lane's one roving tab stop.
+              const tabStop = tabStopId(nodeOnlyIds(items), tabStops[laneIndex]);
               const nodeFor = (item: PackedFilm<Film>, decorative: boolean) => (
                 <FilmNode
                   key={item.film.id}
@@ -797,12 +736,12 @@ export function Timeline({
                           <ol className="m-0 list-none p-0">
                             {items.map((item) =>
                               item.overflow
-                                ? !hasCard(item) && nodeFor(item, false)
+                                ? nodeFor(item, false)
                                 : cardFor(item, laneIndex, cardTopInLane(item.row), info.rolesByFilm.get(item.film.id) ?? ""),
                             )}
                           </ol>
                           {/* Mouse targets on the nodes of films that have a card: not part of the list or the tab order. */}
-                          {items.filter(hasCard).map((item) => nodeFor(item, true))}
+                          {items.filter((item) => !item.overflow).map((item) => nodeFor(item, true))}
                         </>
                       ) : (
                         <p className="sticky left-[var(--lane-head)] w-max max-w-xs px-4 pt-8 text-sm text-muted">
@@ -814,29 +753,6 @@ export function Timeline({
                     </div>
                   </section>
 
-                  {layout.strip && laneIndex === 0 && (
-                    <section
-                      aria-label="Films made together"
-                      className="flex"
-                      style={{ height: layout.strip.box.height }}
-                    >
-                      <div className="sticky left-0 z-20 flex w-[var(--lane-head)] shrink-0 flex-col justify-center border-b border-r border-border bg-canvas px-1.5 sm:px-3">
-                        <p className="text-[10px] font-semibold uppercase leading-tight tracking-wide text-lit sm:text-xs">
-                          Made together
-                        </p>
-                        <p className="mt-0.5 text-[10px] tabular-nums text-muted sm:text-xs">
-                          {layout.strip.posters.length} {layout.strip.posters.length === 1 ? "film" : "films"}
-                        </p>
-                      </div>
-                      <div className="relative shrink-0 border-b border-border" style={{ width, ...gridStyle }}>
-                        <ol className="m-0 list-none p-0">
-                          {layout.strip.posters.map((poster) =>
-                            cardFor(poster, null, stripCardTop(poster.row), ""),
-                          )}
-                        </ol>
-                      </div>
-                    </section>
-                  )}
                 </Fragment>
               );
             })}
@@ -845,10 +761,41 @@ export function Timeline({
               <div
                 aria-hidden
                 className="pointer-events-none absolute inset-x-0 z-[35] bg-lit/5 ring-2 ring-inset ring-lit"
-                style={{ top: AXIS_HEIGHT + boxes[highlightLane].top, height: boxes[highlightLane].height }}
+                style={{ top: boxes[highlightLane].top, height: boxes[highlightLane].height }}
               />
             )}
 
+            {/* The year axis closes the lanes and stays at the bottom edge of the scroller while the lanes scroll. */}
+            <div
+              className="sticky bottom-0 z-40 flex border-t border-border bg-canvas"
+              style={{ height: AXIS_HEIGHT }}
+            >
+              <div
+                ref={cornerRef}
+                className="sticky left-0 z-50 w-[var(--lane-head)] shrink-0 border-r border-border bg-canvas"
+              />
+              <div aria-hidden className="relative shrink-0" style={{ width }}>
+                {layout.ticks.map((tick) => (
+                  <span
+                    key={tick.year}
+                    className="absolute top-0 flex -translate-x-1/2 flex-col items-center"
+                    style={{ left: tick.x }}
+                  >
+                    <span className={cn("w-px", tick.kind === "decade" ? "h-3 bg-muted" : "h-1.5 bg-border")} />
+                    {tick.label && (
+                      <span
+                        className={cn(
+                          "mt-0.5 tabular-nums",
+                          tick.kind === "decade" ? "text-xs font-semibold text-strong" : "text-[10px] text-muted",
+                        )}
+                      >
+                        {tick.label}
+                      </span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
