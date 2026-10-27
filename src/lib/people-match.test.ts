@@ -187,6 +187,20 @@ describe("searchIndex: ranking", () => {
     expect(searchIndex(index, "tom hanks")[0].person.name).toBe("Tom Hanks");
   });
 
+  it("does not let a stray obscure exact name beat a famous person while the name is still being typed", () => {
+    const index = buildMatchIndex([person("Ste", 0.4), person("Steven Spielberg", 12, 488, 15)]);
+    expect(searchIndex(index, "ste").map((m) => m.person.name)).toEqual(["Steven Spielberg", "Ste"]);
+    expect(searchIndex(index, "ste")[1].kind).toBe("exact");
+  });
+
+  it("steadies trending popularity with notable-film credits", () => {
+    const index = buildMatchIndex([
+      person("Sam Trending", 6.3, 1, 0),
+      person("Sam Director", 2.2, 2, 30),
+    ]);
+    expect(searchIndex(index, "sam").map((m) => m.person.name)).toEqual(["Sam Director", "Sam Trending"]);
+  });
+
   it("breaks equal scores by popularity, then by id, so the order never changes", () => {
     const index = buildMatchIndex([
       person("Alex Rowe", 1, 30),

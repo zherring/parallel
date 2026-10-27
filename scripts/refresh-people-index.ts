@@ -50,6 +50,11 @@ const KEY_CREW_JOBS = new Set([
   "Production Design",
   "Costume Design",
 ]);
+/**
+ * Further crew jobs that count toward how notable a person is (not toward who gets into the
+ * index): Lucas is Story and Producer on films he did not direct, and that is part of his fame.
+ */
+const FAME_CREW_JOBS = new Set([...KEY_CREW_JOBS, "Story", "Characters", "Producer", "Executive Producer"]);
 const TOP_BILLED = 12;
 const MAX_KNOWN_FOR_TITLES = 3;
 /** Someone without a profile photo is kept only when this popular. */
@@ -65,8 +70,6 @@ interface Person {
   knownForTitles: string[];
   /** The best-voted crawled films the person appears in, best first. */
   films: { id: number; title: string; votes: number }[];
-  /** How many crawled films the person appears in (key crew or top-billed): a steadier fame signal than popularity. */
-  credits: number;
   pinned: boolean;
 }
 
@@ -166,7 +169,6 @@ function upsert(raw: RawListedPerson, extra: Partial<Person> = {}): Person | nul
       popularity: 0,
       knownForTitles: [],
       films: [],
-      credits: 0,
       pinned: false,
     };
     people.set(raw.id, person);
@@ -178,27 +180,21 @@ function upsert(raw: RawListedPerson, extra: Partial<Person> = {}): Person | nul
   return person;
 }
 
-/** Films seen so far per person, so a person with several key jobs on one film counts once. */
-const seenCredits = new Map<number, Set<number>>();
-
 /**
- * Records a film for a person: it counts toward `credits` and may become a "known for" title.
- * With `counted: false` (an example person's own filmography, fetched because the crawl missed
- * them) it can still become a title but does not count as a notable-film credit.
+ * Records a film as one of the person's best-voted, which may make it a "known for" title.
  */
-function noteFilm(person: Person, film: { id: number; title: string; votes: number }, counted = true): void {
-  if (counted) {
-    let seen = seenCredits.get(person.id);
-    if (!seen) seenCredits.set(person.id, (seen = new Set()));
-    if (seen.has(film.id)) return;
-    seen.add(film.id);
-    person.credits++;
-  }
+function noteFilm(person: Person, film: { id: number; title: string; votes: number }): void {
   if (person.films.some((f) => f.id === film.id)) return;
   person.films.push(film);
   person.films.sort((a, b) => b.votes - a.votes || a.id - b.id);
   person.films.length = Math.min(person.films.length, MAX_KNOWN_FOR_TITLES);
 }
+
+/**
+ * How many crawled films each person is credited on (top-billed cast, or a job in
+ * FAME_CREW_JOBS), counted once per film: a steadier fame signal than TMDB's trending popularity.
+ */
+const creditCounts = new Map<number, number>();
 
 const pages = (count: number) => Array.from({ length: count }, (_, i) => String(i + 1));
 
@@ -239,15 +235,20 @@ async function crawlCredits(films: ReadonlyMap<number, { id: number; title: stri
     const credits = await tmdb<{ cast?: RawListedPerson[]; crew?: RawListedPerson[] }>(
       `/movie/${film.id}/credits`,
     );
+    const credited = new Set<number>();
     for (const raw of (credits?.cast ?? []).filter((c) => (c.order ?? 0) < TOP_BILLED).slice(0, TOP_BILLED)) {
+      credited.add(raw.id);
       const person = upsert(raw);
       if (person) noteFilm(person, film);
     }
     for (const raw of credits?.crew ?? []) {
-      if (!raw.job || !KEY_CREW_JOBS.has(raw.job)) continue;
+      if (!raw.job || !FAME_CREW_JOBS.has(raw.job)) continue;
+      credited.add(raw.id);
+      if (!KEY_CREW_JOBS.has(raw.job)) continue;
       const person = upsert(raw);
       if (person) noteFilm(person, film);
     }
+    for (const id of credited) creditCounts.set(id, (creditCounts.get(id) ?? 0) + 1);
     if (++done % 250 === 0) console.log(`  credits: ${done}/${list.length} films`);
   });
 }
@@ -283,7 +284,7 @@ async function ensureExamplePeople(): Promise<string[]> {
     }
     const credits = [...(details.movie_credits?.cast ?? []), ...(details.movie_credits?.crew ?? [])];
     for (const credit of credits) {
-      if (credit.title && !credit.video) noteFilm(person, { id: credit.id, title: credit.title, votes: credit.vote_count ?? 0 }, false);
+      if (credit.title && !credit.video) noteFilm(person, { id: credit.id, title: credit.title, votes: credit.vote_count ?? 0 });
     }
     if (person.name !== name) problems.push(`example person ${id} is "${person.name}" on TMDB, not "${name}"`);
   });
@@ -302,7 +303,7 @@ function finish(): MatchablePerson[] {
       knownFor: person.department,
       knownForTitles: [...new Set(titles)].slice(0, MAX_KNOWN_FOR_TITLES),
       popularity: person.popularity,
-      credits: person.credits,
+      credits: creditCounts.get(person.id) ?? 0,
     });
   }
   return kept.sort((a, b) => b.popularity - a.popularity || a.id - b.id);

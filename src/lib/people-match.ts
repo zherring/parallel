@@ -67,11 +67,12 @@ const MAX_NAME_TOKENS = 10;
 const MAX_FUZZY_LENGTH = 24;
 
 /**
- * Base score of each way of matching, before word quality and notability are applied. An exact
- * full name is far enough ahead that no notability multiplier (at most about 10) can lift a
- * lesser match over it: someone who typed a whole name wants that name.
+ * Base score of each way of matching, before word quality and notability are applied. Someone
+ * who typed a whole name probably wants that name, so an exact match starts 3.3 times ahead of a
+ * prefix match: a prefix match has to be several times more notable to beat it. (Not strictly
+ * ahead: "ste" is also the full name of an obscure person, and Steven Spielberg should win.)
  */
-const BASE_EXACT = 1000;
+const BASE_EXACT = 300;
 const BASE_PREFIX = 90;
 const BASE_TOKENS = 70;
 /** Query words in a different order than the name's. */
