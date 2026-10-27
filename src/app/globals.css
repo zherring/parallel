@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+/*
+ * Palette inspired by Letterboxd's dark UI. Background, body/strong text, panel
+ * and border were sampled from letterboxd.com; the accent colors are the
+ * brand-bright values. text-muted is lighter than Letterboxd's own muted gray
+ * (#678, 3.9:1) so that it passes AA (>= 4.5:1) on bg and surface.
+ */
+:root {
+  color-scheme: dark;
+  --bg: #14181c;
+  --surface: #202830;
+  --border: #2c3440;
+  --text-strong: #ffffff;
+  --text: #99aabb;
+  --text-muted: #8899aa;
+  --green: #00e054;
+  --green-hover: #00c030;
+  --on-green: #14181c;
+  --orange: #ff8000;
+  --blue: #40bcf4;
+  --focus: #40bcf4;
+  --lit: #00e054;
+  --lit-glow: rgb(0 224 84 / 0.45);
+}
+
+@theme inline {
+  --color-canvas: var(--bg);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-strong: var(--text-strong);
+  --color-body: var(--text);
+  --color-muted: var(--text-muted);
+  --color-accent-green: var(--green);
+  --color-accent-green-hover: var(--green-hover);
+  --color-on-accent: var(--on-green);
+  --color-accent-orange: var(--orange);
+  --color-accent-blue: var(--blue);
+  --color-focus: var(--focus);
+  --color-lit: var(--lit);
+  --shadow-lit: 0 0 0 2px var(--lit), 0 0 24px var(--lit-glow);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+a {
+  color: inherit;
+}
