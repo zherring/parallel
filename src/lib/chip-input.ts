@@ -14,6 +14,15 @@ import { buildPeopleSlug } from "@/lib/slug";
  */
 export type SearchMode = "navigate" | "chips";
 
+/**
+ * Mode for the header search. On a timeline page (/p/...) it extends the timeline in view and
+ * navigates on pick; on any other page there is no timeline to extend, so it is the chip field
+ * that starts one.
+ */
+export function searchModeForPathname(pathname: string | null | undefined): SearchMode {
+  return pathname?.startsWith("/p/") ? "navigate" : "chips";
+}
+
 /** A chip: the person plus what the chip needs to draw an avatar. */
 export interface ChipPerson extends PersonRef {
   profilePath: string | null;

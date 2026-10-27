@@ -9,6 +9,7 @@ import {
   placeholderCopy,
   refusedMessage,
   removeChip,
+  searchModeForPathname,
   removeLastChip,
   removedMessage,
   type ChipPerson,
@@ -45,6 +46,24 @@ const navigateCtx = (overrides: Partial<KeyContext> = {}): KeyContext =>
   chipsCtx({ mode: "navigate", ...overrides });
 
 const key = (name: string, extra: Partial<KeyInput> = {}): KeyInput => ({ key: name, ...extra });
+
+describe("searchModeForPathname", () => {
+  it("keeps the header search navigating on timeline pages", () => {
+    expect(searchModeForPathname("/p/488-steven-spielberg")).toBe("navigate");
+    expect(searchModeForPathname("/p/488-steven-spielberg+1-george-lucas")).toBe("navigate");
+    // A /p/ page whose slug does not parse still navigates (picking starts that person's page).
+    expect(searchModeForPathname("/p/not-a-slug")).toBe("navigate");
+  });
+
+  it("uses the chip field everywhere else", () => {
+    expect(searchModeForPathname("/nope")).toBe("chips");
+    expect(searchModeForPathname("/p")).toBe("chips");
+    expect(searchModeForPathname("/pricing")).toBe("chips");
+    expect(searchModeForPathname("")).toBe("chips");
+    expect(searchModeForPathname(null)).toBe("chips");
+    expect(searchModeForPathname(undefined)).toBe("chips");
+  });
+});
 
 describe("addChip", () => {
   it("appends in order without touching the input", () => {
