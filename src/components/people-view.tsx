@@ -110,9 +110,7 @@ function PeopleViewInner({ timelines, shared, pairwise }: Props) {
       )}
 
       {multi ? (
-        <Together people={people} shared={sharedNow} pairwise={pairwiseNow} minorExtra={minorExtra} onSelect={handleSelect}>
-          <ShareActions shared={sharedNow} names={names} canExport />
-        </Together>
+        <Together people={people} shared={sharedNow} pairwise={pairwiseNow} minorExtra={minorExtra} onSelect={handleSelect} />
       ) : (
         <div className="mt-8">
           <ShareActions shared={[]} names={names} canExport={false} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { csvFilename, sharedFilmsToCsv } from "@/lib/csv";
 import type { SharedFilm } from "@/lib/types";
 
@@ -10,6 +10,12 @@ interface ShareActionsProps {
   /** Names in lane order, used for the CSV file name. */
   names: string[];
   canExport: boolean;
+  /**
+   * When set (the "films together" section), the buttons share a row with it: heading on the
+   * left, buttons on the right, with the helper text and status line underneath. Without it
+   * the buttons, status and helper text stack as a block (single-person pages).
+   */
+  heading?: ReactNode;
 }
 
 const primaryClass =
@@ -17,7 +23,7 @@ const primaryClass =
 const secondaryClass =
   "inline-flex items-center justify-center rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-strong hover:border-muted";
 
-export function ShareActions({ shared, names, canExport }: ShareActionsProps) {
+export function ShareActions({ shared, names, canExport, heading }: ShareActionsProps) {
   const [status, setStatus] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -52,35 +58,66 @@ export function ShareActions({ shared, names, canExport }: ShareActionsProps) {
     }
   };
 
+  const exportButton = canExport && (
+    <button
+      type="button"
+      className={`${primaryClass} ${heading ? "max-sm:grow" : ""}`}
+      onClick={exportCsv}
+      disabled={shared.length === 0}
+    >
+      Export to Letterboxd (CSV)
+    </button>
+  );
+  const copyButton = (
+    <button type="button" className={`${secondaryClass} ${heading ? "max-sm:grow" : ""}`} onClick={copyLink}>
+      Copy link
+    </button>
+  );
+  const helper = canExport && (
+    <p className={`max-w-2xl text-sm text-muted ${heading ? "flex-1 basis-64" : ""}`}>
+      Downloads a CSV of the films below, ready to import into Letterboxd as a list or into your watched films.{" "}
+      <a
+        href="https://letterboxd.com/about/importing-data/"
+        className="text-accent-blue underline-offset-2 hover:underline"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        How Letterboxd imports work
+      </a>
+      .
+    </p>
+  );
+
+  if (heading) {
+    return (
+      <div>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          {heading}
+          <div className="flex flex-wrap items-center gap-3 max-sm:w-full">
+            {exportButton}
+            {copyButton}
+          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+          {helper}
+          <p role="status" aria-live="polite" className="min-h-5 max-w-full text-sm text-body">
+            {status}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-3">
-        {canExport && (
-          <button type="button" className={primaryClass} onClick={exportCsv} disabled={shared.length === 0}>
-            Export to Letterboxd (CSV)
-          </button>
-        )}
-        <button type="button" className={secondaryClass} onClick={copyLink}>
-          Copy link
-        </button>
+        {exportButton}
+        {copyButton}
         <p role="status" aria-live="polite" className="min-h-5 text-sm text-body">
           {status}
         </p>
       </div>
-      {canExport && (
-        <p className="text-sm text-muted">
-          Downloads a CSV of the films above, ready to import into Letterboxd as a list or into your watched films.{" "}
-          <a
-            href="https://letterboxd.com/about/importing-data/"
-            className="text-accent-blue underline-offset-2 hover:underline"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            How Letterboxd imports work
-          </a>
-          .
-        </p>
-      )}
+      {helper}
     </div>
   );
 }

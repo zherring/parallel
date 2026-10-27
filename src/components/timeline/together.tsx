@@ -1,9 +1,9 @@
-import type { ReactNode } from "react";
 import { tmdbImage } from "@/lib/images";
 import { MINOR_TOGGLE_LABEL, roleSummary } from "@/lib/roles";
 import type { PairShared } from "@/lib/shared";
 import type { SharedFilm } from "@/lib/types";
 import type { PersonRef } from "@/lib/lanes";
+import { ShareActions } from "./share-actions";
 
 interface TogetherProps {
   people: PersonRef[];
@@ -12,8 +12,6 @@ interface TogetherProps {
   /** Films that would be added by turning minor credits on; 0 when already on. */
   minorExtra: number;
   onSelect: (id: number, trigger: HTMLElement) => void;
-  /** Rendered after the list: the export and copy buttons. */
-  children?: ReactNode;
 }
 
 const tmdbMovieUrl = (id: number) => `https://www.themoviedb.org/movie/${id}`;
@@ -44,24 +42,31 @@ function Thumb({ film }: { film: Pick<SharedFilm, "title" | "posterPath"> }) {
   );
 }
 
-export function Together({ people, shared, pairwise, minorExtra, onSelect, children }: TogetherProps) {
+export function Together({ people, shared, pairwise, minorExtra, onSelect }: TogetherProps) {
   const nameById = new Map(people.map((p) => [p.id, p.name]));
   const count = shared.length;
 
   return (
     <section aria-labelledby="together" className="mt-10">
-      <h2 id="together" className="text-xl font-semibold text-strong">
-        {count === 0 ? "No films together" : `${count} ${count === 1 ? "film" : "films"} together`}
-      </h2>
+      <ShareActions
+        shared={shared}
+        names={people.map((p) => p.name)}
+        canExport
+        heading={
+          <h2 id="together" className="text-xl font-semibold text-strong">
+            {count === 0 ? "No films together" : `${count} ${count === 1 ? "film" : "films"} together`}
+          </h2>
+        }
+      />
 
       {count === 0 ? (
-        <p className="mt-2 max-w-xl text-body">
+        <p className="mt-4 max-w-xl text-body">
           No films together found on TMDB. Try adding a collaborator in a nearby role, such as the cinematographer,
           editor or a co-star.
           {minorExtra > 0 && ` Turning on "${MINOR_TOGGLE_LABEL}" would add ${minorExtra}.`}
         </p>
       ) : (
-        <ol className="mt-3 grid gap-3 md:grid-cols-2">
+        <ol className="mt-4 grid gap-3 md:grid-cols-2">
           {shared.map((film) => (
             <li key={film.id} className="flex gap-3 rounded-lg border border-border bg-surface p-3">
               <button
@@ -140,8 +145,6 @@ export function Together({ people, shared, pairwise, minorExtra, onSelect, child
           </div>
         </details>
       )}
-
-      {children && <div className="mt-6">{children}</div>}
     </section>
   );
 }
