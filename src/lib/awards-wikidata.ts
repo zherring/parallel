@@ -115,7 +115,11 @@ export interface AwardRow {
 /** What one film adds up to: the same shape the app reads. */
 export type FilmAwards = AwardsSummary;
 
-const filmValues = (ids: readonly number[]) => ids.map((id) => `"${Math.trunc(id)}"`).join(" ");
+const filmValues = (ids: readonly number[]) =>
+  ids
+    .filter((id) => Number.isSafeInteger(id) && id > 0)
+    .map((id) => `"${id}"`)
+    .join(" ");
 
 /**
  * The query for a batch of TMDB movie ids. Rows: ?tmdb ?cat ?w (1 won, 0 nominated) ?kind ?who ?pit.
