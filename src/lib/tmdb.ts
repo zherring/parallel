@@ -1,6 +1,7 @@
 import "server-only";
 import { normalizeFilmDetails, normalizeMovieCredits, normalizePerson } from "@/lib/normalize";
 import type {
+  RawDiscoverMovies,
   RawMovieCredits,
   RawMovieDetails,
   RawPerson,
@@ -15,6 +16,10 @@ const MAX_SEARCH_RESULTS = 8;
 const MAX_KNOWN_FOR_TITLES = 3;
 const RETRY_DELAY_MS = 300;
 const MAX_RETRY_DELAY_MS = 2000;
+/** Anything shorter than this many minutes is a "short" and counts as a minor credit. */
+const SHORT_MAX_MINUTES = 39;
+/** 20 results per page: 200 short movies per person is far more than anyone has. */
+const MAX_DISCOVER_PAGES = 10;
 
 export class TmdbError extends Error {
   constructor(
@@ -76,12 +81,62 @@ export async function getPerson(id: number): Promise<PersonSummary> {
   return normalizePerson(await tmdbGet<RawPerson>(`/person/${id}`, DAY));
 }
 
+/**
+ * Ids of the movies in a person's credits that run under 40 minutes: shorts, featurettes,
+ * making-ofs. `movie_credits` lists them as ordinary credits and has no runtime, so this
+ * asks `/discover/movie` for them instead.
+ *
+ * - `with_people` matches cast or crew, so one query covers every kind of credit.
+ * - `with_runtime.gte=1` leaves out movies with an unknown runtime (TMDB stores 0).
+ * - `include_video=true` is deliberate: by default discover drops movies TMDB flags as
+ *   "video" (music videos, extras), and those are exactly what belongs in this set.
+ * - Long video compilations (e.g. a 60+ minute "Video Collection") and movies with no
+ *   runtime are not caught here; `normalizeMovieCredits` also honours the `video` flag
+ *   that `movie_credits` carries.
+ *
+ * Never throws: the lookup only refines the page, so any failure (after the retry in
+ * `tmdbGet`) yields an empty set, or the pages that did load.
+ */
+export async function getShortMovieIds(personId: number): Promise<Set<number>> {
+  const query = (page: number) =>
+    tmdbGet<RawDiscoverMovies>("/discover/movie", DAY, {
+      with_people: String(personId),
+      "with_runtime.gte": "1",
+      "with_runtime.lte": String(SHORT_MAX_MINUTES),
+      include_adult: "false",
+      include_video: "true",
+      sort_by: "primary_release_date.asc",
+      page: String(page),
+    });
+
+  const ids = new Set<number>();
+  const collect = (data: RawDiscoverMovies) => {
+    for (const movie of data.results ?? []) ids.add(movie.id);
+  };
+
+  try {
+    const first = await query(1);
+    collect(first);
+
+    const pages = Math.min(first.total_pages ?? 1, MAX_DISCOVER_PAGES);
+    const rest = await Promise.allSettled(
+      Array.from({ length: Math.max(0, pages - 1) }, (_, i) => query(i + 2)),
+    );
+    for (const result of rest) if (result.status === "fulfilled") collect(result.value);
+  } catch (error) {
+    const status = error instanceof TmdbError ? ` (status ${error.status})` : "";
+    console.warn(`TMDB short-movie lookup failed for person ${personId}${status}`);
+  }
+  return ids;
+}
+
 export async function getPersonMovieCredits(id: number): Promise<PersonTimeline> {
-  const [person, credits] = await Promise.all([
+  const [person, credits, shortMovieIds] = await Promise.all([
     getPerson(id),
     tmdbGet<RawMovieCredits>(`/person/${id}/movie_credits`, DAY),
+    getShortMovieIds(id),
   ]);
-  return { person, films: normalizeMovieCredits(credits) };
+  return { person, films: normalizeMovieCredits(credits, shortMovieIds) };
 }
 
 export async function getFilmDetails(id: number): Promise<FilmDetails> {

@@ -8,6 +8,7 @@ const film = (id: number, year: number, minor = false): Film => ({
   releaseDate: `${year}-01-01`,
   year,
   posterPath: null,
+  voteCount: 0,
   credits: [],
   minor,
 });

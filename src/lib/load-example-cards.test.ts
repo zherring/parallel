@@ -17,6 +17,7 @@ const timeline = (id: number): PersonTimeline => ({
       releaseDate: "2000-01-01",
       year: 2000,
       posterPath: null,
+      voteCount: 0,
       credits: [{ role: "director", job: "Director", minor: false }],
       minor: false,
     },

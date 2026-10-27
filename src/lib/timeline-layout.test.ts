@@ -379,6 +379,7 @@ describe("buildConnectors", () => {
       releaseDate,
       year: Number(releaseDate.slice(0, 4)),
       posterPath: null,
+      voteCount: 0,
       credits: [credit],
       minor: false,
     });

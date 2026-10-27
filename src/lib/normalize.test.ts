@@ -83,6 +83,85 @@ describe("normalizeMovieCredits", () => {
     });
     expect(film.credits.map((c) => c.character)).toEqual(["Twin A", "Twin B"]);
   });
+
+  it("carries TMDB's vote count, defaulting to 0", () => {
+    const [popular, unknown] = normalizeMovieCredits({
+      cast: [],
+      crew: [
+        { ...movie(1, "Popular", "2000-01-01"), vote_count: 33145, job: "Director" },
+        { ...movie(2, "Unknown", "2001-01-01"), job: "Director" },
+      ],
+    });
+    expect(popular.voteCount).toBe(33145);
+    expect(unknown.voteCount).toBe(0);
+  });
+});
+
+describe("normalizeMovieCredits with short movies", () => {
+  const raw: RawMovieCredits = {
+    cast: [
+      { ...movie(10, "A Short Role", "2009-05-16"), character: "Lead", order: 0 },
+      { ...movie(11, "Feature", "2010-01-01"), character: "Lead", order: 0 },
+    ],
+    crew: [
+      { ...movie(10, "A Short Role", "2009-05-16"), job: "Director" },
+      { ...movie(12, "Featurette", "2011-01-01"), job: "Director" },
+      { ...movie(13, "Feature Two", "2012-01-01"), job: "Director" },
+    ],
+  };
+
+  it("marks every credit on a short movie minor, whatever the role", () => {
+    const films = normalizeMovieCredits(raw, new Set([10, 12]));
+    const byId = new Map(films.map((f) => [f.id, f]));
+
+    expect(byId.get(10)?.credits.map((c) => [c.job, c.minor])).toEqual([
+      ["Actor", true],
+      ["Director", true],
+    ]);
+    expect(byId.get(10)?.minor).toBe(true);
+    expect(byId.get(12)?.credits.every((c) => c.minor)).toBe(true);
+    expect(byId.get(12)?.minor).toBe(true);
+  });
+
+  it("leaves movies outside the set untouched", () => {
+    const films = normalizeMovieCredits(raw, new Set([10, 12]));
+    const byId = new Map(films.map((f) => [f.id, f]));
+
+    expect(byId.get(11)?.minor).toBe(false);
+    expect(byId.get(13)?.minor).toBe(false);
+    expect(byId.get(13)?.credits[0]).toMatchObject({ job: "Director", minor: false });
+  });
+
+  it("changes nothing without a set, or with an empty one", () => {
+    expect(normalizeMovieCredits(raw, new Set())).toEqual(normalizeMovieCredits(raw));
+    expect(normalizeMovieCredits(raw).every((f) => !f.minor)).toBe(true);
+  });
+
+  it("ignores ids that are not in the credits", () => {
+    expect(normalizeMovieCredits(raw, new Set([999]))).toEqual(normalizeMovieCredits(raw));
+  });
+});
+
+describe("normalizeMovieCredits with TMDB's video flag", () => {
+  const credits = (extra: { video?: boolean; vote_count?: number }): RawMovieCredits => ({
+    cast: [],
+    crew: [{ ...movie(1, "Madonna: The Video Collection", "1999-11-02"), ...extra, job: "Director" }],
+  });
+
+  it("treats an obscure video-flagged movie as short even without a runtime", () => {
+    const [film] = normalizeMovieCredits(credits({ video: true, vote_count: 9 }));
+    expect(film.minor).toBe(true);
+  });
+
+  it("keeps a well-known video-flagged release (Grindhouse) as a regular film", () => {
+    const [film] = normalizeMovieCredits(credits({ video: true, vote_count: 1972 }));
+    expect(film.minor).toBe(false);
+  });
+
+  it("ignores movies that are not flagged", () => {
+    expect(normalizeMovieCredits(credits({ video: false, vote_count: 9 }))[0].minor).toBe(false);
+    expect(normalizeMovieCredits(credits({}))[0].minor).toBe(false);
+  });
 });
 
 describe("normalizeFilmDetails", () => {

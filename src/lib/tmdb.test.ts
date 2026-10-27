@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { TmdbError, getFilmDetails, getPersonMovieCredits, searchPeople } from "@/lib/tmdb";
+import { TmdbError, getFilmDetails, getPersonMovieCredits, getShortMovieIds, searchPeople } from "@/lib/tmdb";
 
 const TOKEN = "test-token-123";
 const fetchMock = vi.fn<typeof fetch>();
@@ -73,28 +73,165 @@ describe("searchPeople", () => {
   });
 });
 
-describe("getPersonMovieCredits", () => {
-  it("combines person details with normalized credits and caches for a day", async () => {
-    fetchMock.mockImplementation(async (input) => {
-      const path = new URL(String(input)).pathname;
-      if (path.endsWith("/movie_credits")) {
-        return json({
-          cast: [],
-          crew: [
-            { id: 2, title: "B", release_date: "2000-01-01", poster_path: null, job: "Director" },
-            { id: 1, title: "A", release_date: "1995-01-01", poster_path: "/a.jpg", job: "Director" },
-          ],
-        });
-      }
-      return json({ id: 7467, name: "David Fincher", profile_path: "/f.jpg", known_for_department: "Directing" });
+describe("getShortMovieIds", () => {
+  const discoverPage = (ids: number[], total_pages: number) => json({ page: 1, total_pages, results: ids.map((id) => ({ id })) });
+  const pageOf = (n: number) => Number(lastCall(n).url.searchParams.get("page"));
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("asks discover for the person's under-40-minute movies, with auth and a day of caching", async () => {
+    fetchMock.mockResolvedValueOnce(discoverPage([1], 1));
+    await getShortMovieIds(7467);
+
+    const { url, init } = lastCall();
+    expect(url.origin + url.pathname).toBe("https://api.themoviedb.org/3/discover/movie");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      with_people: "7467",
+      "with_runtime.gte": "1",
+      "with_runtime.lte": "39",
+      include_adult: "false",
+      include_video: "true",
+      sort_by: "primary_release_date.asc",
+      page: "1",
     });
+    expect(init.headers).toMatchObject({ Authorization: `Bearer ${TOKEN}` });
+    expect(init.next).toEqual({ revalidate: 86400 });
+  });
+
+  it("makes a single request when there is one page", async () => {
+    fetchMock.mockResolvedValueOnce(discoverPage([5, 6], 1));
+    await expect(getShortMovieIds(1)).resolves.toEqual(new Set([5, 6]));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("fetches the remaining pages after reading total_pages and merges every id", async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const page = Number(new URL(String(input)).searchParams.get("page"));
+      return discoverPage([page * 10, page * 10 + 1], 3);
+    });
+    const ids = await getShortMovieIds(1);
+
+    expect(ids).toEqual(new Set([10, 11, 20, 21, 30, 31]));
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect([pageOf(0), pageOf(1), pageOf(2)]).toEqual([1, 2, 3]);
+  });
+
+  it("requests the remaining pages concurrently, not one after another", async () => {
+    let pending = 0;
+    let peak = 0;
+    fetchMock.mockImplementation(async (input) => {
+      const page = Number(new URL(String(input)).searchParams.get("page"));
+      pending++;
+      peak = Math.max(peak, pending);
+      await Promise.resolve();
+      pending--;
+      return discoverPage([page], 4);
+    });
+    await getShortMovieIds(1);
+    expect(peak).toBe(3);
+  });
+
+  it("stops at 10 pages even when TMDB reports more", async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const page = Number(new URL(String(input)).searchParams.get("page"));
+      return discoverPage([page], 500);
+    });
+    const ids = await getShortMovieIds(1);
+
+    expect(fetchMock).toHaveBeenCalledTimes(10);
+    expect(ids).toEqual(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]));
+  });
+
+  it("degrades to an empty set when the first page fails, without throwing or leaking the token", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    fetchMock.mockResolvedValue(json({}, 503));
+    const promise = getShortMovieIds(7467);
+    await vi.runAllTimersAsync();
+
+    await expect(promise).resolves.toEqual(new Set());
+    expect(fetchMock).toHaveBeenCalledTimes(2); // one retry, same as every other call
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0])).not.toContain(TOKEN);
+  });
+
+  it("degrades to an empty set on a network error", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+    await expect(getShortMovieIds(1)).resolves.toEqual(new Set());
+  });
+
+  it("degrades to an empty set on a malformed response", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    fetchMock.mockResolvedValue(json(null));
+    await expect(getShortMovieIds(1)).resolves.toEqual(new Set());
+  });
+
+  it("keeps the pages that loaded when a later page fails", async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const page = Number(new URL(String(input)).searchParams.get("page"));
+      if (page === 2) return json({}, 404);
+      return discoverPage([page], 3);
+    });
+    await expect(getShortMovieIds(1)).resolves.toEqual(new Set([1, 3]));
+  });
+
+  it("retries a 429 on the first page like any other call", async () => {
+    fetchMock.mockResolvedValueOnce(json({}, 429)).mockResolvedValueOnce(discoverPage([9], 1));
+    const promise = getShortMovieIds(1);
+    await vi.runAllTimersAsync();
+    await expect(promise).resolves.toEqual(new Set([9]));
+  });
+});
+
+describe("getPersonMovieCredits", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const credits = {
+    cast: [],
+    crew: [
+      { id: 2, title: "B", release_date: "2000-01-01", poster_path: null, job: "Director" },
+      { id: 1, title: "A", release_date: "1995-01-01", poster_path: "/a.jpg", job: "Director" },
+    ],
+  };
+  const respond = (discover: () => Response) => async (input: RequestInfo | URL) => {
+    const path = new URL(String(input)).pathname;
+    if (path.endsWith("/movie_credits")) return json(credits);
+    if (path.endsWith("/discover/movie")) return discover();
+    return json({ id: 7467, name: "David Fincher", profile_path: "/f.jpg", known_for_department: "Directing" });
+  };
+
+  it("combines person details with normalized credits and caches for a day", async () => {
+    fetchMock.mockImplementation(respond(() => json({ total_pages: 1, results: [] })));
 
     const timeline = await getPersonMovieCredits(7467);
 
     expect(timeline.person).toMatchObject({ id: 7467, name: "David Fincher", knownFor: "Directing" });
     expect(timeline.films.map((f) => f.title)).toEqual(["A", "B"]);
-    expect(lastCall(0).init.next).toEqual({ revalidate: 86400 });
-    expect(lastCall(1).init.next).toEqual({ revalidate: 86400 });
+    expect(timeline.films.every((f) => !f.minor)).toBe(true);
+    for (const n of [0, 1, 2]) expect(lastCall(n).init.next).toEqual({ revalidate: 86400 });
+  });
+
+  it("marks films from the short-movie set minor", async () => {
+    fetchMock.mockImplementation(respond(() => json({ total_pages: 1, results: [{ id: 2 }] })));
+
+    const { films } = await getPersonMovieCredits(7467);
+
+    expect(films.map((f) => [f.id, f.minor])).toEqual([
+      [1, false],
+      [2, true],
+    ]);
+  });
+
+  it("still returns the timeline, with nothing marked short, when the discover call fails", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    fetchMock.mockImplementation(respond(() => json({}, 500)));
+
+    const promise = getPersonMovieCredits(7467);
+    await vi.runAllTimersAsync();
+    const { films } = await promise;
+
+    expect(films.map((f) => f.title)).toEqual(["A", "B"]);
+    expect(films.every((f) => !f.minor)).toBe(true);
   });
 });
 

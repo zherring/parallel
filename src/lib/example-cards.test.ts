@@ -9,6 +9,7 @@ const film = (id: number, minor = false): Film => ({
   releaseDate: `20${String(id).padStart(2, "0")}-01-01`,
   year: 2000 + id,
   posterPath: null,
+  voteCount: 0,
   credits: [{ role: "director", job: "Director", minor }],
   minor,
 });
