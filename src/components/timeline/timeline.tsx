@@ -565,7 +565,17 @@ export function Timeline({
         onTogglePin={(key) => setPinnedKey((prev) => (prev === key ? null : key))}
       />
 
-      <div className="relative isolate [--lane-head:84px] sm:[--lane-head:224px]">
+      {/*
+        --chrome: what sits above the scroller, the title and the legend, plus the pinned bar below it. The scroller is as
+        tall as what is left of the viewport, so that the year axis at its bottom edge shows right above the bar when the page
+        is at the top, instead of under it (but never shorter than 26rem; a phone scrolls the page instead).
+      */}
+      <div
+        className={cn(
+          "relative isolate [--lane-head:84px] sm:[--lane-head:224px]",
+          layout.legend.length > 0 ? "[--chrome:14.5rem]" : "[--chrome:12rem]",
+        )}
+      >
         <div
           ref={scrollerRef}
           id={scrollerId}
@@ -578,40 +588,9 @@ export function Timeline({
           onFocus={handleFocus}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="max-h-[min(85dvh,1100px)] overflow-auto overscroll-x-contain rounded-lg border border-border bg-canvas [scroll-padding-left:var(--lane-head)] [scroll-padding-top:44px] [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin]"
+          className="max-h-[clamp(26rem,calc(100dvh-var(--chrome)),1100px)] overflow-auto overscroll-x-contain rounded-lg border border-border bg-canvas [scroll-padding-left:var(--lane-head)] [scroll-padding-bottom:44px] [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin]"
         >
           <div className="relative min-w-full" style={{ width: `calc(var(--lane-head) + ${width}px)` }}>
-            <div
-              className="sticky top-0 z-40 flex border-b border-border bg-canvas"
-              style={{ height: AXIS_HEIGHT }}
-            >
-              <div
-                ref={cornerRef}
-                className="sticky left-0 z-50 w-[var(--lane-head)] shrink-0 border-r border-border bg-canvas"
-              />
-              <div aria-hidden className="relative shrink-0" style={{ width }}>
-                {layout.ticks.map((tick) => (
-                  <span
-                    key={tick.year}
-                    className="absolute bottom-0 flex -translate-x-1/2 flex-col items-center"
-                    style={{ left: tick.x }}
-                  >
-                    {tick.label && (
-                      <span
-                        className={cn(
-                          "mb-0.5 tabular-nums",
-                          tick.kind === "decade" ? "text-xs font-semibold text-strong" : "text-[10px] text-muted",
-                        )}
-                      >
-                        {tick.label}
-                      </span>
-                    )}
-                    <span className={cn("w-px", tick.kind === "decade" ? "h-3 bg-muted" : "h-1.5 bg-border")} />
-                  </span>
-                ))}
-              </div>
-            </div>
-
             {/*
               Lane lines, connectors and nodes: pure geometry from the layout, drawn over the poster
               cards of films that are in one lane only (but under the lane headers and under the
@@ -623,8 +602,8 @@ export function Timeline({
             */}
             <svg
               aria-hidden
-              className="pointer-events-none absolute z-[15]"
-              style={{ left: "var(--lane-head)", top: AXIS_HEIGHT }}
+              className="pointer-events-none absolute top-0 z-[15]"
+              style={{ left: "var(--lane-head)" }}
               width={width}
               height={layout.height}
             >
@@ -782,10 +761,41 @@ export function Timeline({
               <div
                 aria-hidden
                 className="pointer-events-none absolute inset-x-0 z-[35] bg-lit/5 ring-2 ring-inset ring-lit"
-                style={{ top: AXIS_HEIGHT + boxes[highlightLane].top, height: boxes[highlightLane].height }}
+                style={{ top: boxes[highlightLane].top, height: boxes[highlightLane].height }}
               />
             )}
 
+            {/* The year axis closes the lanes and stays at the bottom edge of the scroller while the lanes scroll. */}
+            <div
+              className="sticky bottom-0 z-40 flex border-t border-border bg-canvas"
+              style={{ height: AXIS_HEIGHT }}
+            >
+              <div
+                ref={cornerRef}
+                className="sticky left-0 z-50 w-[var(--lane-head)] shrink-0 border-r border-border bg-canvas"
+              />
+              <div aria-hidden className="relative shrink-0" style={{ width }}>
+                {layout.ticks.map((tick) => (
+                  <span
+                    key={tick.year}
+                    className="absolute top-0 flex -translate-x-1/2 flex-col items-center"
+                    style={{ left: tick.x }}
+                  >
+                    <span className={cn("w-px", tick.kind === "decade" ? "h-3 bg-muted" : "h-1.5 bg-border")} />
+                    {tick.label && (
+                      <span
+                        className={cn(
+                          "mt-0.5 tabular-nums",
+                          tick.kind === "decade" ? "text-xs font-semibold text-strong" : "text-[10px] text-muted",
+                        )}
+                      >
+                        {tick.label}
+                      </span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 

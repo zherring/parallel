@@ -10,7 +10,8 @@
  * Nothing here touches the DOM. Every pixel the UI draws (node and card positions, lane
  * heights, connector endpoints) is derived from these functions, so a film shared by
  * two lanes lands at the identical x in both and the SVG overlay lines up without
- * measuring anything.
+ * measuring anything. Lanes are stacked from y = 0; the year axis is a row under the last
+ * lane (AXIS_HEIGHT tall), so nothing here is offset by it.
  */
 
 import { connectionSlot } from "@/lib/connections";
@@ -30,6 +31,7 @@ export const LINE_Y = 14;
 /** y of the first row of cards, from the top of the lane. */
 export const CARD_TOP = 30;
 export const LANE_PAD_BOTTOM = 18;
+/** Height of the year axis row under the lanes. */
 export const AXIS_HEIGHT = 44;
 /** Empty space before the first and after the last year so edge cards are not clipped. */
 export const TRACK_PAD = CARD_WIDTH / 2 + CARD_GAP;
