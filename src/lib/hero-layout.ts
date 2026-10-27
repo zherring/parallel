@@ -42,6 +42,12 @@ export const posterSlotLeft = (slot: number) => rowLeft(POSTER_SLOTS) + slot * P
 /** The left edge of the "+N more" label beside a full row. */
 export const MORE_LEFT = rowLeft(POSTER_SLOTS) + rowWidth(POSTER_SLOTS) + MORE_GAP;
 
+/**
+ * Where the label goes on the narrowest phones, which have no room beside the row: its top centre,
+ * directly under the row (the row is always centred, so this does not depend on its length).
+ */
+export const MORE_UNDER = { x: STAGE.width / 2, y: LINE_Y + STAGE.posterSize.height / 2 + 10 } as const;
+
 /** How one card sits relative to its slot. A card keeps its place from arrival to departure. */
 export interface Place {
   /** Stage pixels to the right of the slot. */

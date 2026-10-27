@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   LINE_Y,
   MORE_LEFT,
+  MORE_UNDER,
   POSTER_SLOTS,
   POSTER_TOP,
   STAGE,
@@ -59,6 +60,12 @@ describe("posterPlace", () => {
 describe("moreLabelPlace", () => {
   it("starts past the right end of a full row", () => {
     expect(MORE_LEFT).toBeGreaterThan(extent(POSTER_SLOTS).right);
+  });
+
+  it("has a narrow-phone place centred on the stage, under the posters", () => {
+    expect(MORE_UNDER.x).toBe(STAGE.width / 2);
+    expect(MORE_UNDER.y).toBeGreaterThan(POSTER_TOP + STAGE.posterSize.height);
+    expect(MORE_UNDER.y).toBeLessThan(STAGE.height);
   });
 
   it("follows the right end of a shorter row, and never moves the row", () => {

@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { TimelineLine } from "@/components/landing/hero-timeline";
@@ -18,6 +19,7 @@ import { useHeroPause } from "@/components/landing/use-hero-pause";
 import {
   LINE_Y,
   MORE_LEFT,
+  MORE_UNDER,
   NO_PLACE,
   POSTER_SLOTS,
   POSTER_TOP,
@@ -285,18 +287,23 @@ function PosterCard({ item }: { item: Item }) {
 /**
  * "+N more" at the right end of the poster row, a quiet pill sitting on the line. It is drawn in
  * the stage's scaled space, so its size is divided by the scale to stay a readable 12px at every
- * width; padding and border are in em and the border's width is counter-scaled the same way.
+ * width; padding and border are in em and the border's width is counter-scaled the same way. On
+ * the narrowest phones there is no room beside the row, so it sits centred under it instead.
  */
 function MoreLabel({ item }: { item: Item }) {
   return (
     <span
       aria-hidden="true"
-      className="absolute left-0 top-0 whitespace-nowrap rounded-full border border-border bg-canvas px-[0.75em] py-[0.3em] font-medium leading-none tracking-[0.02em] text-muted transition-colors duration-300 group-hover:border-accent-green/50 group-hover:text-strong"
-      style={{
-        translate: `${item.place.dx}px -50%`,
-        fontSize: "calc(12px / var(--s))",
-        borderWidth: "calc(1px / var(--s))",
-      }}
+      className="absolute left-0 top-0 -translate-y-1/2 translate-x-(--dx) whitespace-nowrap rounded-full border border-border bg-canvas px-[0.75em] py-[0.3em] font-medium leading-none tracking-[0.02em] text-muted transition-colors duration-300 group-hover:border-accent-green/50 group-hover:text-strong max-[359px]:left-(--under-left) max-[359px]:top-(--under-top) max-[359px]:-translate-x-1/2 max-[359px]:translate-y-0"
+      style={
+        {
+          "--dx": `${item.place.dx}px`,
+          "--under-left": `${MORE_UNDER.x - MORE_LEFT}px`,
+          "--under-top": `${MORE_UNDER.y - LINE_Y}px`,
+          fontSize: "calc(12px / var(--s))",
+          borderWidth: "calc(1px / var(--s))",
+        } as CSSProperties
+      }
     >
       {item.text}
     </span>
