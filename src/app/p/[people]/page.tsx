@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { PeopleView } from "@/components/people-view";
 import { loadPeople } from "@/lib/people";
-import { tmdbImage } from "@/lib/images";
-import { peopleDescription, peopleTitle } from "@/lib/seo";
+import { peopleDescription, peopleSocial, peopleTitle } from "@/lib/seo";
 import { sharedFilms, sharedFilmsPairwise } from "@/lib/shared";
 
 type Props = { params: Promise<{ people: string }> };
@@ -15,15 +14,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = peopleTitle(timelines.map((t) => t.person.name));
   const shared = sharedFilms(timelines, { includeMinor: false });
   const description = peopleDescription(timelines, shared);
-  const image = tmdbImage(timelines[0].person.profilePath, "w500");
   const url = `/p/${canonical}`;
 
   return {
     title,
     description,
     alternates: { canonical: url },
-    openGraph: { title, description, url, type: "website", ...(image ? { images: [image] } : {}) },
-    twitter: { card: image ? "summary_large_image" : "summary", title, description },
+    ...peopleSocial(title, description, url),
   };
 }
 

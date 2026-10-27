@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { joinNames } from "@/lib/format";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
@@ -29,4 +30,17 @@ export function peopleDescription(timelines: PersonTimeline[], shared: SharedFil
   if (films.length === 0) return `${names}: filmography timeline.`;
   // TMDB has no usable "best known" ordering here, and the chronological first films are often shorts or music videos.
   return `${names}: ${films.length} films from ${films[0].year} to ${films[films.length - 1].year} on a timeline.`;
+}
+
+/**
+ * Open Graph and Twitter card metadata for a /p/ page. It deliberately sets no image: the
+ * generated card in `opengraph-image.tsx` next to the page supplies `og:image` and
+ * `twitter:image` (absolute, through `metadataBase`). A manual `images` entry here would compete
+ * with it. `siteName` is repeated because a page's `openGraph` replaces the layout's wholesale.
+ */
+export function peopleSocial(title: string, description: string, path: string): Pick<Metadata, "openGraph" | "twitter"> {
+  return {
+    openGraph: { title, description, url: path, type: "website", siteName: "Parallel" },
+    twitter: { card: "summary_large_image", title, description },
+  };
 }
