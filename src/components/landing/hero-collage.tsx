@@ -11,13 +11,11 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { HeroLanes, STAGE } from "@/components/landing/hero-lanes";
-import { TIMING, arrive, depart, fadeIn, fadeOut, float, nod } from "@/components/landing/hero-motion";
+import { HeroConnector, STAGE, TimelineLine } from "@/components/landing/hero-timeline";
+import { TIMING, arrive, depart, float, nod } from "@/components/landing/hero-motion";
 import { personImageUrl, posterImageUrl, useHeroRotation } from "@/components/landing/use-hero-rotation";
 import { useHeroPause } from "@/components/landing/use-hero-pause";
-import { joinNames } from "@/lib/format";
 import {
-  countAt,
   isRunning,
   type HeroPairing,
   type Scene,
@@ -163,12 +161,12 @@ function Motion({
   useLayoutEffect(() => {
     const element = ref.current;
     if (phase !== "leaving" || !element) return;
-    const animation = depart(element, kind, { reduced, delay });
-    animation.finished.then(
+    const animations = depart(element, kind, { reduced, delay });
+    Promise.all(animations.map((animation) => animation.finished)).then(
       () => onGone(item.id),
       () => {}, // cancelled by an unmount
     );
-    return () => animation.cancel();
+    return () => animations.forEach((animation) => animation.cancel());
   }, [phase, kind, reduced, delay, onGone, item.id]);
 
   useLayoutEffect(() => {
@@ -185,7 +183,7 @@ function Motion({
   );
 }
 
-function PersonCard({ item, tilt, priority }: { item: Item; tilt: number; priority: boolean }) {
+function PersonCard({ item, tilt, priority, flip }: { item: Item; tilt: number; priority: boolean; flip: boolean }) {
   return (
     <figure
       className="absolute inset-0 m-0 overflow-hidden rounded-[18px] bg-surface shadow-[0_1px_1px_rgb(0_0_0/0.5),0_10px_20px_-6px_rgb(0_0_0/0.55),0_30px_50px_-14px_rgb(0_0_0/0.7)]"
@@ -202,10 +200,15 @@ function PersonCard({ item, tilt, priority }: { item: Item; tilt: number; priori
         className="absolute inset-0 size-full select-none object-cover [object-position:50%_20%]"
       />
       <span aria-hidden="true" className="absolute inset-0 bg-linear-to-t from-black/80 via-black/5 to-transparent" />
-      <figcaption className="absolute inset-x-3.5 bottom-3.5 text-[15px] font-semibold leading-tight tracking-[0.015em] text-white [text-shadow:0_1px_10px_rgb(0_0_0/0.6)] max-sm:hidden lg:max-xl:hidden">
+      <figcaption
+        className={`absolute inset-x-3.5 bottom-3.5 text-[15px] font-semibold leading-tight tracking-[0.015em] text-white [text-shadow:0_1px_10px_rgb(0_0_0/0.6)] max-sm:hidden ${flip ? "text-right" : ""}`}
+      >
         {item.text}
       </figcaption>
-      <span aria-hidden="true" className="absolute inset-0 rounded-[18px] ring-1 ring-inset ring-white/15" />
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 rounded-[18px] ring-1 ring-inset ring-white/15 transition-shadow duration-300 group-hover:ring-2 group-hover:ring-accent-green/70 group-focus-visible:ring-2 group-focus-visible:ring-focus"
+      />
     </figure>
   );
 }
@@ -214,7 +217,7 @@ function PosterCard({ item, tilt }: { item: Item; tilt: number }) {
   return (
     <div
       title={item.text}
-      className="absolute inset-0 overflow-hidden rounded-[6px] bg-surface shadow-[0_0_0_1px_var(--lit),0_0_14px_-3px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)]"
+      className="absolute inset-0 overflow-hidden rounded-[6px] bg-surface shadow-[0_0_0_1px_var(--lit),0_0_14px_-3px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)] transition-shadow duration-300 group-hover:shadow-[0_0_0_1.5px_var(--lit),0_0_20px_-2px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)] group-focus-visible:shadow-[0_0_0_2px_var(--focus),0_0_18px_-2px_var(--focus),0_10px_18px_-6px_rgb(0_0_0/0.7)]"
       style={{ rotate: `${tilt}deg` }}
     >
       <img
@@ -228,116 +231,6 @@ function PosterCard({ item, tilt }: { item: Item; tilt: number }) {
         draggable={false}
         className="absolute inset-0 size-full select-none object-cover"
       />
-    </div>
-  );
-}
-
-/** The number of films, counting up from the previous pair's over 400ms. */
-function CountUp({ value, reduced }: { value: number; reduced: boolean }) {
-  const [shown, setShown] = useState(value);
-  const last = useRef(value);
-
-  useEffect(() => {
-    const from = last.current;
-    if (from === value) return;
-    const started = performance.now();
-    let frame = 0;
-    const tick = (now: number) => {
-      const progress = reduced ? 1 : (now - started) / 400;
-      last.current = countAt(from, value, progress);
-      setShown(last.current);
-      if (progress < 1) frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [value, reduced]);
-
-  return <span className="tabular-nums">{shown}</span>;
-}
-
-interface CaptionProps {
-  scene: Scene;
-  reduced: boolean;
-  paused: boolean;
-  onToggle: () => void;
-  onFocusChange: (focused: boolean) => void;
-}
-
-/** The caption chip (a real link to the pair's page) and the pause button. */
-function Caption({ scene, reduced, paused, onToggle, onFocusChange }: CaptionProps) {
-  // What the chip shows lags the scene by the fade-out, so the old text never jumps.
-  const [shown, setShown] = useState(scene);
-  const text = useRef<HTMLSpanElement>(null);
-  const lastShown = useRef(shown);
-
-  useEffect(() => {
-    const element = text.current;
-    if (scene === shown || !element) return;
-    const out = fadeOut(element, reduced);
-    let current = true;
-    out.finished.then(
-      () => {
-        if (current) setShown(scene);
-      },
-      () => {},
-    );
-    return () => {
-      current = false;
-    };
-  }, [scene, shown, reduced]);
-
-  useLayoutEffect(() => {
-    const element = text.current;
-    if (lastShown.current === shown || !element) return;
-    lastShown.current = shown;
-    element.getAnimations().forEach((animation) => animation.cancel());
-    const animation = fadeIn(element, reduced);
-    return () => animation.cancel();
-  }, [shown, reduced]);
-
-  const [first, second] = shown.people;
-  const names = joinNames([first.name, second.name]);
-  const count = shown.pairing.sharedCount;
-  const label = `${names} \u00b7 ${count} ${count === 1 ? "film" : "films"} together`;
-
-  return (
-    <div className="relative mt-3 flex min-h-[2.75rem] w-full justify-center lg:justify-start">
-      <Link
-        href={`/p/${buildPeopleSlug([first, second].map(({ id, name }) => ({ id, name })))}`}
-        prefetch={false}
-        aria-label={label}
-        onFocus={(event) => onFocusChange(event.currentTarget.matches(":focus-visible"))}
-        onBlur={() => onFocusChange(false)}
-        className="group inline-flex w-fit max-w-[calc(100%-2.5rem)] items-start gap-2 rounded-2xl border border-border bg-surface/70 px-3 py-1.5 text-[12px] leading-snug text-body no-underline backdrop-blur-sm transition-colors hover:border-accent-green/60 hover:text-strong xl:text-[13px]"
-      >
-        <span
-          aria-hidden="true"
-          className="mt-[5px] size-1.5 shrink-0 rounded-full bg-lit shadow-[0_0_8px_var(--lit)]"
-        />
-        <span ref={text} aria-hidden="true" className="text-pretty">
-          <span className="whitespace-nowrap font-medium text-strong">{first.name}</span>
-          {" & "}
-          <span className="whitespace-nowrap font-medium text-strong">{second.name}</span>
-          {" "}
-          <span className="whitespace-nowrap">
-            {"\u00b7 "}
-            <CountUp value={count} reduced={reduced} /> {count === 1 ? "film" : "films"} together
-          </span>
-        </span>
-      </Link>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-pressed={paused}
-        aria-label={paused ? "Play hero animation" : "Pause hero animation"}
-        className="absolute right-0 top-0 flex size-8 items-center justify-center rounded-full border border-transparent text-muted/80 transition-colors hover:border-border hover:text-strong focus-visible:border-border focus-visible:text-strong"
-      >
-        {paused ? (
-          <Play size={14} strokeWidth={2} aria-hidden="true" fill="currentColor" />
-        ) : (
-          <Pause size={14} strokeWidth={2} aria-hidden="true" fill="currentColor" />
-        )}
-      </button>
     </div>
   );
 }
@@ -441,13 +334,32 @@ export function HeroCollage({ pool, initial }: Props) {
   const byType = (type: Item["type"], slot: number) =>
     state.items.filter((item) => item.type === type && item.slot === slot);
 
+  const { scene } = state;
+  const count = scene.pairing.sharedCount;
+  const label = `${scene.people.map((person) => person.name).join(" and ")}: ${count} ${
+    count === 1 ? "film" : "films"
+  } together`;
+  const href = `/p/${buildPeopleSlug(scene.people.map(({ id, name }) => ({ id, name })))}`;
+  // The people and posters lift a little when the link is hovered or focused.
+  const lift =
+    "transition-[translate] duration-300 ease-out motion-safe:group-hover:-translate-y-1.5 motion-safe:group-focus-visible:-translate-y-1.5";
+
   return (
     <div
       ref={root}
       data-hero-collage=""
-      className="relative mx-auto flex w-full max-w-[22rem] flex-col items-center [--s:.5] sm:[--s:.74] lg:absolute lg:mx-0 lg:block lg:w-[max(12rem,calc(var(--s)_*_380px))] lg:max-w-none lg:[--s:.46] lg:left-[max(0.75rem,calc(50%_-_22rem_-_var(--s)_*_380px))] lg:top-10 xl:[--s:.7] wide:[--s:.88] ultra:[--s:1]"
+      className="relative mx-auto h-[calc(var(--s)_*_446px)] w-[calc(var(--s)_*_380px)] shrink-0 [--s:.56] sm:[--s:.66] lg:[--s:.7] wide:[--s:.76]"
     >
-      <div className="relative h-[calc(var(--s)_*_484px)] w-[calc(var(--s)_*_380px)] shrink-0">
+      <TimelineLine />
+      {/* The whole collage is one link to the pair; its decorative images carry no text of their own. */}
+      <Link
+        href={href}
+        prefetch={false}
+        aria-label={label}
+        onFocus={(event) => onFocusChange(event.currentTarget.matches(":focus-visible"))}
+        onBlur={() => onFocusChange(false)}
+        className="group absolute inset-0 block rounded-3xl outline-none"
+      >
         <div
           ref={stage}
           aria-hidden="true"
@@ -455,26 +367,24 @@ export function HeroCollage({ pool, initial }: Props) {
           style={{ width: STAGE.width, height: STAGE.height }}
         >
           {/* Atmosphere: a soft green glow and a little grain, feathered so no edge shows. */}
-          <div className="pointer-events-none absolute -left-32 -top-24 h-[700px] w-[640px] bg-[radial-gradient(closest-side,rgb(0_224_84/0.17),transparent)]" />
+          <div className="pointer-events-none absolute -left-32 -top-16 h-[640px] w-[640px] bg-[radial-gradient(closest-side,rgb(0_224_84/0.16),transparent)]" />
           <div
-            className="pointer-events-none absolute -left-24 -top-16 h-[620px] w-[560px] opacity-[0.07] [mask-image:radial-gradient(closest-side,#000_35%,transparent)]"
+            className="pointer-events-none absolute -left-24 -top-12 h-[560px] w-[560px] opacity-[0.07] [mask-image:radial-gradient(closest-side,#000_35%,transparent)]"
             style={{ backgroundImage: GRAIN }}
           />
 
-          {/* A gentle vignette over the lanes, under the cards. */}
-          <HeroLanes seq={state.seq} reduced={reduced} />
-          <div className="pointer-events-none absolute -left-32 -top-24 h-[700px] w-[640px] bg-[radial-gradient(closest-side,transparent_62%,rgb(20_24_28/0.5))]" />
+          <HeroConnector seq={state.seq} reduced={reduced} />
 
           {STAGE.person.map((place, slot) => (
             <div
               key={slot}
-              className="absolute"
-              style={{ left: place.left, top: place.top, ...STAGE.personSize, zIndex: 10 + slot * 10 }}
+              className={`absolute ${lift}`}
+              style={{ left: place.left, top: place.top, ...STAGE.personSize, zIndex: 20 - slot * 10 }}
             >
               <div data-drift="" data-kind="person" data-depth={slot === 0 ? 5 : -6} className="absolute inset-0">
                 {byType("person", slot).map((item) => (
                   <Motion key={item.id} item={item} reduced={reduced} onGone={onGone}>
-                    <PersonCard item={item} tilt={place.tilt} priority={item.id === "person-0-0"} />
+                    <PersonCard item={item} tilt={place.tilt} priority={item.id === "person-0-0"} flip={slot === 1} />
                   </Motion>
                 ))}
               </div>
@@ -484,7 +394,7 @@ export function HeroCollage({ pool, initial }: Props) {
           {STAGE.poster.map((place, slot) => (
             <div
               key={slot}
-              className="absolute"
+              className={`absolute ${lift}`}
               style={{ left: place.left, top: place.top, ...STAGE.posterSize, zIndex: 12 + slot * 2 }}
             >
               <div data-drift="" data-kind="poster" data-depth={slot === 1 ? 3 : -2.5} className="absolute inset-0">
@@ -497,15 +407,22 @@ export function HeroCollage({ pool, initial }: Props) {
             </div>
           ))}
         </div>
-      </div>
+      </Link>
 
-      <Caption
-        scene={state.scene}
-        reduced={reduced}
-        paused={paused}
-        onToggle={() => setChoice(!paused)}
-        onFocusChange={onFocusChange}
-      />
+      {/* Beside the collage, outside the link: low-contrast until hovered or focused, never hidden. */}
+      <button
+        type="button"
+        onClick={() => setChoice(!paused)}
+        aria-pressed={paused}
+        aria-label={paused ? "Play hero animation" : "Pause hero animation"}
+        className="absolute left-full top-1 ml-1.5 flex size-8 items-center justify-center rounded-full border border-transparent text-muted/80 transition-colors hover:border-border hover:text-strong focus-visible:border-border focus-visible:text-strong"
+      >
+        {paused ? (
+          <Play size={14} strokeWidth={2} aria-hidden="true" fill="currentColor" />
+        ) : (
+          <Pause size={14} strokeWidth={2} aria-hidden="true" fill="currentColor" />
+        )}
+      </button>
     </div>
   );
 }

@@ -7,8 +7,9 @@ type AutoReason = Exclude<keyof PauseReasons, "user">;
 
 /**
  * Everything that holds the hero's rotation still: the visitor's pause button, the pointer over
- * the collage, keyboard focus on its link (set by the caller with `set`), someone typing in the
- * search field, the hero scrolled out of view and the tab in the background.
+ * the collage, a pointer pressed on it (so the link cannot change under a click or tap), keyboard
+ * focus on its link (set by the caller with `set`), someone typing in the search field, the hero
+ * scrolled out of view and the tab in the background.
  *
  * The search field counts only once the visitor is using it: it is autofocused on desktop, so
  * "focused" alone would hold the collage still from the first paint. A key press, a click or any
@@ -18,6 +19,7 @@ export function useHeroPause(root: RefObject<HTMLElement | null>, userPaused: bo
   const [flags, setFlags] = useState<Omit<PauseReasons, "user">>({
     hover: false,
     focus: false,
+    press: false,
     search: false,
     offscreen: false,
     hidden: false,
@@ -27,22 +29,40 @@ export function useHeroPause(root: RefObject<HTMLElement | null>, userPaused: bo
     setFlags((current) => (current[reason] === value ? current : { ...current, [reason]: value }));
   }, []);
 
-  // The pointer over the collage (a mouse or pen; a touch has no hover to wait out).
+  // The pointer over the collage (a mouse or pen; a touch has no hover to wait out), and a pointer
+  // pressed on it. A press is let go a moment after the pointer is, so the click it ends is safe.
   useEffect(() => {
     const element = root.current;
     if (!element) return;
+    let release = 0;
     const enter = (event: PointerEvent) => {
       if (event.pointerType !== "touch") set("hover", true);
     };
     const leave = () => set("hover", false);
+    const down = () => {
+      window.clearTimeout(release);
+      set("press", true);
+    };
+    const up = () => {
+      window.clearTimeout(release);
+      release = window.setTimeout(() => set("press", false), 600);
+    };
     element.addEventListener("pointerenter", enter);
     element.addEventListener("pointerleave", leave);
     element.addEventListener("pointercancel", leave);
+    element.addEventListener("pointerdown", down);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
     return () => {
+      window.clearTimeout(release);
       element.removeEventListener("pointerenter", enter);
       element.removeEventListener("pointerleave", leave);
       element.removeEventListener("pointercancel", leave);
+      element.removeEventListener("pointerdown", down);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
       set("hover", false);
+      set("press", false);
     };
   }, [root, set]);
 

@@ -11,9 +11,15 @@ export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
   return (
     <section
       aria-labelledby="hero-heading"
-      className="relative flex flex-col overflow-x-clip bg-[radial-gradient(60%_70%_at_50%_0%,rgb(0_224_84/0.10),transparent_70%)] px-4 pb-14 pt-10 sm:pb-20 sm:pt-16 lg:block lg:min-h-[34rem] lg:pt-24"
+      className="relative overflow-x-clip bg-[radial-gradient(60%_70%_at_50%_0%,rgb(0_224_84/0.10),transparent_70%)] px-4 pb-10 pt-6 sm:pb-12 sm:pt-8"
     >
-      <div className="mx-auto w-full max-w-3xl text-center">
+      {/* Centered above the headline: two people, the films they share, on the timeline line. */}
+      {initial && (
+        <div className="mb-5 sm:mb-6">
+          <HeroCollage pool={pool} initial={initial} />
+        </div>
+      )}
+      <div className="mx-auto max-w-3xl text-center">
         <h1
           id="hero-heading"
           className="text-balance text-4xl font-semibold leading-[1.1] tracking-tight text-strong sm:text-5xl lg:text-6xl"
@@ -28,12 +34,6 @@ export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
           <LandingSearch />
         </div>
       </div>
-      {/* After the text in the markup (heading first for readers); above it on small screens. */}
-      {initial && (
-        <div className="order-first mb-6 lg:order-none lg:mb-0">
-          <HeroCollage pool={pool} initial={initial} />
-        </div>
-      )}
     </section>
   );
 }

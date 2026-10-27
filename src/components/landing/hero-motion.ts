@@ -33,7 +33,7 @@ export const TIMING = {
   arrive: 520,
   posterArrive: 480,
   /** The incoming portraits start while the outgoing ones are still easing back. */
-  personArriveDelay: 140,
+  personArriveDelay: 190,
   /** Posters are dealt after the portraits, one every POSTER_STAGGER. */
   posterArriveDelay: 260,
   posterStagger: 70,
@@ -45,9 +45,6 @@ export const TIMING = {
   pulse: 640,
   pulseDelay: 420,
   pulseStagger: 90,
-  /** The caption fades out, swaps and fades back in. */
-  captionOut: 150,
-  captionIn: 300,
 } as const;
 
 /** A portrait or poster arriving: from the bottom right with a spring (a plain fade if reduced). */
@@ -76,25 +73,36 @@ export function arrive(el: HTMLElement, kind: CardKind, { reduced, delay = 0 }: 
   ];
 }
 
-/** A portrait or poster leaving: eases back, drifts down and left, turns a little, fades and blurs. */
-export function depart(el: HTMLElement, kind: CardKind, { reduced, delay = 0 }: MotionOptions): Animation {
+/**
+ * A portrait or poster leaving: eases back, drifts down and left, turns a little and blurs, while
+ * its opacity falls faster, so it is nearly gone before the next card arrives in its place.
+ */
+export function depart(el: HTMLElement, kind: CardKind, { reduced, delay = 0 }: MotionOptions): Animation[] {
   if (reduced) {
-    return el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, delay, easing: "ease-in", fill: "forwards" });
+    return [el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, delay, easing: "ease-in", fill: "forwards" })];
   }
   const person = kind === "person";
-  return el.animate(
-    [
-      { opacity: 1, transform: "translate3d(0, 0, 0) rotate(0deg) scale(1)", filter: "blur(0px)" },
-      {
-        opacity: 0,
-        transform: person
-          ? "translate3d(-14px, 12px, 0) rotate(-4deg) scale(0.96)"
-          : "translate3d(-10px, 10px, 0) rotate(-5deg) scale(0.94)",
-        filter: "blur(2px)",
-      },
-    ],
-    { duration: person ? TIMING.leave : TIMING.posterLeave, delay, easing: EASE_IN_OUT, fill: "forwards" },
-  );
+  const duration = person ? TIMING.leave : TIMING.posterLeave;
+  return [
+    el.animate(
+      [
+        { transform: "translate3d(0, 0, 0) rotate(0deg) scale(1)", filter: "blur(0px)" },
+        {
+          transform: person
+            ? "translate3d(-14px, 12px, 0) rotate(-4deg) scale(0.96)"
+            : "translate3d(-10px, 10px, 0) rotate(-5deg) scale(0.94)",
+          filter: "blur(2px)",
+        },
+      ],
+      { duration, delay, easing: EASE_IN_OUT, fill: "forwards" },
+    ),
+    el.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: duration * 0.72,
+      delay,
+      easing: EASE_IN_OUT,
+      fill: "forwards",
+    }),
+  ];
 }
 
 /** The person who stays acknowledges the change: a small scale up and back. */
@@ -115,15 +123,23 @@ export function redraw(svg: SVGElement, { reduced }: { reduced: boolean }): Anim
   const animations: Animation[] = [];
   const connector = svg.querySelector<SVGElement>("[data-connector]");
   if (connector) {
+    const total = TIMING.drawDelay + TIMING.draw;
+    const fadedBy = 140 / total;
+    const drawFrom = TIMING.drawDelay / total;
     animations.push(
       reduced
         ? connector.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400, delay: 200, fill: "backwards" })
-        : connector.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], {
-            duration: TIMING.draw,
-            delay: TIMING.drawDelay,
-            easing: EASE_OUT,
-            fill: "backwards",
-          }),
+        : // The old connector fades away, then the new one draws itself from the people to the posters.
+          connector.animate(
+            [
+              { strokeDashoffset: 0, opacity: 0.75, offset: 0 },
+              { strokeDashoffset: 0, opacity: 0, offset: fadedBy },
+              { strokeDashoffset: 1, opacity: 0, offset: fadedBy + 0.001 },
+              { strokeDashoffset: 1, opacity: 0.75, offset: drawFrom },
+              { strokeDashoffset: 0, opacity: 0.75, offset: 1, easing: EASE_OUT },
+            ],
+            { duration: total, easing: "linear", fill: "backwards" },
+          ),
     );
   }
   if (!reduced) {
@@ -151,31 +167,6 @@ export function float(el: HTMLElement, { amplitude, period, phase }: { amplitude
   );
   animation.pause();
   return animation;
-}
-
-/** Fades an element in (for the caption) with a hint of upward travel. */
-export function fadeIn(el: HTMLElement, reduced: boolean): Animation {
-  return el.animate(
-    reduced
-      ? [{ opacity: 0 }, { opacity: 1 }]
-      : [
-          { opacity: 0, transform: "translate3d(0, 4px, 0)" },
-          { opacity: 1, transform: "translate3d(0, 0, 0)" },
-        ],
-    { duration: TIMING.captionIn, easing: EASE_OUT, fill: "backwards" },
-  );
-}
-
-export function fadeOut(el: HTMLElement, reduced: boolean): Animation {
-  return el.animate(
-    reduced
-      ? [{ opacity: 1 }, { opacity: 0 }]
-      : [
-          { opacity: 1, transform: "translate3d(0, 0, 0)" },
-          { opacity: 0, transform: "translate3d(0, -3px, 0)" },
-        ],
-    { duration: TIMING.captionOut, easing: "ease-in", fill: "forwards" },
-  );
 }
 
 /** Loads (and decodes) an image; resolves false if it fails or takes longer than `timeoutMs`. */

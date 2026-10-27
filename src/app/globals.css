@@ -27,7 +27,6 @@
 /* Steps for the landing hero collage, which grows with the room left of the headline. */
 @theme {
   --breakpoint-wide: 90rem;
-  --breakpoint-ultra: 100rem;
 }
 
 @theme inline {

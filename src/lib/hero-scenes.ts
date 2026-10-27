@@ -165,6 +165,8 @@ export interface PauseReasons {
   hover: boolean;
   /** Keyboard focus is on the collage's link. */
   focus: boolean;
+  /** A pointer is pressed on the collage (and a moment after), so a click cannot change target. */
+  press: boolean;
   /** Someone is typing in the search field. */
   search: boolean;
   /** The hero is scrolled out of view. */
@@ -177,6 +179,7 @@ export const NOT_PAUSED: PauseReasons = {
   user: false,
   hover: false,
   focus: false,
+  press: false,
   search: false,
   offscreen: false,
   hidden: false,
@@ -190,11 +193,4 @@ export const isRunning = (reasons: PauseReasons): boolean => !Object.values(reas
  */
 export function resumeDelay(remainingMs: number): number {
   return Math.max(MIN_RESUME_MS, remainingMs);
-}
-
-/** The number shown `progress` (0 to 1) of the way through a count from `from` to `to`, eased out. */
-export function countAt(from: number, to: number, progress: number): number {
-  const t = Math.min(1, Math.max(0, progress));
-  const eased = 1 - (1 - t) ** 3;
-  return Math.round(from + (to - from) * eased);
 }

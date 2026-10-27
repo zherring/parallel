@@ -8,7 +8,6 @@ import {
   SCENE_MS,
   SECOND_SCENE_KEY,
   SINGLE_SWAP_CHANCE,
-  countAt,
   firstScene,
   heroPool,
   isRunning,
@@ -268,17 +267,5 @@ describe("resumeDelay", () => {
     expect(resumeDelay(3000)).toBe(3000);
     expect(resumeDelay(200)).toBe(MIN_RESUME_MS);
     expect(resumeDelay(0)).toBe(MIN_RESUME_MS);
-  });
-});
-
-describe("countAt", () => {
-  it("counts from the old number to the new one, easing out, and clamps its progress", () => {
-    expect(countAt(11, 4, 0)).toBe(11);
-    expect(countAt(11, 4, 1)).toBe(4);
-    expect(countAt(11, 4, 5)).toBe(4);
-    expect(countAt(11, 4, -1)).toBe(11);
-    expect(countAt(0, 100, 0.5)).toBeGreaterThan(50); // eased out: fast first
-    const steps = [0, 0.25, 0.5, 0.75, 1].map((t) => countAt(3, 24, t));
-    expect(steps).toEqual([...steps].sort((a, b) => a - b));
   });
 });
