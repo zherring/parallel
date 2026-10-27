@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import generated from "@/lib/examples.generated.json";
 import {
-  DEFAULT_GENRE,
   EXAMPLE_PAIRINGS,
+  FEATURED_COUNT,
+  FEATURED_TAB,
   GENRES,
   MIN_SHARED_FILMS,
   pairingHref,
@@ -16,13 +17,16 @@ const data: GeneratedExamples = generated;
 const MIN_PER_GENRE = 5;
 
 describe("GENRES", () => {
-  it("opens on Featured, with unique ids that are safe to use as a URL hash", () => {
-    expect(GENRES[0].id).toBe("featured");
-    expect(DEFAULT_GENRE).toBe(GENRES[0].id);
-    const ids = GENRES.map((g) => g.id);
+  it("has unique ids that are safe to use as a URL hash, and none of them is the Featured tab", () => {
+    const ids = [FEATURED_TAB.id, ...GENRES.map((g) => g.id)];
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of ids) expect(id).toMatch(/^[a-z]+(-[a-z]+)*$/);
     expect(GENRES.every((g) => g.label.trim().length > 0)).toBe(true);
+    expect(FEATURED_TAB.id).toBe("featured");
+  });
+
+  it("has at least as many genres as Featured shows, so it can pick one from each", () => {
+    expect(GENRES.length).toBeGreaterThanOrEqual(FEATURED_COUNT);
   });
 });
 
@@ -37,16 +41,11 @@ describe("EXAMPLE_PAIRINGS", () => {
     expect(count).toBeGreaterThanOrEqual(MIN_PER_GENRE);
   });
 
-  it("keeps the original six pairings, with the Fincher ones, under Featured", () => {
-    const featured = EXAMPLE_PAIRINGS.filter((p) => p.genre === "featured").map(pairingKey);
-    expect(featured).toEqual([
-      "7467+7479",
-      "287+7467",
-      "1032+3661",
-      "151+1223",
-      "20738+21684",
-      "136495+1419631",
-    ]);
+  it("still has the original six pairings, each in exactly one real genre", () => {
+    const keys = EXAMPLE_PAIRINGS.map(pairingKey);
+    for (const original of ["7467+7479", "287+7467", "1032+3661", "151+1223", "20738+21684", "136495+1419631"]) {
+      expect(keys.filter((key) => key === original)).toHaveLength(1);
+    }
   });
 
   it("has no duplicate pairings, whatever order the people are in", () => {

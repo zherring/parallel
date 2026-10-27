@@ -3,7 +3,7 @@ import { buildGenreSections } from "@/lib/example-cards";
 import { EXAMPLE_PAIRINGS, GENRES, type GeneratedExamples } from "@/lib/examples";
 
 // Classic, Horror, and Comedy (no pairings below).
-const genres = [GENRES[1], GENRES[2], GENRES[5]];
+const genres = GENRES.filter((g) => ["classic", "horror", "comedy"].includes(g.id));
 
 const pairings = [
   { genre: "classic", people: [{ id: 1, name: "Ada Lovelace" }, { id: 2, name: "Bo Peep" }], blurb: "First pair" },
@@ -46,6 +46,7 @@ describe("buildGenreSections", () => {
   it("takes names, photos and the count from the generated data and links to the slug", () => {
     const [first] = buildGenreSections(pairings, data, genres)[0].cards;
     expect(first).toEqual({
+      genre: "classic",
       href: "/p/1-ada-lovelace+2-bo-peep",
       blurb: "First pair",
       sharedCount: 7,

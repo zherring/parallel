@@ -1,8 +1,7 @@
 import { buildPeopleSlug } from "@/lib/slug";
 
-/** The genre tabs of the landing page's "Try a pairing" section, in display order. */
+/** The genres of the landing page's "Try a pairing" tabs, in display order (after Featured). */
 export const GENRES = [
-  { id: "featured", label: "Featured" },
   { id: "classic", label: "Classic" },
   { id: "horror", label: "Horror" },
   { id: "sci-fi", label: "Sci-Fi" },
@@ -17,8 +16,16 @@ export const GENRES = [
 export type Genre = (typeof GENRES)[number];
 export type GenreId = Genre["id"];
 
-/** Featured opens first and is what the page shows before a visitor picks a genre. */
-export const DEFAULT_GENRE: GenreId = "featured";
+/**
+ * The first tab, and the one the page opens on. Not a stored genre: it shows a random sample of
+ * all pairings (see featured.ts), so every pairing belongs to exactly one real genre above.
+ */
+export const FEATURED_TAB = { id: "featured", label: "Featured" } as const;
+
+export type TabId = typeof FEATURED_TAB.id | GenreId;
+
+/** How many pairings the Featured tab shows. */
+export const FEATURED_COUNT = 6;
 
 export interface ExamplePairing {
   genre: GenreId;
@@ -37,57 +44,15 @@ export interface ExamplePairing {
  * which is what the page actually renders from.
  */
 export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
-  // Featured
+  // Classic
   {
-    genre: "featured",
-    people: [
-      { id: 7467, name: "David Fincher" },
-      { id: 7479, name: "Jeff Cronenweth" },
-    ],
-    blurb: "A director and his cinematographer: Fight Club, The Social Network, Gone Girl.",
-  },
-  {
-    genre: "featured",
-    people: [
-      { id: 7467, name: "David Fincher" },
-      { id: 287, name: "Brad Pitt" },
-    ],
-    blurb: "From Se7en to Fight Club to Benjamin Button, a long and volatile partnership.",
-  },
-  {
-    genre: "featured",
+    genre: "classic",
     people: [
       { id: 1032, name: "Martin Scorsese" },
       { id: 3661, name: "Thelma Schoonmaker" },
     ],
     blurb: "The editor behind nearly every Scorsese picture since Raging Bull.",
   },
-  {
-    genre: "featured",
-    people: [
-      { id: 1223, name: "Joel Coen" },
-      { id: 151, name: "Roger Deakins" },
-    ],
-    blurb: "From Barton Fink to Hail, Caesar!, the eye behind the Coens’ look.",
-  },
-  {
-    genre: "featured",
-    people: [
-      { id: 21684, name: "Bong Joon Ho" },
-      { id: 20738, name: "Song Kang-ho" },
-    ],
-    blurb: "Memories of Murder, The Host, Snowpiercer, Parasite: director and muse.",
-  },
-  {
-    genre: "featured",
-    people: [
-      { id: 136495, name: "Damien Chazelle" },
-      { id: 1419631, name: "Justin Hurwitz" },
-    ],
-    blurb: "Whiplash, La La Land, First Man, Babylon: a director and his composer.",
-  },
-
-  // Classic
   {
     genre: "classic",
     people: [
@@ -241,6 +206,22 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
   {
     genre: "crime-thriller",
     people: [
+      { id: 7467, name: "David Fincher" },
+      { id: 287, name: "Brad Pitt" },
+    ],
+    blurb: "From Se7en to Fight Club to Benjamin Button, a long and volatile partnership.",
+  },
+  {
+    genre: "crime-thriller",
+    people: [
+      { id: 1223, name: "Joel Coen" },
+      { id: 151, name: "Roger Deakins" },
+    ],
+    blurb: "From Barton Fink to Hail, Caesar!, the eye behind the Coens’ look.",
+  },
+  {
+    genre: "crime-thriller",
+    people: [
       { id: 138, name: "Quentin Tarantino" },
       { id: 2231, name: "Samuel L. Jackson" },
     ],
@@ -338,6 +319,22 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
   },
 
   // Drama
+  {
+    genre: "drama",
+    people: [
+      { id: 7467, name: "David Fincher" },
+      { id: 7479, name: "Jeff Cronenweth" },
+    ],
+    blurb: "A director and his cinematographer: Fight Club, The Social Network, Gone Girl.",
+  },
+  {
+    genre: "drama",
+    people: [
+      { id: 136495, name: "Damien Chazelle" },
+      { id: 1419631, name: "Justin Hurwitz" },
+    ],
+    blurb: "Whiplash, La La Land, First Man, Babylon: a director and his composer.",
+  },
   {
     genre: "drama",
     people: [
@@ -441,6 +438,14 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
   {
     genre: "world-cinema",
     people: [
+      { id: 21684, name: "Bong Joon Ho" },
+      { id: 20738, name: "Song Kang-ho" },
+    ],
+    blurb: "Memories of Murder, The Host, Snowpiercer, Parasite: director and muse.",
+  },
+  {
+    genre: "world-cinema",
+    people: [
       { id: 5026, name: "Akira Kurosawa" },
       { id: 7450, name: "Toshirō Mifune" },
     ],
@@ -487,7 +492,7 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
     blurb: "Director and actor: Red Sorghum, Raise the Red Lantern, The Story of Qiu Ju, To Live.",
   },
 
-  // Animation & Family
+  // Animation
   {
     genre: "animation",
     people: [

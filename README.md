@@ -49,7 +49,7 @@ The token is only read on the server and is never sent to the browser.
 
 ## Landing page pairings
 
-The "Try a pairing" cards on `/` are curated by hand in `src/lib/examples.ts` (genre, people, a one-line blurb). The page itself never calls TMDB: it renders from `src/lib/examples.generated.json`, which holds each person's canonical TMDB name and photo plus the "N films together" count, so `/` is statically prerendered.
+The "Try a pairing" cards on `/` are curated by hand in `src/lib/examples.ts` (genre, people, a one-line blurb). The page itself never calls TMDB: it renders from `src/lib/examples.generated.json`, which holds each person's canonical TMDB name and photo plus the "N films together" count, so `/` is statically prerendered. Every pairing belongs to exactly one genre tab; the first tab, Featured, is not stored but shows 6 pairings picked at random (one per genre) in the browser after load, with a fixed default sample in the server HTML for crawlers and visitors without JavaScript.
 
 After adding or changing a pairing, run:
 

@@ -10,6 +10,8 @@ import {
 } from "@/lib/examples";
 
 export interface ExampleCardData {
+  /** Id of the genre whose panel lists this pairing. */
+  genre: string;
   href: string;
   blurb: string;
   /** Films all people share by the pair page's default rules, as recorded by examples:refresh. */
@@ -45,6 +47,7 @@ export function buildGenreSections(
       );
     }
     const card: ExampleCardData = {
+      genre: pairing.genre,
       href: pairingHref(entry),
       blurb: pairing.blurb,
       sharedCount: entry.sharedCount,
