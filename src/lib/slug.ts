@@ -22,11 +22,16 @@ export function buildPeopleSlug(people: { id: number; name: string }[]): string 
 
 /**
  * Parses `id` or `id-anything` segments joined by `+` (or an encoded `%2B`).
- * `canonical` is set when the input needed cleaning (decoded separator or
- * duplicate ids) and holds the cleaned slug text.
+ * `canonical` is set when duplicate ids were dropped and holds the slug text
+ * without them (percent-decoded).
  */
 export function parsePeopleSlug(slug: string): { ids: number[]; canonical?: string } | null {
-  const decoded = slug.replace(/%2b/gi, "+");
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(slug);
+  } catch {
+    return null;
+  }
   const kept = new Map<number, string>();
 
   for (const segment of decoded.split("+")) {
@@ -40,6 +45,6 @@ export function parsePeopleSlug(slug: string): { ids: number[]; canonical?: stri
   const cleaned = [...kept.values()].join("+");
   return {
     ids: [...kept.keys()],
-    ...(cleaned !== slug ? { canonical: cleaned } : {}),
+    ...(cleaned !== decoded ? { canonical: cleaned } : {}),
   };
 }

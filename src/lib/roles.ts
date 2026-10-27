@@ -1,4 +1,4 @@
-import type { RoleKey } from "@/lib/types";
+import type { Credit, RoleKey } from "@/lib/types";
 
 export const ROLE_ORDER: readonly RoleKey[] = [
   "actor",
@@ -71,4 +71,10 @@ export function isMinorCast(order: number | undefined, character: string | undef
 
 export function isMinorCrewRole(role: RoleKey): boolean {
   return role === "other";
+}
+
+/** "Director, Writer": each role's label once, in ROLE_ORDER. */
+export function roleSummary(credits: Credit[]): string {
+  const roles = new Set(credits.map((c) => c.role));
+  return ROLE_ORDER.filter((role) => roles.has(role)).map(roleLabel).join(", ");
 }

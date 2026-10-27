@@ -39,19 +39,22 @@ describe("parsePeopleSlug", () => {
     expect(parsePeopleSlug("7467+1234")?.ids).toEqual([7467, 1234]);
   });
 
-  it("tolerates an encoded + separator and reports the cleaned slug", () => {
-    expect(parsePeopleSlug("7467-david-fincher%2B1234-jeff")).toEqual({
-      ids: [7467, 1234],
-      canonical: "7467-david-fincher+1234-jeff",
-    });
+  it("tolerates an encoded + separator", () => {
+    expect(parsePeopleSlug("7467-david-fincher%2B1234-jeff")).toEqual({ ids: [7467, 1234] });
     expect(parsePeopleSlug("7467%2b1234")?.ids).toEqual([7467, 1234]);
   });
 
-  it("dedupes ids, keeping the first segment", () => {
+  it("decodes percent-encoded text and rejects malformed encoding", () => {
+    expect(parsePeopleSlug("955-pen%C3%A9lope")).toEqual({ ids: [955] });
+    expect(parsePeopleSlug("955-%E0%A4%A")).toBeNull();
+  });
+
+  it("dedupes ids, keeping the first segment, and reports the slug without duplicates", () => {
     expect(parsePeopleSlug("7467-a+1234-b+7467-c")).toEqual({
       ids: [7467, 1234],
       canonical: "7467-a+1234-b",
     });
+    expect(parsePeopleSlug("7467-a%2B1234-b%2B7467-c")?.canonical).toBe("7467-a+1234-b");
   });
 
   it("allows up to four people and rejects more", () => {

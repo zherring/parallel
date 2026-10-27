@@ -6,6 +6,7 @@ import {
   isMinorCrewRole,
   roleForJob,
   roleLabel,
+  roleSummary,
 } from "@/lib/roles";
 
 describe("roleForJob", () => {
@@ -97,5 +98,22 @@ describe("roleLabel / ROLE_ORDER", () => {
   it("lists each role once, other last", () => {
     expect(new Set(ROLE_ORDER).size).toBe(ROLE_ORDER.length);
     expect(ROLE_ORDER.at(-1)).toBe("other");
+  });
+});
+
+describe("roleSummary", () => {
+  it("lists each role once in ROLE_ORDER", () => {
+    expect(
+      roleSummary([
+        { role: "writer", job: "Screenplay", minor: false },
+        { role: "director", job: "Director", minor: false },
+        { role: "actor", job: "Actor", minor: false },
+        { role: "director", job: "Director", minor: false },
+      ]),
+    ).toBe("Actor, Director, Writer");
+  });
+
+  it("is empty without credits", () => {
+    expect(roleSummary([])).toBe("");
   });
 });
