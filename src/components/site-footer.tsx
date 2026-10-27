@@ -7,6 +7,10 @@ export function SiteFooter() {
           <a href="https://zachherring.com" className="underline hover:text-strong">
             Zach Herring
           </a>
+          <span aria-hidden="true"> · </span>
+          <a href="https://github.com/zherring/parallel" className="underline hover:text-strong">
+            Open source on GitHub
+          </a>
         </p>
         <div className="flex items-center gap-3">
           {/* Official TMDB mark; kept smaller than the Parallel wordmark per their guidelines. */}
