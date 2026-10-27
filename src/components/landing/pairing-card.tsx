@@ -27,12 +27,9 @@ export function PairingCard({ card }: { card: ExampleCardData }) {
         <h3 className="text-lg font-semibold leading-snug text-strong">{joinNames(names)}</h3>
         <p className="text-sm leading-relaxed text-body">{card.blurb}</p>
       </div>
-      {card.filmsTogether !== null && (
-        <p className="text-sm font-medium text-accent-green">
-          <span className="tabular-nums">{card.filmsTogether}</span>{" "}
-          {card.filmsTogether === 1 ? "film" : "films"} together
-        </p>
-      )}
+      <p className="text-sm font-medium text-accent-green">
+        <span className="tabular-nums">{card.sharedCount}</span> {card.sharedCount === 1 ? "film" : "films"} together
+      </p>
     </Link>
   );
 }

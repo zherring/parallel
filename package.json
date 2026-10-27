@@ -8,7 +8,8 @@
     "start": "next start -p ${PORT:-3000}",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "examples:refresh": "node --experimental-transform-types --conditions=react-server --import ./scripts/register-loader.mjs --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env scripts/refresh-examples.ts"
   },
   "dependencies": {
     "next": "16.4.3",

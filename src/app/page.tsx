@@ -1,18 +1,15 @@
 import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { Pairings } from "@/components/landing/pairings";
-import { loadExampleCards } from "@/lib/load-example-cards";
+import { buildGenreSections } from "@/lib/example-cards";
 
-// Rendered per request: the build environment may not have a TMDB token, and the example
-// photos and counts must never be baked into the build.
-export const dynamic = "force-dynamic";
-
-export default async function Home() {
-  const cards = await loadExampleCards();
+// Static: the pairings, photos and film counts all come from src/lib/examples.generated.json
+// (see `npm run examples:refresh`), so this page makes no TMDB calls at build or request time.
+export default function Home() {
   return (
     <>
       <Hero />
-      <Pairings cards={cards} />
+      <Pairings sections={buildGenreSections()} />
       <HowItWorks />
     </>
   );
