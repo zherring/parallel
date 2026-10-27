@@ -19,5 +19,5 @@ export function LandingSearch() {
     () => window.matchMedia(DESKTOP).matches,
     () => false,
   );
-  return <PersonSearch size="hero" autoFocus={isDesktop} />;
+  return <PersonSearch size="hero" mode="chips" autoFocus={isDesktop} />;
 }
