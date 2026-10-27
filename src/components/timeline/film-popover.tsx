@@ -109,6 +109,11 @@ interface FilmPopoverProps {
   content: FilmCardContent;
   /** Shared by every lane: the poster gets the green outline and glow of a lit film. */
   lit: boolean;
+  /**
+   * y in the viewport below which the card should not go (the top of the pinned control bar,
+   * which would otherwise cover its lower part); the viewport's bottom edge when omitted.
+   */
+  bottomEdge?: () => number;
   onDismiss: () => void;
 }
 
@@ -134,7 +139,7 @@ function RoleText({ row }: { row: CreditsRow }) {
  * cannot cover the nodes around its trigger, and it never takes focus. The poster is only
  * fetched while the card is open.
  */
-export function FilmPopover({ id, target, content, lit, onDismiss }: FilmPopoverProps) {
+export function FilmPopover({ id, target, content, lit, bottomEdge, onDismiss }: FilmPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
   const animated = useRef(false);
@@ -151,10 +156,10 @@ export function FilmPopover({ id, target, content, lit, onDismiss }: FilmPopover
     const { left, top } = placePopover(
       target.trigger.getBoundingClientRect(),
       { width: card.offsetWidth, height: card.offsetHeight },
-      { width: document.documentElement.clientWidth, height: window.innerHeight },
+      { width: document.documentElement.clientWidth, height: Math.min(window.innerHeight, bottomEdge?.() ?? window.innerHeight) },
     );
     setPlace({ left, top });
-  }, [target, content, onDismiss]);
+  }, [target, content, bottomEdge, onDismiss]);
 
   // Slide up from just below while fading in; no exit animation, and none at all for reduced motion.
   const placed = place !== null;

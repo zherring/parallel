@@ -158,6 +158,7 @@ export function Timeline({
   const scrollerId = useId();
   const popoverId = useId();
   const { target: popoverTarget, show: showPopover, hide: hidePopover } = useFilmPopover();
+  const rootRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const cornerRef = useRef<HTMLDivElement>(null);
   const pendingCenter = useRef<number | null>(null);
@@ -472,6 +473,12 @@ export function Timeline({
     hidePopover(element);
   };
 
+  // The hover card keeps clear of the control bar pinned to the bottom of the viewport.
+  const barTop = useCallback(
+    () => rootRef.current?.querySelector("[data-minimap-bar]")?.getBoundingClientRect().top ?? window.innerHeight,
+    [],
+  );
+
   // Opening the film panel closes the hover card, whether it was a click or Enter.
   const handleSelect = useCallback(
     (id: number, trigger: HTMLElement) => {
@@ -565,7 +572,7 @@ export function Timeline({
   };
 
   return (
-    <div>
+    <div ref={rootRef}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         {heading}
         <label className="flex max-w-xl cursor-pointer items-start gap-2 text-sm text-body">
@@ -590,49 +597,6 @@ export function Timeline({
         onPreview={setPreviewKey}
         onTogglePin={(key) => setPinnedKey((prev) => (prev === key ? null : key))}
       />
-
-      <MinimapBar
-        scrollerRef={scrollerRef}
-        cornerRef={cornerRef}
-        scrollerId={scrollerId}
-        scale={scale}
-        sharedFilms={minimapFilms.shared}
-        filmTicks={minimapFilms.ticks}
-        leading={
-          multi ? (
-            <LaneAvatars people={lanes.map((lane) => lane.person)} activeIndex={activeLane} onJump={jumpToLane} />
-          ) : null
-        }
-      >
-        <div role="group" aria-label="Zoom" className="flex shrink-0 items-center gap-1.5">
-          <button
-            type="button"
-            className={buttonClass}
-            aria-label="Zoom out"
-            disabled={pxPerYear <= MIN_ZOOM}
-            onClick={() => zoom("out")}
-          >
-            <svg aria-hidden viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
-              <path d="M3.5 8h9" />
-            </svg>
-          </button>
-          <span aria-live="polite" className="w-12 text-center text-xs tabular-nums text-muted max-sm:sr-only">
-            <span className="sr-only">Zoom </span>
-            {zoomPercent}%
-          </span>
-          <button
-            type="button"
-            className={buttonClass}
-            aria-label="Zoom in"
-            disabled={pxPerYear >= MAX_ZOOM}
-            onClick={() => zoom("in")}
-          >
-            <svg aria-hidden viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
-              <path d="M3.5 8h9M8 3.5v9" />
-            </svg>
-          </button>
-        </div>
-      </MinimapBar>
 
       <div className="relative isolate [--lane-head:84px] sm:[--lane-head:224px]">
         <div
@@ -904,12 +868,58 @@ export function Timeline({
         />
       </div>
 
+      {/* After the timeline, so that the pinned bar follows the lanes in reading and tab order. */}
+      <MinimapBar
+        scrollerRef={scrollerRef}
+        cornerRef={cornerRef}
+        scrollerId={scrollerId}
+        scale={scale}
+        sharedFilms={minimapFilms.shared}
+        filmTicks={minimapFilms.ticks}
+        leading={
+          multi ? (
+            <LaneAvatars people={lanes.map((lane) => lane.person)} activeIndex={activeLane} onJump={jumpToLane} />
+          ) : null
+        }
+      >
+        <div role="group" aria-label="Zoom" className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            className={buttonClass}
+            aria-label="Zoom out"
+            disabled={pxPerYear <= MIN_ZOOM}
+            onClick={() => zoom("out")}
+          >
+            <svg aria-hidden viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+              <path d="M3.5 8h9" />
+            </svg>
+          </button>
+          <span aria-live="polite" className="w-12 text-center text-xs tabular-nums text-muted max-sm:sr-only">
+            <span className="sr-only">Zoom </span>
+            {zoomPercent}%
+          </span>
+          <button
+            type="button"
+            className={buttonClass}
+            aria-label="Zoom in"
+            disabled={pxPerYear >= MAX_ZOOM}
+            onClick={() => zoom("in")}
+          >
+            <svg aria-hidden viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+              <path d="M3.5 8h9M8 3.5v9" />
+            </svg>
+          </button>
+        </div>
+      </MinimapBar>
+
       {popoverTarget && popoverContent && (
         <FilmPopover
           id={popoverId}
           target={popoverTarget}
           content={popoverContent}
-          lit={toneFor(popoverTarget.filmId) === "lit"}          onDismiss={hidePopover}
+          lit={toneFor(popoverTarget.filmId) === "lit"}
+          bottomEdge={barTop}
+          onDismiss={hidePopover}
         />
       )}
     </div>

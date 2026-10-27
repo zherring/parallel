@@ -68,7 +68,8 @@ function FilmCardImpl(props: FilmCardProps) {
         aria-current={selected ? "true" : undefined}
         onClick={(event) => onSelect(id, event.currentTarget)}
         // Opaque on purpose: the grid lines of the track must not show through the caption.
-        className="group block w-full cursor-pointer rounded-[4px] bg-canvas text-left"
+        // scroll-mb: keyboard focus scrolls the page far enough to clear the control bar pinned to the viewport's bottom.
+        className="group block w-full scroll-mb-20 cursor-pointer rounded-[4px] bg-canvas text-left"
       >
         <span
           className={cn(

@@ -72,7 +72,8 @@ function FilmNodeImpl(props: FilmNodeProps) {
       onClick={(event) => onSelect(id, event.currentTarget)}
       // The ring lives on the inner span so a squeezed hit area still shows a round focus mark.
       // Important: the global :focus-visible outline is unlayered CSS and would beat a plain utility.
-      className="group relative block size-full cursor-pointer focus-visible:outline-none!"
+      // scroll-mb: keyboard focus scrolls the page far enough to clear the control bar pinned to the viewport's bottom.
+      className="group relative block size-full scroll-mb-20 cursor-pointer focus-visible:outline-none!"
     >
       <span
         aria-hidden
