@@ -164,6 +164,36 @@ describe("normalizeMovieCredits with TMDB's video flag", () => {
   });
 });
 
+describe("normalizeMovieCredits with documentary appearances", () => {
+  const cast = (character: string | undefined, genre_ids: number[] | undefined) =>
+    normalizeMovieCredits({
+      cast: [{ ...movie(1, "On Location", "2012-03-20"), character, order: 1, genre_ids }],
+      crew: [],
+    })[0];
+
+  it("treats a cast credit without a character on a documentary as appearing as oneself", () => {
+    expect(cast("", [99]).minor).toBe(true);
+    expect(cast(undefined, [18, 99]).minor).toBe(true);
+  });
+
+  it("keeps a documentary credit that names a character", () => {
+    expect(cast("Narrator", [99]).minor).toBe(false);
+  });
+
+  it("keeps blank-character cast credits on other kinds of movie", () => {
+    expect(cast("", [18]).minor).toBe(false);
+    expect(cast("", undefined).minor).toBe(false);
+  });
+
+  it("does not touch crew credits on a documentary", () => {
+    const [film] = normalizeMovieCredits({
+      cast: [],
+      crew: [{ ...movie(2, "A Documentary", "2012-03-20"), genre_ids: [99], job: "Director" }],
+    });
+    expect(film.minor).toBe(false);
+  });
+});
+
 describe("normalizeFilmDetails", () => {
   const person = (id: number) => ({ id, name: `P${id}`, profile_path: null });
   const raw: RawMovieDetails = {

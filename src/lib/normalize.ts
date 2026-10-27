@@ -26,6 +26,14 @@ const NOTABLE_OTHER_JOBS = new Set([
 // while they are obscure.
 const VIDEO_FLAG_MAX_VOTES = 500;
 
+// TMDB genre id for Documentary. A cast credit on a documentary with no character is the
+// person appearing as themselves (making-of and behind-the-scenes extras are filed this
+// way), whatever runtime TMDB has for it.
+const DOCUMENTARY_GENRE_ID = 99;
+
+const isDocumentaryAppearance = (c: { character?: string; genre_ids?: number[] }) =>
+  !c.character && c.genre_ids?.includes(DOCUMENTARY_GENRE_ID) === true;
+
 const roleRank = (role: RoleKey) => ROLE_ORDER.indexOf(role);
 
 export function normalizePerson(raw: RawPerson): PersonSummary {
@@ -92,7 +100,7 @@ export function normalizeMovieCredits(raw: RawMovieCredits, shortMovieIds: Reado
       job: "Actor",
       ...(c.character ? { character: c.character } : {}),
       ...(c.order !== undefined ? { order: c.order } : {}),
-      minor: isShort(c) || isMinorCast(c.order, c.character),
+      minor: isShort(c) || isMinorCast(c.order, c.character) || isDocumentaryAppearance(c),
     });
   }
   for (const c of raw.crew) {

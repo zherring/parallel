@@ -29,6 +29,7 @@ interface RawCreditMovie {
   vote_count?: number;
   /** TMDB's "video" flag: music videos, video compilations and other non-theatrical extras. */
   video?: boolean;
+  genre_ids?: number[];
 }
 
 export interface RawCastCredit extends RawCreditMovie {
