@@ -235,15 +235,24 @@ describe("buildOgCard", () => {
     expect(buildOgCard([timeline(1, "Solo Artist", [film(1, 2010)])], TODAY).subline).toBe("1 film on a timeline");
   });
 
-  it("shrinks a long family name to fit its column", () => {
+  it("sets every name at the size the longest one fits, so the row looks even", () => {
     const people = [
       timeline(1, "A Schoonmakerowski", [film(1, 1999)]),
       timeline(2, "B Smith", [film(1, 1999)]),
       timeline(3, "C Jones", [film(1, 1999)]),
     ];
-    const [long, short] = buildOgCard(people, TODAY).people;
-    expect(long.fontSize).toBeLessThan(short.fontSize);
-    expect(short.fontSize).toBe(peopleLayout(3).font);
+    const sizes = buildOgCard(people, TODAY).people.map((p) => p.fontSize);
+    expect(new Set(sizes).size).toBe(1);
+    expect(sizes[0]).toBeLessThan(peopleLayout(3).font);
+  });
+
+  it("keeps the full size when every name fits", () => {
+    const people = [
+      timeline(1, "A Smith", [film(1, 1999)]),
+      timeline(2, "B Jones", [film(1, 1999)]),
+      timeline(3, "C Brown", [film(1, 1999)]),
+    ];
+    expect(buildOgCard(people, TODAY).people.map((p) => p.fontSize)).toEqual([32, 32, 32]);
   });
 });
 

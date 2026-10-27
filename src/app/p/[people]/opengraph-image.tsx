@@ -9,7 +9,11 @@ export const alt = "Film collaborations on Parallel";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
-/** Regenerate at most daily: TMDB data changes slowly and the images are costly to draw. */
+/**
+ * Regenerate at most daily: TMDB data changes slowly and the images are costly to draw. Note that
+ * `next dev` honours this too and keeps serving the first render of a card; comment it out while
+ * working on the design.
+ */
 export const revalidate = 86400;
 
 const CACHE_CONTROL = "public, s-maxage=86400, stale-while-revalidate=604800";

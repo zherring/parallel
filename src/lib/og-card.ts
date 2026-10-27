@@ -14,7 +14,7 @@ export interface OgPerson {
   name: string;
   /** What is printed under the portrait: full name for one or two people, family name for three or four. */
   label: string;
-  /** Font size for `label`, shrunk when its longest word would not fit the column. */
+  /** Name size, the same for everyone on the card: shrunk until the longest word of any name fits its column. */
   fontSize: number;
   initials: string;
   profilePath: string | null;
@@ -96,9 +96,9 @@ export function peopleLayout(count: number): PeopleLayout {
     case 2:
       return { diameter: 244, pitch: 224, font: 36, labelWidth: 216, width: 2 * 224 };
     case 3:
-      return { diameter: 214, pitch: 196, font: 32, labelWidth: 188, width: 3 * 196 };
+      return { diameter: 214, pitch: 196, font: 32, labelWidth: 192, width: 3 * 196 };
     default:
-      return { diameter: 172, pitch: 156, font: 28, labelWidth: 148, width: 4 * 156 };
+      return { diameter: 172, pitch: 156, font: 28, labelWidth: 160, width: 4 * 156 };
   }
 }
 
@@ -190,16 +190,16 @@ export function buildOgCard(timelines: PersonTimeline[], today: string): OgCard 
   const labelMax = LABEL_MAX_CHARS[Math.min(4, Math.max(1, people.length))];
   const layout = peopleLayout(people.length);
   const labels = headingNames(people);
-  const ogPeople: OgPerson[] = timelines.map(({ person }, i) => {
-    const label = truncateName(labels[i], labelMax);
-    return {
-      name: person.name,
-      label,
-      fontSize: fitFont(label, layout.labelWidth, layout.font, MIN_LABEL_FONT),
-      initials: initials(person.name),
-      profilePath: person.profilePath,
-    };
-  });
+  const shown = labels.map((label) => truncateName(label, labelMax));
+  // One size for the whole row: the largest at which every name fits, so the names look alike.
+  const fontSize = Math.min(layout.font, ...shown.map((label) => fitFont(label, layout.labelWidth, layout.font, MIN_LABEL_FONT)));
+  const ogPeople: OgPerson[] = timelines.map(({ person }, i) => ({
+    name: person.name,
+    label: shown[i],
+    fontSize,
+    initials: initials(person.name),
+    profilePath: person.profilePath,
+  }));
 
   if (timelines.length === 1) {
     const films = timelines[0].films.filter((film) => !film.minor);
