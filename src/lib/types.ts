@@ -18,6 +18,11 @@ export interface PersonSummary {
   knownFor: string | null;
   birthday: string | null;
   deathday: string | null;
+  /**
+   * TMDB's community-written biography (often derived from Wikipedia): `\n` line endings,
+   * paragraphs separated by blank lines, capped at about 4000 characters. Null when TMDB has none.
+   */
+  biography: string | null;
 }
 
 export interface Credit {

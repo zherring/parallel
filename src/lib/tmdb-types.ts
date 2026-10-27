@@ -7,6 +7,8 @@ export interface RawPerson {
   known_for_department?: string | null;
   birthday?: string | null;
   deathday?: string | null;
+  /** Community-contributed free text; empty string when TMDB has none. */
+  biography?: string | null;
 }
 
 export interface RawSearchPerson {

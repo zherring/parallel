@@ -197,7 +197,13 @@ describe("getPersonMovieCredits", () => {
     const path = new URL(String(input)).pathname;
     if (path.endsWith("/movie_credits")) return json(credits);
     if (path.endsWith("/discover/movie")) return discover();
-    return json({ id: 7467, name: "David Fincher", profile_path: "/f.jpg", known_for_department: "Directing" });
+    return json({
+      id: 7467,
+      name: "David Fincher",
+      profile_path: "/f.jpg",
+      known_for_department: "Directing",
+      biography: "David Fincher is an American film director.\r\n\r\nHe made Seven.",
+    });
   };
 
   it("combines person details with normalized credits and caches for a day", async () => {
@@ -205,7 +211,12 @@ describe("getPersonMovieCredits", () => {
 
     const timeline = await getPersonMovieCredits(7467);
 
-    expect(timeline.person).toMatchObject({ id: 7467, name: "David Fincher", knownFor: "Directing" });
+    expect(timeline.person).toMatchObject({
+      id: 7467,
+      name: "David Fincher",
+      knownFor: "Directing",
+      biography: "David Fincher is an American film director.\n\nHe made Seven.",
+    });
     expect(timeline.films.map((f) => f.title)).toEqual(["A", "B"]);
     expect(timeline.films.every((f) => !f.minor)).toBe(true);
     for (const n of [0, 1, 2]) expect(lastCall(n).init.next).toEqual({ revalidate: 86400 });

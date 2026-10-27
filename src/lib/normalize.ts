@@ -1,3 +1,4 @@
+import { normalizeBiography } from "@/lib/biography";
 import { ROLE_ORDER, isMinorCast, isMinorCrewRole, roleForJob } from "@/lib/roles";
 import type {
   Credit,
@@ -44,6 +45,7 @@ export function normalizePerson(raw: RawPerson): PersonSummary {
     knownFor: raw.known_for_department || null,
     birthday: raw.birthday || null,
     deathday: raw.deathday || null,
+    biography: normalizeBiography(raw.biography),
   };
 }
 
