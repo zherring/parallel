@@ -57,7 +57,7 @@ interface MinimapBarProps {
 }
 
 /**
- * Sticky overview bar above the timeline. It stands for the whole time axis; the highlighted
+ * Sticky overview bar under the timeline, pinned to the bottom of the viewport. It stands for the whole time axis; the highlighted
  * window is the part currently visible, and dragging it (or clicking the bar, or using the
  * keyboard on the handle) scrolls the timeline.
  *
@@ -77,6 +77,7 @@ export function MinimapBar({
   const trackRef = useRef<HTMLDivElement>(null);
   const windowRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef(scale);
   const drag = useRef<{ pointerId: number; startX: number; startScrollLeft: number; barWidth: number } | null>(null);
   const pendingNode = useRef<{ pointerId: number; startX: number } | null>(null);
@@ -84,6 +85,7 @@ export function MinimapBar({
   const suppressClick = useRef(false);
 
   const [barWidth, setBarWidth] = useState(0);
+  const [barHeight, setBarHeight] = useState(0);
   const [stuck, setStuck] = useState(false);
 
   const readGeometry = useCallback((): ScrollGeometry | null => {
@@ -156,16 +158,31 @@ export function MinimapBar({
     return () => observer.disconnect();
   }, []);
 
-  // Border and shadow only while pinned: a sentinel just above the bar scrolls off the top.
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel || typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver(([entry]) => {
-      setStuck(!entry.isIntersecting && entry.boundingClientRect.top < 0);
-    });
-    observer.observe(sentinel);
+  // The bar's own height: how far up from the viewport's bottom edge it needs to be fully in view.
+  useLayoutEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return;
+    const measure = () => setBarHeight(Math.round(bar.getBoundingClientRect().height));
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
     return () => observer.disconnect();
   }, []);
+
+  // Border and shadow only while pinned to the bottom of the viewport: a sentinel at the bar's
+  // natural place (just above it) is below the viewport's bottom edge, less the bar's height,
+  // exactly while the bar has been pushed up from where it would rest under the timeline.
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || barHeight === 0 || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setStuck(!entry.isIntersecting && entry.boundingClientRect.top > 0),
+      { rootMargin: `0px 0px -${barHeight}px 0px` },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [barHeight]);
 
   const ticks = useMemo(() => minimapTicks(scale, { barWidth }), [scale, barWidth]);
   const sharedNodes = useMemo(
@@ -268,10 +285,13 @@ export function MinimapBar({
     <>
       <div ref={sentinelRef} aria-hidden className="-mb-px h-px" />
       <div
+        ref={barRef}
         data-minimap-bar
         className={cn(
-          "sticky top-0 z-30 -mx-4 flex items-center gap-3 bg-canvas px-4 py-1.5",
-          stuck ? "border-b border-border shadow-[0_8px_10px_-8px_rgb(0_0_0/0.8)]" : "border-b border-transparent",
+          // The bar is rendered after the timeline and pins to the bottom of the viewport while any of the timeline is on
+          // screen, resting right under it otherwise. Opaque, above the lanes and below the film panel and hover card.
+          "sticky bottom-0 z-30 -mx-4 flex items-center gap-3 bg-canvas px-4 pb-[calc(0.375rem+env(safe-area-inset-bottom))] pt-1.5",
+          stuck ? "border-t border-border shadow-[0_-8px_10px_-8px_rgb(0_0_0/0.8)]" : "border-t border-transparent",
         )}
       >
         {leading}

@@ -1,19 +1,21 @@
 /**
  * Pure geometry for the timeline: one shared time axis, every film as a node on its
- * lane's line, collision packing of poster cards into sub-rows, continuous node-to-node
- * connector lines between lanes, and zoom/scroll math.
+ * lane's line, collision packing of poster cards into sub-rows (capped, with the rest left
+ * as nodes), continuous node-to-node connector lines between lanes, and zoom/scroll math.
  *
- * Two layouts share this geometry. In "nodes" mode (2+ lanes and at least one film
- * shared by all of them) lanes are short lines of nodes, and the shared films get one
- * poster each in a strip between the first two lanes. In "posters" mode (a single
- * person, or nothing shared by all) lanes keep their poster cards, capped to a few
- * rows, with the rest as nodes.
+ * Two layouts share this geometry. In "strip" mode (2+ lanes and at least one film shared
+ * by all of them) the shared films get one lit poster each in a strip between the first
+ * two lanes and only a green node on each lane's line; every other film keeps its poster
+ * in its own lane. In "plain" mode (a single person, or nothing shared by all) there is no
+ * strip: every lane is just its posters.
  *
  * Nothing here touches the DOM. Every pixel the UI draws (node and card positions, lane
  * heights, connector endpoints) is derived from these functions, so a film shared by
  * two lanes lands at the identical x in both and the SVG overlay lines up without
  * measuring anything.
  */
+
+import { connectionSlot } from "@/lib/connections";
 
 // ---- Dimensions (px) -------------------------------------------------------
 
@@ -25,7 +27,7 @@ export const CARD_HEIGHT = POSTER_HEIGHT + CAPTION_HEIGHT;
 export const CARD_GAP = 8;
 /** Vertical gap between sub-rows inside a lane. */
 export const ROW_GAP = 10;
-/** y of the lane's track line, from the top of the lane (posters layout). */
+/** y of the lane's track line, from the top of the lane. */
 export const LINE_Y = 14;
 /** y of the first row of cards, from the top of the lane. */
 export const CARD_TOP = 30;
@@ -33,20 +35,18 @@ export const LANE_PAD_BOTTOM = 18;
 export const AXIS_HEIGHT = 44;
 /** Empty space before the first and after the last year so edge cards are not clipped. */
 export const TRACK_PAD = CARD_WIDTH / 2 + CARD_GAP;
-/** Rows of poster cards a lane shows before the rest collapse into dots. */
+/** Rows of poster cards a lane shows before the rest are left as nodes. */
 export const DEFAULT_MAX_ROWS = 2;
-/** Height (and widest width) of the invisible hit area around an overflow dot. */
+/** Widest hit area of the invisible button around a node. */
 export const DOT_HIT_SIZE = 24;
-/** Narrowest hit area an overflow dot is squeezed to when its neighbours are close. */
+/** Narrowest hit area a node is squeezed to when its neighbours are close. */
 export const DOT_HIT_MIN = 8;
-/** Height of a node's hit area; taller than it is wide because a lane has room above and below the line. */
+/** Height of a node's hit area, centred on the line; it ends above the first row of cards (CARD_TOP). */
 export const NODE_HIT_HEIGHT = 28;
-/** Height of a lane in the nodes layout: the header's avatar, name and a bio button, and the line. */
-export const NODE_LANE_HEIGHT = 132;
-/** y of the track line in the nodes layout, from the top of the lane. */
-export const NODE_LINE_Y = NODE_LANE_HEIGHT / 2;
 /** Space above and below the poster rows of the shared-films strip. */
 export const STRIP_PAD = 14;
+/** How far past a card's edge a vertical line still counts as running over the card (half its halo). */
+export const LINE_HALO = 1;
 /** Radii of the nodes on a lane line: a film of one lane, a film shared by some lanes, a film shared by all. */
 export const NODE_RADIUS = { plain: 3, some: 4.5, lit: 6 } as const;
 
@@ -156,12 +156,18 @@ export const OVERFLOW_ROW = -1;
 
 export interface PackedFilm<F extends PackableFilm = PackableFilm> {
   film: F;
-  /** Centre of the card (or dot), in track coordinates. */
+  /** Centre of the card (or node), in track coordinates. */
   x: number;
   /** Sub-row of the poster card, or OVERFLOW_ROW. */
   row: number;
-  /** Over the row cap: drawn as a dot on the lane line instead of a poster card. */
+  /** No poster card (over the row cap, or the poster is in the shared strip): only a node on the lane line. */
   overflow: boolean;
+}
+
+/** A vertical connector line that runs through a lane's poster rows: the film it belongs to, and its x. */
+export interface Obstacle {
+  filmId: number;
+  x: number;
 }
 
 export interface PackOptions {
@@ -170,13 +176,12 @@ export interface PackOptions {
   pad?: number;
   cardWidth?: number;
   gap?: number;
-  /**
-   * Films placed first, so they claim the lowest rows (shared films line up on row 0),
-   * and exempt from `maxRows`: a film shared by several lanes always gets a card, so its
-   * connector has both ends.
-   */
+  /** Films placed first, so they claim the lowest rows, and exempt from `maxRows`. */
   priorityIds?: ReadonlySet<number>;
-  /** Also exempt from `maxRows`, but placed with everything else. */
+  /**
+   * Also exempt from `maxRows`, but placed with everything else: a film shown in several
+   * lanes always keeps its card, which is where its connector line skips past.
+   */
   exemptIds?: ReadonlySet<number>;
   /**
    * Rows of poster cards to allow (default: unlimited). Films are then placed by
@@ -184,6 +189,19 @@ export interface PackOptions {
    * a film that fits none of the first `maxRows` rows is overflow.
    */
   maxRows?: number;
+  /**
+   * Soft obstacles: connector lines that run through every row of this lane. A line crosses
+   * all the rows at its x, so no row can avoid it; what can be avoided is a card under a
+   * line winning a contested slot. With a row cap, a film whose card would sit on a line
+   * (and is not that line's own film) is placed after the others of its tier, so it keeps
+   * its card whenever a row is still free and only gives way when the rows are taken.
+   */
+  obstacles?: readonly Obstacle[];
+}
+
+/** Whether a card centred at `x` for `filmId` has the connector line of another film running over it. */
+export function isCrossed(filmId: number, x: number, obstacles: readonly Obstacle[], cardWidth: number = CARD_WIDTH): boolean {
+  return obstacles.some((o) => o.filmId !== filmId && Math.abs(o.x - x) < cardWidth / 2 + LINE_HALO);
 }
 
 /**
@@ -196,7 +214,7 @@ export interface PackOptions {
  * they are the ones that keep their cards.
  */
 export function packFilms<F extends PackableFilm>(films: readonly F[], options: PackOptions): PackedFilm<F>[] {
-  const { cardWidth = CARD_WIDTH, gap = CARD_GAP, pad = TRACK_PAD, priorityIds, exemptIds } = options;
+  const { cardWidth = CARD_WIDTH, gap = CARD_GAP, pad = TRACK_PAD, priorityIds, exemptIds, obstacles = [] } = options;
   const maxRows = Math.max(1, options.maxRows ?? Number.POSITIVE_INFINITY);
   const capped = Number.isFinite(maxRows);
   const minDistance = cardWidth + gap;
@@ -207,10 +225,12 @@ export function packFilms<F extends PackableFilm>(films: readonly F[], options: 
     .sort((a, b) => a.x - b.x || a.film.id - b.film.id);
 
   const tier = (id: number) => (priorityIds?.has(id) ? 0 : exemptIds?.has(id) && capped ? 1 : 2);
+  const crossed = (p: { film: F; x: number }) => (tier(p.film.id) === 2 && isCrossed(p.film.id, p.x, obstacles, cardWidth) ? 1 : 0);
   const order = capped
     ? [...placed].sort(
         (a, b) =>
           tier(a.film.id) - tier(b.film.id) ||
+          crossed(a) - crossed(b) ||
           (b.film.voteCount ?? 0) - (a.film.voteCount ?? 0) ||
           a.x - b.x ||
           a.film.id - b.film.id,
@@ -240,35 +260,41 @@ export function packFilms<F extends PackableFilm>(films: readonly F[], options: 
   });
 }
 
-/** Rows of poster cards actually used (at least 1); overflow dots take no room. */
+/** Rows of poster cards actually used (at least 1); films without a card take no room. */
 export function rowCount(packed: readonly { row: number; overflow?: boolean }[]): number {
   return packed.reduce((max, p) => (p.overflow ? max : Math.max(max, p.row + 1)), 1);
 }
 
-/** How many films of a packed lane are dots rather than cards. */
-export function overflowCount(packed: readonly { overflow?: boolean }[]): number {
-  return packed.reduce((n, p) => (p.overflow ? n + 1 : n), 0);
+/**
+ * How many films of a packed lane have no poster card, leaving out `exceptIds`: the films
+ * whose poster is in the shared strip, which are not "missing" a card.
+ */
+export function overflowCount(
+  packed: readonly { film?: { id: number }; overflow?: boolean }[],
+  exceptIds?: ReadonlySet<number>,
+): number {
+  return packed.reduce((n, p) => (p.overflow && !(p.film && exceptIds?.has(p.film.id)) ? n + 1 : n), 0);
 }
 
 /**
- * Hit-area width per overflow dot, by film id: DOT_HIT_SIZE, narrowed (down to
- * DOT_HIT_MIN) so that neighbouring dots on the line never overlap. Input in x order.
+ * Hit-area width per node, by film id: DOT_HIT_SIZE, narrowed (down to DOT_HIT_MIN) so that
+ * neighbouring nodes on the line never overlap. Every film of a lane has a node, so pass
+ * them all, in x order.
  */
-export function dotHitWidths(packed: readonly { film: { id: number }; x: number; overflow: boolean }[]): Map<number, number> {
-  const dots = packed.filter((p) => p.overflow);
+export function nodeHitWidths(items: readonly { film: { id: number }; x: number }[]): Map<number, number> {
   const widths = new Map<number, number>();
-  dots.forEach((dot, i) => {
-    const before = i > 0 ? dot.x - dots[i - 1].x : Number.POSITIVE_INFINITY;
-    const after = i < dots.length - 1 ? dots[i + 1].x - dot.x : Number.POSITIVE_INFINITY;
-    widths.set(dot.film.id, Math.max(DOT_HIT_MIN, Math.min(DOT_HIT_SIZE, before, after)));
+  items.forEach((item, i) => {
+    const before = i > 0 ? item.x - items[i - 1].x : Number.POSITIVE_INFINITY;
+    const after = i < items.length - 1 ? items[i + 1].x - item.x : Number.POSITIVE_INFINITY;
+    widths.set(item.film.id, Math.max(DOT_HIT_MIN, Math.min(DOT_HIT_SIZE, before, after)));
   });
   return widths;
 }
 
 /**
- * Every film as a node on the lane line, with no poster card: x from the release date,
- * ordered by x then id. They are all `overflow` (dots, in packing terms), so
- * `dotHitWidths`, `overflowCount` and the connectors treat them like any other node.
+ * Films as nodes on the lane line, with no poster card: x from the release date, ordered by
+ * x then id. They are all `overflow` (no card, in packing terms), so `rowCount` and the
+ * connectors treat them like any other card-less film.
  */
 export function placeNodes<F extends PackableFilm>(
   films: readonly F[],
@@ -280,13 +306,60 @@ export function placeNodes<F extends PackableFilm>(
     .sort((a, b) => a.x - b.x || a.film.id - b.film.id);
 }
 
+/**
+ * One lane of the strip layout: its films packed into poster rows, except `sharedIds` (their
+ * posters are in the strip), which are only nodes. Every film comes back, in x then id order.
+ */
+export function packLane<F extends PackableFilm>(
+  films: readonly F[],
+  sharedIds: ReadonlySet<number>,
+  options: PackOptions,
+): PackedFilm<F>[] {
+  if (sharedIds.size === 0) return packFilms(films, options);
+  const posters = packFilms(
+    films.filter((film) => !sharedIds.has(film.id)),
+    options,
+  );
+  const nodes = placeNodes(
+    films.filter((film) => sharedIds.has(film.id)),
+    options,
+  );
+  return [...posters, ...nodes].sort((a, b) => a.x - b.x || a.film.id - b.film.id);
+}
+
+/**
+ * For each lane, the connector lines that run through its poster rows: those of films shown
+ * in two or more lanes, from the first lane that shows them down to, but not including, the
+ * last. A line goes from node to node, so the last lane's rows are never crossed.
+ */
+export function laneObstacles(
+  lanes: readonly { films: readonly PackableFilm[] }[],
+  options: Pick<PackOptions, "pxPerYear" | "axisStartYear" | "pad">,
+): Obstacle[][] {
+  const scale = { pxPerYear: options.pxPerYear, axisStartYear: options.axisStartYear, pad: options.pad ?? TRACK_PAD };
+  const shownIn = new Map<number, { first: number; last: number; x: number }>();
+  lanes.forEach((lane, index) => {
+    for (const film of lane.films) {
+      const seen = shownIn.get(film.id);
+      if (seen) seen.last = index;
+      else shownIn.set(film.id, { first: index, last: index, x: xForDate(scale, film.releaseDate) });
+    }
+  });
+  return lanes.map((_, index) =>
+    [...shownIn]
+      .filter(([, s]) => s.first <= index && index < s.last)
+      .map(([filmId, s]) => ({ filmId, x: s.x }))
+      .sort((a, b) => a.x - b.x || a.filmId - b.filmId),
+  );
+}
+
 // ---- Layout mode -----------------------------------------------------------
 
 /**
- * "nodes": every film is a node and only the films shared by all lanes get posters (once,
- * in a strip between lanes). "posters": the lanes keep their own poster cards.
+ * "strip": the films shared by all lanes get posters once, in a strip between the first two
+ * lanes, and only a node in the lanes. "plain": no strip, every lane keeps its own posters.
  */
-export type LayoutMode = "nodes" | "posters";
+export type LayoutMode = "strip" | "plain";
 
 /** Ids from `candidateIds` (the films shared by every person) that every lane actually shows, ascending. */
 export function filmsInEveryLane(
@@ -298,12 +371,12 @@ export function filmsInEveryLane(
   return [...first].filter((id) => candidateIds.has(id) && rest.every((ids) => ids.has(id))).sort((a, b) => a - b);
 }
 
-/** "nodes" with 2+ lanes and at least one film every lane shows; otherwise "posters". */
+/** "strip" with 2+ lanes and at least one film every lane shows; otherwise "plain". */
 export function layoutMode(
   lanes: readonly { films: readonly { id: number }[] }[],
   candidateIds: ReadonlySet<number>,
 ): LayoutMode {
-  return filmsInEveryLane(lanes, candidateIds).length > 0 ? "nodes" : "posters";
+  return filmsInEveryLane(lanes, candidateIds).length > 0 ? "strip" : "plain";
 }
 
 // ---- Lane geometry ---------------------------------------------------------
@@ -349,25 +422,22 @@ export function stripCardTop(row: number): number {
   return STRIP_PAD + row * (CARD_HEIGHT + ROW_GAP);
 }
 
-export interface NodeStack {
-  /** One box per lane, `NODE_LANE_HEIGHT` tall, with the strip's height inserted after the first. */
+export interface StripStack {
+  /** One box per lane, each as tall as its poster rows need, with the strip's height inserted after the first. */
   lanes: LaneBox[];
   /** The shared-films strip, between the first and second lane. */
   strip: LaneBox;
 }
 
 /**
- * Lanes of the nodes layout, top to bottom from y = 0. The strip of shared posters sits in
- * the gap under the first lane; the lines of further lanes follow directly, so a connector
- * through them is just the lane height long.
+ * Lanes of the strip layout, top to bottom from y = 0: the strip of shared posters sits under
+ * the first lane (so, with two lanes, exactly between them); further lanes follow directly.
+ * Needs at least one lane.
  */
-export function stackNodeLanes(laneCount: number, stripRows: number): NodeStack {
-  const strip = { top: NODE_LANE_HEIGHT, height: stripHeight(stripRows) };
-  const lanes: LaneBox[] = [];
-  for (let i = 0; i < laneCount; i++) {
-    const top = i === 0 ? 0 : i === 1 ? strip.top + strip.height : lanes[i - 1].top + NODE_LANE_HEIGHT;
-    lanes.push({ top, height: NODE_LANE_HEIGHT });
-  }
+export function stackStripLanes(rowCounts: number[], stripRows: number): StripStack {
+  const plain = stackLanes(rowCounts);
+  const strip = { top: plain[0].top + plain[0].height, height: stripHeight(stripRows) };
+  const lanes = plain.map((box, index) => (index === 0 ? box : { top: box.top + strip.height, height: box.height }));
   return { lanes, strip };
 }
 
@@ -375,13 +445,11 @@ export function stackNodeLanes(laneCount: number, stripRows: number): NodeStack 
 
 export interface ConnectorLane {
   box: LaneBox;
-  /** y of the lane's node line, from the top of the lane. */
-  lineY: number;
   /** The lane's films: `overflow` ones are nodes only, the rest also have a poster card in `row`. */
   items: readonly { film: { id: number }; x: number; row: number; overflow?: boolean }[];
 }
 
-/** The posters of the nodes layout's shared strip: the strip's box and each film's row in it. */
+/** The posters of the shared strip: the strip's box and each film's row in it. */
 export interface ConnectorStrip {
   box: LaneBox;
   rows: ReadonlyMap<number, number>;
@@ -400,10 +468,12 @@ export interface Connector {
   lanes: number[];
   /** "all" when every lane has the film, "some" for a subset (3+ lanes only). */
   kind: "all" | "some";
+  /** Palette slot of a "some" connector (see `connectionSlot`); null for "all", which is green. */
+  slot: number | null;
   /**
-   * y ranges between y1 and y2 where the film's own poster card sits. The line enters the
-   * card from above and leaves below it, so it is not drawn across the card; see
-   * `connectorSegments`.
+   * y ranges between y1 and y2 where the film's own poster card sits, in the shared strip or
+   * in a lane above the last one that shows it. The line enters the card from above and leaves
+   * below it, so it is not drawn across the card; see `connectorSegments`.
    */
   gaps: { y1: number; y2: number }[];
 }
@@ -427,9 +497,9 @@ export function filmMembership(lanes: readonly { items: readonly { film: { id: n
  * first of those lanes to its node in the last (so it passes through the nodes of the lanes
  * between). Coordinates are relative to the top of the first lane.
  *
- * With a `strip` (nodes layout) the film's poster is in the strip and the line skips it. Without
- * one, the line skips the film's own poster card in every lane but the last, since the card
- * hangs below that lane's node, in the line's way.
+ * The line skips the film's own poster wherever it would run through it: the poster in the
+ * shared `strip`, and a lane's own card in every lane but the last (that card hangs below the
+ * lane's node, in the line's way). It is drawn over every other poster it meets.
  */
 export function buildConnectors(lanes: readonly ConnectorLane[], strip?: ConnectorStrip): Connector[] {
   const connectors: Connector[] = [];
@@ -445,24 +515,24 @@ export function buildConnectors(lanes: readonly ConnectorLane[], strip?: Connect
     if (strip && stripRow !== undefined) {
       const top = strip.box.top + stripCardTop(stripRow);
       gaps.push({ y1: top, y2: top + CARD_HEIGHT });
-    } else if (!strip) {
-      for (const index of laneIndexes.slice(0, -1)) {
-        const item = lanes[index].items.find((it) => it.film.id === filmId)!;
-        if (item.overflow) continue;
-        const top = lanes[index].box.top + cardTopInLane(item.row);
-        gaps.push({ y1: top, y2: top + CARD_HEIGHT });
-      }
+    }
+    for (const index of laneIndexes.slice(0, -1)) {
+      const item = lanes[index].items.find((it) => it.film.id === filmId)!;
+      if (item.overflow) continue;
+      const top = lanes[index].box.top + cardTopInLane(item.row);
+      gaps.push({ y1: top, y2: top + CARD_HEIGHT });
     }
 
     connectors.push({
       filmId,
       x,
-      y1: lanes[fromLane].box.top + lanes[fromLane].lineY,
-      y2: lanes[toLane].box.top + lanes[toLane].lineY,
+      y1: lanes[fromLane].box.top + LINE_Y,
+      y2: lanes[toLane].box.top + LINE_Y,
       fromLane,
       toLane,
       lanes: laneIndexes,
       kind: laneIndexes.length === lanes.length ? "all" : "some",
+      slot: connectionSlot(laneIndexes, lanes.length),
       gaps,
     });
   }

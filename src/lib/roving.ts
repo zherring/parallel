@@ -25,16 +25,11 @@ export function rovingIndex(key: string, current: number, count: number): number
 }
 
 /**
- * The id of the lane's single tab stop: the one last focused if it is still in the lane,
- * else the first of `preferredIds` (films shared by every lane) that is, else the first node.
- * Null for an empty lane.
+ * The id of the lane's single tab stop among the films that are only a node (the others
+ * have a poster card, which is a tab stop of its own): the one last focused if it is still
+ * there, else the first. Null when there are none.
  */
-export function tabStopId(
-  ids: readonly number[],
-  stored: number | undefined,
-  preferredIds: ReadonlySet<number>,
-): number | null {
+export function tabStopId(ids: readonly number[], stored: number | undefined): number | null {
   if (ids.length === 0) return null;
-  if (stored !== undefined && ids.includes(stored)) return stored;
-  return ids.find((id) => preferredIds.has(id)) ?? ids[0];
+  return stored !== undefined && ids.includes(stored) ? stored : ids[0];
 }

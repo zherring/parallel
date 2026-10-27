@@ -22,6 +22,19 @@
   --focus: #40bcf4;
   --lit: #00e054;
   --lit-glow: rgb(0 224 84 / 0.45);
+  /*
+   * Connections between some of 3+ people, one colour per pair of lanes (src/lib/connections.ts).
+   * Every one is at least 6.9:1 on --bg and stays apart from --green and from each other under
+   * protan, deutan and tritan simulation (CIELAB distance 13 or more); the legend names each
+   * pair in text, so colour is never the only cue. --conn-7 is for subsets of three lanes.
+   */
+  --conn-1: var(--orange);
+  --conn-2: var(--blue);
+  --conn-3: #a98bff;
+  --conn-4: #ff6eb4;
+  --conn-5: #fff08a;
+  --conn-6: #cfd6e4;
+  --conn-7: #ffb48a;
 }
 
 /* Steps for the landing hero collage, which grows with the room left of the headline. */
