@@ -10,7 +10,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "examples:refresh": "node --experimental-transform-types --conditions=react-server --import ./scripts/register-loader.mjs --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env scripts/refresh-examples.ts"
+    "examples:refresh": "node --experimental-transform-types --conditions=react-server --import ./scripts/register-loader.mjs --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env scripts/refresh-examples.ts",
+    "people:refresh": "node --experimental-transform-types --conditions=react-server --import ./scripts/register-loader.mjs --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env scripts/refresh-people-index.ts",
+    "people:eval": "node --experimental-transform-types --conditions=react-server --import ./scripts/register-loader.mjs --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env scripts/eval-people-search.ts"
   },
   "dependencies": {
     "lucide-react": "^1.62.0",
