@@ -5,10 +5,14 @@ import {
   CARD_HEIGHT,
   CARD_TOP,
   CARD_WIDTH,
+  DEFAULT_MAX_ROWS,
   DEFAULT_ZOOM,
+  DOT_HIT_MIN,
+  DOT_HIT_SIZE,
   LANE_PAD_BOTTOM,
   MAX_ZOOM,
   MIN_ZOOM,
+  OVERFLOW_ROW,
   ROW_GAP,
   TRACK_PAD,
   ZOOM_STEPS,
@@ -17,6 +21,7 @@ import {
   buildConnectors,
   cardTopInLane,
   centerYear,
+  dotHitWidths,
   filmMembership,
   initialAnchorX,
   initialScrollLeft,
@@ -24,6 +29,7 @@ import {
   laneHeight,
   makeScale,
   nextZoom,
+  overflowCount,
   packFilms,
   rowCount,
   scrollLeftForCenter,
@@ -35,7 +41,11 @@ import {
 } from "@/lib/timeline-layout";
 import type { Credit, Film, PersonTimeline } from "@/lib/types";
 
-const f = (id: number, releaseDate: string) => ({ id, releaseDate });
+const f = (id: number, releaseDate: string, voteCount?: number) => ({
+  id,
+  releaseDate,
+  ...(voteCount === undefined ? {} : { voteCount }),
+});
 const MIN_DISTANCE = CARD_WIDTH + CARD_GAP;
 const base = { pxPerYear: 72, axisStartYear: 1990 };
 
@@ -279,6 +289,205 @@ describe("packFilms", () => {
   });
 });
 
+describe("packFilms with a row cap", () => {
+  const byId = <T extends { film: { id: number } }>(packed: T[]) => new Map(packed.map((p) => [p.film.id, p]));
+  // Five films within a few days of each other: each needs its own row when uncapped.
+  const cluster = [
+    f(1, "2000-01-01", 100),
+    f(2, "2000-01-02", 900),
+    f(3, "2000-01-03", 500),
+    f(4, "2000-01-04", 700),
+    f(5, "2000-01-05", 300),
+  ];
+  const lcg = (seed: number) => () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+
+  it("exports 2 as the default number of rows", () => {
+    expect(DEFAULT_MAX_ROWS).toBe(2);
+  });
+
+  it("gives the cards to the most voted films and turns the rest into overflow", () => {
+    const packed = byId(packFilms(cluster, { ...base, maxRows: 2 }));
+
+    expect(packed.get(2)).toMatchObject({ row: 0, overflow: false }); // 900 votes
+    expect(packed.get(4)).toMatchObject({ row: 1, overflow: false }); // 700 votes
+    for (const id of [3, 5, 1]) expect(packed.get(id)).toMatchObject({ row: OVERFLOW_ROW, overflow: true });
+  });
+
+  it("breaks vote ties by date", () => {
+    const tied = [f(3, "2000-01-03", 10), f(1, "2000-01-01", 10), f(2, "2000-01-02", 10)];
+    const packed = byId(packFilms(tied, { ...base, maxRows: 1 }));
+    expect(packed.get(1)).toMatchObject({ overflow: false });
+    expect(packed.get(2)).toMatchObject({ overflow: true });
+    expect(packed.get(3)).toMatchObject({ overflow: true });
+  });
+
+  it("treats a missing vote count as 0", () => {
+    const films = [f(1, "2000-01-01"), f(2, "2000-01-02", 5)];
+    const packed = byId(packFilms(films, { ...base, maxRows: 1 }));
+    expect(packed.get(2)).toMatchObject({ overflow: false });
+    expect(packed.get(1)).toMatchObject({ overflow: true });
+  });
+
+  it("fits films that do not collide into row 0 regardless of the cap", () => {
+    const spread = [f(1, "1990-01-01", 1), f(2, "1995-01-01", 2), f(3, "2000-01-01", 3), f(4, "2005-01-01", 4)];
+    const packed = packFilms(spread, { ...base, axisStartYear: 1989, maxRows: 1 });
+    expect(packed.every((p) => p.row === 0 && !p.overflow)).toBe(true);
+  });
+
+  it("only overflows what really does not fit", () => {
+    // 1 and 2 collide; 3 is two years away and fits row 0 even though it is the least voted.
+    const films = [f(1, "2000-01-01", 50), f(2, "2000-02-01", 40), f(3, "2002-01-01", 1)];
+    const packed = packFilms(films, { ...base, axisStartYear: 1999, maxRows: 1 });
+    expect(packed.map((p) => [p.film.id, p.overflow])).toEqual([
+      [1, false],
+      [2, true],
+      [3, false],
+    ]);
+  });
+
+  it("never puts two cards closer than a card width in the same row, and never uses more than the cap", () => {
+    const rand = lcg(7);
+    const films = Array.from({ length: 200 }, (_, i) => {
+      const month = String(1 + Math.floor(rand() * 12)).padStart(2, "0");
+      return f(i + 1, `${1990 + Math.floor(rand() * 6)}-${month}-15`, Math.floor(rand() * 1000));
+    });
+    for (const maxRows of [1, 2, 3]) {
+      const packed = packFilms(films, { pxPerYear: 72, axisStartYear: 1989, maxRows });
+      const cards = packed.filter((p) => !p.overflow);
+      expect(cards.every((p) => p.row >= 0 && p.row < maxRows)).toBe(true);
+      expect(rowCount(packed)).toBeLessThanOrEqual(maxRows);
+      for (let i = 0; i < cards.length; i++) {
+        for (let j = i + 1; j < cards.length; j++) {
+          if (cards[i].row === cards[j].row) {
+            expect(Math.abs(cards[i].x - cards[j].x)).toBeGreaterThanOrEqual(MIN_DISTANCE - 1e-9);
+          }
+        }
+      }
+    }
+  });
+
+  it("only overflows a film that collides with a card in every allowed row", () => {
+    const rand = lcg(99);
+    const films = Array.from({ length: 120 }, (_, i) =>
+      f(i + 1, `${2000 + Math.floor(rand() * 4)}-0${1 + Math.floor(rand() * 9)}-10`, Math.floor(rand() * 500)),
+    );
+    const packed = packFilms(films, { pxPerYear: 72, axisStartYear: 1999, maxRows: 2 });
+    const cards = packed.filter((p) => !p.overflow);
+    expect(overflowCount(packed)).toBeGreaterThan(0);
+    for (const dot of packed.filter((p) => p.overflow)) {
+      for (const row of [0, 1]) {
+        expect(cards.some((c) => c.row === row && Math.abs(c.x - dot.x) < MIN_DISTANCE)).toBe(true);
+      }
+    }
+  });
+
+  it("places priority (shared) films first and exempts them from the cap", () => {
+    const films = [f(1, "2000-01-01", 900), f(2, "2000-01-02", 800), f(3, "2000-01-03", 700), f(4, "2000-01-04", 1)];
+    const packed = byId(packFilms(films, { ...base, maxRows: 2, priorityIds: new Set([4]) }));
+
+    expect(packed.get(4)).toMatchObject({ row: 0, overflow: false });
+    expect(packed.get(1)).toMatchObject({ row: 1, overflow: false });
+    expect(packed.get(2)).toMatchObject({ overflow: true });
+    expect(packed.get(3)).toMatchObject({ overflow: true });
+  });
+
+  it("lets priority films use rows beyond the cap when they need them", () => {
+    const shared = [f(1, "2000-01-01", 1), f(2, "2000-01-02", 2), f(3, "2000-01-03", 3), f(4, "2000-01-04", 4)];
+    const packed = byId(
+      packFilms([...shared, f(9, "2000-01-05", 9999)], {
+        ...base,
+        maxRows: 2,
+        priorityIds: new Set([1, 2, 3, 4]),
+      }),
+    );
+
+    for (const { id } of shared) expect(packed.get(id)?.overflow).toBe(false);
+    expect(Math.max(...shared.map(({ id }) => packed.get(id)!.row))).toBe(3);
+    // The shared films filled every row first, so even the most voted film is a dot.
+    expect(packed.get(9)).toMatchObject({ overflow: true });
+  });
+
+  it("exempts exemptIds from the cap without putting them ahead of priority films", () => {
+    const films = [f(1, "2000-01-01", 900), f(2, "2000-01-02", 800), f(3, "2000-01-03", 1), f(4, "2000-01-04", 2)];
+    const packed = byId(
+      packFilms(films, { ...base, maxRows: 2, priorityIds: new Set([4]), exemptIds: new Set([3]) }),
+    );
+
+    expect(packed.get(4)).toMatchObject({ row: 0 });
+    expect(packed.get(3)).toMatchObject({ row: 1, overflow: false }); // exempt, so ahead of the 900-vote film
+    expect(packed.get(1)).toMatchObject({ overflow: true });
+    expect(packed.get(2)).toMatchObject({ overflow: true });
+  });
+
+  it("keeps every film's x, with or without the cap", () => {
+    const uncapped = packFilms(cluster, base);
+    const capped = packFilms(cluster, { ...base, maxRows: 1 });
+    expect(capped.map((p) => [p.film.id, p.x])).toEqual(uncapped.map((p) => [p.film.id, p.x]));
+  });
+
+  it("returns everything in x order, dots included", () => {
+    const packed = packFilms(cluster, { ...base, maxRows: 2 });
+    expect(packed.map((p) => p.film.id)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("is the old behavior without a cap: nothing overflows", () => {
+    const packed = packFilms(cluster, base);
+    expect(packed.some((p) => p.overflow)).toBe(false);
+    expect(packed.map((p) => p.row)).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it("treats a cap below 1 as 1", () => {
+    const packed = packFilms(cluster, { ...base, maxRows: 0 });
+    expect(rowCount(packed)).toBe(1);
+    expect(overflowCount(packed)).toBe(4);
+  });
+
+  it("counts overflow and ignores it for the row count", () => {
+    const packed = packFilms(cluster, { ...base, maxRows: 2 });
+    expect(overflowCount(packed)).toBe(3);
+    expect(rowCount(packed)).toBe(2);
+    expect(rowCount(packFilms(cluster, { ...base, maxRows: 1 }))).toBe(1);
+    expect(overflowCount(packFilms(cluster, base))).toBe(0);
+  });
+});
+
+describe("dotHitWidths", () => {
+  const dot = (id: number, x: number, overflow = true) => ({ film: { id }, x, overflow });
+
+  it("gives an isolated dot the full hit area", () => {
+    expect(dotHitWidths([dot(1, 100)]).get(1)).toBe(DOT_HIT_SIZE);
+    expect(dotHitWidths([dot(1, 100), dot(2, 400)]).get(1)).toBe(DOT_HIT_SIZE);
+  });
+
+  it("narrows to the distance to the nearest neighbouring dot", () => {
+    const widths = dotHitWidths([dot(1, 100), dot(2, 110), dot(3, 300)]);
+    expect(widths.get(1)).toBe(10);
+    expect(widths.get(2)).toBe(10);
+    expect(widths.get(3)).toBe(DOT_HIT_SIZE);
+  });
+
+  it("never goes below the minimum, even for identical x", () => {
+    const widths = dotHitWidths([dot(1, 100), dot(2, 100)]);
+    expect(widths.get(1)).toBe(DOT_HIT_MIN);
+    expect(widths.get(2)).toBe(DOT_HIT_MIN);
+  });
+
+  it("keeps neighbouring hit areas from overlapping whenever the gap allows", () => {
+    const xs = [0, 12, 20, 60, 61, 90];
+    const widths = dotHitWidths(xs.map((x, i) => dot(i, x)));
+    for (let i = 0; i < xs.length - 1; i++) {
+      const gap = xs[i + 1] - xs[i];
+      if (gap >= DOT_HIT_MIN) expect(widths.get(i)! / 2 + widths.get(i + 1)! / 2).toBeLessThanOrEqual(gap + 1e-9);
+    }
+  });
+
+  it("ignores cards and only sizes dots", () => {
+    const widths = dotHitWidths([dot(1, 100, false), dot(2, 101), dot(3, 500, false)]);
+    expect([...widths.keys()]).toEqual([2]);
+    expect(widths.get(2)).toBe(DOT_HIT_SIZE);
+  });
+});
+
 describe("lane geometry", () => {
   it("grows with rows", () => {
     expect(laneHeight(1)).toBe(CARD_TOP + CARD_HEIGHT + LANE_PAD_BOTTOM);
@@ -295,6 +504,23 @@ describe("lane geometry", () => {
     for (const rows of [1, 2, 5]) {
       expect(cardTopInLane(rows - 1) + CARD_HEIGHT + LANE_PAD_BOTTOM).toBe(laneHeight(rows));
     }
+  });
+
+  it("derives a capped lane's height from the rows actually used", () => {
+    const dense = Array.from({ length: 12 }, (_, i) => f(i + 1, `2000-01-${String(i + 1).padStart(2, "0")}`, i));
+    const capped = packFilms(dense, { ...base, maxRows: DEFAULT_MAX_ROWS });
+    expect(laneHeight(rowCount(capped))).toBe(laneHeight(2));
+    // The uncapped lane needs 12 rows; expanding it is what grows the lane.
+    expect(laneHeight(rowCount(packFilms(dense, base)))).toBe(laneHeight(12));
+
+    const sparse = packFilms([f(1, "1990-01-01", 1), f(2, "2000-01-01", 1)], { ...base, maxRows: DEFAULT_MAX_ROWS });
+    expect(laneHeight(rowCount(sparse))).toBe(laneHeight(1));
+  });
+
+  it("counts a priority film in a row beyond the cap towards the height", () => {
+    const films = Array.from({ length: 4 }, (_, i) => f(i + 1, `2000-01-0${i + 1}`, 1));
+    const packed = packFilms(films, { ...base, maxRows: 2, priorityIds: new Set([1, 2, 3, 4]) });
+    expect(rowCount(packed)).toBe(4);
   });
 
   it("stacks lanes with cumulative tops", () => {
@@ -344,6 +570,38 @@ describe("buildConnectors", () => {
     expect(c.y2).toBeGreaterThan(c.y1);
   });
 
+  it("does not count overflow dots as a lane showing the film", () => {
+    const boxes = stackLanes([2, 1]);
+    const lanes = [
+      { box: boxes[0], items: [{ film: { id: 1 }, x: 100, row: OVERFLOW_ROW, overflow: true }] },
+      { box: boxes[1], items: [{ film: { id: 1 }, x: 100, row: 0, overflow: false }] },
+    ];
+    expect(buildConnectors(lanes)).toEqual([]);
+    expect(filmMembership(lanes).get(1)).toEqual([1]);
+  });
+
+  it("connects shared films in a capped layout, even in a row beyond the cap", () => {
+    const upper = packFilms(
+      [f(1, "2000-01-01", 1), f(2, "2000-01-02", 2), f(3, "2000-01-03", 3), f(7, "2000-01-04", 1)],
+      { ...base, maxRows: 2, priorityIds: new Set([7]) },
+    );
+    const lower = packFilms([f(7, "2000-01-04", 1)], { ...base, maxRows: 2, priorityIds: new Set([7]) });
+    const boxes = stackLanes([rowCount(upper), rowCount(lower)]);
+    const lanes = [
+      { box: boxes[0], items: upper },
+      { box: boxes[1], items: lower },
+    ];
+
+    const connectors = buildConnectors(lanes);
+    expect(connectors).toHaveLength(1);
+    expect(connectors[0]).toMatchObject({ filmId: 7, kind: "all", x: upper.find((p) => p.film.id === 7)!.x });
+    expect(connectors[0].y1).toBe(cardTopInLane(upper.find((p) => p.film.id === 7)!.row) + CARD_HEIGHT);
+    expect(connectors[0].y2).toBe(boxes[1].top + CARD_TOP);
+    expect(connectors[0].y2).toBeGreaterThan(connectors[0].y1);
+    // Both lanes are as short as the rows they use; the dots added nothing.
+    expect(boxes[0].height).toBe(laneHeight(rowCount(upper)));
+  });
+
   it("ignores films that appear in one lane only", () => {
     const lanes = [lane(0, [{ id: 1, x: 10, row: 0 }]), lane(200, [{ id: 2, x: 10, row: 0 }])];
     expect(buildConnectors(lanes)).toEqual([]);
@@ -379,6 +637,7 @@ describe("buildConnectors", () => {
       releaseDate,
       year: Number(releaseDate.slice(0, 4)),
       posterPath: null,
+      voteCount: 0,
       credits: [credit],
       minor: false,
     });

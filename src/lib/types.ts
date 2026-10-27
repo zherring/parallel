@@ -35,6 +35,8 @@ export interface Film {
   releaseDate: string;
   year: number;
   posterPath: string | null;
+  /** TMDB vote_count (0 when unknown); a cheap popularity signal for choosing which films get a poster card. */
+  voteCount: number;
   /** Merged: one Film per movie id per person. */
   credits: Credit[];
   /** True only if every credit is minor. */

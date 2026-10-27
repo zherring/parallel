@@ -12,6 +12,7 @@ function film(id: number, releaseDate: string, credits: Credit[]): Film {
     releaseDate,
     year: Number(releaseDate.slice(0, 4)),
     posterPath: `/p${id}.jpg`,
+    voteCount: 0,
     credits,
     minor: credits.every((c) => c.minor),
   };

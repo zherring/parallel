@@ -2,11 +2,13 @@
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { laneFacts, peopleHref, removePersonHref, yearSpan, type PersonRef } from "@/lib/lanes";
-import { roleSummary } from "@/lib/roles";
+import { MINOR_TOGGLE_LABEL, roleSummary } from "@/lib/roles";
 import {
   AXIS_HEIGHT,
   CARD_WIDTH,
+  DEFAULT_MAX_ROWS,
   DEFAULT_ZOOM,
+  DOT_HIT_SIZE,
   LINE_Y,
   MAX_ZOOM,
   MIN_ZOOM,
@@ -15,11 +17,13 @@ import {
   buildConnectors,
   cardTopInLane,
   centerYear,
+  dotHitWidths,
   filmMembership,
   initialAnchorX,
   initialScrollLeft,
   makeScale,
   nextZoom,
+  overflowCount,
   packFilms,
   rowCount,
   scrollLeftForCenter,
@@ -31,6 +35,7 @@ import {
 import type { Film, PersonSummary } from "@/lib/types";
 import { cn } from "./cn";
 import { FilmCard, type CardTone } from "./film-card";
+import { FilmDot } from "./film-dot";
 import { LaneHeader } from "./lane-header";
 
 export interface LaneData {
@@ -73,6 +78,8 @@ export function Timeline({
   const [pxPerYear, setPxPerYear] = useState(DEFAULT_ZOOM);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [edges, setEdges] = useState({ left: false, right: true });
+  // Lanes (by person id) switched to unlimited rows with "Show all".
+  const [expandedIds, setExpandedIds] = useState<ReadonlySet<number>>(() => new Set());
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const cornerRef = useRef<HTMLDivElement>(null);
@@ -86,8 +93,20 @@ export function Timeline({
     const range = axisRange(years, Number(today.slice(0, 4)));
     const scale = makeScale(range, pxPerYear);
 
-    const packed = lanes.map((lane) =>
-      packFilms(lane.films, { pxPerYear, axisStartYear: scale.axisStartYear, priorityIds: litIds }),
+    // Films shown in two or more lanes always keep a poster card (so their connector has
+    // both ends); those shared by every lane (litIds) are also placed first.
+    const lanesShowing = new Map<number, number>();
+    for (const lane of lanes) {
+      for (const film of lane.films) lanesShowing.set(film.id, (lanesShowing.get(film.id) ?? 0) + 1);
+    }
+    const exemptIds = new Set<number>();
+    for (const [id, count] of lanesShowing) if (count > 1 && !litIds.has(id)) exemptIds.add(id);
+
+    const options = { pxPerYear, axisStartYear: scale.axisStartYear, priorityIds: litIds, exemptIds };
+    const capped = lanes.map((lane) => packFilms(lane.films, { ...options, maxRows: DEFAULT_MAX_ROWS }));
+    const overflow = capped.map(overflowCount);
+    const packed = lanes.map((lane, index) =>
+      expandedIds.has(lane.person.id) && overflow[index] > 0 ? packFilms(lane.films, options) : capped[index],
     );
     const boxes = stackLanes(packed.map(rowCount));
     const connectorLanes = packed.map((items, index) => ({ box: boxes[index], items }));
@@ -98,13 +117,15 @@ export function Timeline({
       ticks: axisTicks(scale),
       width: trackWidth(scale),
       packed,
+      overflow,
+      dotWidths: packed.map(dotHitWidths),
       boxes,
       height: totalHeight(boxes),
       membership,
       connectors: multi ? buildConnectors(connectorLanes) : [],
       anchorX: initialAnchorX(packed, litIds),
     };
-  }, [lanes, litIds, multi, pxPerYear, today]);
+  }, [expandedIds, lanes, litIds, multi, pxPerYear, today]);
 
   const { scale, width, boxes } = layout;
 
@@ -188,6 +209,14 @@ export function Timeline({
 
   const handleHover = useCallback((id: number | null) => setHoveredId(id), []);
 
+  const toggleExpanded = useCallback((personId: number) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(personId)) next.add(personId);
+      return next;
+    });
+  }, []);
+
   // ---- render -------------------------------------------------------------
 
   const dimUnlit = multi && litIds.size > 0;
@@ -219,7 +248,7 @@ export function Timeline({
             className="mt-0.5 size-4 shrink-0 cursor-pointer accent-accent-green"
           />
           <span>
-            <span className="text-strong">Include minor credits</span> (cameos, uncredited, shorts, extras)
+            <span className="text-strong">{MINOR_TOGGLE_LABEL}</span>
           </span>
         </label>
 
@@ -369,33 +398,49 @@ export function Timeline({
                     span={info.span}
                     soloHref={multi ? peopleHref([person]) : null}
                     removeHref={removePersonHref(people, person.id)}
+                    overflowCount={layout.overflow[laneIndex]}
+                    expanded={expandedIds.has(person.id)}
+                    onToggleExpanded={() => toggleExpanded(person.id)}
                   />
                   <div className="relative shrink-0" style={{ width, ...gridStyle }}>
                     {items.length > 0 ? (
                       <ol className="m-0 list-none p-0">
-                        {items.map(({ film, x, row }) => (
-                          <FilmCard
-                            key={film.id}
-                            id={film.id}
-                            title={film.title}
-                            year={film.year}
-                            posterPath={film.posterPath}
-                            roles={info.rolesByFilm.get(film.id) ?? ""}
-                            left={x - CARD_WIDTH / 2}
-                            top={cardTopInLane(row)}
-                            tone={toneFor(film.id)}
-                            upcoming={film.releaseDate > today}
-                            emphasized={hoveredId === film.id}
-                            selected={selectedId === film.id}
-                            onSelect={onSelect}
-                            onHover={handleHover}
-                          />
-                        ))}
+                        {items.map(({ film, x, row, overflow }) =>
+                          overflow ? (
+                            <FilmDot
+                              key={film.id}
+                              id={film.id}
+                              title={film.title}
+                              year={film.year}
+                              x={x}
+                              hitWidth={layout.dotWidths[laneIndex].get(film.id) ?? DOT_HIT_SIZE}
+                              selected={selectedId === film.id}
+                              onSelect={onSelect}
+                            />
+                          ) : (
+                            <FilmCard
+                              key={film.id}
+                              id={film.id}
+                              title={film.title}
+                              year={film.year}
+                              posterPath={film.posterPath}
+                              roles={info.rolesByFilm.get(film.id) ?? ""}
+                              left={x - CARD_WIDTH / 2}
+                              top={cardTopInLane(row)}
+                              tone={toneFor(film.id)}
+                              upcoming={film.releaseDate > today}
+                              emphasized={hoveredId === film.id}
+                              selected={selectedId === film.id}
+                              onSelect={onSelect}
+                              onHover={handleHover}
+                            />
+                          ),
+                        )}
                       </ol>
                     ) : (
                       <p className="sticky left-[var(--lane-head)] w-max max-w-xs px-4 pt-8 text-sm text-muted">
                         {lane.hiddenMinor > 0
-                          ? `No major credits found on TMDB. Turn on minor credits to see ${lane.hiddenMinor} more.`
+                          ? `No major credits found on TMDB. Turn on "${MINOR_TOGGLE_LABEL}" to see ${lane.hiddenMinor} more.`
                           : "No films found on TMDB."}
                       </p>
                     )}

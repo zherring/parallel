@@ -26,6 +26,10 @@ interface RawCreditMovie {
   title: string;
   release_date?: string;
   poster_path: string | null;
+  vote_count?: number;
+  /** TMDB's "video" flag: music videos, video compilations and other non-theatrical extras. */
+  video?: boolean;
+  genre_ids?: number[];
 }
 
 export interface RawCastCredit extends RawCreditMovie {
@@ -40,6 +44,12 @@ export interface RawCrewCredit extends RawCreditMovie {
 export interface RawMovieCredits {
   cast: RawCastCredit[];
   crew: RawCrewCredit[];
+}
+
+/** One page of `/discover/movie`; only the ids are read. */
+export interface RawDiscoverMovies {
+  total_pages?: number;
+  results: { id: number }[];
 }
 
 interface RawFilmPerson {

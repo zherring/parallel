@@ -21,6 +21,19 @@ const NOTABLE_OTHER_JOBS = new Set([
   "visual effects supervisor",
 ]);
 
+// TMDB's `video` flag marks music videos, video compilations and extras, but a few real
+// releases carry it too (Grindhouse has ~2000 votes). Treat flagged movies as short only
+// while they are obscure.
+const VIDEO_FLAG_MAX_VOTES = 500;
+
+// TMDB genre id for Documentary. A cast credit on a documentary with no character is the
+// person appearing as themselves (making-of and behind-the-scenes extras are filed this
+// way), whatever runtime TMDB has for it.
+const DOCUMENTARY_GENRE_ID = 99;
+
+const isDocumentaryAppearance = (c: { character?: string; genre_ids?: number[] }) =>
+  !c.character && c.genre_ids?.includes(DOCUMENTARY_GENRE_ID) === true;
+
 const roleRank = (role: RoleKey) => ROLE_ORDER.indexOf(role);
 
 export function normalizePerson(raw: RawPerson): PersonSummary {
@@ -34,11 +47,27 @@ export function normalizePerson(raw: RawPerson): PersonSummary {
   };
 }
 
-export function normalizeMovieCredits(raw: RawMovieCredits): Film[] {
+/**
+ * Merges a person's cast and crew credits into one Film per movie.
+ *
+ * Anything on a short movie is minor, whatever the person did on it: `shortMovieIds` is
+ * the set of movie ids TMDB reports as under 40 minutes (see `getShortMovieIds`), and
+ * obscure movies TMDB flags as a "video" (music videos, video compilations, extras) are
+ * treated the same way, since their runtime is often missing or long.
+ */
+export function normalizeMovieCredits(raw: RawMovieCredits, shortMovieIds: ReadonlySet<number> = new Set()): Film[] {
   const films = new Map<number, Film>();
+  const isShort = (entry: { id: number; video?: boolean; vote_count?: number }) =>
+    shortMovieIds.has(entry.id) || (entry.video === true && (entry.vote_count ?? 0) < VIDEO_FLAG_MAX_VOTES);
 
   const add = (
-    entry: { id: number; title: string; release_date?: string; poster_path: string | null },
+    entry: {
+      id: number;
+      title: string;
+      release_date?: string;
+      poster_path: string | null;
+      vote_count?: number;
+    },
     credit: Credit,
   ) => {
     const releaseDate = entry.release_date;
@@ -52,6 +81,7 @@ export function normalizeMovieCredits(raw: RawMovieCredits): Film[] {
         releaseDate,
         year: Number(releaseDate.slice(0, 4)),
         posterPath: entry.poster_path,
+        voteCount: entry.vote_count ?? 0,
         credits: [],
         minor: true,
       };
@@ -70,12 +100,12 @@ export function normalizeMovieCredits(raw: RawMovieCredits): Film[] {
       job: "Actor",
       ...(c.character ? { character: c.character } : {}),
       ...(c.order !== undefined ? { order: c.order } : {}),
-      minor: isMinorCast(c.order, c.character),
+      minor: isShort(c) || isMinorCast(c.order, c.character) || isDocumentaryAppearance(c),
     });
   }
   for (const c of raw.crew) {
     const role = roleForJob(c.job);
-    add(c, { role, job: c.job, minor: isMinorCrewRole(role) });
+    add(c, { role, job: c.job, minor: isShort(c) || isMinorCrewRole(role) });
   }
 
   return [...films.values()]
