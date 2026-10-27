@@ -6,6 +6,7 @@ import {
   RECENT_WINDOW,
   SCENE_JITTER_MS,
   SCENE_MS,
+  SECOND_SCENE_KEY,
   SINGLE_SWAP_CHANCE,
   countAt,
   firstScene,
@@ -15,6 +16,7 @@ import {
   resumeDelay,
   sceneDuration,
   sceneOf,
+  transitionTo,
   type HeroPairing,
   type HeroPerson,
   type Scene,
@@ -205,6 +207,35 @@ describe("nextScene", () => {
     const keys = (seed: number) => walk(DENSE, DENSE[0], seeded(seed), 60).map((m) => `${m.kind}:${m.scene.pairing.key}`);
     expect(keys(5)).toEqual(keys(5));
     expect(keys(5)).not.toEqual(keys(6));
+  });
+});
+
+describe("transitionTo", () => {
+  it("is a single swap with the shared person in place, whichever way round the pairing lists them", () => {
+    const fordKept = transitionTo(sceneOf(FORD_LUCAS), FORD_SPIELBERG);
+    expect(fordKept).toMatchObject({ kind: "single", stayed: 0, changed: [1] });
+    expect(fordKept.scene.people.map((p) => p.id)).toEqual([3, 488]);
+
+    const lucasKept = transitionTo(sceneOf(FORD_LUCAS), LUCAS_SPIELBERG);
+    expect(lucasKept).toMatchObject({ kind: "single", stayed: 1, changed: [0] });
+    expect(lucasKept.scene.people.map((p) => p.id)).toEqual([488, 1]);
+  });
+
+  it("is a full swap for a pairing that shares nobody", () => {
+    expect(transitionTo(sceneOf(FORD_LUCAS), HANKS_SPIELBERG)).toMatchObject({
+      kind: "full",
+      stayed: null,
+      changed: [0, 1],
+    });
+  });
+
+  it("makes the scripted first swap a single one: Ford stays, Spielberg replaces Lucas", () => {
+    const pool = heroPool(CHAIN);
+    const first = firstScene(pool)!;
+    const second = pool.find((p) => p.key === SECOND_SCENE_KEY)!;
+    const move = transitionTo(first, second);
+    expect(move.kind).toBe("single");
+    expect(move.scene.people.map((p) => p.id)).toEqual([3, 488]);
   });
 });
 

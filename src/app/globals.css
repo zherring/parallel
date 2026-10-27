@@ -24,6 +24,12 @@
   --lit-glow: rgb(0 224 84 / 0.45);
 }
 
+/* Steps for the landing hero collage, which grows with the room left of the headline. */
+@theme {
+  --breakpoint-wide: 90rem;
+  --breakpoint-ultra: 100rem;
+}
+
 @theme inline {
   --color-canvas: var(--bg);
   --color-surface: var(--surface);

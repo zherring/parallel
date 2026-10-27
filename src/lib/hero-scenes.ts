@@ -52,6 +52,11 @@ export interface Transition {
 
 /** The hero opens on Harrison Ford and George Lucas, so the server markup never varies. */
 export const FIRST_SCENE_KEY = "1+3";
+/**
+ * The first swap is scripted too: Ford stays and Spielberg replaces Lucas, which shows what the
+ * collage is about straight away. Every swap after it is chosen at random.
+ */
+export const SECOND_SCENE_KEY = "3+488";
 
 /** Chance that a transition is a single swap, when one is possible. */
 export const SINGLE_SWAP_CHANCE = 0.45;
@@ -127,13 +132,21 @@ export function nextScene(
   if (options.length === 0) return null; // only a duplicate of the current pairing is left
   const next = options[Math.min(options.length - 1, Math.floor(rng() * options.length))];
 
-  if (!wantSingle && fulls.length > 0) {
+  return transitionTo(current, next);
+}
+
+/**
+ * The change from `current` to the pairing `next`, whichever pairing that is. A pairing sharing
+ * exactly one person is a single swap (that person keeps their slot); anything else is a full one.
+ */
+export function transitionTo(current: Scene, next: HeroPairing): Transition {
+  const shared = sharedPersonIds(current.pairing, next);
+  if (shared.length !== 1) {
     return { kind: "full", scene: sceneOf(next), changed: [0, 1], stayed: null };
   }
-  const [keptId] = sharedPersonIds(pairing, next);
-  const stayed: Slot = current.people[0].id === keptId ? 0 : 1;
+  const stayed: Slot = current.people[0].id === shared[0] ? 0 : 1;
   const kept = current.people[stayed];
-  const joiner = next.people.find((person) => person.id !== keptId)!;
+  const joiner = next.people.find((person) => person.id !== shared[0])!;
   const people: readonly [HeroPerson, HeroPerson] = stayed === 0 ? [kept, joiner] : [joiner, kept];
   const changed: Slot = stayed === 0 ? 1 : 0;
   return { kind: "single", scene: { pairing: next, people }, changed: [changed], stayed };
