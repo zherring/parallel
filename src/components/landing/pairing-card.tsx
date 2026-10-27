@@ -3,7 +3,13 @@ import { PersonAvatar } from "@/components/person-avatar";
 import type { ExampleCardData } from "@/lib/example-cards";
 import { joinNames } from "@/lib/format";
 
-export function PairingCard({ card }: { card: ExampleCardData }) {
+interface Props {
+  card: ExampleCardData;
+  /** False draws initials only, without requesting the photos. */
+  photos?: boolean;
+}
+
+export function PairingCard({ card, photos = true }: Props) {
   const names = card.people.map((p) => p.name);
   return (
     <Link
@@ -16,7 +22,7 @@ export function PairingCard({ card }: { card: ExampleCardData }) {
           <PersonAvatar
             key={person.id}
             name={person.name}
-            profilePath={person.profilePath}
+            profilePath={photos ? person.profilePath : null}
             size={64}
             imageSize="w185"
             className="ring-4 ring-surface"
@@ -27,12 +33,9 @@ export function PairingCard({ card }: { card: ExampleCardData }) {
         <h3 className="text-lg font-semibold leading-snug text-strong">{joinNames(names)}</h3>
         <p className="text-sm leading-relaxed text-body">{card.blurb}</p>
       </div>
-      {card.filmsTogether !== null && (
-        <p className="text-sm font-medium text-accent-green">
-          <span className="tabular-nums">{card.filmsTogether}</span>{" "}
-          {card.filmsTogether === 1 ? "film" : "films"} together
-        </p>
-      )}
+      <p className="text-sm font-medium text-accent-green">
+        <span className="tabular-nums">{card.sharedCount}</span> {card.sharedCount === 1 ? "film" : "films"} together
+      </p>
     </Link>
   );
 }

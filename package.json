@@ -8,9 +8,11 @@
     "start": "next start -p ${PORT:-3000}",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "examples:refresh": "node --experimental-transform-types --conditions=react-server --import ./scripts/register-loader.mjs --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env scripts/refresh-examples.ts"
   },
   "dependencies": {
+    "lucide-react": "^1.62.0",
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",

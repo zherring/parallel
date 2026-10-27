@@ -2,10 +2,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_FILM_TAB,
   FILM_TABS,
+  hashForTab,
   nextTabIndex,
   rememberFilmTab,
   rememberedFilmTab,
+  scrollEdges,
   scrollTopAfterTabChange,
+  tabFromHash,
 } from "@/lib/tabs";
 
 describe("FILM_TABS", () => {
@@ -64,6 +67,61 @@ describe("nextTabIndex", () => {
   it("returns null when there are no tabs", () => {
     expect(nextTabIndex("ArrowRight", 0, 0)).toBeNull();
     expect(nextTabIndex("Home", 0, 0)).toBeNull();
+  });
+});
+
+describe("tabFromHash", () => {
+  const ids = ["featured", "horror", "sci-fi", "crime-thriller"] as const;
+
+  it("finds the tab a hash points at, with or without the #", () => {
+    expect(tabFromHash("#horror", ids, "featured")).toBe("horror");
+    expect(tabFromHash("sci-fi", ids, "featured")).toBe("sci-fi");
+  });
+
+  it("ignores case and percent-encoding", () => {
+    expect(tabFromHash("#Horror", ids, "featured")).toBe("horror");
+    expect(tabFromHash("#crime%2Dthriller", ids, "featured")).toBe("crime-thriller");
+  });
+
+  it("falls back for an empty, unknown or malformed hash", () => {
+    expect(tabFromHash("", ids, "featured")).toBe("featured");
+    expect(tabFromHash("#", ids, "featured")).toBe("featured");
+    expect(tabFromHash("#nope", ids, "featured")).toBe("featured");
+    expect(tabFromHash("#%E0%A4%A", ids, "featured")).toBe("featured");
+    expect(tabFromHash("#horror-2", ids, "featured")).toBe("featured");
+  });
+});
+
+describe("hashForTab", () => {
+  it("is empty for the default tab so its URL stays clean", () => {
+    expect(hashForTab("featured", "featured")).toBe("");
+  });
+
+  it("is #id for every other tab, and round-trips through tabFromHash", () => {
+    const ids = ["featured", "horror"] as const;
+    expect(hashForTab("horror", "featured")).toBe("#horror");
+    expect(tabFromHash(hashForTab("horror", "featured"), ids, "featured")).toBe("horror");
+    expect(tabFromHash(hashForTab("featured", "featured"), ids, "featured")).toBe("featured");
+  });
+});
+
+describe("scrollEdges", () => {
+  it("has no edges when everything fits", () => {
+    expect(scrollEdges(0, 600, 600)).toEqual({ start: false, end: false });
+  });
+
+  it("has only an end edge at the start of a strip that overflows", () => {
+    expect(scrollEdges(0, 375, 900)).toEqual({ start: false, end: true });
+  });
+
+  it("has both edges in the middle", () => {
+    expect(scrollEdges(200, 375, 900)).toEqual({ start: true, end: true });
+  });
+
+  it("has only a start edge at the far end, allowing for fractional scroll positions", () => {
+    expect(scrollEdges(525, 375, 900)).toEqual({ start: true, end: false });
+    expect(scrollEdges(524.6, 375, 900)).toEqual({ start: true, end: false });
+    expect(scrollEdges(0.4, 375, 375.3)).toEqual({ start: false, end: false });
   });
 });
 
