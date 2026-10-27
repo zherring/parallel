@@ -82,3 +82,13 @@ export interface SharedFilm {
   posterPath: string | null;
   byPerson: Record<number, Credit[]>;
 }
+
+export interface PersonSearchResult {
+  id: number;
+  name: string;
+  profilePath: string | null;
+  /** TMDB's known_for_department. */
+  knownFor: string | null;
+  /** Up to three titles from TMDB's known_for list. */
+  knownForTitles: string[];
+}
