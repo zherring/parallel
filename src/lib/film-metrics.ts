@@ -100,12 +100,12 @@ export interface RatingDisplay {
   score: string;
   /** Compact vote count: "25k". */
   votes: string;
-  /** "25k votes". */
+  /** What the row says about the votes: "25k votes", or just "few ratings" for 10 to 99 of them. */
   votesLabel: string;
   /** 10 to 99 votes: the score is shown but the card should say the sample is small. */
   fewRatings: boolean;
   source: typeof RATING_SOURCE;
-  /** The row as plain text: "7.8 · 25k votes · TMDB", or "9.1 · few ratings (42) · TMDB". */
+  /** The row as plain text: "7.8 · 25k votes · TMDB", or "9.1 · few ratings · TMDB". */
   text: string;
 }
 
@@ -130,15 +130,16 @@ export function ratingDisplay(
   const scoreText = (Math.round(score * 10) / 10).toFixed(1);
   const votes = compactCount(voteCount);
   const fewRatings = voteCount < FEW_VOTES_BELOW;
+  const votesLabel = fewRatings ? "few ratings" : `${votes} votes`;
 
   return {
     stars: { full, half, empty: STAR_COUNT - full - half },
     score: scoreText,
     votes,
-    votesLabel: `${votes} votes`,
+    votesLabel,
     fewRatings,
     source: RATING_SOURCE,
-    text: [scoreText, fewRatings ? `few ratings (${Math.round(voteCount)})` : `${votes} votes`, RATING_SOURCE].join(SEPARATOR),
+    text: [scoreText, votesLabel, RATING_SOURCE].join(SEPARATOR),
   };
 }
 

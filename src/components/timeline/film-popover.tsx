@@ -230,7 +230,7 @@ export function FilmPopover({ id, target, content, lit, bottomEdge, onDismiss }:
             ))}
           </ul>
         )}
-        <div className="mt-auto empty:hidden">
+        <div className="pt-1 empty:hidden">
           <FilmMetricsRows state={metrics} />
         </div>
       </div>

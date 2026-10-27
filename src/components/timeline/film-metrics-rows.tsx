@@ -14,11 +14,24 @@ import type { FilmMetricsState } from "./use-film-metrics";
 const ROW = "flex items-start gap-2 text-xs leading-4";
 const ICON = "size-4 shrink-0 text-muted";
 
-const Separator = () => (
+const Dot = () => (
   <span aria-hidden className="text-muted">
-    {" · "}
+    {" ·"}
   </span>
 );
+
+/** A piece of a row that stays on one line; `more` ends it with the separator and lets the row wrap after it. */
+function Chunk({ children, more = false }: { children: React.ReactNode; more?: boolean }) {
+  return (
+    <>
+      <span className="whitespace-nowrap">
+        {children}
+        {more && <Dot />}
+      </span>
+      {more && " "}
+    </>
+  );
+}
 
 function RevenueRow({ revenue }: { revenue: RevenueDisplay }) {
   return (
@@ -26,14 +39,15 @@ function RevenueRow({ revenue }: { revenue: RevenueDisplay }) {
       <DollarSign aria-hidden className={ICON} />
       <p className="min-w-0">
         <span className="sr-only">Box office: </span>
-        <span className="font-semibold text-strong">{revenue.amount}</span>
-        <span className="text-muted"> {revenue.label}</span>
+        <Chunk more={revenue.multiple !== null}>
+          <span className="font-semibold text-strong">{revenue.amount}</span>
+          <span className="text-muted"> {revenue.label}</span>
+        </Chunk>
         {revenue.multiple && (
-          <>
-            <Separator />
+          <Chunk>
             <span className="font-semibold text-strong">{revenue.multiple}</span>
             <span className="text-muted"> budget</span>
-          </>
+          </Chunk>
         )}
       </p>
     </li>
@@ -63,16 +77,22 @@ function Stars({ stars }: { stars: RatingDisplay["stars"] }) {
 
 function RatingRow({ rating }: { rating: RatingDisplay }) {
   return (
-    <li className={ROW}>
+    // On a card too narrow for stars and text side by side, the text drops under the stars.
+    <li className={`${ROW} flex-wrap gap-y-0.5`}>
       <Stars stars={rating.stars} />
       <p className="min-w-0">
         <span className="sr-only">Rating: </span>
-        <span className="font-semibold tabular-nums text-strong">{rating.score}</span>
-        <span className="sr-only"> out of 10</span>
-        <Separator />
-        <span className="text-muted">{rating.fewRatings ? `few ratings (${rating.votes})` : rating.votesLabel}</span>
-        <Separator />
-        <span className="text-muted">{rating.source}</span>
+        <Chunk more>
+          <span className="font-semibold tabular-nums text-strong">{rating.score}</span>
+          <span className="sr-only"> out of 10</span>
+        </Chunk>
+        <Chunk more>
+          <span className="text-muted">{rating.votesLabel}</span>
+          {rating.fewRatings && <span className="sr-only"> ({rating.votes} votes)</span>}
+        </Chunk>
+        <Chunk>
+          <span className="text-muted">{rating.source}</span>
+        </Chunk>
       </p>
     </li>
   );
@@ -86,8 +106,9 @@ function AwardsRow({ awards }: { awards: AwardsDisplay }) {
         <span className="sr-only">Awards: </span>
         {awards.parts.map((part, index) => (
           <span key={part}>
-            {index > 0 && <Separator />}
+            {index > 0 && " "}
             <span className="font-semibold text-strong">{part}</span>
+            {index < awards.parts.length - 1 && <Dot />}
           </span>
         ))}
       </p>

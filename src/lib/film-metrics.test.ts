@@ -137,11 +137,12 @@ describe("ratingDisplay: hiding", () => {
 });
 
 describe("ratingDisplay: few ratings", () => {
-  it("flags 10 to 99 votes and words the row with the count", () => {
+  it("flags 10 to 99 votes and words the row \"few ratings\" (the count stays in `votes`)", () => {
     expect(FEW_VOTES_BELOW).toBe(100);
     const low = ratingDisplay(9.1, 42);
     expect(low?.fewRatings).toBe(true);
-    expect(low?.text).toBe("9.1 · few ratings (42) · TMDB");
+    expect(low?.text).toBe("9.1 · few ratings · TMDB");
+    expect(low).toMatchObject({ votes: "42", votesLabel: "few ratings" });
     expect(ratingDisplay(7, 10)?.fewRatings).toBe(true);
     expect(ratingDisplay(7, 99)?.fewRatings).toBe(true);
   });
