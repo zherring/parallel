@@ -6,6 +6,7 @@ import type {
   RawMovieDetails,
   RawPerson,
   RawSearchPeople,
+  RawSearchPerson,
 } from "@/lib/tmdb-types";
 import type { FilmDetails, PersonSearchResult, PersonSummary, PersonTimeline } from "@/lib/types";
 
@@ -37,6 +38,7 @@ async function tmdbGet<T>(
   path: string,
   revalidate: number,
   params: Record<string, string> = {},
+  signal?: AbortSignal,
 ): Promise<T> {
   const token = process.env.TMDB_READ_ACCESS_TOKEN;
   if (!token) throw new Error("TMDB_READ_ACCESS_TOKEN is not set");
@@ -45,10 +47,17 @@ async function tmdbGet<T>(
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
 
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-      next: { revalidate },
-    });
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        next: { revalidate },
+        ...(signal && { signal }),
+      });
+    } catch (error) {
+      if (signal?.aborted) throw new TmdbError(504, `TMDB request to ${path} timed out`);
+      throw error;
+    }
 
     if ((res.status === 429 || res.status >= 500) && attempt === 0) {
       const retryAfterMs = Number(res.headers.get("retry-after")) * 1000;
@@ -60,12 +69,12 @@ async function tmdbGet<T>(
   }
 }
 
-export async function searchPeople(query: string): Promise<PersonSearchResult[]> {
-  const { results } = await tmdbGet<RawSearchPeople>("/search/person", HOUR, {
-    query,
-    include_adult: "false",
-  });
-  return results.slice(0, MAX_SEARCH_RESULTS).map((p) => ({
+function searchPeopleRaw(query: string, signal?: AbortSignal): Promise<RawSearchPeople> {
+  return tmdbGet<RawSearchPeople>("/search/person", HOUR, { query, include_adult: "false" }, signal);
+}
+
+function toSearchResult(p: RawSearchPerson): PersonSearchResult {
+  return {
     id: p.id,
     name: p.name,
     profilePath: p.profile_path,
@@ -74,7 +83,30 @@ export async function searchPeople(query: string): Promise<PersonSearchResult[]>
       .map((k) => k.title ?? k.name)
       .filter((title): title is string => Boolean(title))
       .slice(0, MAX_KNOWN_FOR_TITLES),
-  }));
+  };
+}
+
+export async function searchPeople(query: string): Promise<PersonSearchResult[]> {
+  const { results } = await searchPeopleRaw(query);
+  return results.slice(0, MAX_SEARCH_RESULTS).map(toSearchResult);
+}
+
+/** A TMDB person search hit with the popularity score TMDB ranks the person by elsewhere. */
+export interface PopularPersonResult extends PersonSearchResult {
+  popularity: number;
+}
+
+/**
+ * TMDB's own person search (whole-word matches, in its relevance order), all of the page it
+ * returns rather than the first few, each with its popularity. For merging with the local people
+ * index; `signal` aborts the request, which then fails with a 504 TmdbError.
+ */
+export async function searchPeopleWithPopularity(
+  query: string,
+  signal?: AbortSignal,
+): Promise<PopularPersonResult[]> {
+  const { results } = await searchPeopleRaw(query, signal);
+  return results.map((p) => ({ ...toSearchResult(p), popularity: p.popularity ?? 0 }));
 }
 
 export async function getPerson(id: number): Promise<PersonSummary> {

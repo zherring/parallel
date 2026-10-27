@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { TmdbError, getFilmDetails, getPersonMovieCredits, getShortMovieIds, searchPeople } from "@/lib/tmdb";
+import {
+  TmdbError,
+  getFilmDetails,
+  getPersonMovieCredits,
+  getShortMovieIds,
+  searchPeople,
+  searchPeopleWithPopularity,
+} from "@/lib/tmdb";
 
 const TOKEN = "test-token-123";
 const fetchMock = vi.fn<typeof fetch>();
@@ -70,6 +77,72 @@ describe("searchPeople", () => {
       knownFor: "Directing",
       knownForTitles: ["Fight Club", "A TV Show", "Se7en"],
     });
+  });
+});
+
+describe("searchPeopleWithPopularity", () => {
+  const raw = (id: number, popularity?: number) => ({
+    id,
+    name: `Person ${id}`,
+    profile_path: `/${id}.jpg`,
+    known_for_department: "Acting",
+    known_for: [{ title: "A Film" }],
+    ...(popularity === undefined ? {} : { popularity }),
+  });
+
+  it("returns every hit TMDB sent, each with its popularity (0 when missing)", async () => {
+    fetchMock.mockResolvedValueOnce(
+      json({ results: Array.from({ length: 20 }, (_, i) => raw(i + 1, i === 0 ? undefined : i * 1.5)) }),
+    );
+    const results = await searchPeopleWithPopularity("x");
+
+    expect(results).toHaveLength(20);
+    expect(results[0]).toEqual({
+      id: 1,
+      name: "Person 1",
+      profilePath: "/1.jpg",
+      knownFor: "Acting",
+      knownForTitles: ["A Film"],
+      popularity: 0,
+    });
+    expect(results[2].popularity).toBe(3);
+  });
+
+  it("uses the same request as searchPeople and passes the abort signal to fetch", async () => {
+    fetchMock.mockResolvedValueOnce(json({ results: [] }));
+    const signal = new AbortController().signal;
+    await searchPeopleWithPopularity("speil", signal);
+
+    const { url, init } = lastCall();
+    expect(url.pathname).toBe("/3/search/person");
+    expect(url.searchParams.get("query")).toBe("speil");
+    expect(url.searchParams.get("include_adult")).toBe("false");
+    expect(init.next).toEqual({ revalidate: 3600 });
+    expect(init.signal).toBe(signal);
+  });
+
+  it("does not add a signal to the request when none is given", async () => {
+    fetchMock.mockResolvedValueOnce(json({ results: [] }));
+    await searchPeopleWithPopularity("x");
+    expect("signal" in lastCall().init).toBe(false);
+  });
+
+  it("fails with a 504 TmdbError when the signal aborts the request", async () => {
+    const controller = new AbortController();
+    fetchMock.mockImplementationOnce(async () => {
+      controller.abort();
+      throw new DOMException("The operation was aborted", "AbortError");
+    });
+    const error = await searchPeopleWithPopularity("x", controller.signal).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(TmdbError);
+    expect((error as TmdbError).status).toBe(504);
+  });
+
+  it("rethrows other network errors unchanged", async () => {
+    const failure = new TypeError("fetch failed");
+    fetchMock.mockRejectedValueOnce(failure);
+    await expect(searchPeopleWithPopularity("x")).rejects.toBe(failure);
   });
 });
 

@@ -16,6 +16,7 @@ export interface RawSearchPerson {
   name: string;
   profile_path: string | null;
   known_for_department?: string | null;
+  popularity?: number;
   known_for?: { title?: string; name?: string }[];
 }
 

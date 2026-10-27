@@ -38,6 +38,8 @@ The token is only read on the server and is never sent to the browser.
 | `npm run typecheck` | `tsc --noEmit`                        |
 | `npm test`          | Vitest unit tests (TMDB is mocked)    |
 | `npm run examples:refresh` | Re-check the landing pairings against TMDB (see below) |
+| `npm run people:refresh` | Rebuild the local people search index from TMDB (see "People search index") |
+| `npm run people:eval` | Measure how well the search finds people for ~50 realistic queries |
 
 ## Layout
 
@@ -62,6 +64,24 @@ It needs `TMDB_READ_ACCESS_TOKEN` (from `.env` or the environment) and Node 22.9
 The hero above the headline (`src/components/landing/hero-collage.tsx`) is a collage of one pairing at a time: two portraits and, hanging on one faded timeline line below them, the posters of the (up to) 5 most-voted films they share (also recorded in the JSON), with a quiet "+N more" at the right end of the row when the pair shares more films than that, all as one link to their page. The posters sit on the timeline line below the people; nothing else (no connector) joins the two. Every few seconds it changes to another pairing, sometimes both people and sometimes only one, which is why several people appear in more than one pairing in `examples.ts`. It rotates only through pairings that share a person with another one (`heroPool` in `src/lib/hero-scenes.ts`, where the scene rules are), opens on Harrison Ford and George Lucas, and pauses on hover, focus, press, typing in the search field, off-screen, a hidden tab and its pause button; with reduced motion it does not autoplay.
 
 Blurbs are plain text: name only films that are in the pair's shared list on its `/p/` page, and only roles that page shows for them.
+
+## People search index
+
+TMDB's `/search/person` matches whole words only (no prefixes, no typo tolerance) and ranks by text relevance, so "speil" never finds Steven Spielberg and "georg" returns people named Georg. For type-ahead, `/api/search` also searches a local index of the people a film lover looks for and merges the two:
+
+- `src/lib/people-index.generated.json` (about 1.5 MB, one line) holds roughly 18,000 people: the 3,000 most popular, the key crew (director, writers, cinematographer, editor, composer, production and costume designers) and top 12 billed cast of the ~1,800 most notable films, and everyone in `src/lib/examples.ts`. Per person: id, name, photo, department, TMDB popularity, how many of those notable films they are credited on, and up to 3 "known for" titles.
+- `src/lib/people-match.ts` matches a query against it: the start of the full name, the start of each word in any order (the last word is "still being typed"), and typos within a small edit distance, then ranks by notability (log-scaled popularity and film credits) so famous people beat obscure namesakes. A query takes a few milliseconds.
+- `src/app/api/search/route.ts` runs the matcher and TMDB's own search at the same time (TMDB gets 1.5 seconds): strong local matches first, then TMDB's results by popularity, at most 8. If TMDB fails or times out the local results are returned alone; if the index finds nothing, TMDB's results are.
+
+The index is only loaded on the server and never ships to the browser.
+
+```
+npm run people:refresh
+```
+
+It needs `TMDB_READ_ACCESS_TOKEN` and Node 22.9 or newer, like `examples:refresh`, makes about 2,000 TMDB requests (8 at a time, with retries and backoff) in a minute or two, and caches every response under `node_modules/.cache/parallel-people-index` (set `PEOPLE_INDEX_CACHE_DIR` to move it, pass `--no-cache` for a fresh crawl) so a rerun costs nothing. It writes the JSON only when every person in `examples.ts` is in it, so run it after adding people there; `npm test` fails if one is missing.
+
+**Regenerate the index at least every six months.** TMDB's terms limit how long cached TMDB data may be kept, and the file carries a `generatedAt` timestamp so its age is visible. Run `npm run people:refresh`, check `npm test` and `npm run people:eval` (hit rates) still look right, and commit the result. `npm run people:eval -- --tmdb` also runs the same queries through TMDB's raw search for comparison (one live call per query).
 
 ## Attribution
 
