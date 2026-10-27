@@ -358,7 +358,7 @@ export function HeroCollage({ pool, initial }: Props) {
         aria-label={label}
         onFocus={(event) => onFocusChange(event.currentTarget.matches(":focus-visible"))}
         onBlur={() => onFocusChange(false)}
-        className="group absolute inset-0 block rounded-3xl outline-none"
+        className="group absolute inset-0 block rounded-3xl outline-none!"
       >
         <div
           ref={stage}
