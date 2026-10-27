@@ -51,7 +51,7 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 1032, name: "Martin Scorsese" },
       { id: 3661, name: "Thelma Schoonmaker" },
     ],
-    blurb: "The editor behind nearly every Scorsese picture since Raging Bull.",
+    blurb: "A director and an editor: Raging Bull, GoodFellas, Casino.",
   },
   {
     genre: "classic",
@@ -75,7 +75,7 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 3146, name: "Billy Wilder" },
       { id: 3147, name: "I. A. L. Diamond" },
     ],
-    blurb: "A director and his co-writer: Some Like It Hot, The Apartment, Irma la Douce, The Fortune Cookie.",
+    blurb: "A director and a co-writer: Some Like It Hot, The Apartment, Irma la Douce, The Fortune Cookie.",
   },
   {
     genre: "classic",
@@ -209,7 +209,7 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 7467, name: "David Fincher" },
       { id: 287, name: "Brad Pitt" },
     ],
-    blurb: "From Se7en to Fight Club to Benjamin Button, a long and volatile partnership.",
+    blurb: "A director and an actor: Se7en, Fight Club, The Curious Case of Benjamin Button.",
   },
   {
     genre: "crime-thriller",
@@ -325,7 +325,7 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 7467, name: "David Fincher" },
       { id: 7479, name: "Jeff Cronenweth" },
     ],
-    blurb: "A director and his cinematographer: Fight Club, The Social Network, Gone Girl.",
+    blurb: "A director and a cinematographer: Fight Club, The Social Network, Gone Girl.",
   },
   {
     genre: "drama",
@@ -333,7 +333,7 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 136495, name: "Damien Chazelle" },
       { id: 1419631, name: "Justin Hurwitz" },
     ],
-    blurb: "Whiplash, La La Land, First Man, Babylon: a director and his composer.",
+    blurb: "Whiplash, La La Land, First Man, Babylon: a director and a composer.",
   },
   {
     genre: "drama",
@@ -365,7 +365,7 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 15488, name: "Ken Loach" },
       { id: 15490, name: "Paul Laverty" },
     ],
-    blurb: "A director and his screenwriter: Sweet Sixteen, The Wind That Shakes the Barley, The Angels' Share, Sorry We Missed You.",
+    blurb: "A director and a screenwriter: Sweet Sixteen, The Wind That Shakes the Barley, The Angels' Share, Sorry We Missed You.",
   },
   {
     genre: "drama",
@@ -441,7 +441,7 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 21684, name: "Bong Joon Ho" },
       { id: 20738, name: "Song Kang-ho" },
     ],
-    blurb: "Memories of Murder, The Host, Snowpiercer, Parasite: director and muse.",
+    blurb: "A director and an actor: Memories of Murder, The Host, Snowpiercer, Parasite.",
   },
   {
     genre: "world-cinema",
