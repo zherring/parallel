@@ -15,6 +15,10 @@ interface LaneHeaderProps {
   soloHref: string | null;
   /** Page without this person; `/` when they are the last one. */
   removeHref: string;
+  /** Films this lane shows only as dots on the line while collapsed; the control is hidden at 0. */
+  overflowCount: number;
+  expanded: boolean;
+  onToggleExpanded: () => void;
 }
 
 function Avatar({ person }: { person: PersonSummary }) {
@@ -39,7 +43,17 @@ function Avatar({ person }: { person: PersonSummary }) {
   );
 }
 
-export function LaneHeader({ person, roles, facts, span, soloHref, removeHref }: LaneHeaderProps) {
+export function LaneHeader({
+  person,
+  roles,
+  facts,
+  span,
+  soloHref,
+  removeHref,
+  overflowCount,
+  expanded,
+  onToggleExpanded,
+}: LaneHeaderProps) {
   const details = [roles, facts].filter(Boolean).join(". ");
 
   return (
@@ -81,6 +95,29 @@ export function LaneHeader({ person, roles, facts, span, soloHref, removeHref }:
 
       {facts && <p className="mt-2 hidden text-xs leading-snug text-muted sm:block">{facts}</p>}
       {span && <p className="mt-1 text-center text-[10px] tabular-nums text-muted sm:hidden">{span}</p>}
+
+      {overflowCount > 0 && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={onToggleExpanded}
+          className="mt-2 flex w-full cursor-pointer flex-col items-center rounded-md border border-border bg-surface px-1 py-1 text-[10px] leading-tight text-body hover:border-muted hover:text-strong sm:flex-row sm:justify-center sm:gap-1 sm:px-2 sm:text-xs"
+        >
+          {expanded ? (
+            "Show fewer"
+          ) : (
+            <>
+              <span>
+                +{overflowCount} more<span className="max-sm:sr-only"> films</span>
+              </span>
+              <span aria-hidden className="max-sm:hidden">
+                &middot;
+              </span>
+              <span className="font-medium text-strong">Show all</span>
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { tmdbImage } from "@/lib/images";
-import { roleSummary } from "@/lib/roles";
+import { MINOR_TOGGLE_LABEL, roleSummary } from "@/lib/roles";
 import type { PairShared } from "@/lib/shared";
 import type { SharedFilm } from "@/lib/types";
 import type { PersonRef } from "@/lib/lanes";
@@ -58,7 +58,7 @@ export function Together({ people, shared, pairwise, minorExtra, onSelect, child
         <p className="mt-2 max-w-xl text-body">
           No films together found on TMDB. Try adding a collaborator in a nearby role, such as the cinematographer,
           editor or a co-star.
-          {minorExtra > 0 && ` Turning on minor credits would add ${minorExtra}.`}
+          {minorExtra > 0 && ` Turning on "${MINOR_TOGGLE_LABEL}" would add ${minorExtra}.`}
         </p>
       ) : (
         <ol className="mt-3 grid gap-3 md:grid-cols-2">

@@ -55,6 +55,13 @@ export function roleForJob(job: string): RoleKey {
   return JOB_ROLES[job.trim().toLowerCase()] ?? "other";
 }
 
+/**
+ * What "minor" covers, in the words the UI uses for the toggle: short films, music
+ * videos and featurettes (anything under 40 minutes or flagged as a video), cameos,
+ * uncredited and archive appearances, and non-key crew jobs.
+ */
+export const MINOR_TOGGLE_LABEL = "Include shorts, music videos, cameos & uncredited";
+
 /** Cast credits whose character text marks a walk-on, archive clip or self appearance. */
 export const MINOR_CHARACTER_PATTERN =
   /(uncredited|archive|\bself\b|himself|herself|themselves|voice \(|cameo)/i;
