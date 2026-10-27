@@ -302,9 +302,26 @@ export function scrollLeftForCenter(year: number, viewportTrackWidth: number, sc
   return xForYear(scale, year) - viewportTrackWidth / 2;
 }
 
-/** Puts the earliest shared film about a quarter of the way into the visible track area. */
-export function initialScrollLeft(firstSharedX: number | null, viewportTrackWidth: number): number {
-  if (firstSharedX === null) return 0;
+/**
+ * Where the view should start: the earliest film shared by every lane; failing that
+ * (2+ lanes), the point where the latest-starting lane begins, so every lane has
+ * something in view; with a single lane, nothing (start at the beginning).
+ * Lanes must be ordered by x, as `packFilms` returns them.
+ */
+export function initialAnchorX(
+  lanes: readonly (readonly { film: { id: number }; x: number }[])[],
+  sharedIds: ReadonlySet<number>,
+): number | null {
+  if (lanes.length < 2) return null;
+  const shared = lanes[0].find((item) => sharedIds.has(item.film.id));
+  if (shared) return shared.x;
+  const starts = lanes.filter((items) => items.length > 0).map((items) => items[0].x);
+  return starts.length > 0 ? Math.max(...starts) : null;
+}
+
+/** Puts the anchor (see `initialAnchorX`) about a quarter of the way into the visible track area. */
+export function initialScrollLeft(anchorX: number | null, viewportTrackWidth: number): number {
+  if (anchorX === null) return 0;
   const margin = Math.min(viewportTrackWidth * 0.25, 240);
-  return Math.max(0, Math.round(firstSharedX - margin));
+  return Math.max(0, Math.round(anchorX - margin));
 }

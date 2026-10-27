@@ -18,6 +18,7 @@ import {
   cardTopInLane,
   centerYear,
   filmMembership,
+  initialAnchorX,
   initialScrollLeft,
   labelStep,
   laneHeight,
@@ -478,5 +479,32 @@ describe("initialScrollLeft", () => {
 
   it("never scrolls negative", () => {
     expect(initialScrollLeft(40, 800)).toBe(0);
+  });
+});
+
+describe("initialAnchorX", () => {
+  const item = (id: number, x: number) => ({ film: { id }, x });
+
+  it("is null for a single lane or none", () => {
+    expect(initialAnchorX([], new Set())).toBeNull();
+    expect(initialAnchorX([[item(1, 100)]], new Set([1]))).toBeNull();
+  });
+
+  it("anchors on the earliest shared film", () => {
+    const lanes = [
+      [item(1, 100), item(2, 400), item(3, 900)],
+      [item(2, 400), item(3, 900), item(4, 1200)],
+    ];
+    expect(initialAnchorX(lanes, new Set([2, 3]))).toBe(400);
+  });
+
+  it("falls back to where the latest-starting lane begins when nothing is shared", () => {
+    const lanes = [[item(1, 100)], [item(2, 700), item(3, 800)], [item(4, 300)]];
+    expect(initialAnchorX(lanes, new Set())).toBe(700);
+  });
+
+  it("ignores empty lanes in the fallback and returns null when all are empty", () => {
+    expect(initialAnchorX([[item(1, 100)], []], new Set())).toBe(100);
+    expect(initialAnchorX([[], []], new Set())).toBeNull();
   });
 });
