@@ -1,8 +1,19 @@
-export default function Home() {
+import { Hero } from "@/components/landing/hero";
+import { HowItWorks } from "@/components/landing/how-it-works";
+import { Pairings } from "@/components/landing/pairings";
+import { loadExampleCards } from "@/lib/load-example-cards";
+
+// Rendered per request: the build environment may not have a TMDB token, and the example
+// photos and counts must never be baked into the build.
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const cards = await loadExampleCards();
   return (
-    <section className="mx-auto w-full max-w-3xl px-4 py-16">
-      <h1 className="text-3xl font-semibold text-strong">Parallel</h1>
-      <p className="mt-3">Search is coming up next.</p>
-    </section>
+    <>
+      <Hero />
+      <Pairings cards={cards} />
+      <HowItWorks />
+    </>
   );
 }
