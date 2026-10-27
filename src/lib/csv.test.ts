@@ -22,6 +22,12 @@ describe("sharedFilmsToCsv", () => {
     );
   });
 
+  it("keeps the order it is given (the order of the table), not release order", () => {
+    expect(sharedFilmsToCsv([shared(2, "Later", 2005), shared(1, "Earlier", 1995), shared(3, "Middle", 2000)])).toBe(
+      "tmdbID,Title,Year\r\n2,Later,2005\r\n1,Earlier,1995\r\n3,Middle,2000\r\n",
+    );
+  });
+
   it("quotes titles with commas and doubles embedded quotes", () => {
     expect(sharedFilmsToCsv([shared(1, "Hello, World", 2000), shared(2, 'The "Best" Film', 2001)])).toBe(
       'tmdbID,Title,Year\r\n1,"Hello, World",2000\r\n2,"The ""Best"" Film",2001\r\n',
