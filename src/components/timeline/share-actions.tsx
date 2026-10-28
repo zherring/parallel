@@ -1,5 +1,6 @@
 "use client";
 
+import { Download, LoaderCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { csvFilename, filmsToCsv } from "@/lib/csv";
 import type { TableRow } from "@/lib/film-rows";
@@ -21,7 +22,7 @@ interface ShareActionsProps {
 
 // Share (the green primary button) lives in share-menu.tsx; Export is the secondary one.
 const secondaryClass =
-  "inline-flex items-center justify-center rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-strong hover:border-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border";
+  "inline-flex items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-strong hover:border-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border";
 
 /**
  * Export and Share, the right end of a films section's toolbar, with a status line (what Export
@@ -98,6 +99,11 @@ export function ShareActions({ films, today, names, share }: ShareActionsProps) 
         aria-label="Export List as CSV"
         title="Export List as CSV"
       >
+        {exporting ? (
+          <LoaderCircle aria-hidden="true" className="size-4 shrink-0 motion-safe:animate-spin" />
+        ) : (
+          <Download aria-hidden="true" className="size-4 shrink-0" />
+        )}
         Export
       </button>
       <ShareMenu input={share} onStatus={announce} className="max-sm:grow" />
