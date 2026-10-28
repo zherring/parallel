@@ -49,6 +49,12 @@ export interface RawMovieCredits {
   crew: RawCrewCredit[];
 }
 
+/** `/movie/{id}/credits`: who worked on one film. Only what the collaborator suggestions read. */
+export interface RawFilmCredits {
+  cast?: { id: number; order?: number; character?: string; popularity?: number }[];
+  crew?: { id: number; job?: string; popularity?: number }[];
+}
+
 /** One page of `/discover/movie`; only the ids are read. */
 export interface RawDiscoverMovies {
   total_pages?: number;

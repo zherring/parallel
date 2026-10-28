@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import { CollaboratorSuggestions } from "@/components/collaborators/collaborator-suggestions";
 import { FilmPanel } from "@/components/film-panel/film-panel";
 import { PersonSearch } from "@/components/person-search/person-search";
 import { FilmsSection } from "@/components/timeline/films-section";
@@ -116,12 +117,23 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
         />
       </div>
 
-      {canAddPerson(people.length) && (
-        <div className="mt-6 max-w-md">
-          <p className="mb-2 text-sm font-medium text-strong">Add person</p>
-          <PersonSearch peopleInView={people} size="compact" />
-        </div>
-      )}
+      {canAddPerson(people.length) &&
+        (multi ? (
+          <div className="mt-6 max-w-md">
+            <p className="mb-2 text-sm font-medium text-strong">Add person</p>
+            <PersonSearch peopleInView={people} size="compact" />
+          </div>
+        ) : (
+          // One person: the people they work with most sit to the right of the field (below it on
+          // narrower screens). They arrive after the page is on screen and are hidden when empty.
+          <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-start lg:gap-8">
+            <div className="w-full max-w-md lg:w-[22rem] lg:shrink-0">
+              <p className="mb-2 text-sm font-medium text-strong">Add person</p>
+              <PersonSearch peopleInView={people} size="compact" />
+            </div>
+            <CollaboratorSuggestions person={people[0]} />
+          </div>
+        ))}
 
       {multi ? (
         <Together

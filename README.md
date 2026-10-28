@@ -40,14 +40,14 @@ The token is only read on the server and is never sent to the browser.
 | `npm run typecheck` | `tsc --noEmit`                        |
 | `npm test`          | Vitest unit tests (TMDB is mocked)    |
 | `npm run examples:refresh` | Re-check the landing pairings against TMDB (see below) |
-| `npm run people:refresh` | Rebuild the local people search index from TMDB (see "People search index") |
+| `npm run people:refresh` | Rebuild the local people search index and the collaborator graph from TMDB (see "People search index" and "Frequent collaborators") |
 | `npm run people:eval` | Measure how well the search finds people for ~50 realistic queries |
 | `npm run awards:refresh` | Rebuild the Oscar / festival awards data from Wikidata (see "Awards data"); `-- --validate` checks the live endpoint |
 
 ## Layout
 
 - `src/lib`: pure data modules (roles, normalizing TMDB credits, shared films, URL slugs, CSV) and the server-only TMDB client.
-- `src/app/api`: `/api/search` and `/api/movie/[id]`, rate limited per IP.
+- `src/app/api`: `/api/search`, `/api/movie/[id]`, `/api/film-metrics` and `/api/collaborators/[id]`, rate limited per IP.
 - `src/app/p/[people]`: the shareable timeline page.
 - `scripts/`: the refresh scripts (`refresh-examples.ts`, `refresh-people-index.ts`, `refresh-awards.ts`) and the small Node loader they run under (see below).
 - Design tokens live in `src/app/globals.css` (dark theme, Tailwind names such as `bg-surface`, `text-muted`, `text-accent-green`).
@@ -82,9 +82,26 @@ The index is only loaded on the server and never ships to the browser.
 npm run people:refresh
 ```
 
-It needs `TMDB_READ_ACCESS_TOKEN` and Node 22.9 or newer, like `examples:refresh`, makes about 2,000 TMDB requests (8 at a time, with retries and backoff) in a minute or two, and caches every response under `node_modules/.cache/parallel-people-index` (set `PEOPLE_INDEX_CACHE_DIR` to move it, pass `--no-cache` for a fresh crawl) so a rerun costs nothing. It writes the JSON only when every person in `examples.ts` is in it, so run it after adding people there; `npm test` fails if one is missing.
+It needs `TMDB_READ_ACCESS_TOKEN` and Node 22.9 or newer, like `examples:refresh`, makes about 2,000 TMDB requests (8 at a time, with retries and backoff; a cold crawl took about 13 minutes when last run, a rerun from the cache under a second) and caches every response under `node_modules/.cache/parallel-people-index` (set `PEOPLE_INDEX_CACHE_DIR` to move it, pass `--no-cache` for a fresh crawl) so a rerun costs nothing. It writes the JSON only when every person in `examples.ts` is in it, so run it after adding people there; `npm test` fails if one is missing. The same run also writes `src/lib/collaborators.generated.json`, the collaborator graph behind the "Frequent collaborators" chips (see that section), from the credits it has already fetched.
 
-**Regenerate the index at least every six months.** TMDB's terms limit how long cached TMDB data may be kept, and the file carries a `generatedAt` timestamp so its age is visible. Run `npm run people:refresh`, check `npm test` and `npm run people:eval` (hit rates) still look right, and commit the result. `npm run people:eval -- --tmdb` also runs the same queries through TMDB's raw search for comparison (one live call per query).
+**Regenerate the index at least every six months.** TMDB's terms limit how long cached TMDB data may be kept, and both generated files (the index and the collaborator graph, written by the same run with the same `generatedAt`) carry a timestamp so their age is visible. Run `npm run people:refresh`, check `npm test` and `npm run people:eval` (hit rates) still look right, and commit both files. `npm run people:eval -- --tmdb` also runs the same queries through TMDB's raw search for comparison (one live call per query).
+
+## Frequent collaborators
+
+On a single-person page, next to the "Add person" field (below it on narrower screens), a row of chips suggests the people that person has worked with most: their usual director, cinematographer, composer, editor and co-stars. Each chip shows a photo, the name, their roles ("Director") and the number of films together ("4 films"); a click adds them to the timeline, exactly like picking a search result. The chip's count is the one the pair page then shows as "N films together" (released, non-minor films only), and hovering a chip names the best-known films they share. The row loads after the page is on screen (the server HTML never waits on it and does not change), shows a few skeleton chips meanwhile, scrolls sideways when it does not fit, and disappears when there is nothing to suggest or anything fails (no error text). Multi-person pages do not show it.
+
+TMDB has no collaborator endpoint, and counting live means fetching the credits of every film of the person (64 for Harrison Ford, 169 for Brad Pitt), so the suggestions are found in two steps:
+
+1. **Candidates from a precomputed graph, with no TMDB call.** `src/lib/collaborators.generated.json` (about 0.16 MB, one line, ids and counts only, plus `generatedAt`) holds, for each of the roughly 1,900 people the crawl knows well, up to 16 candidates: the people credited next to them on the most of the ~1,800 notable films of the people index crawl, at least 2 shared films each. Who counts is the pair page's definition of a non-minor credit (top 12 billed cast, never uncredited or self appearances; every crew job that is not "other", so directors, writers, cinematographers, editors, composers, producers and designers). The 16 are picked for variety (`pickSuggestions`, `src/lib/role-groups.ts`): the best 2 of each role group (Directing, Camera, Writing, Music, Editing, Acting, other) first, the rest by count, because a star's top collaborators by count are often all co-stars. `src/lib/collaborator-graph.ts` builds it, `src/lib/collaborators-index.ts` loads it lazily on the server (dynamic import, `server-only`), so it is in no client bundle.
+2. **Exact counts for what is shown** (`src/lib/collaborators.ts`, `src/lib/collaborator-verify.ts`). The candidates' filmographies are loaded 6 at a time with `getPersonMovieCredits` and the shared films are counted with `sharedFilms([a, b], { includeMinor: false })`, the pair page's own code, so a chip can never disagree with its page. Candidates under 2 shared films drop out, the rest are re-ranked by the exact count (ties by notability) and `pickSuggestions` makes the final list of at most 10 varied again (the best 2 per role group first, then by count; the result is ordered by count). The list is remembered in memory for 3 hours (LRU of 200 people; TMDB's own responses are cached for a day), requests for the same person made at once share one computation, and a list that is missing candidates because TMDB failed for some of them is not remembered.
+
+A person the graph has no row for (not in the crawl, or fewer than 3 candidates) is counted live instead: credits of their 25 best-known released films by vote count (`/movie/{id}/credits`, 6 at a time), counted the same way, then verified as above. The API says which one answered (`source`: `"graph"` or `"live"`).
+
+`GET /api/collaborators/{personId}` returns `{ source, results: [{ id, name, profilePath, sharedCount, roles, titles }] }`: `roles` is what the collaborator did on the shared films, as `roleSummary` words it ("Director, Writer"), and `titles` the up to 3 most-voted shared films. It answers 400 for an id that is not a positive integer, 404 for a person TMDB does not know, and the usual 502 and 500 when TMDB or the server fails. Cache headers are `public, s-maxage=3600, stale-while-revalidate=86400`, and the route sits inside the `/api` rate limit.
+
+A cold graph-path request makes about 55 TMDB requests (17 people at 2 to 3 requests each) that the 24 hour fetch cache then keeps; a repeat is answered from memory in a few milliseconds. The graph only knows the crawled notable films, so its counts are low and its candidate list can miss someone who mostly worked outside them; the exact verification is what makes the shown numbers right, not what makes the list complete.
+
+The graph is regenerated by `npm run people:refresh`, together with the people index, from the same crawl and cache, at no extra TMDB cost; both files carry the same `generatedAt`. The six-month rule for TMDB data applies to it exactly as to the index (see below).
 
 ## Awards data
 
@@ -135,7 +152,7 @@ The Wikidata Query Service is moving from Blazegraph to QLever (new endpoints ar
 
 ## Ideas and TODOs
 
-- **Suggest frequent collaborators.** When you are looking at someone, suggest the people they have worked with most (for example their usual cinematographer, composer or co-star) so they can be added to the timeline in a click. The UX is still open: it should feel playful and easy to discover, not just a plain list.
+Nothing open right now.
 
 ## Attribution
 

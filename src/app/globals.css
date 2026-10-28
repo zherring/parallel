@@ -40,6 +40,19 @@
 /* Steps for the landing hero collage, which grows with the room left of the headline. */
 @theme {
   --breakpoint-wide: 90rem;
+
+  /* A collaborator chip fading in (use with motion-safe:). */
+  --animate-chip-in: chip-in 220ms ease-out both;
+  @keyframes chip-in {
+    from {
+      opacity: 0;
+      transform: translateY(3px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
 }
 
 @theme inline {
