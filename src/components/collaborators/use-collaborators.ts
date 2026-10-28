@@ -5,10 +5,8 @@ import { getJson, isAbortError } from "@/lib/api-client";
 import type { CollaboratorSuggestion, CollaboratorSuggestions } from "@/lib/types";
 
 export type CollaboratorsState =
-  | { status: "loading" }
-  | { status: "ready"; results: CollaboratorSuggestion[] }
-  /** Nothing to show: no suggestions, or the request failed. The block renders nothing at all. */
-  | { status: "hidden" };
+  | { status: "idle" | "loading" | "hidden" }
+  | { status: "ready"; results: CollaboratorSuggestion[] };
 
 const CACHE_LIMIT = 20;
 
@@ -22,16 +20,18 @@ function remember(personId: number, results: CollaboratorSuggestion[]) {
 }
 
 /**
- * Loads the frequent collaborators of one person from `/api/collaborators/{id}` once the page is
- * on screen (never during server rendering). Any failure is the same as no suggestions: the
- * suggestions are a shortcut, so they never show an error.
+ * Loads the frequent collaborators of one person from `/api/collaborators/{id}`, only once
+ * `enabled` (the Add a person field has been focused: a visit that never touches the field costs
+ * no request) and never during server rendering. A list already loaded for the person in this tab
+ * is returned at once. Any failure is the same as no suggestions ("hidden"): the suggestions are
+ * a shortcut, so they never show an error. `personId` null means the field has none to offer.
  */
-export function useCollaborators(personId: number): CollaboratorsState {
+export function useCollaborators(personId: number | null, enabled: boolean): CollaboratorsState {
   // The answer for one person; an answer for another person is stale and ignored.
   const [data, setData] = useState<{ personId: number; results: CollaboratorSuggestion[] } | null>(null);
 
   useEffect(() => {
-    if (cache.has(personId)) return;
+    if (personId === null || !enabled || cache.has(personId)) return;
     const controller = new AbortController();
     getJson<CollaboratorSuggestions>(`/api/collaborators/${personId}`, controller.signal).then(
       (body) => {
@@ -45,9 +45,10 @@ export function useCollaborators(personId: number): CollaboratorsState {
       },
     );
     return () => controller.abort();
-  }, [personId]);
+  }, [personId, enabled]);
 
+  if (personId === null) return { status: "idle" };
   const results = cache.get(personId) ?? (data?.personId === personId ? data.results : undefined);
-  if (results === undefined) return { status: "loading" };
+  if (results === undefined) return { status: enabled ? "loading" : "idle" };
   return results.length > 0 ? { status: "ready", results } : { status: "hidden" };
 }

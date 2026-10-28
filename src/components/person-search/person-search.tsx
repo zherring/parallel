@@ -11,6 +11,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
+import { useCollaborators } from "@/components/collaborators/use-collaborators";
 import { PersonAvatar } from "@/components/person-avatar";
 import { Spinner } from "@/components/spinner";
 import {
@@ -37,6 +38,15 @@ import {
   type KeyContext,
   type SearchMode,
 } from "@/lib/chip-input";
+import {
+  SKELETON_ROWS,
+  SUGGESTIONS_LABEL,
+  listedSuggestions,
+  panelSection,
+  suggestionDetail,
+  suggestionTitle,
+  suggestionsAnnouncement,
+} from "@/lib/collaborator-suggest";
 import {
   MAX_QUERY_LENGTH,
   MIN_QUERY_LENGTH,
@@ -68,7 +78,24 @@ export interface PersonSearchProps {
    * opens from the chips, with Enter on an empty field or the Go button.
    */
   mode?: SearchMode;
+  /** The field's accessible name. Defaults to "Search people"; a field whose visible label is gone names its job ("Add a person"). */
+  ariaLabel?: string;
+  /**
+   * The id of the page's one person. Only the Add a person field of a one-person page sets it (in
+   * "navigate" mode): while the field is empty its dropdown then offers that person's frequent
+   * collaborators (loaded when the field is first focused), and typing brings the usual search back.
+   * Without it the field never offers suggestions.
+   */
+  suggestFor?: number;
+  /**
+   * Let the dropdown be wider than the field from lg up (right-aligned with it), for a field that
+   * sits at the right end of a row and is narrower than its rows want to be.
+   */
+  wideMenu?: boolean;
 }
+
+/** What picking an option needs, whether it is a search result or a suggested collaborator. */
+type PickedPerson = Pick<PersonSearchResult, "id" | "name" | "profilePath">;
 
 const DEBOUNCE_MS = 200;
 const CACHE_LIMIT = 50;
@@ -95,6 +122,9 @@ export function PersonSearch({
   size = "compact",
   autoFocus = false,
   mode = "navigate",
+  ariaLabel = "Search people",
+  suggestFor,
+  wideMenu = false,
 }: PersonSearchProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -102,6 +132,7 @@ export function PersonSearch({
   const baseId = useId();
   const listId = `${baseId}-listbox`;
   const hintId = `${baseId}-hint`;
+  const groupLabelId = `${baseId}-group`;
   const optionId = (index: number) => `${baseId}-option-${index}`;
 
   const [query, setQuery] = useState("");
@@ -112,6 +143,9 @@ export function PersonSearch({
   const [chips, setChips] = useState<ChipPerson[]>([]);
   const [announcement, setAnnouncement] = useState<{ id: number; text: string } | null>(null);
   const [isNavigating, startNavigation] = useTransition();
+  // The suggestions are asked for the first time the field is focused, never before.
+  const [asked, setAsked] = useState(false);
+  const collaborators = useCollaborators(suggestFor ?? null, asked);
 
   const hero = size === "hero";
   const chipsMode = mode === "chips";
@@ -126,9 +160,18 @@ export function PersonSearch({
   const results = searchable && data ? data.results : [];
   const failure = fresh && data ? data.error : null;
 
-  const disabledFlags = results.map((result) => !fresh || addState(added, result.id) !== "can-add");
-  const listVisible = open && results.length > 0;
-  const showPanel = open && (searchable || full);
+  // With no text, a one-person page's field offers the frequent collaborators; any text is a search.
+  const onSuggestions =
+    panelSection(suggestFor !== undefined && !chipsMode, q, collaborators.status) === "suggestions";
+  const suggestions = collaborators.status === "ready" ? listedSuggestions(collaborators.results) : [];
+  // The options on screen, whichever list they belong to: the keyboard rows (activeIndex) index this one.
+  const options: readonly PickedPerson[] = onSuggestions ? suggestions : results;
+
+  const disabledFlags = options.map(
+    (option) => (!onSuggestions && !fresh) || addState(added, option.id) !== "can-add",
+  );
+  const listVisible = open && options.length > 0;
+  const showPanel = open && (searchable || full || onSuggestions);
   const activeId = listVisible && activeIndex >= 0 ? optionId(activeIndex) : undefined;
 
   const keyContext: KeyContext = {
@@ -138,7 +181,7 @@ export function PersonSearch({
     open,
     panelShown: showPanel,
     listVisible,
-    fresh,
+    fresh: onSuggestions || fresh,
     activeIndex,
     disabled: disabledFlags,
   };
@@ -195,7 +238,7 @@ export function PersonSearch({
   }
 
   /** Chips mode: turn a suggestion into a chip. The input clears and keeps focus. */
-  function addPerson(result: PersonSearchResult) {
+  function addPerson(result: PickedPerson) {
     const outcome = addChip(chips, {
       id: result.id,
       name: result.name,
@@ -230,12 +273,13 @@ export function PersonSearch({
     startNavigation(() => router.push(href));
   }
 
-  function select(result: PersonSearchResult) {
+  function select(result: PickedPerson) {
     if (chipsMode) {
       addPerson(result);
       return;
     }
-    const href = extendedPeopleHref(peopleInView, { id: result.id, name: result.name });
+    // The query of this page, read now: the new page opens on the tab (Timeline or Table) this one shows.
+    const href = extendedPeopleHref(peopleInView, { id: result.id, name: result.name }, window.location.search);
     if (!href) return;
     setOpen(false);
     setQuery("");
@@ -271,7 +315,7 @@ export function PersonSearch({
         move(action.direction);
         return;
       case "commit":
-        select(results[action.index]);
+        select(options[action.index]);
         return;
       case "submit":
         submit();
@@ -285,6 +329,7 @@ export function PersonSearch({
         return;
       case "clear":
         setQuery("");
+        setActiveIndex(-1);
         return;
     }
   }
@@ -296,15 +341,17 @@ export function PersonSearch({
     inputRef.current?.focus();
   }
 
-  const searchStatus = failure
-    ? errorMessage(failure, "search")
-    : loading
-      ? "Searching"
-      : fresh
-        ? results.length === 0
-          ? "No one found"
-          : `${results.length} ${results.length === 1 ? "result" : "results"}`
-        : "";
+  const searchStatus = onSuggestions
+    ? suggestionsAnnouncement(collaborators.status, suggestions.length)
+    : failure
+      ? errorMessage(failure, "search")
+      : loading
+        ? "Searching"
+        : fresh
+          ? results.length === 0
+            ? "No one found"
+            : `${results.length} ${results.length === 1 ? "result" : "results"}`
+          : "";
   // The panel shows "Up to 4 people." when the field is full; say it too.
   const status = chipsMode && full ? `${FULL_MESSAGE}. ${searchStatus}`.trim() : searchStatus;
 
@@ -369,7 +416,7 @@ export function PersonSearch({
               ref={inputRef}
               type="text"
               role="combobox"
-              aria-label="Search people"
+              aria-label={ariaLabel}
               aria-expanded={listVisible}
               aria-controls={listVisible ? listId : undefined}
               aria-activedescendant={activeId}
@@ -392,7 +439,10 @@ export function PersonSearch({
                 setOpen(true);
                 setActiveIndex(-1);
               }}
-              onFocus={() => setOpen(true)}
+              onFocus={() => {
+                setOpen(true);
+                if (suggestFor !== undefined) setAsked(true);
+              }}
               onBlur={() => {
                 setOpen(false);
                 setActiveIndex(-1);
@@ -493,7 +543,9 @@ export function PersonSearch({
         <div
           // Keep focus in the input while the pointer interacts with the panel.
           onMouseDown={(event) => event.preventDefault()}
-          className="absolute inset-x-0 top-full z-50 mt-2 max-h-[min(28rem,55dvh)] overflow-y-auto overscroll-contain rounded-md border border-border bg-surface text-sm shadow-2xl shadow-black/60"
+          className={`absolute inset-x-0 top-full z-50 mt-2 max-h-[min(28rem,55dvh)] overflow-y-auto overscroll-contain rounded-md border border-border bg-surface text-sm shadow-2xl shadow-black/60 ${
+            wideMenu ? "lg:left-auto lg:w-[22rem]" : ""
+          }`}
         >
           {full && (
             <p className="border-b border-border px-3 py-2.5 text-body">
@@ -527,6 +579,63 @@ export function PersonSearch({
             <p className="flex items-center gap-2 px-3 py-3 text-muted">
               <Spinner /> Searching…
             </p>
+          )}
+
+          {onSuggestions && collaborators.status === "loading" && (
+            // Skeleton rows hold the place of the first request's answer; they are not options.
+            <div aria-hidden="true" className="py-1">
+              <p className="px-3 pb-1 pt-2 text-xs font-medium text-muted">{SUGGESTIONS_LABEL}</p>
+              {Array.from({ length: SKELETON_ROWS }, (_, row) => (
+                <div key={row} className="flex items-center gap-3 px-3 py-2.5">
+                  <span className="size-10 shrink-0 rounded-full bg-border motion-safe:animate-pulse" />
+                  <span className="flex flex-1 flex-col gap-2">
+                    <span className="h-3 w-2/5 rounded bg-border motion-safe:animate-pulse" />
+                    <span className="h-2.5 w-3/5 rounded bg-border/70 motion-safe:animate-pulse" />
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {onSuggestions && suggestions.length > 0 && (
+            <div id={listId} role="listbox" aria-label="People">
+              <div role="group" aria-labelledby={groupLabelId}>
+                <p id={groupLabelId} className="px-3 pb-1 pt-2.5 text-xs font-medium text-muted">
+                  {SUGGESTIONS_LABEL}
+                </p>
+                {suggestions.map((suggestion, index) => {
+                  const disabled = disabledFlags[index];
+                  const active = index === activeIndex;
+                  return (
+                    <div
+                      key={suggestion.id}
+                      id={optionId(index)}
+                      role="option"
+                      aria-selected={active}
+                      aria-disabled={disabled || undefined}
+                      title={suggestionTitle(suggestion) ?? undefined}
+                      onMouseMove={() => {
+                        if (!disabled && !active) setActiveIndex(index);
+                      }}
+                      onClick={() => {
+                        if (!disabled) select(suggestion);
+                      }}
+                      className={`flex items-center gap-3 px-3 py-2.5 ${
+                        disabled ? "cursor-default opacity-60" : "cursor-pointer"
+                      } ${active ? "bg-border shadow-[inset_3px_0_0_0_var(--green)]" : ""}`}
+                    >
+                      <PersonAvatar name={suggestion.name} profilePath={suggestion.profilePath} size={40} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium text-strong">{suggestion.name}</span>
+                        <span className="line-clamp-2 text-xs leading-snug text-muted">
+                          {suggestionDetail(suggestion)}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
 
           {results.length > 0 && (

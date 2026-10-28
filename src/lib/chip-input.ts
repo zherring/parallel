@@ -1,18 +1,28 @@
 import { normalizeQuery, type Move } from "@/lib/combobox";
-import { MAX_PEOPLE, addState, dedupePeople, type PersonRef } from "@/lib/people-nav";
+import { MAX_PEOPLE, addState, dedupePeople, peopleFromPathname, type PersonRef } from "@/lib/people-nav";
 import { buildPeopleSlug } from "@/lib/slug";
 
 /**
  * Pure logic for the person search field, in both of its modes.
  *
- * - "navigate": picking a result goes straight to the timeline (the original behaviour; used under
- *   the lanes and in the header on /p/ pages).
+ * - "navigate": picking a result goes straight to the timeline (the original behaviour; used by the
+ *   Add a person field beside the headline of a /p/ page).
  * - "chips": an email-recipients style token field. Picking a result turns it into a chip, the
  *   text clears, and a separate "go" step opens the timeline built from the chips.
  *
  * Nothing here touches React or the DOM, so every keyboard rule is covered by unit tests.
  */
 export type SearchMode = "navigate" | "chips";
+
+/**
+ * Whether the site header has its search field on this page. Not on the landing page (it has its
+ * own search) and not on a timeline page, which has the Add a person field beside its headline.
+ * Everywhere else (and on a /p/ address that names nobody, such as a 404) it stays.
+ */
+export function showsHeaderSearch(pathname: string | null | undefined): boolean {
+  if (pathname === "/") return false;
+  return peopleFromPathname(pathname ?? "").length === 0;
+}
 
 /**
  * Mode for the header search. On a timeline page (/p/...) it extends the timeline in view and

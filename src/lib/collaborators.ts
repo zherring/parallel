@@ -104,7 +104,7 @@ async function compute(personId: number): Promise<{ suggestions: CollaboratorSug
 }
 
 /**
- * The people `personId` has worked with most, ready for the chips: candidates from the
+ * The people `personId` has worked with most, ready to suggest: candidates from the
  * precomputed collaborator graph (or, for someone the graph does not know, counted live over
  * their best-known films), each one then counted exactly from the two filmographies and made
  * varied by role. Throws a TmdbError when TMDB cannot answer (404 for an unknown person).
