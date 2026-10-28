@@ -1,12 +1,14 @@
 import { preconnect } from "react-dom";
 import { HeroCollage } from "@/components/landing/hero-collage";
 import { LandingSearch } from "@/components/landing/landing-search";
-import { firstScene, type HeroPairing } from "@/lib/hero-scenes";
+import { defaultScene, type HeroPairing } from "@/lib/hero-scenes";
 
 export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
   // The collage's first images come from TMDB's image host; open the connection early.
   preconnect("https://image.tmdb.org");
-  const initial = firstScene(pool);
+  // The server cannot pick at random (the page is static): it sends this scene in a <noscript>,
+  // and the browser picks the one it shows.
+  const fallback = defaultScene(pool);
 
   return (
     <section
@@ -14,9 +16,9 @@ export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
       className="relative overflow-x-clip bg-[radial-gradient(60%_70%_at_50%_0%,rgb(0_224_84/0.10),transparent_70%)] px-4 pb-10 pt-6 sm:pb-12 sm:pt-8"
     >
       {/* Centered above the headline: two people, the films they share, on the timeline line. */}
-      {initial && (
+      {fallback && (
         <div className="mb-5 max-[359px]:mb-10 sm:mb-6">
-          <HeroCollage pool={pool} initial={initial} />
+          <HeroCollage pool={pool} fallback={fallback} />
         </div>
       )}
       <div className="mx-auto max-w-3xl text-center">

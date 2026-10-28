@@ -51,13 +51,12 @@ export interface Transition {
   stayed: Slot | null;
 }
 
-/** The hero opens on Harrison Ford and George Lucas, so the server markup never varies. */
-export const FIRST_SCENE_KEY = "1+3";
 /**
- * The first swap is scripted too: Ford stays and Spielberg replaces Lucas, which shows what the
- * collage is about straight away. Every swap after it is chosen at random.
+ * The scene in the server markup: Harrison Ford and George Lucas. The page is prerendered, so the
+ * server cannot pick at random; it puts this scene in a <noscript> for visitors without
+ * JavaScript and crawlers, and the browser picks the scene it shows (see `pickFirstScene`).
  */
-export const SECOND_SCENE_KEY = "3+488";
+export const DEFAULT_SCENE_KEY = "1+3";
 
 /** Chance that a transition is a single swap, when one is possible. */
 export const SINGLE_SWAP_CHANCE = 0.45;
@@ -100,10 +99,27 @@ export function heroPool(pairings: readonly HeroPairing[], posterCount = 3): Her
   return usable.filter((pairing) => pairing.people.some((person) => (seen.get(person.id) ?? 0) > 1));
 }
 
-/** The scene the page is rendered with; falls back to the pool's first pairing. */
-export function firstScene(pool: readonly HeroPairing[], key = FIRST_SCENE_KEY): Scene | null {
+/** The scene in the server markup (the <noscript> fallback); falls back to the pool's first pairing. */
+export function defaultScene(pool: readonly HeroPairing[], key = DEFAULT_SCENE_KEY): Scene | null {
   const pairing = pool.find((candidate) => candidate.key === key) ?? pool[0];
   return pairing ? sceneOf(pairing) : null;
+}
+
+/**
+ * The scene a visit opens on: one pairing of the pool, uniformly at random, shown with its people
+ * in the pairing's own order. `avoidKey` is the pairing the previous visit of this browser session
+ * opened on; it is left out when anything else is left, so two visits in a row differ. Null for
+ * an empty pool. `rng` returns a number in [0, 1), like Math.random.
+ */
+export function pickFirstScene(
+  pool: readonly HeroPairing[],
+  rng: () => number,
+  avoidKey?: string | null,
+): Scene | null {
+  const others = avoidKey ? pool.filter((pairing) => pairing.key !== avoidKey) : pool;
+  const options = others.length > 0 ? others : pool;
+  if (options.length === 0) return null;
+  return sceneOf(options[Math.min(options.length - 1, Math.floor(rng() * options.length))]);
 }
 
 /**
@@ -157,6 +173,20 @@ export function transitionTo(current: Scene, next: HeroPairing): Transition {
   const people: readonly [HeroPerson, HeroPerson] = stayed === 0 ? [kept, joiner] : [joiner, kept];
   const changed: Slot = stayed === 0 ? 1 : 0;
   return { kind: "single", scene: { pairing: next, people }, changed: [changed], stayed };
+}
+
+/**
+ * The change from the scene on screen to `to`, a scene that was shown before (history navigation),
+ * read from the two scenes' people: a slot whose person is the same stays, so exactly one changed
+ * slot is a single swap and anything else a full one. For two scenes that follow each other in
+ * the history this is the transition that built them, whichever way it is played.
+ */
+export function transitionBetween(from: Scene, to: Scene): Transition {
+  const changed = ([0, 1] as const).filter((slot) => from.people[slot].id !== to.people[slot].id);
+  if (changed.length === 1) {
+    return { kind: "single", scene: to, changed, stayed: changed[0] === 0 ? 1 : 0 };
+  }
+  return { kind: "full", scene: to, changed: [0, 1], stayed: null };
 }
 
 /** How long the next scene lasts: SCENE_MS plus or minus up to SCENE_JITTER_MS. */

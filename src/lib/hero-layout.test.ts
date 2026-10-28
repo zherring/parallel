@@ -3,6 +3,7 @@ import {
   LINE_Y,
   MORE_LEFT,
   MORE_UNDER,
+  PERSON_MID_Y,
   POSTER_SLOTS,
   POSTER_TOP,
   STAGE,
@@ -75,5 +76,15 @@ describe("moreLabelPlace", () => {
       expect(gap, `row of ${count}`).toBeCloseTo(MORE_LEFT - extent(POSTER_SLOTS).right, 6);
       expect(gap).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("PERSON_MID_Y", () => {
+  it("is the middle of the two portraits, above the posters", () => {
+    const tops = STAGE.person.map((place) => place.top);
+    expect(PERSON_MID_Y).toBeGreaterThan(Math.min(...tops));
+    expect(PERSON_MID_Y).toBeLessThan(Math.max(...tops) + STAGE.personSize.height);
+    expect(PERSON_MID_Y).toBe(140);
+    expect(PERSON_MID_Y).toBeLessThan(POSTER_TOP);
   });
 });

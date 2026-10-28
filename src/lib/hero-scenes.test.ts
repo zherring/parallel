@@ -1,22 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { HERO_POSTER_MIN } from "@/lib/examples";
 import {
-  FIRST_SCENE_KEY,
+  DEFAULT_SCENE_KEY,
   MIN_RESUME_MS,
   NOT_PAUSED,
   RECENT_WINDOW,
   SCENE_JITTER_MS,
   SCENE_MS,
-  SECOND_SCENE_KEY,
   SINGLE_SWAP_CHANCE,
-  firstScene,
+  defaultScene,
   heroPool,
   isRunning,
   moreFilms,
   nextScene,
+  pickFirstScene,
   resumeDelay,
   sceneDuration,
   sceneOf,
+  transitionBetween,
   transitionTo,
   type HeroPairing,
   type HeroPerson,
@@ -112,17 +113,84 @@ describe("moreFilms", () => {
   });
 });
 
-describe("firstScene", () => {
-  it("opens on the fixed pairing, in its own order, whatever the pool order", () => {
-    const scene = firstScene([...CHAIN].reverse())!;
-    expect(FIRST_SCENE_KEY).toBe("1+3");
-    expect(scene.pairing.key).toBe(FIRST_SCENE_KEY);
+describe("defaultScene", () => {
+  it("is the fixed pairing the server markup carries, in its own order, whatever the pool order", () => {
+    const scene = defaultScene([...CHAIN].reverse())!;
+    expect(DEFAULT_SCENE_KEY).toBe("1+3");
+    expect(scene.pairing.key).toBe(DEFAULT_SCENE_KEY);
     expect(scene.people.map((p) => p.id)).toEqual([3, 1]);
   });
 
   it("falls back to the first pairing, and to nothing for an empty pool", () => {
-    expect(firstScene([HANKS_SPIELBERG, FORD_SPIELBERG])!.pairing.key).toBe(HANKS_SPIELBERG.key);
-    expect(firstScene([])).toBeNull();
+    expect(defaultScene([HANKS_SPIELBERG, FORD_SPIELBERG])!.pairing.key).toBe(HANKS_SPIELBERG.key);
+    expect(defaultScene([])).toBeNull();
+  });
+});
+
+describe("pickFirstScene", () => {
+  it("picks one pairing of the pool, in its own order", () => {
+    const scene = pickFirstScene(CHAIN, () => 0)!;
+    expect(scene.pairing).toBe(CHAIN[0]);
+    expect(scene.people.map((p) => p.id)).toEqual(CHAIN[0].people.map((p) => p.id));
+    expect(pickFirstScene(CHAIN, () => 0.999999)!.pairing).toBe(CHAIN[CHAIN.length - 1]);
+  });
+
+  it("maps the roll straight onto the pool: the nth fifth of [0, 1) is the nth pairing", () => {
+    CHAIN.forEach((pairing, index) => {
+      expect(pickFirstScene(CHAIN, () => (index + 0.5) / CHAIN.length)!.pairing).toBe(pairing);
+    });
+  });
+
+  it("is deterministic for a seed, and differs between seeds", () => {
+    const keys = (seed: number) => {
+      const rng = seeded(seed);
+      return Array.from({ length: 20 }, () => pickFirstScene(DENSE, rng)!.pairing.key);
+    };
+    expect(keys(9)).toEqual(keys(9));
+    expect(keys(9)).not.toEqual(keys(10));
+  });
+
+  it("is uniform over the pool: no pairing, Ford and Lucas included, is favoured", () => {
+    const rng = seeded(4);
+    const counts = new Map<string, number>();
+    const draws = 45 * 400; // DENSE holds 45 pairings
+    for (let i = 0; i < draws; i++) {
+      const key = pickFirstScene(DENSE, rng)!.pairing.key;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    expect(counts.size).toBe(DENSE.length);
+    for (const count of counts.values()) {
+      expect(count).toBeGreaterThan(400 * 0.7);
+      expect(count).toBeLessThan(400 * 1.3);
+    }
+  });
+
+  it("leaves out the pairing the last visit opened on, and stays uniform over the others", () => {
+    const rng = seeded(8);
+    const counts = new Map<string, number>();
+    for (let i = 0; i < 44 * 300; i++) {
+      const key = pickFirstScene(DENSE, rng, DENSE[7].key)!.pairing.key;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    expect(counts.has(DENSE[7].key)).toBe(false);
+    expect(counts.size).toBe(DENSE.length - 1);
+    for (const count of counts.values()) {
+      expect(count).toBeGreaterThan(300 * 0.7);
+      expect(count).toBeLessThan(300 * 1.3);
+    }
+  });
+
+  it("ignores the pairing to avoid when it is the only one, or not in the pool, and needs a pool", () => {
+    expect(pickFirstScene([FORD_LUCAS], () => 0.5, FORD_LUCAS.key)!.pairing).toBe(FORD_LUCAS);
+    expect(pickFirstScene(CHAIN, () => 0, "999+998")!.pairing).toBe(CHAIN[0]);
+    expect(pickFirstScene(CHAIN, () => 0, null)!.pairing).toBe(CHAIN[0]);
+    expect(pickFirstScene([], () => 0.5)).toBeNull();
+  });
+
+  it("does not depend on any scripted order: the opening scene is not always Ford and Lucas", () => {
+    const rng = seeded(2);
+    const opened = new Set(Array.from({ length: 60 }, () => pickFirstScene(DENSE, rng)!.pairing.key));
+    expect(opened.size).toBeGreaterThan(20);
   });
 });
 
@@ -259,14 +327,69 @@ describe("transitionTo", () => {
       changed: [0, 1],
     });
   });
+});
 
-  it("makes the scripted first swap a single one: Ford stays, Spielberg replaces Lucas", () => {
+describe("the first transition", () => {
+  it("is not scripted: from the default scene it follows the same rules and varies with the roll", () => {
     const pool = heroPool(CHAIN);
-    const first = firstScene(pool)!;
-    const second = pool.find((p) => p.key === SECOND_SCENE_KEY)!;
-    const move = transitionTo(first, second);
-    expect(move.kind).toBe("single");
-    expect(move.scene.people.map((p) => p.id)).toEqual([3, 488]);
+    const first = defaultScene(pool)!;
+    expect(first.pairing.key).toBe(FORD_LUCAS.key);
+    const reached = new Set<string>();
+    const kinds = new Set<string>();
+    const rng = seeded(31);
+    for (let i = 0; i < 200; i++) {
+      const move = nextScene(first, pool, rng)!;
+      reached.add(move.scene.pairing.key);
+      kinds.add(move.kind);
+    }
+    // Ford + Spielberg is one of several; full swaps happen too.
+    expect(reached.size).toBeGreaterThan(2);
+    expect([...kinds].sort()).toEqual(["full", "single"]);
+  });
+});
+
+describe("transitionBetween", () => {
+  it("is a single swap when exactly one slot has a different person, with the other staying", () => {
+    expect(transitionBetween(sceneOf(FORD_LUCAS), sceneOf(FORD_SPIELBERG))).toMatchObject({
+      kind: "single",
+      stayed: 0,
+      changed: [1],
+    });
+    const lucasKept = transitionBetween(sceneOf(FORD_LUCAS), { pairing: LUCAS_SPIELBERG, people: [person(488), person(1)] });
+    expect(lucasKept).toMatchObject({ kind: "single", stayed: 1, changed: [0] });
+  });
+
+  it("is a full swap when both slots differ, and keeps the target scene's own slots", () => {
+    const target: Scene = { pairing: SPIELBERG_WILLIAMS, people: [person(491), person(488)] };
+    const move = transitionBetween(sceneOf(FORD_LUCAS), target);
+    expect(move).toMatchObject({ kind: "full", stayed: null, changed: [0, 1] });
+    expect(move.scene).toBe(target);
+  });
+
+  it("treats a shared person who moved slots as a full swap: nobody stays where they are", () => {
+    const flipped: Scene = { pairing: FORD_SPIELBERG, people: [person(488), person(3)] };
+    expect(transitionBetween(sceneOf(FORD_LUCAS), flipped).kind).toBe("full");
+  });
+
+  it("undoes a transition: playing back from the new scene to the old gives the same kind and the same slot", () => {
+    const rng = seeded(17);
+    let scene = sceneOf(DENSE[3]);
+    const recent: string[] = [];
+    for (let i = 0; i < 500; i++) {
+      const forward = nextScene(scene, DENSE, rng, recent)!;
+      const back = transitionBetween(forward.scene, scene);
+      expect(back.kind).toBe(forward.kind);
+      expect(back.scene).toBe(scene);
+      if (forward.kind === "single") {
+        expect(back.stayed).toBe(forward.stayed);
+        expect(back.changed).toEqual(forward.changed);
+      }
+      // And forward again is the very transition nextScene made.
+      const again = transitionBetween(scene, forward.scene);
+      expect(again).toMatchObject({ kind: forward.kind, stayed: forward.stayed, changed: forward.changed });
+      recent.push(scene.pairing.key);
+      scene = forward.scene;
+    }
   });
 });
 

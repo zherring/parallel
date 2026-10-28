@@ -13,7 +13,8 @@ type AutoReason = Exclude<keyof PauseReasons, "user">;
  *
  * The search field counts only once the visitor is using it: it is autofocused on desktop, so
  * "focused" alone would hold the collage still from the first paint. A key press, a click or any
- * text in it means they are typing.
+ * text in it means they are typing. (Not ArrowLeft and ArrowRight in an empty field: those drive
+ * the hero's Previous and Next, see use-hero-keys.ts.)
  */
 export function useHeroPause(root: RefObject<HTMLElement | null>, userPaused: boolean) {
   const [flags, setFlags] = useState<Omit<PauseReasons, "user">>({
@@ -81,6 +82,11 @@ export function useHeroPause(root: RefObject<HTMLElement | null>, userPaused: bo
       engaged = true;
       sync();
     };
+    const keydown = (event: KeyboardEvent) => {
+      const arrow = event.key === "ArrowLeft" || event.key === "ArrowRight";
+      if (arrow && input()?.value === "") return;
+      engage();
+    };
     const focusIn = () => {
       engaged = false;
       sync();
@@ -91,14 +97,14 @@ export function useHeroPause(root: RefObject<HTMLElement | null>, userPaused: bo
     };
     box.addEventListener("focusin", focusIn);
     box.addEventListener("focusout", focusOut);
-    box.addEventListener("keydown", engage);
+    box.addEventListener("keydown", keydown);
     box.addEventListener("input", engage);
     box.addEventListener("pointerdown", engage);
     sync();
     return () => {
       box.removeEventListener("focusin", focusIn);
       box.removeEventListener("focusout", focusOut);
-      box.removeEventListener("keydown", engage);
+      box.removeEventListener("keydown", keydown);
       box.removeEventListener("input", engage);
       box.removeEventListener("pointerdown", engage);
       set("search", false);
