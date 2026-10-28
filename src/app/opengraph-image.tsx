@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { OG, OG_SIZE, ogFonts, ogGlow, ogWordmark } from "@/lib/og-theme";
 
-export const alt = "Parallel: follow the careers behind the movies";
+export const alt = "Parallel: Watch filmmakers cross paths";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
@@ -62,8 +62,8 @@ export default async function Image() {
 
         <div style={{ display: "flex", flexDirection: "column", marginTop: 40 }}>
           <div style={{ display: "flex", flexDirection: "column", fontSize: 92, lineHeight: 1.06, letterSpacing: -2.5 }}>
-            <span>Follow the careers</span>
-            <span>behind the movies.</span>
+            <span>Watch filmmakers</span>
+            <span>cross paths</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", marginTop: 30, fontSize: 32, lineHeight: 1.35, color: OG.body }}>
             <span>Search any actor, director, writer or cinematographer.</span>

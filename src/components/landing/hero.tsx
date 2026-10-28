@@ -26,7 +26,7 @@ export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
           id="hero-heading"
           className="text-balance text-4xl font-semibold leading-[1.1] tracking-tight text-strong sm:text-5xl lg:text-6xl"
         >
-          Follow the careers behind the movies.
+          Watch filmmakers cross paths
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-balance text-base leading-relaxed text-body sm:text-lg">
           Search any actor, director, writer or cinematographer. Line their timelines up. See every
