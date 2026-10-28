@@ -55,7 +55,7 @@ function RevenueRow({ revenue }: { revenue: RevenueDisplay }) {
 }
 
 /** Five stars in half-star steps: filled ones bright, the empty rest (and the empty half) muted outlines. */
-function Stars({ stars }: { stars: RatingDisplay["stars"] }) {
+export function Stars({ stars }: { stars: RatingDisplay["stars"] }) {
   const star = "size-3.5 shrink-0";
   return (
     <span aria-hidden className="mt-px flex h-3.5 shrink-0 gap-px">
