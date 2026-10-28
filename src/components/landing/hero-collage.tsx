@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Pause, Play } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -442,60 +441,14 @@ function Stage({
 
 const noop = () => {};
 
-/**
- * A round control beside the collage, outside its link: pause and play (Previous and Next are
- * keycaps, see keycap-button.tsx). The button is 44px square so it is easy to hit; the circle
- * drawn in it is 32px, quiet (low-contrast, never hidden) until the collage is hovered or the
- * button is focused, and a touch screen, which has no hover, keeps the stronger colour.
- */
-function RoundButton({
-  label,
-  pressed,
-  className,
-  style,
-  onClick,
-  onFocus,
-  onBlur,
-  children,
-}: {
-  label: string;
-  pressed?: boolean;
-  className: string;
-  style?: CSSProperties;
-  onClick: () => void;
-  onFocus?: (event: FocusEvent<HTMLButtonElement>) => void;
-  onBlur?: (event: FocusEvent<HTMLButtonElement>) => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      onFocus={onFocus}
-      onBlur={onBlur}
-      aria-label={label}
-      aria-pressed={pressed}
-      style={style}
-      className={`group/btn absolute flex size-11 items-center justify-center rounded-full outline-none! ${className}`}
-    >
-      <span
-        aria-hidden="true"
-        className="flex size-8 items-center justify-center rounded-full border border-transparent bg-canvas/0 text-muted/70 transition-colors duration-200 group-hover/collage:border-border group-hover/collage:text-body group-hover/btn:border-accent-green/60 group-hover/btn:bg-surface/80 group-hover/btn:text-strong group-focus-visible/btn:border-border group-focus-visible/btn:bg-surface/80 group-focus-visible/btn:text-strong group-focus-visible/btn:outline-2 group-focus-visible/btn:outline-offset-2 group-focus-visible/btn:outline-focus [@media(hover:none)]:border-border [@media(hover:none)]:text-body"
-      >
-        {children}
-      </span>
-    </button>
-  );
-}
-
 /** Where Previous and Next sit: centred on the portraits, a hair outside the collage's edges. */
 const SIDE_BUTTON_STYLE: CSSProperties = { top: `calc(var(--s) * ${PERSON_MID_Y}px)` };
 
 /**
  * The live collage: a scene picked at random once this mounts in the browser, then the automatic
- * rotation and the visitor's Previous and Next (buttons and arrow keys), the pause button, and a
- * polite live region that names the scene after a button or key, never after the rotation. All
- * the ways to hold the rotation still are in useHeroPause; the controls call `go`.
+ * rotation and the visitor's Previous and Next (buttons and arrow keys), and a polite live region
+ * that names the scene after a button or key, never after the rotation. All the ways to hold the
+ * rotation still (there is no pause button) are in useHeroPause; the controls call `go`.
  */
 function Collage({
   root,
@@ -507,9 +460,6 @@ function Collage({
   initial: Scene;
 }) {
   const reduced = useReducedMotion();
-  // null until the visitor presses the button: then the preference decides (paused if reduced).
-  const [choice, setChoice] = useState<boolean | null>(null);
-  const paused = choice ?? reduced;
 
   const stage = useRef<HTMLDivElement>(null);
   const [state, setState] = useState(() => initialState(initial));
@@ -517,7 +467,7 @@ function Collage({
   // The scene fades in once its images are in, so the cards never show empty.
   const [revealed, setRevealed] = useState(false);
 
-  const { reasons, set } = useHeroPause(root, paused);
+  const { reasons, set } = useHeroPause(root, reduced);
   const running = isRunning(reasons) && revealed;
   const { go, warm } = useHeroRotation({
     pool,
@@ -568,7 +518,7 @@ function Collage({
     setState((current) => ({ ...current, items: current.items.filter((item) => item.id !== id) }));
   }, []);
   // Keyboard focus on the link or on Previous or Next holds the rotation, so the scene does not
-  // change under someone who is about to press a button (not on pause: pressing play must play).
+  // change under someone who is about to press a button.
   const focusHandlers = {
     onFocus: (event: FocusEvent<HTMLElement>) => {
       warm();
@@ -656,7 +606,7 @@ function Collage({
 
   return (
     <>
-      {/* Previous, Next and pause sit beside the collage, outside the link, so no control is nested in it. */}
+      {/* Previous and Next sit beside the collage, outside the link, so no control is nested in it. */}
       {canStep && (
         <KeycapButton
           direction="prev"
@@ -697,19 +647,6 @@ function Collage({
           {...focusHandlers}
         />
       )}
-
-      <RoundButton
-        label={paused ? "Play hero animation" : "Pause hero animation"}
-        pressed={paused}
-        onClick={() => setChoice(!paused)}
-        className="-top-0.5 left-full ml-[3px]"
-      >
-        {paused ? (
-          <Play size={14} strokeWidth={2} aria-hidden="true" fill="currentColor" />
-        ) : (
-          <Pause size={14} strokeWidth={2} aria-hidden="true" fill="currentColor" />
-        )}
-      </RoundButton>
 
       {/* Said after Previous or Next, not after the rotation changes the scene by itself. */}
       <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">

@@ -3,21 +3,22 @@
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import type { PauseReasons } from "@/lib/hero-scenes";
 
-type AutoReason = Exclude<keyof PauseReasons, "user">;
+type AutoReason = Exclude<keyof PauseReasons, "reducedMotion">;
 
 /**
- * Everything that holds the hero's rotation still: the visitor's pause button, the pointer over
- * the collage, a pointer pressed on it (so the link cannot change under a click or tap), keyboard
- * focus on its link (set by the caller with `set`), someone typing in the search field, the hero
- * scrolled out of view and the tab in the background.
+ * Everything that holds the hero's rotation still: a preference for reduced motion (the rotation
+ * never plays by itself then), the pointer over the collage, a pointer pressed on it (so the link
+ * cannot change under a click or tap), keyboard focus on its link or on Previous or Next (set by
+ * the caller with `set`), someone typing in the search field, the hero scrolled out of view and
+ * the tab in the background.
  *
  * The search field counts only once the visitor is using it: it is autofocused on desktop, so
  * "focused" alone would hold the collage still from the first paint. A key press, a click or any
  * text in it means they are typing. (Not ArrowLeft and ArrowRight in an empty field: those drive
  * the hero's Previous and Next, see use-hero-keys.ts.)
  */
-export function useHeroPause(root: RefObject<HTMLElement | null>, userPaused: boolean) {
-  const [flags, setFlags] = useState<Omit<PauseReasons, "user">>({
+export function useHeroPause(root: RefObject<HTMLElement | null>, reducedMotion: boolean) {
+  const [flags, setFlags] = useState<Omit<PauseReasons, "reducedMotion">>({
     hover: false,
     focus: false,
     press: false,
@@ -134,5 +135,5 @@ export function useHeroPause(root: RefObject<HTMLElement | null>, userPaused: bo
     return () => document.removeEventListener("visibilitychange", update);
   }, [set]);
 
-  return { reasons: { user: userPaused, ...flags } satisfies PauseReasons, set };
+  return { reasons: { reducedMotion, ...flags } satisfies PauseReasons, set };
 }

@@ -196,8 +196,8 @@ export function sceneDuration(rng: () => number): number {
 
 /** Why the rotation is held; it runs only while every one of them is false. */
 export interface PauseReasons {
-  /** The visitor pressed pause (or prefers reduced motion and has not pressed play). */
-  user: boolean;
+  /** The visitor prefers reduced motion: the rotation never plays by itself (Previous and Next still work). */
+  reducedMotion: boolean;
   /** The pointer is over the collage. */
   hover: boolean;
   /** Keyboard focus is on the collage's link. */
@@ -213,7 +213,7 @@ export interface PauseReasons {
 }
 
 export const NOT_PAUSED: PauseReasons = {
-  user: false,
+  reducedMotion: false,
   hover: false,
   focus: false,
   press: false,
