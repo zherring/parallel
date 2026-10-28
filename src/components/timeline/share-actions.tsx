@@ -22,10 +22,9 @@ interface ShareActionsProps {
   heading?: ReactNode;
 }
 
-const primaryClass =
-  "inline-flex items-center justify-center rounded-md bg-accent-green px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-green-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-accent-green";
+// Share (the green primary button) lives in share-menu.tsx; Export and Copy link are the secondary ones.
 const secondaryClass =
-  "inline-flex items-center justify-center rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-strong hover:border-muted";
+  "inline-flex items-center justify-center rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-strong hover:border-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border";
 
 export function ShareActions({ shared, names, canExport, share, heading }: ShareActionsProps) {
   const [status, setStatus] = useState("");
@@ -66,7 +65,7 @@ export function ShareActions({ shared, names, canExport, share, heading }: Share
   const exportButton = canExport && (
     <button
       type="button"
-      className={`${primaryClass} ${heading ? "max-sm:grow" : ""}`}
+      className={`${secondaryClass} ${heading ? "max-sm:grow" : ""}`}
       onClick={exportCsv}
       disabled={shared.length === 0}
     >
@@ -99,8 +98,8 @@ export function ShareActions({ shared, names, canExport, share, heading }: Share
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
           {heading}
           <div className="flex flex-wrap items-center gap-3 max-sm:w-full">
-            {shareMenu}
             {exportButton}
+            {shareMenu}
             {copyButton}
           </div>
         </div>
@@ -117,8 +116,8 @@ export function ShareActions({ shared, names, canExport, share, heading }: Share
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-3">
-        {shareMenu}
         {exportButton}
+        {shareMenu}
         {copyButton}
         <p role="status" aria-live="polite" className="min-h-5 text-sm text-body">
           {status}
