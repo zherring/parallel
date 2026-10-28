@@ -18,6 +18,10 @@ export const STAGE = {
 /** The timeline line runs through the middle of the posters. */
 export const LINE_Y = 357;
 
+/** The middle of the two portraits, top to bottom: where the Previous and Next buttons are centred. */
+export const PERSON_MID_Y =
+  (STAGE.person[0].top + STAGE.person[1].top + STAGE.personSize.height) / 2;
+
 /** The most posters a scene shows (the same number as examples.ts's HERO_POSTER_COUNT). */
 export const POSTER_SLOTS = 5;
 
