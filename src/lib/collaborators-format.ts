@@ -13,7 +13,7 @@ export interface CollaboratorsFile {
 /**
  * [person id, collaborator ids, films shared with each]: the person's most frequent co-credited
  * people from the crawled notable films, most shared films first. A row has at least 3 and at
- * most 12 collaborators, each sharing at least 2 films with the person.
+ * most 16 collaborators, each sharing at least 2 films with the person.
  */
 export type CollaboratorRow = [id: number, collaborators: number[], counts: number[]];
 

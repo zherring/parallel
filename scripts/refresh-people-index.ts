@@ -15,7 +15,7 @@
 //
 // The collaborator graph costs no extra TMDB calls: the credits fetched for (b) already say who
 // worked on which film, so for each person in the index the run counts the notable films they
-// share with each co-credited person and keeps the best 12 (src/lib/collaborator-graph.ts).
+// share with each co-credited person and keeps the best 16, varied by role (src/lib/collaborator-graph.ts).
 //
 // Every TMDB response is cached on disk so reruns are cheap; delete the cache folder (or pass
 // --no-cache) for a fresh crawl. The folder defaults to node_modules/.cache/parallel-people-index

@@ -122,8 +122,8 @@ describe("rankCollaborators", () => {
 
 describe("pickCandidates", () => {
   it("keeps a director and a composer in a list of co-stars", () => {
-    // Person 1 shares 3 films with fourteen actors, and 2 films each with a director and a composer.
-    const costars = Array.from({ length: 14 }, (_, i) => [100 + i, "acting"] as [number, RoleGroup]);
+    // Person 1 shares 3 films with eighteen actors, and 2 films each with a director and a composer.
+    const costars = Array.from({ length: 18 }, (_, i) => [100 + i, "acting"] as [number, RoleGroup]);
     const films = [
       film([1, "acting"], ...costars, [900, "directing"], [901, "music"]),
       film([1, "acting"], ...costars, [900, "directing"], [901, "music"]),

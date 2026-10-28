@@ -18,8 +18,13 @@ import { isMinorCast, isMinorCrewRole, roleForJob } from "@/lib/roles";
 export const TOP_BILLED = 12;
 /** Two people have to share at least this many films to be collaborators. */
 export const MIN_SHARED_FILMS = 2;
-/** A row keeps this many candidates, picked for variety (see `pickSuggestions`). */
-export const GRAPH_CANDIDATES = 12;
+/**
+ * A row keeps this many candidates, picked for variety (see `pickSuggestions`). Seven role groups
+ * with two places each are 14, so 16 leaves a couple of places for the best-ranked people left
+ * over (a co-star who shares as many films as the other co-stars must not lose to a second
+ * costume designer).
+ */
+export const GRAPH_CANDIDATES = 16;
 /** A person with fewer candidates than this has no row: the live fallback does better. */
 export const MIN_GRAPH_ROW = 3;
 
