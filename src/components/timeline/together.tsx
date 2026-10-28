@@ -17,13 +17,15 @@ interface TogetherProps {
   minorExtra: number;
   /** Films together as the page shows them by default (non-minor credits), for the share text. */
   shareCount: number;
+  /** yyyy-mm-dd, the page's date (computed once on the server). */
+  today: string;
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
-export function Together({ people, shared, pairwise, minorExtra, shareCount, onSelect }: TogetherProps) {
+export function Together({ people, shared, pairwise, minorExtra, shareCount, today, onSelect }: TogetherProps) {
   const nameById = new Map(people.map((p) => [p.id, p.name]));
   const count = shared.length;
-  const table = useFilmsTable(shared);
+  const table = useFilmsTable(shared, today);
 
   return (
     <section aria-labelledby="together" className="mt-10">

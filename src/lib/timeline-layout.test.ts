@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GROUP_SLOT, pairIndex } from "@/lib/connections";
+import { GROUP_SLOT, connectionLegend, pairIndex } from "@/lib/connections";
 import { sharedFilms } from "@/lib/shared";
 import {
   CARD_GAP,
@@ -60,6 +60,8 @@ const f = (id: number, releaseDate: string, voteCount?: number) => ({
 });
 const MIN_DISTANCE = CARD_WIDTH + CARD_GAP;
 const base = { pxPerYear: 72, axisStartYear: 1990 };
+/** The date every connection test runs on: the films below came out long before it, the upcoming ones come after. */
+const TODAY = "2025-06-15";
 
 describe("yearFraction", () => {
   it("is the bare year on January 1st", () => {
@@ -574,7 +576,7 @@ describe("laneObstacles", () => {
     { films: [f(1, "2000-01-01"), f(3, "2003-01-01"), f(5, "2004-01-01")] },
     { films: [f(5, "2004-01-01"), f(3, "2003-01-01"), f(4, "2006-01-01")] },
   ];
-  const obstacles = laneObstacles(lanes, base);
+  const obstacles = laneObstacles(lanes, base, TODAY);
 
   it("lists, per lane, the lines of films shown in several lanes that run through it", () => {
     expect(obstacles[0].map((o) => o.filmId)).toEqual([1, 5]); // both start in lane 0 and go on
@@ -594,12 +596,27 @@ describe("laneObstacles", () => {
   });
 
   it("covers a lane a film skips (shown in lanes 0 and 2 only)", () => {
-    const skipped = laneObstacles([{ films: [f(1, "2000-01-01")] }, { films: [] }, { films: [f(1, "2000-01-01")] }], base);
+    const skipped = laneObstacles(
+      [{ films: [f(1, "2000-01-01")] }, { films: [] }, { films: [f(1, "2000-01-01")] }],
+      base,
+      TODAY,
+    );
     expect(skipped[1].map((o) => o.filmId)).toEqual([1]);
   });
 
   it("is empty for a single lane", () => {
-    expect(laneObstacles([{ films: [f(1, "2000-01-01")] }], base)).toEqual([[]]);
+    expect(laneObstacles([{ films: [f(1, "2000-01-01")] }], base, TODAY)).toEqual([[]]);
+  });
+
+  it("has no line for a film that is not out yet", () => {
+    const upcoming = f(9, "2029-12-19");
+    const withUpcoming = laneObstacles(
+      [{ films: [f(1, "2000-01-01"), upcoming] }, { films: [f(1, "2000-01-01"), upcoming] }],
+      base,
+      TODAY,
+    );
+    expect(withUpcoming[0].map((o) => o.filmId)).toEqual([1]);
+    expect(withUpcoming[1]).toEqual([]);
   });
 });
 
@@ -661,60 +678,109 @@ describe("lane geometry", () => {
 });
 
 describe("sharedAcrossLanes", () => {
-  const lane = (...ids: number[]) => ({ films: ids.map((id) => ({ id })) });
+  const lane = (...ids: number[]) => ({ films: ids.map((id) => ({ id, releaseDate: "2000-01-01" })) });
 
   it("is the films that two or more lanes show", () => {
-    expect(sharedAcrossLanes([lane(1, 2), lane(2, 3), lane(3, 4, 2)])).toEqual(new Set([2, 3]));
+    expect(sharedAcrossLanes([lane(1, 2), lane(2, 3), lane(3, 4, 2)], TODAY)).toEqual(new Set([2, 3]));
   });
 
   it("counts a film once per lane", () => {
-    expect(sharedAcrossLanes([lane(1, 1), lane(2)])).toEqual(new Set());
+    expect(sharedAcrossLanes([lane(1, 1), lane(2)], TODAY)).toEqual(new Set());
+  });
+
+  it("leaves out a film that is not out yet, however many lanes list it", () => {
+    const upcoming = (id: number) => ({ id, releaseDate: "2029-12-19" });
+    const lanes = [{ films: [...lane(1, 2).films, upcoming(9)] }, { films: [...lane(2, 3).films, upcoming(9)] }];
+    expect(sharedAcrossLanes(lanes, TODAY)).toEqual(new Set([2]));
+  });
+
+  it("counts a film released today and leaves out one released tomorrow", () => {
+    const dated = (releaseDate: string) => ({ films: [{ id: 5, releaseDate }] });
+    expect(sharedAcrossLanes([dated(TODAY), dated(TODAY)], TODAY)).toEqual(new Set([5]));
+    expect(sharedAcrossLanes([dated("2025-06-16"), dated("2025-06-16")], TODAY)).toEqual(new Set());
   });
 
   it("is empty for a single lane, no lanes, or lanes with nothing in common", () => {
-    expect(sharedAcrossLanes([lane(1, 2)])).toEqual(new Set());
-    expect(sharedAcrossLanes([])).toEqual(new Set());
-    expect(sharedAcrossLanes([lane(1), lane(2), lane(3)])).toEqual(new Set());
+    expect(sharedAcrossLanes([lane(1, 2)], TODAY)).toEqual(new Set());
+    expect(sharedAcrossLanes([], TODAY)).toEqual(new Set());
+    expect(sharedAcrossLanes([lane(1), lane(2), lane(3)], TODAY)).toEqual(new Set());
   });
 });
 
 describe("quietFilmIds", () => {
-  const lane = (...ids: number[]) => ({ films: ids.map((id) => ({ id })) });
+  const lane = (...ids: number[]) => ({ films: ids.map((id) => ({ id, releaseDate: "2000-01-01" })) });
 
   it("is every film of one lane only, when a film is shared", () => {
-    expect(quietFilmIds([lane(1, 2, 3), lane(3, 4)])).toEqual(new Set([1, 2, 4]));
+    expect(quietFilmIds([lane(1, 2, 3), lane(3, 4)], TODAY)).toEqual(new Set([1, 2, 4]));
   });
 
   it("is empty for a single lane, however many films it has", () => {
-    expect(quietFilmIds([lane(1, 2, 3)])).toEqual(new Set());
-    expect(quietFilmIds([])).toEqual(new Set());
+    expect(quietFilmIds([lane(1, 2, 3)], TODAY)).toEqual(new Set());
+    expect(quietFilmIds([], TODAY)).toEqual(new Set());
   });
 
   it("is empty when nothing is shared: there is nothing to stand out from", () => {
-    expect(quietFilmIds([lane(1, 2), lane(3, 4)])).toEqual(new Set());
-    expect(quietFilmIds([lane(1), lane(2), lane(3)])).toEqual(new Set());
-    expect(quietFilmIds([lane(1, 1), lane(2)])).toEqual(new Set());
+    expect(quietFilmIds([lane(1, 2), lane(3, 4)], TODAY)).toEqual(new Set());
+    expect(quietFilmIds([lane(1), lane(2), lane(3)], TODAY)).toEqual(new Set());
+    expect(quietFilmIds([lane(1, 1), lane(2)], TODAY)).toEqual(new Set());
   });
 
   it("leaves a film shared by any pair of lanes out, with 3+ lanes", () => {
     // 2 is shared by lanes 0 and 1, 3 by lanes 1 and 2; 1, 4 and 5 belong to one lane.
-    expect(quietFilmIds([lane(1, 2), lane(2, 3), lane(3, 4, 5)])).toEqual(new Set([1, 4, 5]));
+    expect(quietFilmIds([lane(1, 2), lane(2, 3), lane(3, 4, 5)], TODAY)).toEqual(new Set([1, 4, 5]));
+  });
+
+  it("leaves an upcoming film both lanes list quiet while something else is connected", () => {
+    const upcoming = { id: 9, releaseDate: "2029-12-19" };
+    const lanes = [{ films: [...lane(1, 2).films, upcoming] }, { films: [...lane(2, 3).films, upcoming] }];
+    expect(quietFilmIds(lanes, TODAY)).toEqual(new Set([1, 3, 9]));
+  });
+
+  it("is empty when the only film two lanes share is not out yet: the pair has no connection at all", () => {
+    const upcoming = { id: 9, releaseDate: "2029-12-19" };
+    const lanes = [{ films: [...lane(1, 2).films, upcoming] }, { films: [...lane(3, 4).films, upcoming] }];
+    expect(quietFilmIds(lanes, TODAY)).toEqual(new Set());
   });
 
   it("is exactly the films that have no connector line", () => {
     const lanes = [lane(1, 2, 3, 9), lane(2, 3, 4), lane(3, 5, 9), lane(6)];
-    const quiet = quietFilmIds(lanes);
+    const quiet = quietFilmIds(lanes, TODAY);
     const connected = new Set(
       buildConnectors(
         lanes.map((l, index) => ({
           box: { top: index * 100, height: 100 },
           items: l.films.map((film) => ({ film, x: film.id * 10 })),
         })),
+        TODAY,
       ).map((c) => c.filmId),
     );
     const all = new Set(lanes.flatMap((l) => l.films.map((film) => film.id)));
     expect(connected.size).toBeGreaterThan(0);
     for (const id of all) expect(quiet.has(id)).toBe(!connected.has(id));
+  });
+
+  it("is exactly the films that have no connector line, upcoming films included", () => {
+    const upcoming = { id: 9, releaseDate: "2029-12-19" };
+    const lanes = [
+      { films: [...lane(1, 2, 3).films, upcoming] },
+      { films: [...lane(2, 3, 4).films, upcoming] },
+      { films: [...lane(3, 5).films, upcoming] },
+    ];
+    const quiet = quietFilmIds(lanes, TODAY);
+    const connected = new Set(
+      buildConnectors(
+        lanes.map((l, index) => ({
+          box: { top: index * 100, height: 100 },
+          items: l.films.map((film) => ({ film, x: film.id * 10 })),
+        })),
+        TODAY,
+      ).map((c) => c.filmId),
+    );
+    expect(connected).toEqual(new Set([2, 3]));
+    expect(quiet.has(9)).toBe(true);
+    for (const id of new Set(lanes.flatMap((l) => l.films.map((film) => film.id)))) {
+      expect(quiet.has(id)).toBe(!connected.has(id));
+    }
   });
 });
 
@@ -893,12 +959,12 @@ describe("buildConnectors", () => {
   /** A lane's films, each a node on its line. */
   const makeLane = (box: { top: number; height: number }, items: { id: number; x: number }[]) => ({
     box,
-    items: items.map(({ id, x }) => ({ film: { id }, x })),
+    items: items.map(({ id, x }) => ({ film: { id, releaseDate: "2000-01-01" }, x })),
   });
 
   it("runs one continuous line from the first lane's node to the last lane's node", () => {
     const boxes = stackLanes([1, 1]);
-    const connectors = buildConnectors(boxes.map((box) => makeLane(box, [{ id: 1, x: 300 }])));
+    const connectors = buildConnectors(boxes.map((box) => makeLane(box, [{ id: 1, x: 300 }])), TODAY);
     expect(connectors).toEqual([
       {
         filmId: 1,
@@ -917,7 +983,7 @@ describe("buildConnectors", () => {
   it("ends on the node of the last lane, wherever the lane heights put it", () => {
     for (const rows of [[1, 1], [2, 1], [2, 2], [1, 3]]) {
       const boxes = stackLanes(rows);
-      const [c] = buildConnectors(boxes.map((box) => makeLane(box, [{ id: 1, x: 5 }])));
+      const [c] = buildConnectors(boxes.map((box) => makeLane(box, [{ id: 1, x: 5 }])), TODAY);
       expect(c.y1).toBe(LINE_Y);
       expect(c.y2).toBe(laneHeight(rows[0]) + LINE_Y);
     }
@@ -925,7 +991,7 @@ describe("buildConnectors", () => {
 
   it("continues through the lanes between with 3 lanes", () => {
     const boxes = stackLanes([1, 2, 1]);
-    const [c] = buildConnectors(boxes.map((box) => makeLane(box, [{ id: 1, x: 80 }])));
+    const [c] = buildConnectors(boxes.map((box) => makeLane(box, [{ id: 1, x: 80 }])), TODAY);
     expect(c).toMatchObject({ fromLane: 0, toLane: 2, lanes: [0, 1, 2], kind: "all", slot: null });
     expect(c.y1).toBe(LINE_Y);
     expect(c.y2).toBe(boxes[2].top + LINE_Y);
@@ -937,7 +1003,7 @@ describe("buildConnectors", () => {
       packFilms(laneFilms, { ...base, axisStartYear: 2000, maxRows: DEFAULT_MAX_ROWS, priorityIds: new Set([1]) }),
     );
     const boxes = stackLanes(lanes.map(rowCount));
-    const [c] = buildConnectors(lanes.map((items, i) => ({ box: boxes[i], items })));
+    const [c] = buildConnectors(lanes.map((items, i) => ({ box: boxes[i], items })), TODAY);
     const poster = (lane: number) => boxes[lane].top + cardTopInLane(lanes[lane].find((p) => p.film.id === 1)!.row);
 
     expect(c.filmId).toBe(1);
@@ -959,7 +1025,7 @@ describe("buildConnectors", () => {
       makeLane(boxes[2], [{ id: 1, x: 40 }, { id: 8, x: 200 }]),
     ];
     // Film 1 is in lanes 0 and 2, film 7 in lanes 0 and 1, film 8 in lanes 1 and 2; none is in all three.
-    const byFilm = new Map(buildConnectors(lanes).map((c) => [c.filmId, c]));
+    const byFilm = new Map(buildConnectors(lanes, TODAY).map((c) => [c.filmId, c]));
 
     expect(byFilm.get(1)).toMatchObject({ kind: "some", fromLane: 0, toLane: 2, lanes: [0, 2], slot: pairIndex(0, 2) });
     expect(byFilm.get(7)).toMatchObject({ kind: "some", fromLane: 0, toLane: 1, slot: pairIndex(0, 1) });
@@ -974,7 +1040,7 @@ describe("buildConnectors", () => {
     const lanes = boxes.map((box, i) =>
       makeLane(box, [{ id: 1, x: 10 }, ...(i >= 2 ? [{ id: 2, x: 50 }] : []), ...(i >= 1 ? [{ id: 3, x: 90 }] : [])]),
     );
-    const connectors = buildConnectors(lanes);
+    const connectors = buildConnectors(lanes, TODAY);
     expect(connectors.find((c) => c.filmId === 1)).toMatchObject({ kind: "all", slot: null });
     expect(connectors.find((c) => c.filmId === 2)).toMatchObject({ kind: "some", lanes: [2, 3], slot: pairIndex(2, 3) });
     // Three of the four lanes share the group slot.
@@ -992,10 +1058,10 @@ describe("buildConnectors", () => {
       { box: boxes[0], items: upper },
       { box: boxes[1], items: lower },
     ];
-    expect(filmMembership(lanes).get(7)).toEqual([0, 1]);
+    expect(filmMembership(lanes, TODAY).get(7)).toEqual([0, 1]);
     // 2 is in both lanes too, even though it is only a node in the first one (no card: over the cap).
     expect(upper.find((p) => p.film.id === 2)).toMatchObject({ overflow: true });
-    expect(filmMembership(lanes).get(2)).toEqual([0, 1]);
+    expect(filmMembership(lanes, TODAY).get(2)).toEqual([0, 1]);
   });
 
   it("connects shared films in a capped layout, even in a row beyond the cap", () => {
@@ -1008,7 +1074,7 @@ describe("buildConnectors", () => {
       { box: boxes[1], items: lower },
     ];
 
-    const connectors = buildConnectors(lanes);
+    const connectors = buildConnectors(lanes, TODAY);
     expect(connectors).toHaveLength(1);
     expect(connectors[0]).toMatchObject({ filmId: 7, kind: "all", x: upper.find((p) => p.film.id === 7)!.x });
     expect(connectors[0].y2).toBe(boxes[1].top + LINE_Y);
@@ -1018,9 +1084,9 @@ describe("buildConnectors", () => {
 
   it("ignores films that appear in one lane only", () => {
     const lanes = [makeLane({ top: 0, height: 200 }, [{ id: 1, x: 10 }]), makeLane({ top: 200, height: 200 }, [{ id: 2, x: 10 }])];
-    expect(buildConnectors(lanes)).toEqual([]);
-    expect(buildConnectors([makeLane({ top: 0, height: 200 }, [{ id: 1, x: 10 }])])).toEqual([]);
-    expect(buildConnectors([])).toEqual([]);
+    expect(buildConnectors(lanes, TODAY)).toEqual([]);
+    expect(buildConnectors([makeLane({ top: 0, height: 200 }, [{ id: 1, x: 10 }])], TODAY)).toEqual([]);
+    expect(buildConnectors([], TODAY)).toEqual([]);
   });
 
   it("agrees with sharedFilms about which films are shared by every lane", () => {
@@ -1045,12 +1111,12 @@ describe("buildConnectors", () => {
       person(3, [film(20, "1999-01-01"), film(40, "2010-01-01")]),
     ];
     const boxes = stackLanes([1, 1, 1]);
-    const priorityIds = sharedAcrossLanes(timelines);
+    const priorityIds = sharedAcrossLanes(timelines, TODAY);
     const lanes = timelines.map((t, i) => ({ box: boxes[i], items: packFilms(t.films, { ...base, priorityIds }) }));
 
-    const all = new Set(buildConnectors(lanes).filter((c) => c.kind === "all").map((c) => c.filmId));
-    expect(all).toEqual(new Set(sharedFilms(timelines, { includeMinor: false }).map((s) => s.id)));
-    expect(filmMembership(lanes).get(30)).toEqual([0, 1]);
+    const all = new Set(buildConnectors(lanes, TODAY).filter((c) => c.kind === "all").map((c) => c.filmId));
+    expect(all).toEqual(new Set(sharedFilms(timelines, { includeMinor: false, today: TODAY }).map((s) => s.id)));
+    expect(filmMembership(lanes, TODAY).get(30)).toEqual([0, 1]);
     expect(priorityIds).toEqual(new Set([20, 30, 40]));
   });
 
@@ -1059,8 +1125,8 @@ describe("buildConnectors", () => {
       makeLane({ top: 0, height: 200 }, [{ id: 1, x: 5 }, { id: 2, x: 9 }]),
       makeLane({ top: 300, height: 200 }, [{ id: 2, x: 9 }, { id: 1, x: 5 }]),
     ];
-    expect(buildConnectors(lanes)).toEqual(buildConnectors(lanes));
-    expect(buildConnectors(lanes).map((c) => c.filmId)).toEqual([1, 2]);
+    expect(buildConnectors(lanes, TODAY)).toEqual(buildConnectors(lanes, TODAY));
+    expect(buildConnectors(lanes, TODAY).map((c) => c.filmId)).toEqual([1, 2]);
   });
 
   it("puts a film's node and poster at the same x in every lane, so the line stands exactly vertical", () => {
@@ -1172,5 +1238,114 @@ describe("initialAnchorX", () => {
   it("ignores empty lanes in the fallback and returns null when all are empty", () => {
     expect(initialAnchorX([[item(1, 100)], []], new Set())).toBe(100);
     expect(initialAnchorX([[], []], new Set())).toBeNull();
+  });
+});
+
+describe("films that are not out yet", () => {
+  const released = (id: number, releaseDate: string, voteCount = 1) => ({ id, releaseDate, voteCount });
+  const UPCOMING = "2029-12-19";
+
+  /** What the timeline does with its lanes, in order: priority and quiet films, obstacles, packing, then membership and connectors. */
+  function layOut(laneFilms: ReturnType<typeof released>[][], today: string = TODAY) {
+    const lanes = laneFilms.map((films) => ({ films }));
+    const options = { ...base, axisStartYear: 1995 };
+    const priorityIds = sharedAcrossLanes(lanes, today);
+    const quietIds = quietFilmIds(lanes, today);
+    const obstacles = laneObstacles(lanes, options, today);
+    const packed = lanes.map((lane, i) =>
+      packFilms(lane.films, { ...options, priorityIds, quietIds, obstacles: obstacles[i], maxRows: DEFAULT_MAX_ROWS }),
+    );
+    const boxes = stackLanes(packed.map(rowCount));
+    const connectorLanes = packed.map((items, i) => ({ box: boxes[i], items }));
+    return {
+      priorityIds,
+      quietIds,
+      packed,
+      membership: filmMembership(connectorLanes, today),
+      connectors: buildConnectors(connectorLanes, today),
+    };
+  }
+
+  it("shows a shared upcoming film as an ordinary poster in each lane, with no connector, while another film is connected", () => {
+    const layout = layOut([
+      [released(1, "2001-05-01"), released(2, "2004-05-01"), released(9, UPCOMING)],
+      [released(1, "2001-05-01"), released(3, "2008-05-01"), released(9, UPCOMING)],
+    ]);
+
+    // The released shared film is connected, in both lanes; nothing else is.
+    expect(layout.connectors.map((c) => c.filmId)).toEqual([1]);
+    expect(layout.membership.get(1)).toEqual([0, 1]);
+    expect(layout.priorityIds).toEqual(new Set([1]));
+
+    // The upcoming one is in neither: no membership, no priority, and quiet like any film nothing connects.
+    expect(layout.membership.has(9)).toBe(false);
+    expect(layout.priorityIds.has(9)).toBe(false);
+    expect(layout.quietIds).toEqual(new Set([2, 3, 9]));
+
+    // It still has a poster card (not overflow) in each lane, at its own date.
+    for (const lane of layout.packed) {
+      const poster = lane.find((p) => p.film.id === 9)!;
+      expect(poster.overflow).toBe(false);
+      expect(poster.x).toBe(xForDate(makeScale({ startYear: 1995, endYear: 2031 }, 72), UPCOMING));
+    }
+  });
+
+  it("makes a pair whose only shared film is upcoming behave like a pair with no connection: nothing quiet, no connector", () => {
+    const layout = layOut([
+      [released(1, "2001-05-01"), released(9, UPCOMING)],
+      [released(3, "2008-05-01"), released(9, UPCOMING)],
+    ]);
+    expect(layout.connectors).toEqual([]);
+    // Only the released films are members (of one lane each); 9 is not a member of any.
+    expect([...layout.membership.keys()].sort()).toEqual([1, 3]);
+    expect([...layout.membership.values()].every((lanes) => lanes.length === 1)).toBe(true);
+    expect(layout.priorityIds).toEqual(new Set());
+    expect(layout.quietIds).toEqual(new Set());
+  });
+
+  it("connects the same film once the date has passed it", () => {
+    const films = [
+      [released(1, "2001-05-01"), released(9, UPCOMING)],
+      [released(3, "2008-05-01"), released(9, UPCOMING)],
+    ];
+    expect(layOut(films, "2029-12-18").connectors).toEqual([]);
+    const onTheDay = layOut(films, UPCOMING);
+    expect(onTheDay.connectors.map((c) => c.filmId)).toEqual([9]);
+    expect(onTheDay.quietIds).toEqual(new Set([1, 3]));
+  });
+
+  it("does not count an upcoming film in the legend of a 3-person page", () => {
+    const layout = layOut([
+      [released(1, "2001-05-01"), released(9, UPCOMING)],
+      [released(1, "2001-05-01"), released(9, UPCOMING)],
+      [released(1, "2001-05-01"), released(9, UPCOMING), released(7, "2010-01-01")],
+    ]);
+    expect(layout.connectors.map((c) => [c.filmId, c.kind])).toEqual([[1, "all"]]);
+    expect(connectionLegend(layout.connectors, 3)).toEqual([{ key: "all", slot: null, lanes: null, count: 1 }]);
+    expect(layout.membership.has(9)).toBe(false);
+  });
+
+  it("agrees with sharedFilms: a film is connected in every lane exactly when it is a shared film", () => {
+    const credit: Credit = { role: "actor", job: "Actor", minor: false };
+    const film = (id: number, releaseDate: string): Film => ({
+      id,
+      title: `Film ${id}`,
+      releaseDate,
+      year: Number(releaseDate.slice(0, 4)),
+      posterPath: null,
+      voteCount: 0,
+      credits: [credit],
+      minor: false,
+    });
+    const person = (id: number, films: Film[]): PersonTimeline => ({
+      person: { id, name: `P${id}`, profilePath: null, knownFor: null, birthday: null, deathday: null, biography: null },
+      films,
+    });
+    const a = person(1, [film(10, "2001-01-01"), film(99, UPCOMING)]);
+    const b = person(2, [film(10, "2001-01-01"), film(99, UPCOMING)]);
+    const shared = sharedFilms([a, b], { includeMinor: false, today: TODAY });
+    const layout = layOut([a, b].map((t) => t.films.map((x) => released(x.id, x.releaseDate))));
+    expect(shared.map((x) => x.id)).toEqual([10]);
+    expect(layout.connectors.filter((c) => c.kind === "all").map((c) => c.filmId)).toEqual(shared.map((x) => x.id));
   });
 });

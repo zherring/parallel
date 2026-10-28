@@ -19,6 +19,7 @@ import { filmCardContent } from "@/lib/film-credits";
 import { joinNames } from "@/lib/format";
 import { laneFacts, peopleHref, removePersonHref, yearSpan, type PersonRef } from "@/lib/lanes";
 import { laneScrollTop, mostVisibleLane } from "@/lib/lane-dock";
+import { isReleased } from "@/lib/released";
 import { MINOR_TOGGLE_LABEL, roleSummary } from "@/lib/roles";
 import { nodeOnlyIds, rovingIndex, tabStopId } from "@/lib/roving";
 import { shortName } from "@/lib/short-name";
@@ -82,11 +83,15 @@ interface TimelineProps {
   lanes: LaneData[];
   /** Everyone on the page, in URL order; used for the remove links. */
   people: PersonRef[];
-  /** Ids of films shared by every lane (with the current minor setting). */
+  /** Ids of released films shared by every lane (with the current minor setting). */
   litIds: ReadonlySet<number>;
   includeMinor: boolean;
   onIncludeMinorChange: (next: boolean) => void;
-  /** yyyy-mm-dd; anything later is upcoming. */
+  /**
+   * yyyy-mm-dd (UTC), the one date the page computed on the server: a film released after it is
+   * upcoming (see `isReleased`) and never connects. It is a prop, never read from the clock here,
+   * because it changes the layout and the server and the browser must draw the same one.
+   */
   today: string;
   selectedId: number | null;
   onSelect: (id: number, trigger: HTMLElement) => void;
@@ -183,12 +188,13 @@ export function Timeline({
 
     // A film shown in two or more lanes gets its own poster in each of them, placed first (ahead
     // of the row cap) so it keeps a card, on the lowest row it can have, in every lane that has it.
-    const priorityIds = sharedAcrossLanes(lanes);
+    // Only released films connect: an announced film both lanes list is an ordinary upcoming poster in each.
+    const priorityIds = sharedAcrossLanes(lanes, today);
     // While something is connected, the films that are not get a smaller card (and so pack tighter).
-    const quietIds = quietFilmIds(lanes);
+    const quietIds = quietFilmIds(lanes, today);
 
     // Connector lines run through the poster rows of the lanes above their last node.
-    const obstacles = laneObstacles(lanes, base);
+    const obstacles = laneObstacles(lanes, base, today);
     const optionsFor = (index: number) => ({ ...base, priorityIds, quietIds, obstacles: obstacles[index] });
     const capped = lanes.map((lane, index) => packFilms(lane.films, { ...optionsFor(index), maxRows: DEFAULT_MAX_ROWS }));
     const overflow = capped.map(overflowCount);
@@ -198,8 +204,8 @@ export function Timeline({
 
     const stack = stackLanes(items.map(rowCount));
     const connectorLanes = items.map((laneItems, index) => ({ box: stack[index], items: laneItems }));
-    const connectors = buildConnectors(connectorLanes);
-    const membership = filmMembership(connectorLanes);
+    const connectors = buildConnectors(connectorLanes, today);
+    const membership = filmMembership(connectorLanes, today);
 
     // The kind of connection, the colour and the screen-reader note of each film shown in more than one lane.
     const names = lanes.map((lane) => shortName(lane.person.name, lane.person.id));
@@ -538,7 +544,7 @@ export function Timeline({
         accent={layout.accents.get(film.id) ?? null}
         note={layout.notes.get(film.id) ?? ""}
         laneIndex={laneIndex}
-        upcoming={film.releaseDate > today}
+        upcoming={!isReleased(film.releaseDate, today)}
         emphasized={hoveredId === film.id}
         dimmed={tone !== "plain" && activeKey !== null && layout.keys.get(film.id) !== activeKey}
         selected={selectedId === film.id}
@@ -880,6 +886,7 @@ export function Timeline({
           target={popoverTarget}
           content={popoverContent}
           lit={toneFor(popoverTarget.filmId) === "lit"}
+          today={today}
           bottomEdge={barTop}
           onDismiss={hidePopover}
         />

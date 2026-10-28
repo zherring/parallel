@@ -4,6 +4,7 @@ import { buildOgCard, fanWidth, peopleLayout, posterSlots, type OgCard, type OgP
 import { fetchImageDataUri } from "@/lib/og-image";
 import { OG, OG_SIZE, ogFonts, ogGlow, ogWordmark } from "@/lib/og-theme";
 import { loadPeople } from "@/lib/people";
+import { todayIso } from "@/lib/released";
 
 export const alt = "Film collaborations on Parallel";
 export const size = OG_SIZE;
@@ -126,7 +127,7 @@ export default async function Image({ params }: { params: Promise<{ people: stri
   const { people } = await params;
   // Bad slugs and unknown people end in notFound(), so they answer 404 rather than 500.
   const { timelines } = await loadPeople(people);
-  const card = buildOgCard(timelines, new Date().toISOString().slice(0, 10));
+  const card = buildOgCard(timelines, todayIso());
 
   // Every image is fetched up front: the renderer throws on one it cannot load, and a missing
   // portrait or poster should only mean initials or a smaller fan.

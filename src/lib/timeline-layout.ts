@@ -7,6 +7,11 @@
  * packed first so it keeps a card (and the lowest row it can have) in every lane that has
  * it; one connector line joins its nodes, from the first lane's node down to the last's.
  *
+ * Only released films connect (see `isReleased`). An announced film that two lanes both list is
+ * an ordinary "upcoming" poster in each: no connector, no membership, no priority, never lit. The
+ * helpers that decide this take `today` (`yyyy-mm-dd`) as a parameter and never read the clock,
+ * so a page that passes the date it computed on the server gets the same layout in the browser.
+ *
  * Nothing here touches the DOM. Every pixel the UI draws (node and card positions, lane
  * heights, connector endpoints) is derived from these functions, so a film shared by
  * two lanes lands at the identical x in both and the SVG overlay lines up without
@@ -15,6 +20,7 @@
  */
 
 import { connectionSlot } from "@/lib/connections";
+import { isReleased } from "@/lib/released";
 
 // ---- Dimensions (px) -------------------------------------------------------
 
@@ -318,12 +324,22 @@ export function nodeHitWidths(items: readonly { film: { id: number }; x: number 
   return widths;
 }
 
-/** Ids of the films that more than one lane shows (what each of those lanes gives a card first). */
-export function sharedAcrossLanes(lanes: readonly { films: readonly { id: number }[] }[]): Set<number> {
+/** A film of a lane, as far as the connection rules go: which film it is and when it comes out. */
+export interface ConnectableFilm {
+  id: number;
+  releaseDate: string;
+}
+
+/**
+ * Ids of the released films that more than one lane shows (what each of those lanes gives a card
+ * first). A film that is not out on `today` is never in it, however many lanes list it.
+ */
+export function sharedAcrossLanes(lanes: readonly { films: readonly ConnectableFilm[] }[], today: string): Set<number> {
   const seen = new Set<number>();
   const shared = new Set<number>();
   for (const lane of lanes) {
-    for (const id of new Set(lane.films.map((film) => film.id))) {
+    const released = lane.films.filter((film) => isReleased(film.releaseDate, today));
+    for (const id of new Set(released.map((film) => film.id))) {
       if (seen.has(id)) shared.add(id);
       else seen.add(id);
     }
@@ -336,12 +352,14 @@ export function sharedAcrossLanes(lanes: readonly { films: readonly { id: number
  * out. That is every film that only one lane shows, but only when two or more lanes are on screen
  * and at least one film is shared (by any pair of lanes, with 3+ of them); otherwise there is
  * nothing to stand out from and every card keeps its full size. It is exactly the set of films
- * `buildConnectors` draws no line for.
+ * `buildConnectors` draws no line for, which includes every film that is not out yet: an announced
+ * film is quiet like any other unconnected one while something else is connected, and it does not
+ * count as a connection, so a pair whose only shared film is unreleased has nothing quiet at all.
  */
-export function quietFilmIds(lanes: readonly { films: readonly { id: number }[] }[]): Set<number> {
+export function quietFilmIds(lanes: readonly { films: readonly ConnectableFilm[] }[], today: string): Set<number> {
   const quiet = new Set<number>();
   if (lanes.length < 2) return quiet;
-  const shared = sharedAcrossLanes(lanes);
+  const shared = sharedAcrossLanes(lanes, today);
   if (shared.size === 0) return quiet;
   for (const lane of lanes) {
     for (const film of lane.films) if (!shared.has(film.id)) quiet.add(film.id);
@@ -350,18 +368,20 @@ export function quietFilmIds(lanes: readonly { films: readonly { id: number }[] 
 }
 
 /**
- * For each lane, the connector lines that run through its poster rows: those of films shown
- * in two or more lanes, from the first lane that shows them down to, but not including, the
+ * For each lane, the connector lines that run through its poster rows: those of released films
+ * shown in two or more lanes, from the first lane that shows them down to, but not including, the
  * last. A line goes from node to node, so the last lane's rows are never crossed.
  */
 export function laneObstacles(
   lanes: readonly { films: readonly PackableFilm[] }[],
   options: Pick<PackOptions, "pxPerYear" | "axisStartYear" | "pad">,
+  today: string,
 ): Obstacle[][] {
   const scale = { pxPerYear: options.pxPerYear, axisStartYear: options.axisStartYear, pad: options.pad ?? TRACK_PAD };
   const shownIn = new Map<number, { first: number; last: number; x: number }>();
   lanes.forEach((lane, index) => {
     for (const film of lane.films) {
+      if (!isReleased(film.releaseDate, today)) continue;
       const seen = shownIn.get(film.id);
       if (seen) seen.last = index;
       else shownIn.set(film.id, { first: index, last: index, x: xForDate(scale, film.releaseDate) });
@@ -412,7 +432,7 @@ export function totalHeight(boxes: LaneBox[]): number {
 export interface ConnectorLane {
   box: LaneBox;
   /** The lane's films, each a node on the lane's line. */
-  items: readonly { film: { id: number }; x: number }[];
+  items: readonly { film: ConnectableFilm; x: number }[];
 }
 
 export interface Connector {
@@ -432,11 +452,19 @@ export interface Connector {
   slot: number | null;
 }
 
-/** For each film id, the indexes (ascending) of the lanes that show it (every film is a node on its lane's line). */
-export function filmMembership(lanes: readonly { items: readonly { film: { id: number } }[] }[]): Map<number, number[]> {
+/**
+ * For each released film id, the indexes (ascending) of the lanes that show it (every film is a
+ * node on its lane's line). Films that are not out on `today` are left out: they belong to no
+ * connection, so they have no entry here.
+ */
+export function filmMembership(
+  lanes: readonly { items: readonly { film: ConnectableFilm }[] }[],
+  today: string,
+): Map<number, number[]> {
   const membership = new Map<number, number[]>();
   lanes.forEach((lane, index) => {
     for (const { film } of lane.items) {
+      if (!isReleased(film.releaseDate, today)) continue;
       const list = membership.get(film.id);
       if (list) {
         if (list[list.length - 1] !== index) list.push(index);
@@ -447,19 +475,20 @@ export function filmMembership(lanes: readonly { items: readonly { film: { id: n
 }
 
 /**
- * One continuous vertical line per film shown in two or more lanes, from its node in the
+ * One continuous vertical line per released film shown in two or more lanes, from its node in the
  * first of those lanes to its node in the last (so it passes through the nodes of the lanes
- * between). Coordinates are relative to the top of the first lane.
+ * between). Coordinates are relative to the top of the first lane. A film that is not out on
+ * `today` gets no line.
  *
  * Each lane's own poster of the film hangs below its node, in the line's way; the posters of
  * shared films are drawn over the lines, so the line passes behind its own poster (and behind
  * the poster of any other shared film) and shows again below its caption. It is drawn over
  * the posters of films that are not shared.
  */
-export function buildConnectors(lanes: readonly ConnectorLane[]): Connector[] {
+export function buildConnectors(lanes: readonly ConnectorLane[], today: string): Connector[] {
   const connectors: Connector[] = [];
 
-  for (const [filmId, laneIndexes] of filmMembership(lanes)) {
+  for (const [filmId, laneIndexes] of filmMembership(lanes, today)) {
     if (laneIndexes.length < 2) continue;
     const fromLane = laneIndexes[0];
     const toLane = laneIndexes[laneIndexes.length - 1];

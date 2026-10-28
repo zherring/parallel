@@ -111,6 +111,8 @@ interface FilmPopoverProps {
   content: FilmCardContent;
   /** Shared by every lane: the poster gets the green outline and glow of a lit film. */
   lit: boolean;
+  /** yyyy-mm-dd, the page's date: a film released after it shows no box office. */
+  today: string;
   /**
    * y in the viewport below which the card should not go (the top of the pinned control bar,
    * which would otherwise cover its lower part); the viewport's bottom edge when omitted.
@@ -143,7 +145,7 @@ function RoleText({ row }: { row: CreditsRow }) {
  * cannot cover the nodes around its trigger, and it never takes focus. The poster is only
  * fetched while the card is open.
  */
-export function FilmPopover({ id, target, content, lit, bottomEdge, onDismiss }: FilmPopoverProps) {
+export function FilmPopover({ id, target, content, lit, today, bottomEdge, onDismiss }: FilmPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
   const side = useRef<{ trigger: HTMLElement; placement: Placement["placement"] } | null>(null);
@@ -231,7 +233,7 @@ export function FilmPopover({ id, target, content, lit, bottomEdge, onDismiss }:
           </ul>
         )}
         <div className="pt-1 empty:hidden">
-          <FilmMetricsRows state={metrics} />
+          <FilmMetricsRows state={metrics} today={today} />
         </div>
       </div>
     </div>,

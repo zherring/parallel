@@ -132,7 +132,7 @@ const FilmRow = memo(function FilmRow({ film, people, state, today, onSelect }: 
 });
 
 /** The small-screen layout of one film: a card with poster, title, credits and the metric lines. */
-const FilmCard = memo(function FilmCard({ film, people, state, onSelect }: Omit<RowProps, "today">) {
+const FilmCard = memo(function FilmCard({ film, people, state, today, onSelect }: RowProps) {
   const openDetails = (event: React.MouseEvent<HTMLButtonElement>) => onSelect(film.id, event.currentTarget);
 
   return (
@@ -158,7 +158,7 @@ const FilmCard = memo(function FilmCard({ film, people, state, onSelect }: Omit<
           <Credits film={film} people={people} />
         </div>
         <div className="mt-2 empty:hidden">
-          <FilmMetricsRows state={state} />
+          <FilmMetricsRows state={state} today={today} />
         </div>
         <button type="button" className={`${detailsButtonClass} mt-1.5 cursor-pointer`} onClick={openDetails}>
           View details
@@ -322,6 +322,7 @@ export function FilmsTable({ people, table, onSelect }: FilmsTableProps) {
               film={film}
               people={people}
               state={metrics.stateFor(film.id)}
+              today={today}
               onSelect={onSelect}
             />
           ))}
