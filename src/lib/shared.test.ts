@@ -174,6 +174,8 @@ describe("films that are not out yet", () => {
 
   it("feeds the export: the CSV has no row for an announced film", () => {
     const csv = filmsToCsv(sharedFilms([one, two], { includeMinor: false, today: TODAY }));
-    expect(csv.trim().split("\r\n")).toEqual(["tmdbID,Title,Year", "1,Film 1,2001", "2,Film 2,2026", "3,Film 3,2026"]);
+    const [header, ...rows] = csv.trim().split("\r\n");
+    expect(header.startsWith("Title,Year,")).toBe(true);
+    expect(rows.map((row) => row.split(",").slice(0, 2).join(","))).toEqual(["Film 1,2001", "Film 2,2026", "Film 3,2026"]);
   });
 });

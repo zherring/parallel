@@ -403,22 +403,24 @@ describe("export order", () => {
     };
     const order = sortFilms(FILMS, desc("box-office"), toMap(data), TODAY);
 
-    expect(filmsToCsv(order)).toBe(
-      "tmdbID,Title,Year\r\n" +
-        "3,Return of the Jedi,1983\r\n" +
-        "2,The Empire Strikes Back,1980\r\n" +
-        "1,Star Wars,1977\r\n" +
-        "4,Indiana Jones and the Last Crusade,1989\r\n",
-    );
+    const rows = filmsToCsv(order).trim().split("\r\n").slice(1);
+    expect(rows.map((row) => row.split(",").slice(0, 2).join(","))).toEqual([
+      "Return of the Jedi,1983",
+      "The Empire Strikes Back,1980",
+      "Star Wars,1977",
+      "Indiana Jones and the Last Crusade,1989",
+    ]);
   });
 
   it("follows the order of the table when it is newest first, with the same file name", () => {
     const newest = sortFilms(FILMS, desc("year"), new Map(), TODAY);
 
-    expect(filmsToCsv(newest).split("\r\n").slice(1, 3)).toEqual([
-      "4,Indiana Jones and the Last Crusade,1989",
-      "3,Return of the Jedi,1983",
-    ]);
+    expect(
+      filmsToCsv(newest)
+        .split("\r\n")
+        .slice(1, 3)
+        .map((row) => row.split(",").slice(0, 2).join(",")),
+    ).toEqual(["Indiana Jones and the Last Crusade,1989", "Return of the Jedi,1983"]);
     expect(csvFilename(["Harrison Ford", "George Lucas"])).toBe("harrison-ford-george-lucas-shared-films.csv");
   });
 });

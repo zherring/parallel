@@ -1,6 +1,8 @@
 # Parallel
 
-Search any actor, director, writer, cinematographer (or anyone else in film) and get a horizontal timeline of their films, poster by poster, year by year. Add more people as parallel lanes: the films they share line up vertically and light up. Export the shared list to Letterboxd as a CSV.
+Search any actor, director, writer, cinematographer (or anyone else in film) and get a horizontal timeline of their films, poster by poster, year by year. Add more people as parallel lanes: the films they share line up vertically and light up. 
+
+Export the film list to CSV: title, year, release date, credits, TMDB rating, box office, budget, gross multiple and awards, in the order the table is sorted.
 
 Free and open source. Film data comes from [TMDB](https://www.themoviedb.org/).
 

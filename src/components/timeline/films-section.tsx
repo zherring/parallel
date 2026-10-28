@@ -51,6 +51,7 @@ export function FilmsSection({
       <ShareActions
         // The export follows the table: the films in the order they are sorted in right now.
         films={table.rows}
+        today={today}
         names={names}
         share={share}
         heading={
