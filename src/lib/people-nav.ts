@@ -1,3 +1,4 @@
+import { carryView } from "@/lib/films-view";
 import { buildPeopleSlug, parsePeopleSlug } from "@/lib/slug";
 
 /** Matches the cap enforced by parsePeopleSlug: a timeline holds at most this many people. */
@@ -43,13 +44,20 @@ export function extendedPeople(
   return [...dedupePeople(inView), picked];
 }
 
-/** `/p/<slug>` for the timeline with `picked` appended, or null when adding is a no-op. */
+/**
+ * `/p/<slug>` for the timeline with `picked` appended, or null when adding is a no-op. Pass the
+ * query of the page the visitor is on (`window.location.search`, read when they act) as
+ * `currentSearch` to keep them on the tab (Timeline or Table) they were looking at: see `carryView`.
+ */
 export function extendedPeopleHref(
   inView: readonly PersonRef[],
   picked: PersonRef,
+  currentSearch?: string,
 ): string | null {
   const people = extendedPeople(inView, picked);
-  return people ? `/p/${buildPeopleSlug(people)}` : null;
+  if (!people) return null;
+  const href = `/p/${buildPeopleSlug(people)}`;
+  return currentSearch === undefined ? href : carryView(href, currentSearch);
 }
 
 /**

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { sharedRows } from "@/lib/film-rows";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import type { PairShared } from "@/lib/shared";
@@ -21,6 +21,10 @@ interface TogetherProps {
   shareCount: number;
   /** yyyy-mm-dd, the page's date (computed once on the server). */
   today: string;
+  /** The Timeline tab of the section. */
+  timeline: ReactNode;
+  includeMinor: boolean;
+  onIncludeMinorChange: (next: boolean) => void;
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
@@ -34,6 +38,9 @@ export function Together({
   upcomingExtra,
   shareCount,
   today,
+  timeline,
+  includeMinor,
+  onIncludeMinorChange,
   onSelect,
 }: TogetherProps) {
   const rows = useMemo(() => sharedRows(shared, people), [shared, people]);
@@ -44,12 +51,16 @@ export function Together({
   return (
     <FilmsSection
       headingId="together"
-      title={count === 0 ? "No films together" : `${count} ${count === 1 ? "film" : "films"} together`}
+      count={count}
+      together
       rows={rows}
       names={names}
       caption={`Films ${joinNames(names)} made together`}
       share={{ people, count: shareCount }}
       today={today}
+      timeline={timeline}
+      includeMinor={includeMinor}
+      onIncludeMinorChange={onIncludeMinorChange}
       empty={
         <>
           No films together found on TMDB. Try adding a collaborator in a nearby role, such as the cinematographer,

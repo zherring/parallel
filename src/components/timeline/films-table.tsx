@@ -282,13 +282,14 @@ function SortControls({ table }: { table: FilmsTableModel }) {
  * A list of films as a sortable table (a card list under 640px, with a select in place of the
  * header buttons): the films some people made together, or one person's films. The server renders
  * every film with its poster, title, year and credits; the three metric columns fill in on the
- * client once the table nears the screen.
+ * client once the table nears the screen (a table in a hidden tab is never near it, so it starts
+ * loading when the tab is shown). The note about where the numbers come from is in `FilmsSection`.
  */
 export function FilmsTable({ caption, table, onSelect }: FilmsTableProps) {
   const { rows, sort, sortBy, metrics, metricsUnavailable, today, announcement, anchorRef } = table;
 
   return (
-    <div ref={anchorRef} className="mt-4">
+    <div ref={anchorRef}>
       <p role="status" aria-live="polite" className="sr-only">
         {announcement}
       </p>
@@ -341,11 +342,6 @@ export function FilmsTable({ caption, table, onSelect }: FilmsTableProps) {
           ))}
         </ol>
       </div>
-
-      <p className="mt-3 text-xs text-muted">
-        Rating and box office from TMDB: the audience score, and the worldwide gross with how many times it covered the
-        budget. Awards are Oscars and major festival prizes.
-      </p>
     </div>
   );
 }

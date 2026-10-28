@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { csvFilename, filmsToCsv } from "@/lib/csv";
 import type { TableRow } from "@/lib/film-rows";
 import { loadFilmMetricsBatch } from "@/lib/film-metrics-store";
@@ -17,19 +17,18 @@ interface ShareActionsProps {
   names: string[];
   /** What the Share menu posts about: the people and their film count as the page shows it by default. */
   share: ShareInput;
-  /** The section heading: it shares a row with the buttons (heading left, buttons right). */
-  heading: ReactNode;
 }
 
-// Share (the white primary button) lives in share-menu.tsx; Export is the secondary one.
+// Share (the green primary button) lives in share-menu.tsx; Export is the secondary one.
 const secondaryClass =
   "inline-flex items-center justify-center rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-strong hover:border-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border";
 
 /**
- * The header row of a films section: the heading on the left, Export and Share on the right,
- * with the CSV helper text and a status line (what Export and the Share menu report) underneath.
+ * Export and Share, the right end of a films section's toolbar, with a status line (what Export
+ * and the Share menu report) that floats under them for a few seconds, so that it never moves
+ * the content. The status is a live region that is always in the page, so it is announced.
  */
-export function ShareActions({ films, today, names, share, heading }: ShareActionsProps) {
+export function ShareActions({ films, today, names, share }: ShareActionsProps) {
   const [status, setStatus] = useState("");
   const [exporting, setExporting] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -89,29 +88,30 @@ export function ShareActions({ films, today, names, share, heading }: ShareActio
   };
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-        {heading}
-        <div className="flex flex-wrap items-center gap-3 max-sm:w-full">
-          <button
-            type="button"
-            className={`${secondaryClass} max-sm:grow`}
-            onClick={exportCsv}
-            disabled={films.length === 0 || exporting}
-            aria-busy={exporting || undefined}
-            aria-label="Export List as CSV"
-            title="Export List as CSV"
-          >
-            Export
-          </button>
-          <ShareMenu input={share} onStatus={announce} className="max-sm:grow" />
-        </div>
-      </div>
-      <div className="mt-2 flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-        <p role="status" aria-live="polite" className="min-h-5 max-w-full text-sm text-body">
-          {status}
-        </p>
-      </div>
+    <div className="relative flex items-center gap-3 max-sm:w-full sm:ml-auto">
+      <button
+        type="button"
+        className={`${secondaryClass} max-sm:grow`}
+        onClick={exportCsv}
+        disabled={films.length === 0 || exporting}
+        aria-busy={exporting || undefined}
+        aria-label="Export List as CSV"
+        title="Export List as CSV"
+      >
+        Export
+      </button>
+      <ShareMenu input={share} onStatus={announce} className="max-sm:grow" />
+      <p
+        role="status"
+        aria-live="polite"
+        className={
+          status
+            ? "pointer-events-none absolute right-0 top-full z-20 mt-1.5 w-max max-w-[min(24rem,calc(100vw-2rem))] rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-body shadow-lg shadow-black/40"
+            : "sr-only"
+        }
+      >
+        {status}
+      </p>
     </div>
   );
 }

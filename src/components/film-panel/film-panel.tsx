@@ -190,7 +190,7 @@ function FilmDialog({
   }
 
   function add(person: PersonRow) {
-    const href = extendedPeopleHref(peopleInView, { id: person.id, name: person.name });
+    const href = extendedPeopleHref(peopleInView, { id: person.id, name: person.name }, window.location.search);
     if (!href) return;
     setAddingId(person.id);
     startAdding(() => router.push(href));
