@@ -11,6 +11,8 @@ import {
   xLength,
   xPostLength,
 } from "@/lib/share";
+import { sharedFilms } from "@/lib/shared";
+import type { Film, PersonTimeline } from "@/lib/types";
 
 const person = (id: number, name: string) => ({ id, name });
 const linklater = person(564, "Richard Linklater");
@@ -72,6 +74,30 @@ describe("shareText", () => {
   it("does not claim a favorite when the people share nothing", () => {
     expect(shareText({ people: [linklater, hawke], count: 0 })).toBe(
       "Film careers side by side: Richard Linklater & Ethan Hawke",
+    );
+  });
+
+  it("counts only released films together when the count comes from sharedFilms", () => {
+    const credit = { role: "director" as const, job: "Director", minor: false };
+    const made = (id: number, releaseDate: string): Film => ({
+      id,
+      title: `Film ${id}`,
+      releaseDate,
+      year: Number(releaseDate.slice(0, 4)),
+      posterPath: null,
+      voteCount: 0,
+      credits: [credit],
+      minor: false,
+    });
+    const films = [made(1, "1986-07-18"), made(2, "2029-12-21"), made(3, "2031-12-19")];
+    const summary = { profilePath: null, knownFor: null, birthday: null, deathday: null, biography: null };
+    const timelines: PersonTimeline[] = [
+      { person: { id: 564, name: "Richard Linklater", ...summary }, films },
+      { person: { id: 569, name: "Ethan Hawke", ...summary }, films },
+    ];
+    const count = sharedFilms(timelines, { includeMinor: false, today: "2026-06-01" }).length;
+    expect(shareText({ people: [linklater, hawke], count })).toBe(
+      "My favorite film collaborations: Richard Linklater & Ethan Hawke, 1 film together",
     );
   });
 

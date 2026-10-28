@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { peopleDescription, peopleSocial, peopleTitle } from "@/lib/seo";
+import { sharedFilms } from "@/lib/shared";
 import type { Film, PersonTimeline, SharedFilm } from "@/lib/types";
 
 const film = (id: number, year: number, minor = false): Film => ({
@@ -52,6 +53,31 @@ describe("peopleDescription", () => {
 
   it("says so when nothing is shared", () => {
     expect(peopleDescription(pair, [])).toBe("No films made together by A & B found on TMDB.");
+  });
+
+  it("names only released films when the list comes from sharedFilms", () => {
+    const credit = { role: "director" as const, job: "Director", minor: false };
+    const dated = (id: number, title: string, releaseDate: string): Film => ({
+      ...film(id, Number(releaseDate.slice(0, 4))),
+      title,
+      releaseDate,
+      credits: [credit],
+    });
+    const films = [dated(1, "Aliens", "1986-07-18"), dated(2, "Avatar 4", "2029-12-21")];
+    const people = [timeline(1, "A", films), timeline(2, "B", films)];
+    const description = peopleDescription(people, sharedFilms(people, { includeMinor: false, today: "2026-06-01" }));
+    expect(description).toBe("Films made together by A & B: Aliens.");
+    // And once the other one is out it is named too.
+    const later = peopleDescription(people, sharedFilms(people, { includeMinor: false, today: "2029-12-21" }));
+    expect(later).toBe("Films made together by A & B: Aliens, Avatar 4.");
+  });
+
+  it("says nothing is shared when the only shared film is announced", () => {
+    const upcoming = { ...film(1, 2031), credits: [{ role: "actor" as const, job: "Actor", minor: false }] };
+    const people = [timeline(1, "A", [upcoming]), timeline(2, "B", [upcoming])];
+    expect(peopleDescription(people, sharedFilms(people, { includeMinor: false, today: "2026-06-01" }))).toBe(
+      "No films made together by A & B found on TMDB.",
+    );
   });
 
   it("summarizes a single person, ignoring minor films", () => {

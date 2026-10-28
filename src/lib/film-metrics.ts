@@ -9,6 +9,7 @@
  */
 
 import type { AwardsSummary } from "@/lib/awards";
+import { isReleased, todayIso } from "@/lib/released";
 import type { FilmMetrics, MovieMetrics } from "@/lib/types";
 
 /** Below this many votes the score is noise (a 9.5 from two votes): the rating row is hidden. */
@@ -86,7 +87,7 @@ export function formatMultiple(multiple: number): string {
 
 /** "yyyy-mm-dd" of a date in UTC, the format of TMDB's release dates. */
 export function isoDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  return todayIso(date);
 }
 
 const ISO_DATE = /^(\d{4})-\d{2}-\d{2}$/;
@@ -172,7 +173,7 @@ export function revenueDisplay(
 
   const dateMatch = releaseDate ? ISO_DATE.exec(releaseDate) : null;
   const todayText = typeof today === "string" ? today : Number.isNaN(today.getTime()) ? null : isoDate(today);
-  if (dateMatch && todayText !== null && releaseDate! > todayText) return null;
+  if (dateMatch && todayText !== null && !isReleased(releaseDate, todayText)) return null;
 
   const modern = dateMatch !== null && Number(dateMatch[1]) >= MULTIPLE_FROM_YEAR;
   const showMultiple =

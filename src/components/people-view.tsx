@@ -8,7 +8,7 @@ import { Timeline, type LaneData } from "@/components/timeline/timeline";
 import { Together } from "@/components/timeline/together";
 import { canAddPerson } from "@/lib/lanes";
 import { pageHeading } from "@/lib/short-name";
-import { sharedFilms, sharedFilmsPairwise, type PairShared } from "@/lib/shared";
+import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms, type PairShared } from "@/lib/shared";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
 interface Props {
@@ -17,6 +17,12 @@ interface Props {
   shared: SharedFilm[];
   /** Per-pair shared films; empty unless there are 3 or more people. */
   pairwise: PairShared[];
+  /**
+   * yyyy-mm-dd (UTC), computed once on the server. Only films released on or before it are shared
+   * or connected; the rest are upcoming. Passed down instead of read from the clock here so the
+   * server and the browser lay the timeline out identically.
+   */
+  today: string;
 }
 
 export function PeopleView(props: Props) {
@@ -25,14 +31,9 @@ export function PeopleView(props: Props) {
   return <PeopleViewInner key={key} {...props} />;
 }
 
-function todayUtc(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function PeopleViewInner({ timelines, shared, pairwise }: Props) {
+function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
   const [includeMinor, setIncludeMinor] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [today] = useState(todayUtc);
   const triggerRef = useRef<HTMLElement | null>(null);
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
@@ -40,16 +41,22 @@ function PeopleViewInner({ timelines, shared, pairwise }: Props) {
 
   // The server sends the default (non-minor) lists; recompute only when the toggle is on.
   const sharedNow = useMemo(
-    () => (includeMinor ? sharedFilms(timelines, { includeMinor: true }) : shared),
-    [includeMinor, shared, timelines],
+    () => (includeMinor ? sharedFilms(timelines, { includeMinor: true, today }) : shared),
+    [includeMinor, shared, timelines, today],
   );
   const pairwiseNow = useMemo(
-    () => (includeMinor ? sharedFilmsPairwise(timelines, { includeMinor: true }) : pairwise),
-    [includeMinor, pairwise, timelines],
+    () => (includeMinor ? sharedFilmsPairwise(timelines, { includeMinor: true, today }) : pairwise),
+    [includeMinor, pairwise, timelines, today],
   );
   const minorExtra = useMemo(
-    () => (multi && !includeMinor && shared.length === 0 ? sharedFilms(timelines, { includeMinor: true }).length : 0),
-    [multi, includeMinor, shared.length, timelines],
+    () =>
+      multi && !includeMinor && shared.length === 0 ? sharedFilms(timelines, { includeMinor: true, today }).length : 0,
+    [multi, includeMinor, shared.length, timelines, today],
+  );
+  // Films they share that are not out yet: not counted, so with nothing else shared the empty state says so.
+  const upcomingExtra = useMemo(
+    () => (multi && sharedNow.length === 0 ? upcomingSharedFilms(timelines, { includeMinor, today }).length : 0),
+    [multi, sharedNow.length, timelines, includeMinor, today],
   );
   const litIds = useMemo(() => new Set(sharedNow.map((film) => film.id)), [sharedNow]);
 
@@ -117,7 +124,9 @@ function PeopleViewInner({ timelines, shared, pairwise }: Props) {
           shared={sharedNow}
           pairwise={pairwiseNow}
           minorExtra={minorExtra}
+          upcomingExtra={upcomingExtra}
           shareCount={shared.length}
+          today={today}
           onSelect={handleSelect}
         />
       ) : (

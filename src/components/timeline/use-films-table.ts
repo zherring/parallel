@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
-import { isoDate } from "@/lib/film-metrics";
 import {
   DEFAULT_SORT,
   DIR_PARAM,
@@ -31,7 +30,7 @@ export interface FilmsTableModel {
   metrics: FilmMetricsBatch;
   /** The metric columns have nothing to sort by (the request failed). */
   metricsUnavailable: boolean;
-  /** "yyyy-mm-dd" of today, which decides whether a film is out yet. */
+  /** "yyyy-mm-dd" of today, the page's date, which decides whether a film is out yet. */
   today: string;
   /** What the live region says about the last sort the visitor chose; empty until they choose one. */
   announcement: string;
@@ -64,7 +63,7 @@ function writeSortToUrl(sort: SortState) {
  * address bar is read only once the page has hydrated, so a link with a sort in it never
  * changes what the server sends.
  */
-export function useFilmsTable(shared: SharedFilm[]): FilmsTableModel {
+export function useFilmsTable(shared: SharedFilm[], today: string): FilmsTableModel {
   const search = useSyncExternalStore(noSubscription, clientSearch, serverSearch);
   const fromUrl = useMemo(() => {
     const params = new URLSearchParams(search);
@@ -74,7 +73,6 @@ export function useFilmsTable(shared: SharedFilm[]): FilmsTableModel {
   const [chosen, setChosen] = useState<SortState | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [asked, setAsked] = useState(false);
-  const [today] = useState(() => isoDate(new Date()));
   const [anchorRef, near] = useNearViewport();
 
   const sort = chosen ?? fromUrl ?? DEFAULT_SORT;

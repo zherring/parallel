@@ -143,10 +143,10 @@ function Skeleton() {
  * the placeholders are hidden from it). Fades in once data replaces the placeholders, unless the
  * user prefers reduced motion.
  */
-export function FilmMetricsRows({ state }: { state: FilmMetricsState }) {
+export function FilmMetricsRows({ state, today }: { state: FilmMetricsState; today: string }) {
   const display = useMemo(
-    () => (state.status === "ready" ? filmMetricsDisplay(state.metrics, new Date()) : null),
-    [state],
+    () => (state.status === "ready" ? filmMetricsDisplay(state.metrics, today) : null),
+    [state, today],
   );
   const listRef = useRef<HTMLUListElement>(null);
   const sawPending = useRef(false);

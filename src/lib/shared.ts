@@ -1,7 +1,14 @@
+import { isReleased, todayIso } from "@/lib/released";
 import type { Credit, Film, PersonTimeline, SharedFilm } from "@/lib/types";
 
 export interface SharedOptions {
   includeMinor: boolean;
+  /**
+   * `yyyy-mm-dd` (UTC) that decides which films are out: only released films (see `isReleased`)
+   * count as shared. Defaults to today; the page passes the one date it computed so the server
+   * and the browser agree, and tests inject it.
+   */
+  today?: string;
 }
 
 export interface PairShared {
@@ -10,19 +17,21 @@ export interface PairShared {
   films: SharedFilm[];
 }
 
-function countedFilms(timeline: PersonTimeline, includeMinor: boolean) {
+function countedFilms(timeline: PersonTimeline, includeMinor: boolean, include: (film: Film) => boolean) {
   const counted = new Map<number, { film: Film; credits: Credit[] }>();
   for (const film of timeline.films) {
+    if (!include(film)) continue;
     const credits = includeMinor ? film.credits : film.credits.filter((c) => !c.minor);
     if (credits.length > 0) counted.set(film.id, { film, credits });
   }
   return counted;
 }
 
-export function sharedFilms(timelines: PersonTimeline[], opts: SharedOptions): SharedFilm[] {
+/** The films every person has among those `include` accepts, oldest first. */
+function sharedAmong(timelines: PersonTimeline[], includeMinor: boolean, include: (film: Film) => boolean): SharedFilm[] {
   if (timelines.length < 2) return [];
 
-  const perPerson = timelines.map((t) => countedFilms(t, opts.includeMinor));
+  const perPerson = timelines.map((t) => countedFilms(t, includeMinor, include));
   const [first, ...rest] = perPerson;
   const shared: SharedFilm[] = [];
 
@@ -43,17 +52,34 @@ export function sharedFilms(timelines: PersonTimeline[], opts: SharedOptions): S
   return shared.sort((a, b) => a.releaseDate.localeCompare(b.releaseDate) || a.id - b.id);
 }
 
+/**
+ * The films every person has that are already out, oldest first. An announced film is on each
+ * lane as an upcoming poster, but it is not a film made together yet, so it is not in this list.
+ */
+export function sharedFilms(timelines: PersonTimeline[], opts: SharedOptions): SharedFilm[] {
+  const today = opts.today ?? todayIso();
+  return sharedAmong(timelines, opts.includeMinor, (film) => isReleased(film.releaseDate, today));
+}
+
+/** The films every person has that are not out yet: what `sharedFilms` leaves out. Only used to say so. */
+export function upcomingSharedFilms(timelines: PersonTimeline[], opts: SharedOptions): SharedFilm[] {
+  const today = opts.today ?? todayIso();
+  return sharedAmong(timelines, opts.includeMinor, (film) => !isReleased(film.releaseDate, today));
+}
+
 /** Every pair's shared films, for 3 or more people (with 2, sharedFilms already is the pair). */
 export function sharedFilmsPairwise(timelines: PersonTimeline[], opts: SharedOptions): PairShared[] {
   if (timelines.length < 3) return [];
 
+  // One date for every pair, so a pair can never disagree with the rest of the page.
+  const resolved = { ...opts, today: opts.today ?? todayIso() };
   const pairs: PairShared[] = [];
   for (let i = 0; i < timelines.length; i++) {
     for (let j = i + 1; j < timelines.length; j++) {
       pairs.push({
         a: timelines[i].person.id,
         b: timelines[j].person.id,
-        films: sharedFilms([timelines[i], timelines[j]], opts),
+        films: sharedFilms([timelines[i], timelines[j]], resolved),
       });
     }
   }
