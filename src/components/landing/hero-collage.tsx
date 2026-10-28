@@ -639,19 +639,23 @@ function Collage({
 
   const { scene } = state;
   const navigate = (direction: NavDirection) => () => go(direction);
+  // With a single pairing in the pool there is nowhere to step to.
+  const canStep = pool.length > 1;
 
   return (
     <>
       {/* Previous, Next and pause sit beside the collage, outside the link, so no control is nested in it. */}
-      <RoundButton
-        label="Previous pairing"
-        onClick={navigate("prev")}
-        className="right-full mr-[3px] -translate-y-1/2"
-        style={SIDE_BUTTON_STYLE}
-        {...focusHandlers}
-      >
-        <ChevronLeft size={20} strokeWidth={2.25} aria-hidden="true" />
-      </RoundButton>
+      {canStep && (
+        <RoundButton
+          label="Previous pairing"
+          onClick={navigate("prev")}
+          className="right-full mr-[3px] -translate-y-1/2"
+          style={SIDE_BUTTON_STYLE}
+          {...focusHandlers}
+        >
+          <ChevronLeft size={20} strokeWidth={2.25} aria-hidden="true" />
+        </RoundButton>
+      )}
 
       {/* The whole collage is one link to the pair; its decorative images carry no text of their own. */}
       <Link
@@ -670,15 +674,17 @@ function Collage({
         />
       </Link>
 
-      <RoundButton
-        label="Next pairing"
-        onClick={navigate("next")}
-        className="left-full ml-[3px] -translate-y-1/2"
-        style={SIDE_BUTTON_STYLE}
-        {...focusHandlers}
-      >
-        <ChevronRight size={20} strokeWidth={2.25} aria-hidden="true" />
-      </RoundButton>
+      {canStep && (
+        <RoundButton
+          label="Next pairing"
+          onClick={navigate("next")}
+          className="left-full ml-[3px] -translate-y-1/2"
+          style={SIDE_BUTTON_STYLE}
+          {...focusHandlers}
+        >
+          <ChevronRight size={20} strokeWidth={2.25} aria-hidden="true" />
+        </RoundButton>
+      )}
 
       <RoundButton
         label={paused ? "Play hero animation" : "Pause hero animation"}
