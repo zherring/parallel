@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { LINE_Y, NODE_HIT_HEIGHT } from "@/lib/timeline-layout";
+import { NODE_HIT_HEIGHT } from "@/lib/timeline-layout";
 import { cn } from "./cn";
 
 /**
@@ -17,8 +17,10 @@ interface FilmNodeProps {
   roles: string;
   /** Read after the roles ("Made together", "Shared by Fincher and Pitt"); empty for a film of one lane. */
   note: string;
-  /** Centre of the node inside the lane's track; the lane's line is at LINE_Y. */
+  /** Centre of the node inside the lane's track. */
   x: number;
+  /** y of the lane's line inside the lane's track (see `lineYInLane`): the node's centre. */
+  lineY: number;
   /** Width of the invisible hit area; narrower than DOT_HIT_SIZE where nodes are crowded. */
   hitWidth: number;
   tone: NodeTone;
@@ -56,8 +58,8 @@ function accessibleName({ title, year, roles, note }: FilmNodeProps): string {
  * poster gets a decorative one.
  */
 function FilmNodeImpl(props: FilmNodeProps) {
-  const { id, title, year, x, hitWidth, tone, laneIndex, decorative, tabbable, selected, describedBy, onSelect } = props;
-  const style = { left: x - hitWidth / 2, top: LINE_Y - NODE_HIT_HEIGHT / 2, width: hitWidth, height: NODE_HIT_HEIGHT };
+  const { id, title, year, x, lineY, hitWidth, tone, laneIndex, decorative, tabbable, selected, describedBy, onSelect } = props;
+  const style = { left: x - hitWidth / 2, top: lineY - NODE_HIT_HEIGHT / 2, width: hitWidth, height: NODE_HIT_HEIGHT };
   const button = (
     <button
       type="button"
