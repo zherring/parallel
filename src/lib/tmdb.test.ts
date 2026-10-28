@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}));
 
 import {
   TmdbError,
+  getFilmCredits,
   getFilmDetails,
   getMovieMetrics,
   getPersonMovieCredits,
@@ -330,6 +331,24 @@ describe("getFilmDetails", () => {
     expect(lastCall().url.pathname).toBe("/3/movie/550");
     expect(lastCall().url.searchParams.get("append_to_response")).toBe("credits");
     expect(film).toMatchObject({ id: 550, title: "Fight Club", year: 1999 });
+  });
+});
+
+describe("getFilmCredits", () => {
+  it("asks for the film's own credits and caches for a day", async () => {
+    const credits = { cast: [{ id: 1, order: 0, popularity: 4.2 }], crew: [{ id: 2, job: "Director" }] };
+    fetchMock.mockResolvedValueOnce(json(credits));
+
+    expect(await getFilmCredits(550)).toEqual(credits);
+    const { url, init } = lastCall();
+    expect(url.pathname).toBe("/3/movie/550/credits");
+    expect(init.headers).toMatchObject({ Authorization: `Bearer ${TOKEN}` });
+    expect(init.next).toEqual({ revalidate: 86400 });
+  });
+
+  it("fails with the TMDB status", async () => {
+    fetchMock.mockResolvedValueOnce(json({}, 404));
+    await expect(getFilmCredits(1)).rejects.toMatchObject({ name: "TmdbError", status: 404 });
   });
 });
 

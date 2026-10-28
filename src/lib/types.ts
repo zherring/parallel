@@ -102,6 +102,28 @@ export interface PersonSearchResult {
   knownForTitles: string[];
 }
 
+/** One chip of the "Frequent collaborators" row (`/api/collaborators/{id}`). */
+export interface CollaboratorSuggestion {
+  id: number;
+  name: string;
+  profilePath: string | null;
+  /** Released, non-minor films shared with the person: the "N films together" of their pair page. */
+  sharedCount: number;
+  /** The collaborator's roles on those films, as `roleSummary` words them: "Director, Writer". */
+  roles: string;
+  /** Up to three of the shared films, the most voted first. */
+  titles: string[];
+}
+
+/**
+ * What `/api/collaborators/{id}` returns. `source` says where the candidates came from: "graph"
+ * is the precomputed collaborator graph, "live" a count over the person's best-known films.
+ */
+export interface CollaboratorSuggestions {
+  source: "graph" | "live";
+  results: CollaboratorSuggestion[];
+}
+
 /** The numbers TMDB holds for a film (`getMovieMetrics`). */
 export interface MovieMetrics {
   /** TMDB's 0-10 audience score; null when it has none. */

@@ -2,6 +2,7 @@ import "server-only";
 import { normalizeFilmDetails, normalizeMovieCredits, normalizePerson } from "@/lib/normalize";
 import type {
   RawDiscoverMovies,
+  RawFilmCredits,
   RawMovieCredits,
   RawMovieDetails,
   RawMovieMetrics,
@@ -170,6 +171,15 @@ export async function getPersonMovieCredits(id: number): Promise<PersonTimeline>
     getShortMovieIds(id),
   ]);
   return { person, films: normalizeMovieCredits(credits, shortMovieIds) };
+}
+
+/**
+ * The cast and crew of one film (`/movie/{id}/credits`), cached for a day like the other film
+ * lookups. For the live fallback of the collaborator suggestions, which counts who worked on a
+ * person's best-known films.
+ */
+export function getFilmCredits(id: number): Promise<RawFilmCredits> {
+  return tmdbGet<RawFilmCredits>(`/movie/${id}/credits`, DAY);
 }
 
 export async function getFilmDetails(id: number): Promise<FilmDetails> {
