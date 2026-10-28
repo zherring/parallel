@@ -14,9 +14,8 @@ import {
   type SortKey,
   type SortState,
 } from "@/lib/films-table";
-import type { PersonRef } from "@/lib/lanes";
-import { roleSummary } from "@/lib/roles";
-import type { SharedFilm } from "@/lib/types";
+import type { CreditLine, TableRow } from "@/lib/film-rows";
+import { isReleased } from "@/lib/released";
 import { cn } from "./cn";
 import { AwardsCell, BoxOfficeCell, CellSkeleton, Dash, RatingCell } from "./film-metric-cells";
 import { FilmMetricsRows } from "./film-metrics-rows";
@@ -26,14 +25,14 @@ import type { FilmsTableModel } from "./use-films-table";
 import type { FilmMetricsState } from "./use-film-metrics";
 
 interface FilmsTableProps {
-  people: PersonRef[];
+  /** The table's description for screen readers, e.g. "Films Harrison Ford made". */
+  caption: string;
   table: FilmsTableModel;
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
 interface RowProps {
-  film: SharedFilm;
-  people: PersonRef[];
+  film: TableRow;
   state: FilmMetricsState;
   today: string;
   onSelect: (id: number, trigger: HTMLElement) => void;
@@ -41,25 +40,41 @@ interface RowProps {
 
 const UNAVAILABLE_HINT = "Not available right now";
 
-function Credits({ film, people }: Pick<RowProps, "film" | "people">) {
+/** One line per person: "Name: Director, Writer", or just the roles when the list is one person's own. */
+function Credits({ credits }: { credits: CreditLine[] }) {
   return (
     <ul className="space-y-0.5 text-sm text-muted">
-      {people.map((person) => (
-        <li key={person.id}>
-          <span className="text-body">{person.name}</span>: {roleSummary(film.byPerson[person.id] ?? [])}
+      {credits.map((line) => (
+        <li key={line.personId}>
+          {line.name !== null && (
+            <>
+              <span className="text-body">{line.name}</span>:{" "}
+            </>
+          )}
+          {line.roles}
         </li>
       ))}
     </ul>
   );
 }
 
+/** Marks a film that is not out yet (a filmography lists them; the films-together list never does). */
+function UpcomingTag() {
+  return (
+    <span className="ml-2 whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide text-accent-orange">
+      Upcoming
+    </span>
+  );
+}
+
 /** A table row: poster, title and details button, year, credits and the three metrics. */
-const FilmRow = memo(function FilmRow({ film, people, state, today, onSelect }: RowProps) {
+const FilmRow = memo(function FilmRow({ film, state, today, onSelect }: RowProps) {
   const display = useMemo(
     () => (state.status === "ready" ? filmMetricsDisplay(state.metrics, today) : null),
     [state, today],
   );
   const pending = state.status === "pending";
+  const upcoming = !isReleased(film.releaseDate, today);
   const openDetails = (event: React.MouseEvent<HTMLButtonElement>) => onSelect(film.id, event.currentTarget);
 
   return (
@@ -78,9 +93,10 @@ const FilmRow = memo(function FilmRow({ film, people, state, today, onSelect }: 
             <a href={tmdbMovieUrl(film.id)} className={linkClass}>
               {film.title}
             </a>
+            {upcoming && <UpcomingTag />}
             {/* Below lg there is no room for a Credits column: the credits sit under the title instead. */}
             <div className="mt-0.5 lg:hidden">
-              <Credits film={film} people={people} />
+              <Credits credits={film.credits} />
             </div>
             <div>
               <button
@@ -98,7 +114,7 @@ const FilmRow = memo(function FilmRow({ film, people, state, today, onSelect }: 
         <time dateTime={film.releaseDate}>{film.year}</time>
       </td>
       <td className="hidden px-2 py-2 lg:px-3 align-middle lg:table-cell">
-        <Credits film={film} people={people} />
+        <Credits credits={film.credits} />
       </td>
       <td className="px-2 py-2 lg:px-3 align-middle">
         {pending ? (
@@ -132,7 +148,8 @@ const FilmRow = memo(function FilmRow({ film, people, state, today, onSelect }: 
 });
 
 /** The small-screen layout of one film: a card with poster, title, credits and the metric lines. */
-const FilmCard = memo(function FilmCard({ film, people, state, today, onSelect }: RowProps) {
+const FilmCard = memo(function FilmCard({ film, state, today, onSelect }: RowProps) {
+  const upcoming = !isReleased(film.releaseDate, today);
   const openDetails = (event: React.MouseEvent<HTMLButtonElement>) => onSelect(film.id, event.currentTarget);
 
   return (
@@ -153,9 +170,10 @@ const FilmCard = memo(function FilmCard({ film, people, state, today, onSelect }
           <time dateTime={film.releaseDate} className="tabular-nums text-muted">
             {film.year}
           </time>
+          {upcoming && <UpcomingTag />}
         </p>
         <div className="mt-1">
-          <Credits film={film} people={people} />
+          <Credits credits={film.credits} />
         </div>
         <div className="mt-2 empty:hidden">
           <FilmMetricsRows state={state} today={today} />
@@ -260,16 +278,14 @@ function SortControls({ table }: { table: FilmsTableModel }) {
   );
 }
 
-const joinNames = (names: string[]) => new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(names);
-
 /**
- * The films together as a sortable table (a card list under 640px, with a select in place of
- * the header buttons). The server renders every film with its poster, title, year and credits;
- * the three metric columns fill in on the client once the table nears the screen.
+ * A list of films as a sortable table (a card list under 640px, with a select in place of the
+ * header buttons): the films some people made together, or one person's films. The server renders
+ * every film with its poster, title, year and credits; the three metric columns fill in on the
+ * client once the table nears the screen.
  */
-export function FilmsTable({ people, table, onSelect }: FilmsTableProps) {
+export function FilmsTable({ caption, table, onSelect }: FilmsTableProps) {
   const { rows, sort, sortBy, metrics, metricsUnavailable, today, announcement, anchorRef } = table;
-  const names = joinNames(people.map((person) => person.name));
 
   return (
     <div ref={anchorRef} className="mt-4">
@@ -280,8 +296,7 @@ export function FilmsTable({ people, table, onSelect }: FilmsTableProps) {
       <div className="hidden overflow-x-auto rounded-lg border border-border bg-surface sm:block">
         <table aria-busy={metrics.status === "loading" || undefined} className="w-full border-collapse text-left text-sm">
           <caption className="sr-only">
-            Films {names} made together, with credits, rating, box office and awards. The column headers are buttons
-            that sort the table.
+            {caption}, with credits, rating, box office and awards. The column headers are buttons that sort the table.
           </caption>
           <thead className="border-b border-border bg-canvas/40">
             <tr>
@@ -303,7 +318,6 @@ export function FilmsTable({ people, table, onSelect }: FilmsTableProps) {
               <FilmRow
                 key={film.id}
                 film={film}
-                people={people}
                 state={metrics.stateFor(film.id)}
                 today={today}
                 onSelect={onSelect}
@@ -320,7 +334,6 @@ export function FilmsTable({ people, table, onSelect }: FilmsTableProps) {
             <FilmCard
               key={film.id}
               film={film}
-              people={people}
               state={metrics.stateFor(film.id)}
               today={today}
               onSelect={onSelect}

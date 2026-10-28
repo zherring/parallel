@@ -14,13 +14,13 @@ import {
   type SortKey,
   type SortState,
 } from "@/lib/films-table";
-import type { SharedFilm } from "@/lib/types";
+import type { TableRow } from "@/lib/film-rows";
 import { useFilmMetricsBatch, type FilmMetricsBatch } from "./use-film-metrics-batch";
 import { useNearViewport } from "./use-near-viewport";
 
 export interface FilmsTableModel {
   /** The films in the order of `sort`: what the table shows and what the CSV export writes. */
-  rows: SharedFilm[];
+  rows: TableRow[];
   sort: SortState;
   /** A click on a column header: the column's first direction, or the other one for the sorted column. */
   sortBy: (key: SortKey) => void;
@@ -57,13 +57,14 @@ function writeSortToUrl(sort: SortState) {
 }
 
 /**
- * State of the sortable "films together" table: the chosen sort (starting from `?sort=&dir=`
- * in the address bar when there is one, and written back to it), the lazily loaded metrics and
- * the films in sorted order. The server renders the default order without any of this; the
- * address bar is read only once the page has hydrated, so a link with a sort in it never
- * changes what the server sends.
+ * State of the sortable films table (the films together, or one person's films): the chosen
+ * sort (starting from `?sort=&dir=` in the address bar when there is one, and written back to
+ * it), the lazily loaded metrics and the films in sorted order. The server renders the default
+ * order without any of this; the address bar is read only once the page has hydrated, so a link
+ * with a sort in it never changes what the server sends. `films` must keep its identity while
+ * the list does not change (memoise it), or the metrics and the order are recomputed each time.
  */
-export function useFilmsTable(shared: SharedFilm[], today: string): FilmsTableModel {
+export function useFilmsTable(films: TableRow[], today: string): FilmsTableModel {
   const search = useSyncExternalStore(noSubscription, clientSearch, serverSearch);
   const fromUrl = useMemo(() => {
     const params = new URLSearchParams(search);
@@ -76,11 +77,11 @@ export function useFilmsTable(shared: SharedFilm[], today: string): FilmsTableMo
   const [anchorRef, near] = useNearViewport();
 
   const sort = chosen ?? fromUrl ?? DEFAULT_SORT;
-  const ids = useMemo(() => shared.map((film) => film.id), [shared]);
+  const ids = useMemo(() => films.map((film) => film.id), [films]);
   const metrics = useFilmMetricsBatch(ids, near || asked || isMetricSortKey(sort.key));
   const metricsUnavailable = metrics.status === "failed";
 
-  const rows = useMemo(() => sortFilms(shared, sort, metrics.metrics, today), [shared, sort, metrics.metrics, today]);
+  const rows = useMemo(() => sortFilms(films, sort, metrics.metrics, today), [films, sort, metrics.metrics, today]);
 
   const setSort = useCallback(
     (next: SortState) => {

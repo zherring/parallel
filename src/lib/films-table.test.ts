@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { csvFilename, sharedFilmsToCsv } from "@/lib/csv";
+import { csvFilename, filmsToCsv } from "@/lib/csv";
 import {
   DEFAULT_SORT,
   METRIC_SORT_KEYS,
@@ -403,7 +403,7 @@ describe("export order", () => {
     };
     const order = sortFilms(FILMS, desc("box-office"), toMap(data), TODAY);
 
-    expect(sharedFilmsToCsv(order)).toBe(
+    expect(filmsToCsv(order)).toBe(
       "tmdbID,Title,Year\r\n" +
         "3,Return of the Jedi,1983\r\n" +
         "2,The Empire Strikes Back,1980\r\n" +
@@ -415,7 +415,7 @@ describe("export order", () => {
   it("follows the order of the table when it is newest first, with the same file name", () => {
     const newest = sortFilms(FILMS, desc("year"), new Map(), TODAY);
 
-    expect(sharedFilmsToCsv(newest).split("\r\n").slice(1, 3)).toEqual([
+    expect(filmsToCsv(newest).split("\r\n").slice(1, 3)).toEqual([
       "4,Indiana Jones and the Last Crusade,1989",
       "3,Return of the Jedi,1983",
     ]);
