@@ -34,7 +34,7 @@ import {
   axisRange,
   axisTicks,
   buildConnectors,
-  cardTopFor,
+  cardTopInLane,
   cardWidthOf,
   centerYear,
   filmMembership,
@@ -69,7 +69,6 @@ import { LaneHeader } from "./lane-header";
 import { MinimapBar, type MinimapFilm } from "./minimap";
 import { scrollBehavior } from "./scroll-behavior";
 import { useDragPan } from "./use-drag-pan";
-import { useNodeLine } from "./use-node-line";
 
 export interface LaneData {
   person: PersonSummary;
@@ -180,8 +179,6 @@ export function Timeline({
   const jump = useRef<{ lane: number; settledTop: number | null } | null>(null);
 
   const multi = lanes.length > 1;
-  // Where each lane's line sits (`?nodes=top|bottom`): read in the browser after hydration, "top" until then.
-  const nodeLine = useNodeLine();
 
   const layout = useMemo(() => {
     const years = lanes.flatMap((lane) => lane.films.map((film) => film.year));
@@ -197,8 +194,8 @@ export function Timeline({
     // While something is connected, the films that are not get a smaller card (and so pack tighter).
     const quietIds = quietFilmIds(lanes, today);
 
-    // Connector lines run through the poster rows of the lanes above their last node.
-    const obstacles = laneObstacles(lanes, base, today, nodeLine);
+    // Connector lines run through the poster rows of the lanes below their first node.
+    const obstacles = laneObstacles(lanes, base, today);
     const optionsFor = (index: number) => ({ ...base, priorityIds, quietIds, obstacles: obstacles[index] });
     const capped = lanes.map((lane, index) => packFilms(lane.films, { ...optionsFor(index), maxRows: DEFAULT_MAX_ROWS }));
     const overflow = capped.map(overflowCount);
@@ -208,7 +205,7 @@ export function Timeline({
 
     const stack = stackLanes(items.map(rowCount));
     const connectorLanes = items.map((laneItems, index) => ({ box: stack[index], items: laneItems }));
-    const connectors = buildConnectors(connectorLanes, today, nodeLine);
+    const connectors = buildConnectors(connectorLanes, today);
     const membership = filmMembership(connectorLanes, today);
 
     // The kind of connection, the colour and the screen-reader note of each film shown in more than one lane.
@@ -243,7 +240,7 @@ export function Timeline({
       notes,
       anchorX: initialAnchorX(items, litIds),
     };
-  }, [expandedIds, lanes, litIds, nodeLine, pxPerYear, today]);
+  }, [expandedIds, lanes, litIds, pxPerYear, today]);
 
   const { scale, width, boxes } = layout;
 
@@ -548,7 +545,6 @@ export function Timeline({
         accent={layout.accents.get(film.id) ?? null}
         note={layout.notes.get(film.id) ?? ""}
         laneIndex={laneIndex}
-        nodeLine={nodeLine}
         upcoming={!isReleased(film.releaseDate, today)}
         emphasized={hoveredId === film.id}
         dimmed={tone !== "plain" && activeKey !== null && layout.keys.get(film.id) !== activeKey}
@@ -624,8 +620,7 @@ export function Timeline({
               that shows it to its node in the last. It runs behind the shared posters in its way,
               its own included (so it is hidden behind its poster and shows again between the caption
               and the node), and over every other poster, 2px wide on a thin dark halo so it stays
-              legible over the poster art. The lane lines are at the top of their lanes with the posters
-              below them, or at the bottom with the posters above (`?nodes=`), see `nodeLine`.
+              legible over the poster art. Each lane's line is at the bottom of its lane, with the posters above it.
             */}
             <svg
               aria-hidden
@@ -635,7 +630,7 @@ export function Timeline({
               height={layout.height}
             >
               {layout.items.map((items, laneIndex) => {
-                const y = nodeY(boxes[laneIndex], nodeLine);
+                const y = nodeY(boxes[laneIndex]);
                 const first = items[0]?.x ?? width;
                 const last = items[items.length - 1]?.x ?? width;
                 return (
@@ -682,7 +677,7 @@ export function Timeline({
                 );
               })}
               {layout.items.map((items, laneIndex) => {
-                const y = nodeY(boxes[laneIndex], nodeLine);
+                const y = nodeY(boxes[laneIndex]);
                 return (
                   <g key={lanes[laneIndex].person.id}>
                     {items.map(({ film, x }) => {
@@ -725,7 +720,7 @@ export function Timeline({
                   roles={info.rolesByFilm.get(item.film.id) ?? ""}
                   note={layout.notes.get(item.film.id) ?? ""}
                   x={item.x}
-                  lineY={lineYInLane(boxes[laneIndex].height, nodeLine)}
+                  lineY={lineYInLane(boxes[laneIndex].height)}
                   hitWidth={layout.hitWidths[laneIndex].get(item.film.id) ?? DOT_HIT_SIZE}
                   tone={toneFor(item.film.id)}
                   laneIndex={laneIndex}
@@ -759,8 +754,8 @@ export function Timeline({
                       className={cn(
                         "relative shrink-0",
                         laneIndex < lanes.length - 1 && "border-b border-border",
-                        // The empty-lane note sits next to the line: under the top one, over the bottom one.
-                        items.length === 0 && nodeLine === "bottom" && "flex flex-col justify-end",
+                        // The empty-lane note sits right above the line.
+                        items.length === 0 && "flex flex-col justify-end",
                       )}
                       style={{ width, ...gridStyle }}
                     >
@@ -770,19 +765,14 @@ export function Timeline({
                             {items.map((item) =>
                               item.overflow
                                 ? nodeFor(item, false)
-                                : cardFor(item, laneIndex, cardTopFor(item.row, boxes[laneIndex].height, nodeLine), info.rolesByFilm.get(item.film.id) ?? ""),
+                                : cardFor(item, laneIndex, cardTopInLane(item.row, boxes[laneIndex].height), info.rolesByFilm.get(item.film.id) ?? ""),
                             )}
                           </ol>
                           {/* Mouse targets on the nodes of films that have a card: not part of the list or the tab order. */}
                           {items.filter((item) => !item.overflow).map((item) => nodeFor(item, true))}
                         </>
                       ) : (
-                        <p
-                          className={cn(
-                            "sticky left-[var(--lane-head)] w-max max-w-xs px-4 text-sm text-muted",
-                            nodeLine === "top" ? "pt-8" : "pb-9",
-                          )}
-                        >
+                        <p className="sticky left-[var(--lane-head)] w-max max-w-xs px-4 text-sm text-muted pb-9">
                           {lane.hiddenMinor > 0
                             ? `No major credits found on TMDB. Turn on "${MINOR_TOGGLE_LABEL}" to see ${lane.hiddenMinor} more.`
                             : "No films found on TMDB."}
