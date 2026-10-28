@@ -131,6 +131,10 @@ Beyond that set, the file was compared with the Academy-style counts in Wikipedi
 
 The Wikidata Query Service is moving from Blazegraph to QLever (new endpoints are expected around 16 November 2026; the old ones may degrade from February 2027). The queries are plain SPARQL 1.1 plus the Wikibase RDF vocabulary, with no label service and no Blazegraph-only syntax, and the endpoint is configurable: set `WDQS_ENDPOINT` (default `https://query.wikidata.org/sparql`). After a switch, run `npm run awards:refresh -- --validate` first: it is the regression test for the migration, and a dry run (`--dry-run`) shows whether the totals changed. The queries have only been run against the Blazegraph backend.
 
+## Ideas and TODOs
+
+- **Suggest frequent collaborators.** When you are looking at someone, suggest the people they have worked with most (for example their usual cinematographer, composer or co-star) so they can be added to the timeline in a click. The UX is still open: it should feel playful and easy to discover, not just a plain list.
+
 ## Attribution
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
