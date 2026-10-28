@@ -160,6 +160,30 @@ describe("buildOgCard", () => {
     expect(buildOgCard([a, b], TODAY).headline).toEqual({ figure: "1", text: "film together" });
   });
 
+  it("counts only released films together, and gives an announced one no poster", () => {
+    // 2027 is after TODAY (2026-10-27): both list it, but it is not a film made together yet.
+    const a = timeline(1, "A One", [film(1, 2000), film(2, 2027, { voteCount: 99999 })]);
+    const b = timeline(2, "B Two", [film(1, 2000), film(2, 2027, { voteCount: 99999 })]);
+    const card = buildOgCard([a, b], TODAY);
+    expect(card.headline).toEqual({ figure: "1", text: "film together" });
+    expect(card.posters.map((p) => p.id)).toEqual([1]);
+  });
+
+  it("counts a film released today", () => {
+    const a = timeline(1, "A One", [film(1, 2000), film(2, 2026, { releaseDate: TODAY })]);
+    const b = timeline(2, "B Two", [film(1, 2000), film(2, 2026, { releaseDate: TODAY })]);
+    expect(buildOgCard([a, b], TODAY).headline).toEqual({ figure: "2", text: "films together" });
+    expect(buildOgCard([a, b], "2026-10-26").headline).toEqual({ figure: "1", text: "film together" });
+  });
+
+  it("falls back to the side-by-side card when the only shared film is announced", () => {
+    const a = timeline(1, "A One", [film(1, 2000), film(2, 2028)]);
+    const b = timeline(2, "B Two", [film(3, 2005), film(2, 2028)]);
+    const card = buildOgCard([a, b], TODAY);
+    expect(card.headline).toEqual({ figure: null, text: "Careers side by side" });
+    expect(card.posters).toEqual([]);
+  });
+
   it("says so when nothing is shared, with no posters", () => {
     const a = timeline(1, "A One", [film(1, 2000)]);
     const b = timeline(2, "B Two", [film(2, 2005)]);

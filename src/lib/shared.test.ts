@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { sharedFilmsToCsv } from "@/lib/csv";
 import { sharedFilms, sharedFilmsPairwise } from "@/lib/shared";
 import type { Credit, Film, PersonTimeline } from "@/lib/types";
 
@@ -92,5 +93,78 @@ describe("sharedFilmsPairwise", () => {
       [1, 3, [10, 20]],
       [2, 3, [20]],
     ]);
+  });
+});
+
+describe("films that are not out yet", () => {
+  const TODAY = "2026-06-01";
+  const both = (id: number, releaseDate: string): [Film, Film] => [
+    film(id, releaseDate, [director]),
+    film(id, releaseDate, [actor]),
+  ];
+  const [released1, released2] = both(1, "2001-04-05");
+  const [yesterday1, yesterday2] = both(2, "2026-05-31");
+  const [today1, today2] = both(3, "2026-06-01");
+  const [tomorrow1, tomorrow2] = both(4, "2026-06-02");
+  const [announced1, announced2] = both(5, "2029-12-18");
+  const [undated1, undated2] = both(6, "");
+  const one = timeline(1, [released1, yesterday1, today1, tomorrow1, announced1, undated1]);
+  const two = timeline(2, [released2, yesterday2, today2, tomorrow2, announced2, undated2]);
+
+  it("counts released films, including one released today, and leaves out the rest", () => {
+    const films = sharedFilms([one, two], { includeMinor: false, today: TODAY });
+    expect(films.map((f) => f.id)).toEqual([1, 2, 3]);
+  });
+
+  it("leaves out a film with no release date", () => {
+    expect(sharedFilms([one, two], { includeMinor: false, today: TODAY }).map((f) => f.id)).not.toContain(6);
+  });
+
+  it("follows the date it is given: the same film counts from its release day on", () => {
+    const ids = (today: string) => sharedFilms([one, two], { includeMinor: false, today }).map((f) => f.id);
+    expect(ids("2026-06-01")).toEqual([1, 2, 3]);
+    expect(ids("2026-06-02")).toEqual([1, 2, 3, 4]);
+    expect(ids("2029-12-17")).toEqual([1, 2, 3, 4]);
+    expect(ids("2029-12-18")).toEqual([1, 2, 3, 4, 5]);
+    expect(ids("2000-01-01")).toEqual([]);
+  });
+
+  it("leaves them out with minor credits on as well", () => {
+    expect(sharedFilms([one, two], { includeMinor: true, today: TODAY }).map((f) => f.id)).toEqual([1, 2, 3]);
+  });
+
+  it("defaults to the real today", () => {
+    const [far1, far2] = both(7, "2999-01-01");
+    const [old1, old2] = both(8, "1999-01-01");
+    const films = sharedFilms([timeline(1, [far1, old1]), timeline(2, [far2, old2])], { includeMinor: false });
+    expect(films.map((f) => f.id)).toEqual([8]);
+  });
+
+  it("leaves an upcoming film in a person's own timeline: only the shared list changes", () => {
+    expect(one.films.map((f) => f.id)).toContain(5);
+  });
+
+  it("keeps them out of every pair of a three-person list", () => {
+    const [a1, a2] = both(9, "2030-01-01");
+    const three = timeline(3, [film(1, "2001-04-05", [actor]), film(9, "2030-01-01", [actor]), film(2, "2026-05-31", [actor])]);
+    const pairs = sharedFilmsPairwise(
+      [timeline(1, [released1, a1, yesterday1]), timeline(2, [released2, a2, yesterday2]), three],
+      { includeMinor: false, today: TODAY },
+    );
+    expect(pairs.map((p) => [p.a, p.b, p.films.map((f) => f.id)])).toEqual([
+      [1, 2, [1, 2]],
+      [1, 3, [1, 2]],
+      [2, 3, [1, 2]],
+    ]);
+  });
+
+  it("is a pair with nothing in common when the only shared film is announced", () => {
+    const [x1, x2] = both(10, "2031-12-19");
+    expect(sharedFilms([timeline(1, [x1]), timeline(2, [x2])], { includeMinor: false, today: TODAY })).toEqual([]);
+  });
+
+  it("feeds the export: the CSV has no row for an announced film", () => {
+    const csv = sharedFilmsToCsv(sharedFilms([one, two], { includeMinor: false, today: TODAY }));
+    expect(csv.trim().split("\r\n")).toEqual(["tmdbID,Title,Year", "1,Film 1,2001", "2,Film 2,2026", "3,Film 3,2026"]);
   });
 });

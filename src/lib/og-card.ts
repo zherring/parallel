@@ -1,4 +1,5 @@
 import { initials } from "@/lib/person-labels";
+import { isReleased } from "@/lib/released";
 import { sharedFilms } from "@/lib/shared";
 import { headingNames } from "@/lib/short-name";
 import type { Film, PersonTimeline } from "@/lib/types";
@@ -175,7 +176,7 @@ const filmsWord = (count: number) => (count === 1 ? "film" : "films");
 /** "1995-2024" from the first film to the latest one already released (`today` is yyyy-mm-dd); one year alone when they match. */
 export function careerSpan(films: readonly Pick<Film, "year" | "releaseDate">[], today: string): string | null {
   if (films.length === 0) return null;
-  const released = films.filter((film) => film.releaseDate <= today);
+  const released = films.filter((film) => isReleased(film.releaseDate, today));
   const first = Math.min(...films.map((film) => film.year));
   const latest = Math.max(...(released.length > 0 ? released : films).map((film) => film.year));
   return first >= latest ? String(first) : `${first}–${latest}`;
@@ -183,7 +184,8 @@ export function careerSpan(films: readonly Pick<Film, "year" | "releaseDate">[],
 
 /**
  * Decides what the preview card for a /p/ page shows; the route only draws it. `today` is
- * yyyy-mm-dd and keeps films that have not been released yet out of a career's end year.
+ * yyyy-mm-dd: films that have not been released yet stay out of a career's end year and out of
+ * the films together (see `isReleased`).
  */
 export function buildOgCard(timelines: PersonTimeline[], today: string): OgCard {
   const people = timelines.map((t) => ({ id: t.person.id, name: t.person.name }));
@@ -213,7 +215,7 @@ export function buildOgCard(timelines: PersonTimeline[], today: string): OgCard 
     };
   }
 
-  const shared = sharedFilms(timelines, { includeMinor: false });
+  const shared = sharedFilms(timelines, { includeMinor: false, today });
   const votes = new Map<number, number>();
   for (const { films } of timelines) {
     for (const film of films) votes.set(film.id, Math.max(votes.get(film.id) ?? 0, film.voteCount));
