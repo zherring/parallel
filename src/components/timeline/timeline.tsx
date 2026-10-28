@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -12,7 +13,7 @@ import {
   type FocusEvent,
   type KeyboardEvent,
   type PointerEvent,
-  type ReactNode,
+  type Ref,
 } from "react";
 import { connectionKey, connectionLegend, slotColor } from "@/lib/connections";
 import { filmCardContent } from "@/lib/film-credits";
@@ -78,16 +79,29 @@ export interface LaneData {
   hiddenMinor: number;
 }
 
+/** What the page can ask of the timeline from outside. */
+export interface TimelineHandle {
+  /**
+   * Call right before the lanes change in a way that moves the axis (the minor-credits checkbox,
+   * which lives under the panels): the year in the middle of the view stays in the middle.
+   */
+  rememberCenter: () => void;
+}
+
 interface TimelineProps {
-  /** The page title (an h1); the minor-credits toggle sits at the right of its row. */
-  heading: ReactNode;
+  /**
+   * Whether the timeline is on screen (its tab is selected). A hidden timeline has no size, so
+   * it cannot place its scroll position: it does so when it is first shown, and puts it back
+   * (the browser forgets it of a hidden element) every time it is shown again.
+   */
+  active: boolean;
+  ref?: Ref<TimelineHandle>;
   lanes: LaneData[];
   /** Everyone on the page, in URL order; used for the remove links. */
   people: PersonRef[];
   /** Ids of released films shared by every lane (with the current minor setting). */
   litIds: ReadonlySet<number>;
   includeMinor: boolean;
-  onIncludeMinorChange: (next: boolean) => void;
   /**
    * yyyy-mm-dd (UTC), the one date the page computed on the server: a film released after it is
    * upcoming (see `isReleased`) and never connects. It is a prop, never read from the clock here,
@@ -133,12 +147,12 @@ function focusIsVisible(element: HTMLElement): boolean {
 }
 
 export function Timeline({
-  heading,
+  active,
+  ref,
   lanes,
   people,
   litIds,
   includeMinor,
-  onIncludeMinorChange,
   today,
   selectedId,
   onSelect,
@@ -168,6 +182,9 @@ export function Timeline({
   const { isPanning } = useDragPan(scrollerRef, hidePopover);
   const pendingCenter = useRef<number | null>(null);
   const didInitialScroll = useRef(false);
+  const wasActive = useRef(false);
+  /** Where the scroller was last seen on screen: a hidden scroller reads (and forgets) zero. */
+  const lastSeen = useRef<{ left: number; top: number; viewport: number } | null>(null);
   const scrollFrame = useRef(0);
   const highlightTimer = useRef<number | undefined>(undefined);
   const settleTimer = useRef<number | undefined>(undefined);
@@ -289,6 +306,22 @@ export function Timeline({
     return scroller && corner ? scroller.clientWidth - corner.offsetWidth : 0;
   };
 
+  /**
+   * Notes where the scroller is, but only while it is on screen: a hidden (display: none) element
+   * reads zero and, once shown again, starts from zero too, so the last real position is what a
+   * tab switch has to put back.
+   */
+  const remember = useCallback(() => {
+    const scroller = scrollerRef.current;
+    const corner = cornerRef.current;
+    if (!scroller || !corner || scroller.clientWidth === 0) return;
+    lastSeen.current = {
+      left: scroller.scrollLeft,
+      top: scroller.scrollTop,
+      viewport: scroller.clientWidth - corner.offsetWidth,
+    };
+  }, []);
+
   const updateEdges = useCallback(() => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
@@ -324,13 +357,14 @@ export function Timeline({
 
   // Scroll events can arrive faster than frames; do the (cheap, usually no-op) state checks once per frame.
   const handleScroll = useCallback(() => {
+    remember(); // not throttled: a tab switch can come right after the last scroll event
     if (scrollFrame.current) return;
     scrollFrame.current = requestAnimationFrame(() => {
       scrollFrame.current = 0;
       updateEdges();
       updateActiveLane();
     });
-  }, [updateActiveLane, updateEdges]);
+  }, [remember, updateActiveLane, updateEdges]);
 
   useEffect(
     () => () => {
@@ -371,27 +405,48 @@ export function Timeline({
     return () => observer.disconnect();
   }, [updateEdges]);
 
-  // Start at the first film made together (or at the beginning for one lane).
+  // When the timeline is first shown it starts at the first film made together (or at the beginning
+  // for one lane). Every later time it is shown (its tab was hidden: display none forgets the
+  // scroll position) it is put back where it was; see `lastSeen`. A year queued by `rememberCenter`
+  // while it was hidden wins over the pixel position, because the axis may have moved meanwhile.
   const { anchorX } = layout;
   useLayoutEffect(() => {
-    if (didInitialScroll.current) return;
-    didInitialScroll.current = true;
+    const shown = active && !wasActive.current;
+    wasActive.current = active;
+    if (!shown) return;
     const scroller = scrollerRef.current;
-    if (scroller) scroller.scrollLeft = initialScrollLeft(anchorX, viewportTrackWidth());
-  }, [anchorX]);
+    if (!scroller) return;
 
-  // Zoom and the minor toggle can move the axis; keep whatever year was centred in place.
+    if (!didInitialScroll.current) {
+      didInitialScroll.current = true;
+      scroller.scrollLeft = initialScrollLeft(anchorX, viewportTrackWidth());
+    } else if (lastSeen.current) {
+      if (pendingCenter.current === null) scroller.scrollLeft = lastSeen.current.left;
+      scroller.scrollTop = lastSeen.current.top;
+    }
+    remember();
+    updateEdges();
+    updateActiveLane();
+  }, [active, anchorX, remember, updateActiveLane, updateEdges]);
+
+  // Zoom and the minor toggle can move the axis; keep whatever year was centred in place. While the
+  // timeline is hidden the year comes from where it was last seen, and is placed once it is shown.
   const rememberCenter = () => {
     const scroller = scrollerRef.current;
-    if (scroller) pendingCenter.current = centerYear(scroller.scrollLeft, viewportTrackWidth(), scale);
+    if (!scroller) return;
+    if (active) pendingCenter.current = centerYear(scroller.scrollLeft, viewportTrackWidth(), scale);
+    else if (lastSeen.current) pendingCenter.current = centerYear(lastSeen.current.left, lastSeen.current.viewport, scale);
   };
+  useImperativeHandle(ref, () => ({ rememberCenter }));
 
   useLayoutEffect(() => {
+    if (!active) return; // a hidden scroller has no width: the queued year waits until it is shown
     const year = pendingCenter.current;
     const scroller = scrollerRef.current;
     if (year === null || !scroller) return;
     pendingCenter.current = null;
     scroller.scrollLeft = scrollLeftForCenter(year, scroller.clientWidth - (cornerRef.current?.offsetWidth ?? 0), scale);
+    remember();
   });
 
   const zoom = (direction: "in" | "out") => {
@@ -399,11 +454,6 @@ export function Timeline({
     if (next === pxPerYear) return;
     rememberCenter();
     setPxPerYear(next);
-  };
-
-  const toggleMinor = (next: boolean) => {
-    rememberCenter();
-    onIncludeMinorChange(next);
   };
 
   const toggleExpanded = useCallback((personId: number) => {
@@ -557,21 +607,6 @@ export function Timeline({
 
   return (
     <div ref={rootRef}>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        {heading}
-        <label className="flex max-w-xl cursor-pointer items-start gap-2 text-sm text-body">
-          <input
-            type="checkbox"
-            checked={includeMinor}
-            onChange={(event) => toggleMinor(event.target.checked)}
-            className="mt-0.5 size-4 shrink-0 cursor-pointer accent-accent-green"
-          />
-          <span>
-            <span className="text-strong">{MINOR_TOGGLE_LABEL}</span>
-          </span>
-        </label>
-      </div>
-
       <ConnectionLegend
         entries={layout.legend}
         names={layout.names}
@@ -583,14 +618,15 @@ export function Timeline({
       />
 
       {/*
-        --chrome: what sits above the scroller, the title and the legend, plus the pinned bar below it. The scroller is as
-        tall as what is left of the viewport, so that the year axis at its bottom edge shows right above the bar when the page
-        is at the top, instead of under it (but never shorter than 26rem; a phone scrolls the page instead).
+        --chrome: what sits above the scroller (the site header, the title row, the tabs row and the legend), plus the pinned
+        bar below it. The scroller is as tall as what is left of the viewport, so that the year axis at its bottom edge shows
+        right above the bar when the page is at the top, instead of under it (but never shorter than 26rem; a phone scrolls
+        the page instead).
       */}
       <div
         className={cn(
           "relative isolate [--lane-head:84px] sm:[--lane-head:224px]",
-          layout.legend.length > 0 ? "[--chrome:14.5rem]" : "[--chrome:12rem]",
+          layout.legend.length > 0 ? "[--chrome:18rem]" : "[--chrome:15.5rem]",
         )}
       >
         {/*

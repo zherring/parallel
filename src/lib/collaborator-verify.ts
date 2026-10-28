@@ -4,7 +4,7 @@ import { roleSummary } from "@/lib/roles";
 import { sharedFilms } from "@/lib/shared";
 import type { CollaboratorSuggestion, Credit, PersonTimeline, SharedFilm } from "@/lib/types";
 
-/** How many chips the row shows at most. */
+/** How many suggestions there are at most (the Add a person dropdown lists the first few). */
 export const MAX_SUGGESTIONS = 10;
 const MAX_TITLES = 3;
 
@@ -39,7 +39,7 @@ export function verifyCollaborator(
   return { rank, person: other.person, films, count: films.length, group: primaryGroup(perGroup) };
 }
 
-/** The chip for a verified collaborator: their roles on the shared films and the best-voted titles. */
+/** The suggestion for a verified collaborator: their roles on the shared films and the best-voted titles. */
 export function toSuggestion(
   collaborator: VerifiedCollaborator,
   subject: PersonTimeline,
@@ -65,7 +65,7 @@ export function toSuggestion(
 }
 
 /**
- * The chips for `subject` from the candidates' filmographies (best candidate first; a candidate
+ * The suggestions for `subject` from the candidates' filmographies (best candidate first; a candidate
  * whose timeline could not be loaded is simply left out by the caller). Each candidate is counted
  * exactly, those under two shared films are dropped, the rest are re-ranked by the exact count
  * (ties keep the candidates' order, which is notability) and `pickSuggestions` makes the list

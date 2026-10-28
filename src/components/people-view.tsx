@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { CollaboratorSuggestions } from "@/components/collaborators/collaborator-suggestions";
 import { FilmPanel } from "@/components/film-panel/film-panel";
 import { PersonSearch } from "@/components/person-search/person-search";
 import { FilmsSection } from "@/components/timeline/films-section";
-import { Timeline, type LaneData } from "@/components/timeline/timeline";
+import { useViewTab } from "@/components/timeline/use-view-tab";
+import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
 import { Together } from "@/components/timeline/together";
 import { personRows } from "@/lib/film-rows";
-import { canAddPerson } from "@/lib/lanes";
+import { headlineCount } from "@/lib/films-view";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import { pageHeading } from "@/lib/short-name";
 import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms, type PairShared } from "@/lib/shared";
@@ -38,6 +38,8 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
   const [includeMinor, setIncludeMinor] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
+  const timelineRef = useRef<TimelineHandle>(null);
+  const [view] = useViewTab();
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
   const multi = timelines.length > 1;
@@ -76,6 +78,12 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
     [timelines, includeMinor],
   );
 
+  // The checkbox lives under the panels, away from the timeline: ask the timeline to keep the year in the middle first.
+  const handleIncludeMinorChange = useCallback((next: boolean) => {
+    timelineRef.current?.rememberCenter();
+    setIncludeMinor(next);
+  }, []);
+
   const handleSelect = useCallback((id: number, trigger: HTMLElement) => {
     triggerRef.current = trigger;
     setSelectedId(id);
@@ -93,47 +101,52 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
   const soloFilmCount = timelines[0].films.filter((film) => !film.minor).length;
   // Three or more people: family names only, with the full names on hover.
   const heading = pageHeading(people);
+  // The headline's count is the table's: the films they share, or the films listed for one person. It follows the
+  // checkbox like the table does; the server renders the default (checkbox off), so the first client render matches.
+  const filmCount = headlineCount(multi ? sharedNow.length : soloRows.length);
+
+  const timeline = (
+    <Timeline
+      ref={timelineRef}
+      active={view === "timeline"}
+      lanes={lanes}
+      people={people}
+      litIds={litIds}
+      includeMinor={includeMinor}
+      today={today}
+      selectedId={selectedId}
+      onSelect={handleSelect}
+    />
+  );
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-6xl px-4 py-8">
-      <div>
-        <Timeline
-          heading={
-            <h1
-              title={heading.full ?? undefined}
-              className="min-w-0 break-words text-2xl font-semibold text-strong sm:text-3xl"
-            >
-              {heading.text}
-            </h1>
-          }
-          lanes={lanes}
-          people={people}
-          litIds={litIds}
-          includeMinor={includeMinor}
-          onIncludeMinorChange={setIncludeMinor}
-          today={today}
-          selectedId={selectedId}
-          onSelect={handleSelect}
-        />
+      {/*
+        The title row: the headline (the names and, muted, the film count the table lists) and the Add
+        a person field. They share a row while the headline leaves room for the field; a longer
+        headline takes the whole row and the field drops under it, at the right (wrapping, not
+        shrinking: the headline keeps its width until it is wider than the row). On a one-person page
+        the field offers the person's frequent collaborators when it is focused while empty (a
+        dropdown over the page, so nothing in the row ever changes size or moves).
+      */}
+      <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-3">
+        <h1
+          title={heading.full ?? undefined}
+          className="max-w-full shrink-0 break-words text-2xl font-semibold text-strong sm:text-3xl"
+        >
+          {heading.text}
+          {filmCount && <span className="font-normal text-muted">, {filmCount}</span>}
+        </h1>
+        <div className="w-full lg:ml-auto lg:w-72 lg:shrink-0">
+          <PersonSearch
+            peopleInView={people}
+            size="compact"
+            ariaLabel="Add a person"
+            suggestFor={multi ? undefined : people[0].id}
+            wideMenu
+          />
+        </div>
       </div>
-
-      {canAddPerson(people.length) &&
-        (multi ? (
-          <div className="mt-6 max-w-md">
-            <p className="mb-2 text-sm font-medium text-strong">Add person</p>
-            <PersonSearch peopleInView={people} size="compact" />
-          </div>
-        ) : (
-          // One person: the people they work with most sit to the right of the field (below it on
-          // narrower screens). They arrive after the page is on screen and are hidden when empty.
-          <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-start lg:gap-8">
-            <div className="w-full max-w-md lg:w-[22rem] lg:shrink-0">
-              <p className="mb-2 text-sm font-medium text-strong">Add person</p>
-              <PersonSearch peopleInView={people} size="compact" />
-            </div>
-            <CollaboratorSuggestions person={people[0]} />
-          </div>
-        ))}
 
       {multi ? (
         <Together
@@ -144,17 +157,24 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
           upcomingExtra={upcomingExtra}
           shareCount={shared.length}
           today={today}
+          timeline={timeline}
+          includeMinor={includeMinor}
+          onIncludeMinorChange={handleIncludeMinorChange}
           onSelect={handleSelect}
         />
       ) : (
         <FilmsSection
           headingId="films"
-          title={soloRows.length === 0 ? "No films" : `${soloRows.length} ${soloRows.length === 1 ? "film" : "films"}`}
+          count={soloRows.length}
+          together={false}
           rows={soloRows}
           names={[people[0].name]}
           caption={`Films ${people[0].name} worked on`}
           share={{ people, count: soloFilmCount }}
           today={today}
+          timeline={timeline}
+          includeMinor={includeMinor}
+          onIncludeMinorChange={handleIncludeMinorChange}
           empty={
             <>
               No films found on TMDB.

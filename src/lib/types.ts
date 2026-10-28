@@ -102,7 +102,7 @@ export interface PersonSearchResult {
   knownForTitles: string[];
 }
 
-/** One chip of the "Frequent collaborators" row (`/api/collaborators/{id}`). */
+/** One "Frequent collaborators" suggestion of the Add a person field (`/api/collaborators/{id}`). */
 export interface CollaboratorSuggestion {
   id: number;
   name: string;

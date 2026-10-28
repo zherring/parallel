@@ -17,6 +17,13 @@
   --green: #00e054;
   --green-hover: #00c030;
   --on-green: #14181c;
+  /*
+   * The green of buttons that carry white text (Share). White on the accent --green is only
+   * 1.78:1, so buttons use a deeper shade: white on --green-button is 4.75:1 and on its hover
+   * shade 5.53:1 (both pass AA for normal text), and the button itself is 3.76:1 against --bg.
+   */
+  --green-button: #00861a;
+  --green-button-hover: #007a18;
   --orange: #ff8000;
   --blue: #40bcf4;
   --focus: #40bcf4;
@@ -40,19 +47,6 @@
 /* Steps for the landing hero collage, which grows with the room left of the headline. */
 @theme {
   --breakpoint-wide: 90rem;
-
-  /* A collaborator chip fading in (use with motion-safe:). */
-  --animate-chip-in: chip-in 220ms ease-out both;
-  @keyframes chip-in {
-    from {
-      opacity: 0;
-      transform: translateY(3px);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
-  }
 }
 
 @theme inline {
@@ -65,6 +59,8 @@
   --color-accent-green: var(--green);
   --color-accent-green-hover: var(--green-hover);
   --color-on-accent: var(--on-green);
+  --color-button-green: var(--green-button);
+  --color-button-green-hover: var(--green-button-hover);
   --color-accent-orange: var(--orange);
   --color-accent-blue: var(--blue);
   --color-focus: var(--focus);

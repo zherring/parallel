@@ -10,6 +10,7 @@ import {
   refusedMessage,
   removeChip,
   searchModeForPathname,
+  showsHeaderSearch,
   removeLastChip,
   removedMessage,
   type ChipPerson,
@@ -62,6 +63,29 @@ describe("searchModeForPathname", () => {
     expect(searchModeForPathname("")).toBe("chips");
     expect(searchModeForPathname(null)).toBe("chips");
     expect(searchModeForPathname(undefined)).toBe("chips");
+  });
+});
+
+describe("showsHeaderSearch", () => {
+  it("leaves the header search out of a timeline page, which has its own Add a person field", () => {
+    expect(showsHeaderSearch("/p/488-steven-spielberg")).toBe(false);
+    expect(showsHeaderSearch("/p/488-steven-spielberg+1-george-lucas")).toBe(false);
+  });
+
+  it("leaves it out of the landing page, which has its own search", () => {
+    expect(showsHeaderSearch("/")).toBe(false);
+  });
+
+  it("keeps it everywhere else", () => {
+    expect(showsHeaderSearch("/nope")).toBe(true);
+    expect(showsHeaderSearch("/p")).toBe(true);
+    expect(showsHeaderSearch("")).toBe(true);
+    expect(showsHeaderSearch(null)).toBe(true);
+    expect(showsHeaderSearch(undefined)).toBe(true);
+  });
+
+  it("keeps it on a /p/ address that names nobody, where no page offers another field", () => {
+    expect(showsHeaderSearch("/p/not-a-slug")).toBe(true);
   });
 });
 

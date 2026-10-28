@@ -5,8 +5,8 @@ import { suggestCollaborators } from "@/lib/collaborators";
 const PERSON_ID = /^[1-9]\d{0,9}$/;
 
 /**
- * The people this person has worked with most, for the "Frequent collaborators" chips on their
- * page: `{ source, results }`, at most 10, each with the exact number of films the two share
+ * The people this person has worked with most, for the "Frequent collaborators" in the Add a person
+ * field on their page: `{ source, results }`, at most 10, each with the exact number of films the two share
  * (the pair page's "N films together"). See src/lib/collaborators.ts for how they are found.
  * Our own cache headers keep a hot person's list out of the app for an hour.
  */

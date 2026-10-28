@@ -63,6 +63,25 @@ describe("extendedPeople / extendedPeopleHref", () => {
     expect(extendedPeopleHref([fincher, pitt], pitt)).toBeNull();
   });
 
+  it("keeps the visitor on the table when they add a person from it", () => {
+    expect(extendedPeopleHref([fincher], pitt, "?view=table")).toBe("/p/7467-david-fincher+287-brad-pitt?view=table");
+    // a sorted link is the table too; the sort does not travel to the new page
+    expect(extendedPeopleHref([fincher], pitt, "?sort=rating&dir=desc")).toBe(
+      "/p/7467-david-fincher+287-brad-pitt?view=table",
+    );
+  });
+
+  it("leaves the href plain when they add a person from the timeline", () => {
+    expect(extendedPeopleHref([fincher], pitt, "")).toBe("/p/7467-david-fincher+287-brad-pitt");
+    expect(extendedPeopleHref([fincher], pitt, "?view=timeline&sort=rating&dir=desc")).toBe(
+      "/p/7467-david-fincher+287-brad-pitt",
+    );
+  });
+
+  it("is still a no-op when adding is, whatever the view", () => {
+    expect(extendedPeopleHref([fincher, pitt], pitt, "?view=table")).toBeNull();
+  });
+
   it("is a no-op when the timeline is full", () => {
     expect(extendedPeopleHref([fincher, pitt, cronenweth, norton], carter)).toBeNull();
   });
