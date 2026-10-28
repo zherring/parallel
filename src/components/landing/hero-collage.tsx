@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { Pause, Play } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -15,10 +15,12 @@ import {
   type RefObject,
 } from "react";
 import { TimelineLine } from "@/components/landing/hero-timeline";
+import { KeycapButton } from "@/components/landing/keycap-button";
 import { TIMING, arrive, depart, float, nod } from "@/components/landing/hero-motion";
 import { personImageUrl, posterImageUrl, preloadScene, useHeroRotation } from "@/components/landing/use-hero-rotation";
 import { useHeroKeys } from "@/components/landing/use-hero-keys";
 import { useHeroPause } from "@/components/landing/use-hero-pause";
+import { useKeycapPress } from "@/components/landing/use-keycap-press";
 import type { NavDirection } from "@/lib/hero-history";
 import {
   LINE_Y,
@@ -441,10 +443,10 @@ function Stage({
 const noop = () => {};
 
 /**
- * A round control beside the collage, outside its link: Previous, Next, and pause. The button is
- * 44px square so it is easy to hit; the circle drawn in it is 32px, quiet (low-contrast, never
- * hidden) until the collage is hovered or the button is focused, and a touch screen, which has
- * no hover, keeps the stronger colour.
+ * A round control beside the collage, outside its link: pause and play (Previous and Next are
+ * keycaps, see keycap-button.tsx). The button is 44px square so it is easy to hit; the circle
+ * drawn in it is 32px, quiet (low-contrast, never hidden) until the collage is hovered or the
+ * button is focused, and a touch screen, which has no hover, keeps the stronger colour.
  */
 function RoundButton({
   label,
@@ -528,7 +530,17 @@ function Collage({
       setAnnouncement(cause === "manual" ? `Showing ${sceneLabel(transition.scene)}` : "");
     },
   });
-  useHeroKeys({ heroVisible: !reasons.offscreen, onNavigate: go });
+  // A step from the buttons or the arrow keys presses the matching keycap, and only a step that
+  // happens: a key the page ignores (typing, an open combobox, a held key repeating) never gets here.
+  const { pressed, press } = useKeycapPress();
+  const step = useCallback(
+    (direction: NavDirection) => {
+      press(direction);
+      go(direction);
+    },
+    [press, go],
+  );
+  useHeroKeys({ heroVisible: !reasons.offscreen, onNavigate: step });
 
   useEffect(() => rememberFirstKey(initial.pairing.key), [initial]);
 
@@ -638,7 +650,7 @@ function Collage({
   }, [root, reduced]);
 
   const { scene } = state;
-  const navigate = (direction: NavDirection) => () => go(direction);
+  const navigate = (direction: NavDirection) => () => step(direction);
   // With a single pairing in the pool there is nowhere to step to.
   const canStep = pool.length > 1;
 
@@ -646,15 +658,15 @@ function Collage({
     <>
       {/* Previous, Next and pause sit beside the collage, outside the link, so no control is nested in it. */}
       {canStep && (
-        <RoundButton
+        <KeycapButton
+          direction="prev"
           label="Previous pairing"
+          pressed={pressed === "prev"}
           onClick={navigate("prev")}
           className="right-full mr-[3px] -translate-y-1/2"
           style={SIDE_BUTTON_STYLE}
           {...focusHandlers}
-        >
-          <ChevronLeft size={20} strokeWidth={2.25} aria-hidden="true" />
-        </RoundButton>
+        />
       )}
 
       {/* The whole collage is one link to the pair; its decorative images carry no text of their own. */}
@@ -675,15 +687,15 @@ function Collage({
       </Link>
 
       {canStep && (
-        <RoundButton
+        <KeycapButton
+          direction="next"
           label="Next pairing"
+          pressed={pressed === "next"}
           onClick={navigate("next")}
           className="left-full ml-[3px] -translate-y-1/2"
           style={SIDE_BUTTON_STYLE}
           {...focusHandlers}
-        >
-          <ChevronRight size={20} strokeWidth={2.25} aria-hidden="true" />
-        </RoundButton>
+        />
       )}
 
       <RoundButton
