@@ -1,9 +1,13 @@
-import { tmdbImage } from "@/lib/images";
-import { MINOR_TOGGLE_LABEL, roleSummary } from "@/lib/roles";
+"use client";
+
+import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import type { PairShared } from "@/lib/shared";
 import type { SharedFilm } from "@/lib/types";
 import type { PersonRef } from "@/lib/lanes";
+import { detailsButtonClass, linkClass, tmdbMovieUrl } from "./film-links";
+import { FilmsTable } from "./films-table";
 import { ShareActions } from "./share-actions";
+import { useFilmsTable } from "./use-films-table";
 
 interface TogetherProps {
   people: PersonRef[];
@@ -16,42 +20,16 @@ interface TogetherProps {
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
-const tmdbMovieUrl = (id: number) => `https://www.themoviedb.org/movie/${id}`;
-
-const linkClass = "font-medium text-strong underline-offset-2 hover:underline";
-const detailsButtonClass =
-  "rounded text-sm text-accent-blue underline-offset-2 hover:underline";
-
-function Thumb({ film }: { film: Pick<SharedFilm, "title" | "posterPath"> }) {
-  const src = tmdbImage(film.posterPath, "w92");
-  return src ? (
-    <img
-      src={src}
-      alt=""
-      width={48}
-      height={72}
-      loading="lazy"
-      decoding="async"
-      className="h-[72px] w-12 rounded-[4px] border border-strong/20 object-cover"
-    />
-  ) : (
-    <span
-      aria-hidden
-      className="flex h-[72px] w-12 items-center justify-center rounded-[4px] border border-border bg-surface p-1 text-center text-[9px] leading-tight text-muted"
-    >
-      <span className="line-clamp-4 break-words">{film.title}</span>
-    </span>
-  );
-}
-
 export function Together({ people, shared, pairwise, minorExtra, shareCount, onSelect }: TogetherProps) {
   const nameById = new Map(people.map((p) => [p.id, p.name]));
   const count = shared.length;
+  const table = useFilmsTable(shared);
 
   return (
     <section aria-labelledby="together" className="mt-10">
       <ShareActions
-        shared={shared}
+        // The export follows the table: the films in the order they are sorted in right now.
+        shared={table.rows}
         names={people.map((p) => p.name)}
         canExport
         share={{ people, count: shareCount }}
@@ -69,44 +47,7 @@ export function Together({ people, shared, pairwise, minorExtra, shareCount, onS
           {minorExtra > 0 && ` Turning on "${MINOR_TOGGLE_LABEL}" would add ${minorExtra}.`}
         </p>
       ) : (
-        <ol className="mt-4 grid gap-3 md:grid-cols-2">
-          {shared.map((film) => (
-            <li key={film.id} className="flex gap-3 rounded-lg border border-border bg-surface p-3">
-              <button
-                type="button"
-                aria-label={`Open details for ${film.title} (${film.year})`}
-                onClick={(event) => onSelect(film.id, event.currentTarget)}
-                className="shrink-0 cursor-pointer self-start rounded-[4px]"
-              >
-                <Thumb film={film} />
-              </button>
-              <div className="min-w-0 flex-1">
-                <p className="break-words">
-                  <a href={tmdbMovieUrl(film.id)} className={linkClass}>
-                    {film.title}
-                  </a>{" "}
-                  <time dateTime={film.releaseDate} className="tabular-nums text-muted">
-                    {film.year}
-                  </time>
-                </p>
-                <ul className="mt-1 space-y-0.5 text-sm text-muted">
-                  {people.map((person) => (
-                    <li key={person.id}>
-                      <span className="text-body">{person.name}</span>: {roleSummary(film.byPerson[person.id] ?? [])}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  type="button"
-                  className={`${detailsButtonClass} mt-1.5 cursor-pointer`}
-                  onClick={(event) => onSelect(film.id, event.currentTarget)}
-                >
-                  View details
-                </button>
-              </div>
-            </li>
-          ))}
-        </ol>
+        <FilmsTable people={people} table={table} onSelect={onSelect} />
       )}
 
       {pairwise.length > 0 && (

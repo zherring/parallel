@@ -197,8 +197,19 @@ export interface AwardsDisplay {
 }
 
 const count = (n: number, singular: string, plural: string): string => `${n} ${n === 1 ? singular : plural}`;
-const wholeNumber = (value: number | null | undefined): number =>
+export const wholeNumber = (value: number | null | undefined): number =>
   finite(value) && value > 0 ? Math.floor(value) : 0;
+
+/** The distinct festival prizes as the row words them: "Palme d'Or, Cannes". */
+export function festivalPrizeLabels(awards: AwardsSummary): string[] {
+  return [
+    ...new Set(
+      (awards.festivalPrizes ?? [])
+        .map(({ prize, festival }) => [prize?.trim(), festival?.trim()].filter(Boolean).join(", "))
+        .filter(Boolean),
+    ),
+  ];
+}
 
 /**
  * The awards row, or null to hide it: nothing won, nothing nominated, no festival prize.
@@ -220,13 +231,7 @@ export function awardsDisplay(awards: AwardsSummary | null | undefined): AwardsD
     parts.push(`Nominated for ${count(nominations, "Oscar", "Oscars")}`);
   }
 
-  const prizes = [
-    ...new Set(
-      (awards.festivalPrizes ?? [])
-        .map(({ prize, festival }) => [prize?.trim(), festival?.trim()].filter(Boolean).join(", "))
-        .filter(Boolean),
-    ),
-  ];
+  const prizes = festivalPrizeLabels(awards);
   parts.push(...prizes.slice(0, MAX_FESTIVAL_PRIZES));
   if (prizes.length > MAX_FESTIVAL_PRIZES) parts.push(`+${prizes.length - MAX_FESTIVAL_PRIZES} more`);
 

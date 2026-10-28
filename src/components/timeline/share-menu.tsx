@@ -29,8 +29,21 @@ const serverOrigin = () => SITE_URL;
 const clientCanShare = () => typeof navigator.share === "function";
 const serverCanShare = () => false;
 
+/** Menu width (w-60) and the gap kept to the screen edge, to decide which side of the button the menu opens towards. */
+const MENU_WIDTH = 240;
+const SCREEN_GAP = 16;
+
+/** Opens left-aligned with the button, unless that would run off the right edge of the screen: then right-aligned. */
+function menuSide(button: HTMLElement | null): "left" | "right" {
+  if (!button) return "left";
+  const screen = document.documentElement.clientWidth;
+  const width = Math.min(MENU_WIDTH, screen - 2 * SCREEN_GAP);
+  return button.getBoundingClientRect().left + width > screen - SCREEN_GAP ? "right" : "left";
+}
+
+// The primary button of the row: the green one (Export and Copy link are the secondary ones).
 const buttonClass =
-  "inline-flex w-full items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-strong hover:border-muted";
+  "inline-flex w-full items-center justify-center gap-2 rounded-md bg-accent-green px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-green-hover";
 const itemClass =
   "flex w-full cursor-pointer items-center rounded-md px-3 py-2 text-left text-sm font-medium text-strong hover:bg-border focus:bg-border focus-visible:outline-offset-[-2px]";
 
@@ -46,6 +59,7 @@ const itemClass =
  */
 export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
   const [open, setOpen] = useState(false);
+  const [side, setSide] = useState<"left" | "right">("left");
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -90,6 +104,7 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
 
   const toggle = () => {
     focusOnOpen.current = "first";
+    if (!open) setSide(menuSide(buttonRef.current));
     setOpen((value) => !value);
   };
 
@@ -101,6 +116,7 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
       const list = items();
       list[event.key === "ArrowUp" ? list.length - 1 : 0]?.focus();
     } else {
+      setSide(menuSide(buttonRef.current));
       setOpen(true);
     }
   };
@@ -162,7 +178,7 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
         role="menu"
         aria-labelledby={buttonId}
         hidden={!open}
-        className="absolute left-0 top-full z-30 mt-2 w-60 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-surface p-1 shadow-xl shadow-black/40"
+        className={`absolute ${side === "right" ? "right-0" : "left-0"} top-full z-30 mt-2 w-60 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-surface p-1 shadow-xl shadow-black/40`}
       >
         <a
           role="menuitem"
