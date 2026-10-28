@@ -8,7 +8,7 @@ import { Timeline, type LaneData } from "@/components/timeline/timeline";
 import { Together } from "@/components/timeline/together";
 import { canAddPerson } from "@/lib/lanes";
 import { pageHeading } from "@/lib/short-name";
-import { sharedFilms, sharedFilmsPairwise, type PairShared } from "@/lib/shared";
+import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms, type PairShared } from "@/lib/shared";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
 interface Props {
@@ -52,6 +52,11 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
     () =>
       multi && !includeMinor && shared.length === 0 ? sharedFilms(timelines, { includeMinor: true, today }).length : 0,
     [multi, includeMinor, shared.length, timelines, today],
+  );
+  // Films they share that are not out yet: not counted, so with nothing else shared the empty state says so.
+  const upcomingExtra = useMemo(
+    () => (multi && sharedNow.length === 0 ? upcomingSharedFilms(timelines, { includeMinor, today }).length : 0),
+    [multi, sharedNow.length, timelines, includeMinor, today],
   );
   const litIds = useMemo(() => new Set(sharedNow.map((film) => film.id)), [sharedNow]);
 
@@ -119,6 +124,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
           shared={sharedNow}
           pairwise={pairwiseNow}
           minorExtra={minorExtra}
+          upcomingExtra={upcomingExtra}
           shareCount={shared.length}
           today={today}
           onSelect={handleSelect}

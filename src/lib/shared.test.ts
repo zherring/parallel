@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sharedFilmsToCsv } from "@/lib/csv";
-import { sharedFilms, sharedFilmsPairwise } from "@/lib/shared";
+import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms } from "@/lib/shared";
 import type { Credit, Film, PersonTimeline } from "@/lib/types";
 
 const key = (role: Credit["role"], job: string): Credit => ({ role, job, minor: false });
@@ -156,6 +156,15 @@ describe("films that are not out yet", () => {
       [1, 3, [1, 2]],
       [2, 3, [1, 2]],
     ]);
+  });
+
+  it("lists exactly what sharedFilms leaves out, for the empty state to mention", () => {
+    const opts = { includeMinor: false, today: TODAY };
+    const out = upcomingSharedFilms([one, two], opts).map((f) => f.id);
+    expect(out).toEqual([6, 4, 5]); // the undated one sorts first
+    const counted = sharedFilms([one, two], opts).map((f) => f.id);
+    expect(counted.filter((id) => out.includes(id))).toEqual([]);
+    expect(upcomingSharedFilms([one], opts)).toEqual([]);
   });
 
   it("is a pair with nothing in common when the only shared film is announced", () => {

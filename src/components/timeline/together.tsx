@@ -15,6 +15,8 @@ interface TogetherProps {
   pairwise: PairShared[];
   /** Films that would be added by turning minor credits on; 0 when already on. */
   minorExtra: number;
+  /** Films they share that are not out yet (and so not counted); only set when no film is shared yet. */
+  upcomingExtra: number;
   /** Films together as the page shows them by default (non-minor credits), for the share text. */
   shareCount: number;
   /** yyyy-mm-dd, the page's date (computed once on the server). */
@@ -22,7 +24,16 @@ interface TogetherProps {
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
-export function Together({ people, shared, pairwise, minorExtra, shareCount, today, onSelect }: TogetherProps) {
+export function Together({
+  people,
+  shared,
+  pairwise,
+  minorExtra,
+  upcomingExtra,
+  shareCount,
+  today,
+  onSelect,
+}: TogetherProps) {
   const nameById = new Map(people.map((p) => [p.id, p.name]));
   const count = shared.length;
   const table = useFilmsTable(shared, today);
@@ -47,6 +58,8 @@ export function Together({ people, shared, pairwise, minorExtra, shareCount, tod
           No films together found on TMDB. Try adding a collaborator in a nearby role, such as the cinematographer,
           editor or a co-star.
           {minorExtra > 0 && ` Turning on "${MINOR_TOGGLE_LABEL}" would add ${minorExtra}.`}
+          {upcomingExtra > 0 &&
+            ` ${upcomingExtra} announced ${upcomingExtra === 1 ? "film they share is" : "films they share are"} not out yet and will count once ${upcomingExtra === 1 ? "it is" : "they are"} released.`}
         </p>
       ) : (
         <FilmsTable people={people} table={table} onSelect={onSelect} />
