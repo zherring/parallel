@@ -4,8 +4,13 @@
  * as nodes), continuous node-to-node connector lines between lanes, and zoom/scroll math.
  *
  * A film shown in several lanes has its own poster card in each of them, at the same x,
- * packed first so it keeps a card (and the lowest row it can have) in every lane that has
+ * packed first so it keeps a card (and the row nearest the line) in every lane that has
  * it; one connector line joins its nodes, from the first lane's node down to the last's.
+ *
+ * Each lane's line (with its nodes) is at the top of the lane with the poster rows hanging below
+ * it (`nodeLine: "top"`, the default), or at the bottom of the lane with the rows stacked above it
+ * (`"bottom"`). Row 0 is always the row nearest the line; the lane's height is the same either way.
+ * The two arrangements are exact vertical mirrors of each other inside a lane.
  *
  * Only released films connect (see `isReleased`). An announced film that two lanes both list is
  * an ordinary "upcoming" poster in each: no connector, no membership, no priority, never lit. The
@@ -42,10 +47,16 @@ export const CARD_HEIGHT = POSTER_HEIGHT + CAPTION_HEIGHT;
 export const CARD_GAP = 8;
 /** Vertical gap between sub-rows inside a lane. */
 export const ROW_GAP = 10;
-/** y of the lane's track line, from the top of the lane. */
+/** Which end of its lane a lane's line (and so its nodes) sits at; the poster rows are on the other side of it. */
+export type NodeLine = "top" | "bottom";
+export const DEFAULT_NODE_LINE: NodeLine = "top";
+/** y of the lane's track line, from the top of the lane (`nodeLine: "top"`); from the bottom of the lane for `"bottom"`. */
 export const LINE_Y = 14;
-/** y of the first row of cards, from the top of the lane. */
-export const CARD_TOP = 30;
+/** Distance from the lane's line to the nearest edge of the first row of cards (CARD_TOP less LINE_Y). */
+export const LINE_TO_CARD = 16;
+/** y of the first row of cards, from the top of the lane (`nodeLine: "top"`); of its bottom edge from the bottom of the lane for `"bottom"`. */
+export const CARD_TOP = LINE_Y + LINE_TO_CARD;
+/** Empty space past the last row of cards, on the far side of the line: under it (top) or above it (bottom). */
 export const LANE_PAD_BOTTOM = 18;
 /** Height of the year axis row under the lanes. */
 export const AXIS_HEIGHT = 44;
@@ -57,7 +68,7 @@ export const DEFAULT_MAX_ROWS = 2;
 export const DOT_HIT_SIZE = 24;
 /** Narrowest hit area a node is squeezed to when its neighbours are close. */
 export const DOT_HIT_MIN = 8;
-/** Height of a node's hit area, centred on the line; it ends above the first row of cards (CARD_TOP). */
+/** Height of a node's hit area, centred on the line; it stops short of the first row of cards (LINE_TO_CARD away). */
 export const NODE_HIT_HEIGHT = 28;
 /** How far past a card's edge a vertical line still counts as running over the card (half its halo). */
 export const LINE_HALO = 1;
@@ -369,13 +380,18 @@ export function quietFilmIds(lanes: readonly { films: readonly ConnectableFilm[]
 
 /**
  * For each lane, the connector lines that run through its poster rows: those of released films
- * shown in two or more lanes, from the first lane that shows them down to, but not including, the
- * last. A line goes from node to node, so the last lane's rows are never crossed.
+ * shown in two or more lanes. A line goes from node to node, down the page, so it crosses the
+ * rows of the lanes between its two end lanes and one of the two ends: with the line at the top
+ * of the lanes (`nodeLine: "top"`) it leaves the first lane's node through that lane's rows and
+ * ends on the last lane's node above that lane's rows, so the last lane is never crossed; with
+ * it at the bottom (`"bottom"`) it leaves the first lane's node below that lane's rows and runs
+ * through the rows of the last lane to its node, so the first lane is never crossed.
  */
 export function laneObstacles(
   lanes: readonly { films: readonly PackableFilm[] }[],
   options: Pick<PackOptions, "pxPerYear" | "axisStartYear" | "pad">,
   today: string,
+  nodeLine: NodeLine = DEFAULT_NODE_LINE,
 ): Obstacle[][] {
   const scale = { pxPerYear: options.pxPerYear, axisStartYear: options.axisStartYear, pad: options.pad ?? TRACK_PAD };
   const shownIn = new Map<number, { first: number; last: number; x: number }>();
@@ -389,7 +405,7 @@ export function laneObstacles(
   });
   return lanes.map((_, index) =>
     [...shownIn]
-      .filter(([, s]) => s.first <= index && index < s.last)
+      .filter(([, s]) => (nodeLine === "top" ? s.first <= index && index < s.last : s.first < index && index <= s.last))
       .map(([filmId, s]) => ({ filmId, x: s.x }))
       .sort((a, b) => a.x - b.x || a.filmId - b.filmId),
   );
@@ -402,9 +418,26 @@ export function laneHeight(rows: number): number {
   return CARD_TOP + n * CARD_HEIGHT + (n - 1) * ROW_GAP + LANE_PAD_BOTTOM;
 }
 
-/** y of a card's top edge, from the top of its lane. */
+/** y of a card's top edge, from the top of its lane, for a lane whose line is at the top. */
 export function cardTopInLane(row: number): number {
   return CARD_TOP + row * (CARD_HEIGHT + ROW_GAP);
+}
+
+/**
+ * y of a card's top edge, from the top of its lane, for a lane of `height` (see `laneHeight`). With the
+ * line at the top this is `cardTopInLane`. With the line at the bottom row 0 sits just above it, its
+ * caption ending LINE_TO_CARD short of the line, and the other rows stack upward, ROW_GAP apart; the
+ * highest row ends LANE_PAD_BOTTOM from the top of the lane.
+ */
+export function cardTopFor(row: number, height: number, nodeLine: NodeLine = DEFAULT_NODE_LINE): number {
+  return nodeLine === "top"
+    ? cardTopInLane(row)
+    : height - CARD_TOP - CARD_HEIGHT - row * (CARD_HEIGHT + ROW_GAP);
+}
+
+/** y of a lane's line (every node's centre), from the top of a lane of `height`. */
+export function lineYInLane(height: number, nodeLine: NodeLine = DEFAULT_NODE_LINE): number {
+  return nodeLine === "top" ? LINE_Y : height - LINE_Y;
 }
 
 export interface LaneBox {
@@ -420,6 +453,11 @@ export function stackLanes(rowCounts: number[]): LaneBox[] {
     top += box.height;
     return box;
   });
+}
+
+/** y of the line (every node's centre) of the lane in `box`, from the top of the first lane. */
+export function nodeY(box: LaneBox, nodeLine: NodeLine = DEFAULT_NODE_LINE): number {
+  return box.top + lineYInLane(box.height, nodeLine);
 }
 
 export function totalHeight(boxes: LaneBox[]): number {
@@ -480,12 +518,17 @@ export function filmMembership(
  * between). Coordinates are relative to the top of the first lane. A film that is not out on
  * `today` gets no line.
  *
- * Each lane's own poster of the film hangs below its node, in the line's way; the posters of
- * shared films are drawn over the lines, so the line passes behind its own poster (and behind
- * the poster of any other shared film) and shows again below its caption. It is drawn over
- * the posters of films that are not shared.
+ * With the line at the top of the lanes, each lane's own poster of the film hangs below its node, in
+ * the line's way; with it at the bottom the poster is above its node and the line comes down
+ * through it. Either way the posters of shared films are drawn over the lines, so the line passes
+ * behind its own poster (and behind the poster of any other shared film) and shows again between
+ * the caption and the node. It is drawn over the posters of films that are not shared.
  */
-export function buildConnectors(lanes: readonly ConnectorLane[], today: string): Connector[] {
+export function buildConnectors(
+  lanes: readonly ConnectorLane[],
+  today: string,
+  nodeLine: NodeLine = DEFAULT_NODE_LINE,
+): Connector[] {
   const connectors: Connector[] = [];
 
   for (const [filmId, laneIndexes] of filmMembership(lanes, today)) {
@@ -496,8 +539,8 @@ export function buildConnectors(lanes: readonly ConnectorLane[], today: string):
     connectors.push({
       filmId,
       x: lanes[fromLane].items.find((item) => item.film.id === filmId)!.x,
-      y1: lanes[fromLane].box.top + LINE_Y,
-      y2: lanes[toLane].box.top + LINE_Y,
+      y1: nodeY(lanes[fromLane].box, nodeLine),
+      y2: nodeY(lanes[toLane].box, nodeLine),
       fromLane,
       toLane,
       lanes: laneIndexes,
