@@ -7,6 +7,7 @@ import {
   HERO_POSTER_MIN,
   type GeneratedExamples,
 } from "@/lib/examples";
+import { heroPool } from "@/lib/hero-scenes";
 
 // Classic, Horror, and Comedy (no pairings below).
 const genres = GENRES.filter((g) => ["classic", "horror", "comedy"].includes(g.id));
@@ -92,6 +93,17 @@ describe("buildHeroPairings", () => {
       expect(entry.posters.length).toBeGreaterThanOrEqual(HERO_POSTER_MIN);
       expect(entry.posters.length).toBeLessThanOrEqual(HERO_POSTER_COUNT);
     }
+  });
+
+  // heroPool only takes pairings that share a person with another one (so a single swap is always
+  // possible). A pairing nobody else touches is on the cards but never in the hero's rotation, so
+  // add new pairings with someone who is already in another pairing, or they will never show there.
+  it("puts most of the curated pairings into the hero's rotation", () => {
+    const all = buildHeroPairings();
+    const inPool = new Set(heroPool(all).map((entry) => entry.key));
+    const left = all.filter((entry) => !inPool.has(entry.key)).map((entry) => entry.people.map((p) => p.name).join(" & "));
+    expect(inPool.size).toBeGreaterThanOrEqual(100);
+    expect(left.length, `left out of the hero: ${left.join("; ")}`).toBeLessThanOrEqual(all.length * 0.2);
   });
 });
 

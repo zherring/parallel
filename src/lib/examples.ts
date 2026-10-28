@@ -109,6 +109,54 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
     ],
     blurb: "Two actors on screen together: The Godfather Part II, Heat, Righteous Kill, The Irishman.",
   },
+  {
+    genre: "classic",
+    people: [
+      { id: 2636, name: "Alfred Hitchcock" },
+      { id: 854, name: "James Stewart" },
+    ],
+    blurb: "Director and actor: Rope, Rear Window, The Man Who Knew Too Much, Vertigo.",
+  },
+  {
+    genre: "classic",
+    people: [
+      { id: 2636, name: "Alfred Hitchcock" },
+      { id: 2638, name: "Cary Grant" },
+    ],
+    blurb: "Director and actor: Suspicion, Notorious, To Catch a Thief.",
+  },
+  {
+    genre: "classic",
+    people: [
+      { id: 3146, name: "Billy Wilder" },
+      { id: 3151, name: "Jack Lemmon" },
+    ],
+    blurb: "A writer-director and an actor: Some Like It Hot, The Apartment, Irma la Douce, The Fortune Cookie.",
+  },
+  {
+    genre: "classic",
+    people: [
+      { id: 6593, name: "John Huston" },
+      { id: 4110, name: "Humphrey Bogart" },
+    ],
+    blurb: "A writer-director and an actor: The Maltese Falcon, Key Largo, The African Queen.",
+  },
+  {
+    genre: "classic",
+    people: [
+      { id: 4110, name: "Humphrey Bogart" },
+      { id: 7570, name: "Lauren Bacall" },
+    ],
+    blurb: "Two actors on screen together: To Have and Have Not, The Big Sleep, Dark Passage, Key Largo.",
+  },
+  {
+    genre: "classic",
+    people: [
+      { id: 1776, name: "Francis Ford Coppola" },
+      { id: 3084, name: "Marlon Brando" },
+    ],
+    blurb: "Director and actor: The Godfather, Apocalypse Now.",
+  },
 
   // Horror
   {
@@ -158,6 +206,54 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 1650351, name: "Pawel Pogorzelski" },
     ],
     blurb: "Director and cinematographer: Hereditary, Midsommar, Beau Is Afraid.",
+  },
+  {
+    genre: "horror",
+    people: [
+      { id: 11770, name: "John Carpenter" },
+      { id: 6856, name: "Kurt Russell" },
+    ],
+    blurb: "Director and actor: Escape from New York, The Thing, Big Trouble in Little China, Escape from L.A.",
+  },
+  {
+    genre: "horror",
+    people: [
+      { id: 10828, name: "Guillermo del Toro" },
+      { id: 2372, name: "Ron Perlman" },
+    ],
+    blurb: "Director and actor: Blade II, Hellboy, Hellboy II: The Golden Army, Pacific Rim.",
+  },
+  {
+    genre: "horror",
+    people: [
+      { id: 7623, name: "Sam Raimi" },
+      { id: 11357, name: "Bruce Campbell" },
+    ],
+    blurb: "Director and actor: The Evil Dead, Evil Dead II, Army of Darkness, Spider-Man 3.",
+  },
+  {
+    genre: "horror",
+    people: [
+      { id: 5140, name: "Wes Craven" },
+      { id: 9206, name: "Neve Campbell" },
+    ],
+    blurb: "Director and actor: Scream, Scream 2, Scream 3, Scream 4.",
+  },
+  {
+    genre: "horror",
+    people: [
+      { id: 5140, name: "Wes Craven" },
+      { id: 26458, name: "Kevin Williamson" },
+    ],
+    blurb: "A director and a screenwriter: Scream, Scream 2, Scream 3, Cursed.",
+  },
+  {
+    genre: "horror",
+    people: [
+      { id: 138781, name: "Robert Eggers" },
+      { id: 5293, name: "Willem Dafoe" },
+    ],
+    blurb: "Director and actor: The Lighthouse, The Northman, Nosferatu.",
   },
 
   // Sci-Fi
@@ -224,6 +320,46 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 947, name: "Hans Zimmer" },
     ],
     blurb: "Director and composer: Batman Begins, Inception, Interstellar, Dunkirk.",
+  },
+  {
+    genre: "sci-fi",
+    people: [
+      { id: 578, name: "Ridley Scott" },
+      { id: 947, name: "Hans Zimmer" },
+    ],
+    blurb: "Director and composer: Thelma & Louise, Gladiator, Hannibal, Black Hawk Down.",
+  },
+  {
+    genre: "sci-fi",
+    people: [
+      { id: 2710, name: "James Cameron" },
+      { id: 1100, name: "Arnold Schwarzenegger" },
+    ],
+    blurb: "A writer-director and an actor: The Terminator, Terminator 2: Judgment Day, True Lies.",
+  },
+  {
+    genre: "sci-fi",
+    people: [
+      { id: 9340, name: "Lana Wachowski" },
+      { id: 9339, name: "Lilly Wachowski" },
+    ],
+    blurb: "A directing duo: The Matrix, The Matrix Reloaded, Cloud Atlas, Jupiter Ascending.",
+  },
+  {
+    genre: "sci-fi",
+    people: [
+      { id: 137427, name: "Denis Villeneuve" },
+      { id: 151, name: "Roger Deakins" },
+    ],
+    blurb: "Director and cinematographer: Prisoners, Sicario, Blade Runner 2049.",
+  },
+  {
+    genre: "sci-fi",
+    people: [
+      { id: 15344, name: "J.J. Abrams" },
+      { id: 15347, name: "Michael Giacchino" },
+    ],
+    blurb: "Director and composer: Mission: Impossible III, Star Trek, Super 8, Star Trek Into Darkness.",
   },
 
   // Crime & Thriller
@@ -315,6 +451,46 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
     ],
     blurb: "A writer-director and an actor: True Romance, Inglourious Basterds, Once Upon a Time... in Hollywood.",
   },
+  {
+    genre: "crime-thriller",
+    people: [
+      { id: 7467, name: "David Fincher" },
+      { id: 3186, name: "Trent Reznor" },
+    ],
+    blurb: "Director and composer: The Social Network, The Girl with the Dragon Tattoo, Gone Girl, The Killer.",
+  },
+  {
+    genre: "crime-thriller",
+    people: [
+      { id: 1223, name: "Joel Coen" },
+      { id: 1224, name: "Ethan Coen" },
+    ],
+    blurb: "A directing duo, both credited as writers: Fargo, The Big Lebowski, No Country for Old Men, True Grit.",
+  },
+  {
+    genre: "crime-thriller",
+    people: [
+      { id: 638, name: "Michael Mann" },
+      { id: 134, name: "Jamie Foxx" },
+    ],
+    blurb: "A writer-director and an actor: Ali, Collateral, Miami Vice.",
+  },
+  {
+    genre: "crime-thriller",
+    people: [
+      { id: 1884, name: "Steven Soderbergh" },
+      { id: 1892, name: "Matt Damon" },
+    ],
+    blurb: "Director and actor: Ocean's Eleven, Ocean's Twelve, Ocean's Thirteen, Contagion.",
+  },
+  {
+    genre: "crime-thriller",
+    people: [
+      { id: 62, name: "Bruce Willis" },
+      { id: 2231, name: "Samuel L. Jackson" },
+    ],
+    blurb: "Two actors on screen together: Pulp Fiction, Die Hard: With a Vengeance, Unbreakable, Glass.",
+  },
 
   // Comedy
   {
@@ -364,6 +540,70 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 5344, name: "Meg Ryan" },
     ],
     blurb: "Two actors on screen together: Joe Versus the Volcano, Sleepless in Seattle, You've Got Mail.",
+  },
+  {
+    genre: "comedy",
+    people: [
+      { id: 41039, name: "Judd Apatow" },
+      { id: 19274, name: "Seth Rogen" },
+    ],
+    blurb: "A writer-director and an actor: The 40 Year-Old Virgin, Knocked Up, Funny People.",
+  },
+  {
+    genre: "comedy",
+    people: [
+      { id: 19274, name: "Seth Rogen" },
+      { id: 54734, name: "Evan Goldberg" },
+    ],
+    blurb: "Writing partners: Superbad, Pineapple Express, This Is the End, The Interview.",
+  },
+  {
+    genre: "comedy",
+    people: [
+      { id: 3460, name: "Gene Wilder" },
+      { id: 9309, name: "Richard Pryor" },
+    ],
+    blurb: "Two actors on screen together: Silver Streak, Stir Crazy, See No Evil, Hear No Evil.",
+  },
+  {
+    genre: "comedy",
+    people: [
+      { id: 1532, name: "Bill Murray" },
+      { id: 1524, name: "Harold Ramis" },
+    ],
+    blurb: "An actor and a writer-director: Caddyshack, Stripes, Ghostbusters, Groundhog Day.",
+  },
+  {
+    genre: "comedy",
+    people: [
+      { id: 5655, name: "Wes Anderson" },
+      { id: 887, name: "Owen Wilson" },
+    ],
+    blurb: "Director and actor, both credited as writers: Bottle Rocket, Rushmore, The Royal Tenenbaums.",
+  },
+  {
+    genre: "comedy",
+    people: [
+      { id: 9248, name: "Nora Ephron" },
+      { id: 5344, name: "Meg Ryan" },
+    ],
+    blurb: "A writer-director and an actor: When Harry Met Sally..., Sleepless in Seattle, You've Got Mail.",
+  },
+  {
+    genre: "comedy",
+    people: [
+      { id: 8930, name: "John Cleese" },
+      { id: 383, name: "Michael Palin" },
+    ],
+    blurb: "Two actors, both credited as writers: Monty Python and the Holy Grail, Life of Brian, Monty Python's The Meaning of Life.",
+  },
+  {
+    genre: "comedy",
+    people: [
+      { id: 280, name: "Terry Gilliam" },
+      { id: 383, name: "Michael Palin" },
+    ],
+    blurb: "Director and actor: Jabberwocky, Time Bandits, Brazil.",
   },
 
   // Drama
@@ -455,6 +695,54 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
     ],
     blurb: "Two actors on screen together: This Boy's Life, Marvin's Room, Killers of the Flower Moon.",
   },
+  {
+    genre: "drama",
+    people: [
+      { id: 4762, name: "Paul Thomas Anderson" },
+      { id: 1233, name: "Philip Seymour Hoffman" },
+    ],
+    blurb: "Director and actor: Hard Eight, Boogie Nights, Magnolia, Punch-Drunk Love, The Master.",
+  },
+  {
+    genre: "drama",
+    people: [
+      { id: 569, name: "Ethan Hawke" },
+      { id: 1146, name: "Julie Delpy" },
+    ],
+    blurb: "Two actors on screen together: Before Sunrise, Before Sunset, Before Midnight, Waking Life.",
+  },
+  {
+    genre: "drama",
+    people: [
+      { id: 11218, name: "Alfonso Cuarón" },
+      { id: 4185, name: "Emmanuel Lubezki" },
+    ],
+    blurb: "Director and cinematographer: Y Tu Mamá También, Children of Men, Gravity, A Little Princess.",
+  },
+  {
+    genre: "drama",
+    people: [
+      { id: 3186, name: "Trent Reznor" },
+      { id: 142391, name: "Atticus Ross" },
+    ],
+    blurb: "A pair of composers: The Social Network, The Girl with the Dragon Tattoo, Gone Girl, Soul.",
+  },
+  {
+    genre: "drama",
+    people: [
+      { id: 1892, name: "Matt Damon" },
+      { id: 880, name: "Ben Affleck" },
+    ],
+    blurb: "Two actors on screen together: Good Will Hunting, Chasing Amy, Dogma, The Last Duel.",
+  },
+  {
+    genre: "drama",
+    people: [
+      { id: 5281, name: "Spike Lee" },
+      { id: 5292, name: "Denzel Washington" },
+    ],
+    blurb: "Director and actor: Mo' Better Blues, Malcolm X, He Got Game, Inside Man.",
+  },
 
   // Action & Western
   {
@@ -537,6 +825,54 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
     ],
     blurb: "Two directors who worked on each other's films: Desperado, From Dusk Till Dawn, Grindhouse, Death Proof.",
   },
+  {
+    genre: "action-western",
+    people: [
+      { id: 4385, name: "Sergio Leone" },
+      { id: 190, name: "Clint Eastwood" },
+    ],
+    blurb: "Director and actor: A Fistful of Dollars, For a Few Dollars More, The Good, the Bad and the Ugly.",
+  },
+  {
+    genre: "action-western",
+    people: [
+      { id: 11435, name: "Howard Hawks" },
+      { id: 4165, name: "John Wayne" },
+    ],
+    blurb: "Director and actor: Red River, Rio Bravo, Hatari!, El Dorado.",
+  },
+  {
+    genre: "action-western",
+    people: [
+      { id: 7187, name: "Richard Donner" },
+      { id: 2461, name: "Mel Gibson" },
+    ],
+    blurb: "Director and actor: Lethal Weapon, Lethal Weapon 2, Lethal Weapon 3, Maverick.",
+  },
+  {
+    genre: "action-western",
+    people: [
+      { id: 40644, name: "Chad Stahelski" },
+      { id: 6384, name: "Keanu Reeves" },
+    ],
+    blurb: "Director and actor: John Wick, John Wick: Chapter 2, John Wick: Chapter 3 - Parabellum, John Wick: Chapter 4.",
+  },
+  {
+    genre: "action-western",
+    people: [
+      { id: 500, name: "Tom Cruise" },
+      { id: 11108, name: "Simon Pegg" },
+    ],
+    blurb: "Two actors on screen together: Mission: Impossible III, Mission: Impossible - Ghost Protocol, Mission: Impossible - Fallout.",
+  },
+  {
+    genre: "action-western",
+    people: [
+      { id: 7623, name: "Sam Raimi" },
+      { id: 2219, name: "Tobey Maguire" },
+    ],
+    blurb: "Director and actor: Spider-Man, Spider-Man 2, Spider-Man 3.",
+  },
 
   // World Cinema
   {
@@ -595,6 +931,62 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
     ],
     blurb: "Director and actor: Red Sorghum, Raise the Red Lantern, The Story of Qiu Ju, To Live.",
   },
+  {
+    genre: "world-cinema",
+    people: [
+      { id: 5026, name: "Akira Kurosawa" },
+      { id: 7453, name: "Takashi Shimura" },
+    ],
+    blurb: "Director and actor: Rashomon, Ikiru, Seven Samurai, Throne of Blood, High and Low.",
+  },
+  {
+    genre: "world-cinema",
+    people: [
+      { id: 6648, name: "Ingmar Bergman" },
+      { id: 2201, name: "Max von Sydow" },
+    ],
+    blurb: "Director and actor: The Seventh Seal, Wild Strawberries, The Virgin Spring, Through a Glass Darkly.",
+  },
+  {
+    genre: "world-cinema",
+    people: [
+      { id: 4415, name: "Federico Fellini" },
+      { id: 5676, name: "Marcello Mastroianni" },
+    ],
+    blurb: "Director and actor: La Dolce Vita, 8½, City of Women, Ginger and Fred.",
+  },
+  {
+    genre: "world-cinema",
+    people: [
+      { id: 5676, name: "Marcello Mastroianni" },
+      { id: 16757, name: "Sophia Loren" },
+    ],
+    blurb: "Two actors on screen together: Yesterday, Today and Tomorrow, Marriage Italian Style, Sunflower, A Special Day.",
+  },
+  {
+    genre: "world-cinema",
+    people: [
+      { id: 309, name: "Pedro Almodóvar" },
+      { id: 3131, name: "Antonio Banderas" },
+    ],
+    blurb: "Director and actor: Law of Desire, Women on the Verge of a Nervous Breakdown, The Skin I Live In, Pain and Glory.",
+  },
+  {
+    genre: "world-cinema",
+    people: [
+      { id: 12453, name: "Wong Kar-wai" },
+      { id: 1357, name: "Christopher Doyle" },
+    ],
+    blurb: "Director and cinematographer: Days of Being Wild, Chungking Express, Happy Together, In the Mood for Love, 2046.",
+  },
+  {
+    genre: "world-cinema",
+    people: [
+      { id: 10099, name: "Park Chan-wook" },
+      { id: 20738, name: "Song Kang-ho" },
+    ],
+    blurb: "Director and actor: Joint Security Area, Sympathy for Mr. Vengeance, Thirst.",
+  },
 
   // Animation
   {
@@ -644,6 +1036,38 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 155267, name: "Christopher Miller" },
     ],
     blurb: "A directing duo: Cloudy with a Chance of Meatballs, 21 Jump Street, The Lego Movie.",
+  },
+  {
+    genre: "animation",
+    people: [
+      { id: 7087, name: "Brad Bird" },
+      { id: 15347, name: "Michael Giacchino" },
+    ],
+    blurb: "Director and composer: The Incredibles, Ratatouille, Incredibles 2, Tomorrowland.",
+  },
+  {
+    genre: "animation",
+    people: [
+      { id: 15810, name: "Ron Clements" },
+      { id: 15811, name: "John Musker" },
+    ],
+    blurb: "A directing duo: The Little Mermaid, Aladdin, Hercules, Moana.",
+  },
+  {
+    genre: "animation",
+    people: [
+      { id: 69797, name: "Dean DeBlois" },
+      { id: 66193, name: "Chris Sanders" },
+    ],
+    blurb: "A directing duo, both credited as writers: Mulan, Lilo & Stitch, How to Train Your Dragon.",
+  },
+  {
+    genre: "animation",
+    people: [
+      { id: 510, name: "Tim Burton" },
+      { id: 531, name: "Danny Elfman" },
+    ],
+    blurb: "Director and composer: Edward Scissorhands, Corpse Bride, Charlie and the Chocolate Factory, Alice in Wonderland.",
   },
 ];
 

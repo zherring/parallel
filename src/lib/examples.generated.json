@@ -310,6 +310,233 @@
       }
     ]
   },
+  "854+2636": {
+    "sharedCount": 4,
+    "people": [
+      {
+        "id": 2636,
+        "name": "Alfred Hitchcock",
+        "profilePath": "/108fiNM6poRieMg7RIqLJRxdAwG.jpg"
+      },
+      {
+        "id": 854,
+        "name": "James Stewart",
+        "profilePath": "/3CU3yG3rCTlG3SwxI9iUOzfHtfX.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/9ar6rxLDB8kagAnXZKn6h9smscr.jpg",
+        "title": "Rope",
+        "year": 1948
+      },
+      {
+        "path": "/ILVF0eJxHMddjxeQhswFtpMtqx.jpg",
+        "title": "Rear Window",
+        "year": 1954
+      },
+      {
+        "path": "/gy8YBRjCQRIT9x9G9F5fpnFD4xw.jpg",
+        "title": "The Man Who Knew Too Much",
+        "year": 1956
+      },
+      {
+        "path": "/15uOEfqBNTVtDUT7hGBVCka0rZz.jpg",
+        "title": "Vertigo",
+        "year": 1958
+      }
+    ]
+  },
+  "2636+2638": {
+    "sharedCount": 3,
+    "people": [
+      {
+        "id": 2636,
+        "name": "Alfred Hitchcock",
+        "profilePath": "/108fiNM6poRieMg7RIqLJRxdAwG.jpg"
+      },
+      {
+        "id": 2638,
+        "name": "Cary Grant",
+        "profilePath": "/lcNAirMFcyM7WIiCmaabjbNZVOJ.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/clWNlzlbyaEoIK63lcFjqBmXoQz.jpg",
+        "title": "Suspicion",
+        "year": 1941
+      },
+      {
+        "path": "/e7DHQGgivZyMvM4z7mA7gMNvOHg.jpg",
+        "title": "Notorious",
+        "year": 1946
+      },
+      {
+        "path": "/cPy05z52PbFsAvfO5zbp0ebGhIj.jpg",
+        "title": "To Catch a Thief",
+        "year": 1955
+      }
+    ]
+  },
+  "3146+3151": {
+    "sharedCount": 7,
+    "people": [
+      {
+        "id": 3146,
+        "name": "Billy Wilder",
+        "profilePath": "/nWV9BDDCbRegP7etiPjl3vYnJEq.jpg"
+      },
+      {
+        "id": 3151,
+        "name": "Jack Lemmon",
+        "profilePath": "/7jWVWLr1VJqQrN3d4YJaATCIHRw.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/hVIKyTK13AvOGv7ICmJjK44DTzp.jpg",
+        "title": "Some Like It Hot",
+        "year": 1959
+      },
+      {
+        "path": "/hhSRt1KKfRT0yEhEtRW3qp31JFU.jpg",
+        "title": "The Apartment",
+        "year": 1960
+      },
+      {
+        "path": "/5TgL8ql6WwXWmX4EvBL4geJ7gx5.jpg",
+        "title": "Irma la Douce",
+        "year": 1963
+      },
+      {
+        "path": "/tGZc0sRoXgGzRDhHaCRmqxNSKVZ.jpg",
+        "title": "The Fortune Cookie",
+        "year": 1966
+      },
+      {
+        "path": "/r4RtbJk8wVyZ1yk6yBZjzGD4ANU.jpg",
+        "title": "The Front Page",
+        "year": 1974
+      }
+    ]
+  },
+  "4110+6593": {
+    "sharedCount": 7,
+    "people": [
+      {
+        "id": 6593,
+        "name": "John Huston",
+        "profilePath": "/saIbkr0jPzscRBKNG1suhgd3Yxb.jpg"
+      },
+      {
+        "id": 4110,
+        "name": "Humphrey Bogart",
+        "profilePath": "/4pk2VbOb2td7iBZyir6Ji46HH4N.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/fkP6yy25Wja6Sn3AIlZ4F1BWsy0.jpg",
+        "title": "High Sierra",
+        "year": 1941
+      },
+      {
+        "path": "/bf4o6Uzw5wqLjdKwRuiDrN1xyvl.jpg",
+        "title": "The Maltese Falcon",
+        "year": 1941
+      },
+      {
+        "path": "/rySfmQQZhS7RswOiJcJrww6FcHy.jpg",
+        "title": "Key Largo",
+        "year": 1948
+      },
+      {
+        "path": "/2Ypg0KhQfFYWILelvHGtSHHR0dk.jpg",
+        "title": "The African Queen",
+        "year": 1951
+      },
+      {
+        "path": "/jztp9bhYDGAMK7WgvLA3mmzLseN.jpg",
+        "title": "Beat the Devil",
+        "year": 1953
+      }
+    ]
+  },
+  "4110+7570": {
+    "sharedCount": 5,
+    "people": [
+      {
+        "id": 4110,
+        "name": "Humphrey Bogart",
+        "profilePath": "/4pk2VbOb2td7iBZyir6Ji46HH4N.jpg"
+      },
+      {
+        "id": 7570,
+        "name": "Lauren Bacall",
+        "profilePath": "/iCOzbSzCSUC6D9EcyXtVb2FRNu0.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/m6EjBAY7gA6tx5RMutXGtZWFzyI.jpg",
+        "title": "To Have and Have Not",
+        "year": 1945
+      },
+      {
+        "path": "/lraHo9D8c0YWfxsKqT5P5sVqMKN.jpg",
+        "title": "The Big Sleep",
+        "year": 1946
+      },
+      {
+        "path": "/dvwmiD6qQ05gojrFQRaFbdhbNDF.jpg",
+        "title": "Dark Passage",
+        "year": 1947
+      },
+      {
+        "path": "/rySfmQQZhS7RswOiJcJrww6FcHy.jpg",
+        "title": "Key Largo",
+        "year": 1948
+      },
+      {
+        "path": "/j3lqsmOdKiHtLRoPw4wa0yRGNYE.jpg",
+        "title": "The Petrified Forest",
+        "year": 1955
+      }
+    ]
+  },
+  "1776+3084": {
+    "sharedCount": 3,
+    "people": [
+      {
+        "id": 1776,
+        "name": "Francis Ford Coppola",
+        "profilePath": "/3Pblihd6KjXliie9vj4iQJwbNPU.jpg"
+      },
+      {
+        "id": 3084,
+        "name": "Marlon Brando",
+        "profilePath": "/yIvLpf9U9NfAvC7fuAgOQ8tu51T.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
+        "title": "The Godfather",
+        "year": 1972
+      },
+      {
+        "path": "/gQB8Y5RCMkv2zwzFHbUJX3kAhvA.jpg",
+        "title": "Apocalypse Now",
+        "year": 1979
+      },
+      {
+        "path": "/fe0TuYz9jCKUba2Omj48K8bWJ8z.jpg",
+        "title": "Don Juan DeMarco",
+        "year": 1994
+      }
+    ]
+  },
   "1060+11770": {
     "sharedCount": 7,
     "people": [
@@ -534,6 +761,243 @@
         "path": "/wgVkkjigF31r1nZV80uV0xNIoun.jpg",
         "title": "Beau Is Afraid",
         "year": 2023
+      }
+    ]
+  },
+  "6856+11770": {
+    "sharedCount": 5,
+    "people": [
+      {
+        "id": 11770,
+        "name": "John Carpenter",
+        "profilePath": "/3Qp0mg61u1qSZNJh30BFEUZrIMG.jpg"
+      },
+      {
+        "id": 6856,
+        "name": "Kurt Russell",
+        "profilePath": "/6g1d98oH4miG4k0ZiZWmF3Dt0bO.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/fYsrWZrLZMH9duwXPtaoheunUz4.jpg",
+        "title": "Elvis",
+        "year": 1979
+      },
+      {
+        "path": "/vH9llaphjAssRGi0k7e75tD40Ce.jpg",
+        "title": "Escape from New York",
+        "year": 1981
+      },
+      {
+        "path": "/tzGY49kseSE9QAKk47uuDGwnSCu.jpg",
+        "title": "The Thing",
+        "year": 1982
+      },
+      {
+        "path": "/gI2Qs1yTTj3NcESJyttCkbmJ4k9.jpg",
+        "title": "Big Trouble in Little China",
+        "year": 1986
+      },
+      {
+        "path": "/3L9lL2eUsmLNNfENPwNOc82Hzpw.jpg",
+        "title": "Escape from L.A.",
+        "year": 1996
+      }
+    ]
+  },
+  "2372+10828": {
+    "sharedCount": 8,
+    "people": [
+      {
+        "id": 10828,
+        "name": "Guillermo del Toro",
+        "profilePath": "/cWvt8FdPAH0j3QtLzAN1j7ZJJrr.jpg"
+      },
+      {
+        "id": 2372,
+        "name": "Ron Perlman",
+        "profilePath": "/nfky6J9ueey1gMdWMNU9k9YdfGP.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/wAn6VYamKbnOtfyTZ6arVtkMzDv.jpg",
+        "title": "Blade II",
+        "year": 2002
+      },
+      {
+        "path": "/21hS8mD8uxBVvf8xVYR30LbbmPO.jpg",
+        "title": "Hellboy",
+        "year": 2004
+      },
+      {
+        "path": "/zO0Wdrxnhx3KoJEvychSmnY3urC.jpg",
+        "title": "Hellboy II: The Golden Army",
+        "year": 2008
+      },
+      {
+        "path": "/mmznhaQDwlHWpUwKuNxtQiubbmM.jpg",
+        "title": "Pacific Rim",
+        "year": 2013
+      },
+      {
+        "path": "/vfn1feL0V9HNSXuLLpaxAW8O6LO.jpg",
+        "title": "Nightmare Alley",
+        "year": 2021
+      }
+    ]
+  },
+  "7623+11357": {
+    "sharedCount": 14,
+    "people": [
+      {
+        "id": 7623,
+        "name": "Sam Raimi",
+        "profilePath": "/8gssvwiPrFRuFRlr5ruKx68k1Jl.jpg"
+      },
+      {
+        "id": 11357,
+        "name": "Bruce Campbell",
+        "profilePath": "/p9335ljr7luOWsfwZSOlsIzFJKE.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/54C1qdaiSijIU5NeNb4WsPJdNkG.jpg",
+        "title": "The Evil Dead",
+        "year": 1983
+      },
+      {
+        "path": "/xsgTuAtR2zSH8Umg3jWZcZjlDpe.jpg",
+        "title": "Army of Darkness",
+        "year": 1992
+      },
+      {
+        "path": "/qFmwhVUoUSXjkKRmca5yGDEXBIj.jpg",
+        "title": "Spider-Man 3",
+        "year": 2007
+      },
+      {
+        "path": "/nr0deOZ4h7HkCzfc09fIgK7cxTG.jpg",
+        "title": "Oz the Great and Powerful",
+        "year": 2013
+      },
+      {
+        "path": "/1gDV0Lm9y8ufIKzyf0h0GBgb9Zj.jpg",
+        "title": "Evil Dead",
+        "year": 2013
+      }
+    ]
+  },
+  "5140+9206": {
+    "sharedCount": 4,
+    "people": [
+      {
+        "id": 5140,
+        "name": "Wes Craven",
+        "profilePath": "/eqwl6owrYykeTGTpKxwcAkbEJmg.jpg"
+      },
+      {
+        "id": 9206,
+        "name": "Neve Campbell",
+        "profilePath": "/zQzNg6Kiufj2VCltprI6jilNtl3.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/lr9ZIrmuwVmZhpZuTCW8D9g0ZJe.jpg",
+        "title": "Scream",
+        "year": 1996
+      },
+      {
+        "path": "/dORlVasiaDkJXTqt9bdH7nFNs6C.jpg",
+        "title": "Scream 2",
+        "year": 1997
+      },
+      {
+        "path": "/iFrDIex06Jpgs3dTI8vXlVB1jd.jpg",
+        "title": "Scream 3",
+        "year": 2000
+      },
+      {
+        "path": "/3cf8p2qw9qnsaaFWc64AG6U05eT.jpg",
+        "title": "Scream 4",
+        "year": 2011
+      }
+    ]
+  },
+  "5140+26458": {
+    "sharedCount": 5,
+    "people": [
+      {
+        "id": 5140,
+        "name": "Wes Craven",
+        "profilePath": "/eqwl6owrYykeTGTpKxwcAkbEJmg.jpg"
+      },
+      {
+        "id": 26458,
+        "name": "Kevin Williamson",
+        "profilePath": "/COwE9mGlyMHy2OWkidCffoyap2.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/lr9ZIrmuwVmZhpZuTCW8D9g0ZJe.jpg",
+        "title": "Scream",
+        "year": 1996
+      },
+      {
+        "path": "/dORlVasiaDkJXTqt9bdH7nFNs6C.jpg",
+        "title": "Scream 2",
+        "year": 1997
+      },
+      {
+        "path": "/iFrDIex06Jpgs3dTI8vXlVB1jd.jpg",
+        "title": "Scream 3",
+        "year": 2000
+      },
+      {
+        "path": "/em45jL4CfTMyj5V83kj7rhdorJu.jpg",
+        "title": "Cursed",
+        "year": 2005
+      },
+      {
+        "path": "/3cf8p2qw9qnsaaFWc64AG6U05eT.jpg",
+        "title": "Scream 4",
+        "year": 2011
+      }
+    ]
+  },
+  "5293+138781": {
+    "sharedCount": 3,
+    "people": [
+      {
+        "id": 138781,
+        "name": "Robert Eggers",
+        "profilePath": "/8Mbq0G8FguELKC8zNFunapPpkt5.jpg"
+      },
+      {
+        "id": 5293,
+        "name": "Willem Dafoe",
+        "profilePath": "/ui8e4sgZAwMPi3hzEO53jyBJF9B.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/dwXmOYJVM1VIkkSXHY5zYSaLJLC.jpg",
+        "title": "The Lighthouse",
+        "year": 2019
+      },
+      {
+        "path": "/aSSJMnHknzKjlZ6zybwD7eyJ4Po.jpg",
+        "title": "The Northman",
+        "year": 2022
+      },
+      {
+        "path": "/d0B8xDdqBZlzlPEzES8lu5LlNQn.jpg",
+        "title": "Nosferatu",
+        "year": 2024
       }
     ]
   },
@@ -850,6 +1314,206 @@
         "path": "/yQvGrMoipbRoddT0ZR8tPoR7NfX.jpg",
         "title": "Interstellar",
         "year": 2014
+      }
+    ]
+  },
+  "578+947": {
+    "sharedCount": 6,
+    "people": [
+      {
+        "id": 578,
+        "name": "Ridley Scott",
+        "profilePath": "/zABJmN9opmqD4orWl3KSdCaSo7Q.jpg"
+      },
+      {
+        "id": 947,
+        "name": "Hans Zimmer",
+        "profilePath": "/tpQnDeHY15szIXvpnhlprufz4d.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/vbRAGLzbC75QfiKD1lKjmnQGuph.jpg",
+        "title": "Thelma & Louise",
+        "year": 1991
+      },
+      {
+        "path": "/aDb548BOkFfI4nFm0kx8A3Ezh7H.jpg",
+        "title": "Gladiator",
+        "year": 2000
+      },
+      {
+        "path": "/v5wAZwRqpGWmyAaaJ8BBHYuNXnj.jpg",
+        "title": "Hannibal",
+        "year": 2001
+      },
+      {
+        "path": "/7fU5dSqKRL4XHeEUz62rCKBfYok.jpg",
+        "title": "Black Hawk Down",
+        "year": 2001
+      },
+      {
+        "path": "/cIWQzIoWOvx0piZM0UpiHMhzHWW.jpg",
+        "title": "Matchstick Men",
+        "year": 2003
+      }
+    ]
+  },
+  "1100+2710": {
+    "sharedCount": 6,
+    "people": [
+      {
+        "id": 2710,
+        "name": "James Cameron",
+        "profilePath": "/9NAZnTjBQ9WcXAQEzZpKy4vdQto.jpg"
+      },
+      {
+        "id": 1100,
+        "name": "Arnold Schwarzenegger",
+        "profilePath": "/4jM3vsHIEQVeNFifiTAUDVAmiUo.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/qvktm0BHcnmDpul4Hz01GIazWPr.jpg",
+        "title": "The Terminator",
+        "year": 1984
+      },
+      {
+        "path": "/jFTVD4XoWQTcg7wdyJKa8PEds5q.jpg",
+        "title": "Terminator 2: Judgment Day",
+        "year": 1991
+      },
+      {
+        "path": "/vvevzdYIrk2636maNW4qeWmlPFG.jpg",
+        "title": "Terminator 3: Rise of the Machines",
+        "year": 2003
+      },
+      {
+        "path": "/oZRVDpNtmHk8M1VYy1aeOWUXgbC.jpg",
+        "title": "Terminator Genisys",
+        "year": 2015
+      },
+      {
+        "path": "/vqzNJRH4YyquRiWxCCOH0aXggHI.jpg",
+        "title": "Terminator: Dark Fate",
+        "year": 2019
+      }
+    ]
+  },
+  "9339+9340": {
+    "sharedCount": 12,
+    "people": [
+      {
+        "id": 9340,
+        "name": "Lana Wachowski",
+        "profilePath": "/4nE4ttPQBuw1virOz0LYT08c1Vm.jpg"
+      },
+      {
+        "id": 9339,
+        "name": "Lilly Wachowski",
+        "profilePath": "/rCScAjSpeKA19BLNR07MqNNeeTT.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/dXNAPwY7VrqMAo51EKhhCJfaGb5.jpg",
+        "title": "The Matrix",
+        "year": 1999
+      },
+      {
+        "path": "/8xEVAe84zlL9rkfYT6dZXero4KK.jpg",
+        "title": "The Matrix Reloaded",
+        "year": 2003
+      },
+      {
+        "path": "/qEWiBXJGXK28jGBAm8oFKKTB0WD.jpg",
+        "title": "The Matrix Revolutions",
+        "year": 2003
+      },
+      {
+        "path": "/1avD1JeaRiJX5M4ahPdZPypGoGN.jpg",
+        "title": "V for Vendetta",
+        "year": 2006
+      },
+      {
+        "path": "/8naVv2Xu3rWI5JKHz0vCujx6GaJ.jpg",
+        "title": "Cloud Atlas",
+        "year": 2012
+      }
+    ]
+  },
+  "151+137427": {
+    "sharedCount": 3,
+    "people": [
+      {
+        "id": 137427,
+        "name": "Denis Villeneuve",
+        "profilePath": "/xzQYqb4nR8xT7Zdw5itbEL9K3fd.jpg"
+      },
+      {
+        "id": 151,
+        "name": "Roger Deakins",
+        "profilePath": "/y6tSqoDvl705BnLELyCuUqQujfv.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/uhviyknTT5cEQXbn6vWIqfM4vGm.jpg",
+        "title": "Prisoners",
+        "year": 2013
+      },
+      {
+        "path": "/lz8vNyXeidqqOdJW9ZjnDAMb5Vr.jpg",
+        "title": "Sicario",
+        "year": 2015
+      },
+      {
+        "path": "/gajva2L0rPYkEWjzgFlBXCAVBE5.jpg",
+        "title": "Blade Runner 2049",
+        "year": 2017
+      }
+    ]
+  },
+  "15344+15347": {
+    "sharedCount": 8,
+    "people": [
+      {
+        "id": 15344,
+        "name": "J.J. Abrams",
+        "profilePath": "/k4IWd2RV5kY1kAL2VgKQwFvnCLP.jpg"
+      },
+      {
+        "id": 15347,
+        "name": "Michael Giacchino",
+        "profilePath": "/xgurVFMLVgtgz9f5bgrrCppm4xq.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/vKGYCpmQyV9uHybWDzXuII8Los5.jpg",
+        "title": "Mission: Impossible III",
+        "year": 2006
+      },
+      {
+        "path": "/qIegUGJqyMMCRjkKV1s7A9MqdJ8.jpg",
+        "title": "Cloverfield",
+        "year": 2008
+      },
+      {
+        "path": "/lV5OpzAss1z06YNagOVap1I35mH.jpg",
+        "title": "Star Trek",
+        "year": 2009
+      },
+      {
+        "path": "/eRZTGx7GsiKqPch96k27LK005ZL.jpg",
+        "title": "Mission: Impossible - Ghost Protocol",
+        "year": 2011
+      },
+      {
+        "path": "/Aim3kVNh1MPIxPEFeJrl9e9Uf1a.jpg",
+        "title": "Star Trek Into Darkness",
+        "year": 2013
       }
     ]
   },
@@ -1295,6 +1959,206 @@
       }
     ]
   },
+  "3186+7467": {
+    "sharedCount": 5,
+    "people": [
+      {
+        "id": 7467,
+        "name": "David Fincher",
+        "profilePath": "/tpEczFclQZeKAiCeKZZ0adRvtfz.jpg"
+      },
+      {
+        "id": 3186,
+        "name": "Trent Reznor",
+        "profilePath": "/v6DcTfFqFTFaR8gqMK6sOODKS0T.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/n0ybibhJtQ5icDqTp8eRytcIHJx.jpg",
+        "title": "The Social Network",
+        "year": 2010
+      },
+      {
+        "path": "/8bokS83zGdhaXgN9tjidUKmAftW.jpg",
+        "title": "The Girl with the Dragon Tattoo",
+        "year": 2011
+      },
+      {
+        "path": "/ts996lKsxvjkO2yiYG0ht4qAicO.jpg",
+        "title": "Gone Girl",
+        "year": 2014
+      },
+      {
+        "path": "/4yzTcAtvzyZLLto4z04xobUK9el.jpg",
+        "title": "Mank",
+        "year": 2020
+      },
+      {
+        "path": "/e7Jvsry47JJQruuezjU2X1Z6J77.jpg",
+        "title": "The Killer",
+        "year": 2023
+      }
+    ]
+  },
+  "1223+1224": {
+    "sharedCount": 28,
+    "people": [
+      {
+        "id": 1223,
+        "name": "Joel Coen",
+        "profilePath": "/rgVaJNkZCgMarUcZuUAsVfXMWk3.jpg"
+      },
+      {
+        "id": 1224,
+        "name": "Ethan Coen",
+        "profilePath": "/lbL8LEcvuxNrzda37g3mysOS2qS.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/rt7cpEr1uP6RTZykBFhBTcRaKvG.jpg",
+        "title": "Fargo",
+        "year": 1996
+      },
+      {
+        "path": "/3bv6WAp6BSxxYvB5ozKFUYuRA8C.jpg",
+        "title": "The Big Lebowski",
+        "year": 1998
+      },
+      {
+        "path": "/6d5XOczc226jECq0LIX0siKtgHR.jpg",
+        "title": "No Country for Old Men",
+        "year": 2007
+      },
+      {
+        "path": "/tCrB8pcjadZjsDk7rleGJaIv78k.jpg",
+        "title": "True Grit",
+        "year": 2010
+      },
+      {
+        "path": "/fmOOjHAQzxr0c1sfcY4qkiSRBH6.jpg",
+        "title": "Bridge of Spies",
+        "year": 2015
+      }
+    ]
+  },
+  "134+638": {
+    "sharedCount": 4,
+    "people": [
+      {
+        "id": 638,
+        "name": "Michael Mann",
+        "profilePath": "/gxhquWenkJTLuZpeWEKFzxCKXxz.jpg"
+      },
+      {
+        "id": 134,
+        "name": "Jamie Foxx",
+        "profilePath": "/zD8Nsy4Xrghp7WunwpCj5JKBPeU.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/32l3FaCzs8cXWps6hkgNJAcOsP.jpg",
+        "title": "Ali",
+        "year": 2001
+      },
+      {
+        "path": "/nV5316WUsVij8sVXLCF1g7TFitg.jpg",
+        "title": "Collateral",
+        "year": 2004
+      },
+      {
+        "path": "/iJPSls4taB09EUKtLj6FjFSprb3.jpg",
+        "title": "Miami Vice",
+        "year": 2006
+      },
+      {
+        "path": "/AgtEL99178EEEKfd44mvvoPRZt1.jpg",
+        "title": "The Kingdom",
+        "year": 2007
+      }
+    ]
+  },
+  "1884+1892": {
+    "sharedCount": 6,
+    "people": [
+      {
+        "id": 1884,
+        "name": "Steven Soderbergh",
+        "profilePath": "/y8JlSDcQzd7gAaKyxFpExupMwDz.jpg"
+      },
+      {
+        "id": 1892,
+        "name": "Matt Damon",
+        "profilePath": "/aCvBXTAR9B1qRjIRzMBYhhbm1fR.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/hQQCdZrsHtZyR6NbKH2YyCqd2fR.jpg",
+        "title": "Ocean's Eleven",
+        "year": 2001
+      },
+      {
+        "path": "/pE5anFf7nf6ah7V3VRezQ1KSovi.jpg",
+        "title": "Ocean's Twelve",
+        "year": 2004
+      },
+      {
+        "path": "/pBsZs4zYUiUTemqbikTZ76iQRaU.jpg",
+        "title": "Ocean's Thirteen",
+        "year": 2007
+      },
+      {
+        "path": "/eV8u5crNe4QYWcu0zjKxFVq2Qem.jpg",
+        "title": "The Informant!",
+        "year": 2009
+      },
+      {
+        "path": "/qL0IooP0bjXy0KXl9KEyPo22ll0.jpg",
+        "title": "Contagion",
+        "year": 2011
+      }
+    ]
+  },
+  "62+2231": {
+    "sharedCount": 4,
+    "people": [
+      {
+        "id": 62,
+        "name": "Bruce Willis",
+        "profilePath": "/w3aXr1e7gQCn8MSp1vW4sXHn99P.jpg"
+      },
+      {
+        "id": 2231,
+        "name": "Samuel L. Jackson",
+        "profilePath": "/AiAYAqwpM5xmiFrAIeQvUXDCVvo.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/vQWk5YBFWF4bZaofAbv0tShwBvQ.jpg",
+        "title": "Pulp Fiction",
+        "year": 1994
+      },
+      {
+        "path": "/buqmCdFQEWwEpL3agGgg2GVjN2d.jpg",
+        "title": "Die Hard: With a Vengeance",
+        "year": 1995
+      },
+      {
+        "path": "/mLuehrGLiK5zFCyRmDDOH6gbfPf.jpg",
+        "title": "Unbreakable",
+        "year": 2000
+      },
+      {
+        "path": "/svIDTNUoajS8dLEo7EosxvyAsgJ.jpg",
+        "title": "Glass",
+        "year": 2019
+      }
+    ]
+  },
   "1532+5655": {
     "sharedCount": 10,
     "people": [
@@ -1524,6 +2388,337 @@
         "path": "/4g4siEftWGiIkGfvaPyyizmx61f.jpg",
         "title": "Ithaca",
         "year": 2015
+      }
+    ]
+  },
+  "19274+41039": {
+    "sharedCount": 7,
+    "people": [
+      {
+        "id": 41039,
+        "name": "Judd Apatow",
+        "profilePath": "/7iD2D263nT0ZOF6vuUojQYQ5cbf.jpg"
+      },
+      {
+        "id": 19274,
+        "name": "Seth Rogen",
+        "profilePath": "/nYl9bvQzaPQLzlf0wf75clLN6Hi.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/mhZIcRePT7U8viFQVjt1ZjYIsR4.jpg",
+        "title": "Anchorman: The Legend of Ron Burgundy",
+        "year": 2004
+      },
+      {
+        "path": "/mVeoqL37gzhMXQVpONi9DGOQ3tZ.jpg",
+        "title": "The 40 Year-Old Virgin",
+        "year": 2005
+      },
+      {
+        "path": "/b4OaXw2MW97VvIiZE0Sbn1NfxSh.jpg",
+        "title": "Knocked Up",
+        "year": 2007
+      },
+      {
+        "path": "/ek8e8txUyUwd2BNqj6lFEerJfbq.jpg",
+        "title": "Superbad",
+        "year": 2007
+      },
+      {
+        "path": "/6E50WjeOYjDZg9HXgPjYdGtY2jG.jpg",
+        "title": "Pineapple Express",
+        "year": 2008
+      }
+    ]
+  },
+  "19274+54734": {
+    "sharedCount": 25,
+    "people": [
+      {
+        "id": 19274,
+        "name": "Seth Rogen",
+        "profilePath": "/nYl9bvQzaPQLzlf0wf75clLN6Hi.jpg"
+      },
+      {
+        "id": 54734,
+        "name": "Evan Goldberg",
+        "profilePath": "/qh0pRmpYzyix1ErrMGADthTnpLa.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/ek8e8txUyUwd2BNqj6lFEerJfbq.jpg",
+        "title": "Superbad",
+        "year": 2007
+      },
+      {
+        "path": "/tNIW0NhX1hKvUsy6PQ80DOKUhkD.jpg",
+        "title": "This Is the End",
+        "year": 2013
+      },
+      {
+        "path": "/sN1RU08CMi8xkRIibremh3AOdgw.jpg",
+        "title": "Neighbors",
+        "year": 2014
+      },
+      {
+        "path": "/tIDC4xT65l7a8qbgg8GvwD5g8c5.jpg",
+        "title": "The Interview",
+        "year": 2014
+      },
+      {
+        "path": "/vNgdPJQ5CI60oEiiHLKRNrsDhMy.jpg",
+        "title": "Sausage Party",
+        "year": 2016
+      }
+    ]
+  },
+  "3460+9309": {
+    "sharedCount": 5,
+    "people": [
+      {
+        "id": 3460,
+        "name": "Gene Wilder",
+        "profilePath": "/mwwOSWS2m8ArpiUKnoxVVyT8fND.jpg"
+      },
+      {
+        "id": 9309,
+        "name": "Richard Pryor",
+        "profilePath": "/5hLh0btIkqYPbDmJ0i4WZo9OAt2.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/vNw1gOEDdYTDeNMuuq8OmiEHrfH.jpg",
+        "title": "Blazing Saddles",
+        "year": 1974
+      },
+      {
+        "path": "/gY1a4k9dalGx83D7TJ2C76xBprS.jpg",
+        "title": "Silver Streak",
+        "year": 1976
+      },
+      {
+        "path": "/ehCdQewg9SxjhnimJrKwNKbr80C.jpg",
+        "title": "Stir Crazy",
+        "year": 1980
+      },
+      {
+        "path": "/e9JrnUotqhKTUQEgg2UzDQ7nME2.jpg",
+        "title": "See No Evil, Hear No Evil",
+        "year": 1989
+      },
+      {
+        "path": "/a9RtYacFUEICTkAeoQdWig4S9tx.jpg",
+        "title": "Another You",
+        "year": 1991
+      }
+    ]
+  },
+  "1524+1532": {
+    "sharedCount": 7,
+    "people": [
+      {
+        "id": 1532,
+        "name": "Bill Murray",
+        "profilePath": "/nnCsJc9x3ZiG3AFyiyc3FPehppy.jpg"
+      },
+      {
+        "id": 1524,
+        "name": "Harold Ramis",
+        "profilePath": "/kmTMTxthkDAsygk3Am4IUSVYYRi.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/lXnNz7zOXCsftMDVoU3VSo0Eioi.jpg",
+        "title": "Caddyshack",
+        "year": 1980
+      },
+      {
+        "path": "/toyyN62VLUXoUudFbHPdrrmRFSZ.jpg",
+        "title": "Stripes",
+        "year": 1981
+      },
+      {
+        "path": "/7E8nLijS9AwwUEPu2oFYOVKhdFA.jpg",
+        "title": "Ghostbusters",
+        "year": 1984
+      },
+      {
+        "path": "/iUZPi31KDP0n5ycpycEsvl51BdV.jpg",
+        "title": "Ghostbusters II",
+        "year": 1989
+      },
+      {
+        "path": "/gCgt1WARPZaXnq523ySQEUKinCs.jpg",
+        "title": "Groundhog Day",
+        "year": 1993
+      }
+    ]
+  },
+  "887+5655": {
+    "sharedCount": 7,
+    "people": [
+      {
+        "id": 5655,
+        "name": "Wes Anderson",
+        "profilePath": "/s03CeUeC5yAXyB1acqP0zGNo2SC.jpg"
+      },
+      {
+        "id": 887,
+        "name": "Owen Wilson",
+        "profilePath": "/5A46lNOwmpX77jAdhyKxU7e2Hub.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/nG7hZJn7wQTSDCQT39Gy3s3tbrp.jpg",
+        "title": "The Royal Tenenbaums",
+        "year": 2001
+      },
+      {
+        "path": "/qZoFLNBC78jzboWeDH6Ha0qavF2.jpg",
+        "title": "The Life Aquatic with Steve Zissou",
+        "year": 2004
+      },
+      {
+        "path": "/oSW5OVXTulaIXcoNwJAp5YEKpbP.jpg",
+        "title": "The Darjeeling Limited",
+        "year": 2007
+      },
+      {
+        "path": "/bOVr292mwn3jxr1e0NmUPM1rcjo.jpg",
+        "title": "Fantastic Mr. Fox",
+        "year": 2009
+      },
+      {
+        "path": "/6JXR3KJH5roiBCjWFt09xfgxHZc.jpg",
+        "title": "The French Dispatch of the Liberty, Kansas Evening Sun",
+        "year": 2021
+      }
+    ]
+  },
+  "5344+9248": {
+    "sharedCount": 4,
+    "people": [
+      {
+        "id": 9248,
+        "name": "Nora Ephron",
+        "profilePath": "/5m0iu8lT0TVu0nKk5eWOR7w2K0a.jpg"
+      },
+      {
+        "id": 5344,
+        "name": "Meg Ryan",
+        "profilePath": "/pxfTSfJ4yJWq52uomSWKzigngOa.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/rFOiFUhTMtDetqCGClC9PIgnC1P.jpg",
+        "title": "When Harry Met Sally...",
+        "year": 1989
+      },
+      {
+        "path": "/jAXfku1u1uaLGh4cUmK0ESf1pPu.jpg",
+        "title": "Sleepless in Seattle",
+        "year": 1993
+      },
+      {
+        "path": "/rJLUSpmdxSMqqEsyzeCni3vy1ca.jpg",
+        "title": "You've Got Mail",
+        "year": 1998
+      },
+      {
+        "path": "/537cW4Fp1UlVJokPiR2nUgFtXwd.jpg",
+        "title": "Hanging Up",
+        "year": 2000
+      }
+    ]
+  },
+  "383+8930": {
+    "sharedCount": 16,
+    "people": [
+      {
+        "id": 8930,
+        "name": "John Cleese",
+        "profilePath": "/nQpBf77cStmR35V0XOinm2zZMWG.jpg"
+      },
+      {
+        "id": 383,
+        "name": "Michael Palin",
+        "profilePath": "/gWz8S2FEUEm1f3LQrN8cSUjnfhu.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/7nTkHjETdGMYK1phHwDbPsrzbYl.jpg",
+        "title": "Monty Python and the Holy Grail",
+        "year": 1975
+      },
+      {
+        "path": "/lSSA64WF0M0BXnjwr2quMh6shCl.jpg",
+        "title": "Life of Brian",
+        "year": 1979
+      },
+      {
+        "path": "/4VZtpwdhHQSa4LUkvujyGAHb1hG.jpg",
+        "title": "Time Bandits",
+        "year": 1981
+      },
+      {
+        "path": "/9yavZ9WgEZIpWi2EbVW8At9RPdo.jpg",
+        "title": "Monty Python's The Meaning of Life",
+        "year": 1983
+      },
+      {
+        "path": "/hkSGFNVfEEUXFCxRZDITFHVhUlu.jpg",
+        "title": "A Fish Called Wanda",
+        "year": 1988
+      }
+    ]
+  },
+  "280+383": {
+    "sharedCount": 15,
+    "people": [
+      {
+        "id": 280,
+        "name": "Terry Gilliam",
+        "profilePath": "/7qBkaXxANmnb6hqQCBc4iWqXEL6.jpg"
+      },
+      {
+        "id": 383,
+        "name": "Michael Palin",
+        "profilePath": "/gWz8S2FEUEm1f3LQrN8cSUjnfhu.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/7nTkHjETdGMYK1phHwDbPsrzbYl.jpg",
+        "title": "Monty Python and the Holy Grail",
+        "year": 1975
+      },
+      {
+        "path": "/lSSA64WF0M0BXnjwr2quMh6shCl.jpg",
+        "title": "Life of Brian",
+        "year": 1979
+      },
+      {
+        "path": "/4VZtpwdhHQSa4LUkvujyGAHb1hG.jpg",
+        "title": "Time Bandits",
+        "year": 1981
+      },
+      {
+        "path": "/9yavZ9WgEZIpWi2EbVW8At9RPdo.jpg",
+        "title": "Monty Python's The Meaning of Life",
+        "year": 1983
+      },
+      {
+        "path": "/2w09J0KUnVtJvqPYu8N63XjAyCR.jpg",
+        "title": "Brazil",
+        "year": 1985
       }
     ]
   },
@@ -1974,6 +3169,253 @@
       }
     ]
   },
+  "1233+4762": {
+    "sharedCount": 5,
+    "people": [
+      {
+        "id": 4762,
+        "name": "Paul Thomas Anderson",
+        "profilePath": "/wKAs2LtLYSUzt3ZZ8pnxMwuEWuR.jpg"
+      },
+      {
+        "id": 1233,
+        "name": "Philip Seymour Hoffman",
+        "profilePath": "/50rqDkmvXwjwVhFH7q6ph2Rkw7S.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/1l5UaoP25Ak8PWCKIULQz70yF03.jpg",
+        "title": "Hard Eight",
+        "year": 1997
+      },
+      {
+        "path": "/wnE24UPCPQsQnbBOu4zVE2qaDNm.jpg",
+        "title": "Boogie Nights",
+        "year": 1997
+      },
+      {
+        "path": "/tpfC325Jk6S38VTe5dDWjWtoyxr.jpg",
+        "title": "Magnolia",
+        "year": 1999
+      },
+      {
+        "path": "/htYp4yqFu4rzBEIa6j9jP8miDm3.jpg",
+        "title": "Punch-Drunk Love",
+        "year": 2002
+      },
+      {
+        "path": "/jjVGdNt4fYb3T2hjISGZ2qnCuaV.jpg",
+        "title": "The Master",
+        "year": 2012
+      }
+    ]
+  },
+  "569+1146": {
+    "sharedCount": 4,
+    "people": [
+      {
+        "id": 569,
+        "name": "Ethan Hawke",
+        "profilePath": "/2LoTr6x0TEM7L5em4kSx1VmGDgG.jpg"
+      },
+      {
+        "id": 1146,
+        "name": "Julie Delpy",
+        "profilePath": "/rd40f4QpAUUne3hMaUhHrZtcK2c.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/kf1Jb1c2JAOqjuzA3H4oDM263uB.jpg",
+        "title": "Before Sunrise",
+        "year": 1995
+      },
+      {
+        "path": "/2MRM4PL6H7yraAkwyUEe2EqoQH3.jpg",
+        "title": "Waking Life",
+        "year": 2001
+      },
+      {
+        "path": "/gycdE1ARByGQcK4fYR2mgpU6OO.jpg",
+        "title": "Before Sunset",
+        "year": 2004
+      },
+      {
+        "path": "/qbGKJmNUroDz75kh5Oafoall89e.jpg",
+        "title": "Before Midnight",
+        "year": 2013
+      }
+    ]
+  },
+  "4185+11218": {
+    "sharedCount": 8,
+    "people": [
+      {
+        "id": 11218,
+        "name": "Alfonso Cuarón",
+        "profilePath": "/gaHhrzPfxfc3cbQLkDt54gtP3n1.jpg"
+      },
+      {
+        "id": 4185,
+        "name": "Emmanuel Lubezki",
+        "profilePath": "/v5reoqVqGobAVAq4RploSoWD3DZ.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/9V4bAVEskSNbEqjVI0YmeuB0n8I.jpg",
+        "title": "A Little Princess",
+        "year": 1995
+      },
+      {
+        "path": "/djLsfl3lm7BZKWsKfVZ2wM1ZMrP.jpg",
+        "title": "Great Expectations",
+        "year": 1998
+      },
+      {
+        "path": "/aj3rqjab8jfc2fWmcS3H3c5qbur.jpg",
+        "title": "Y Tu Mamá También",
+        "year": 2001
+      },
+      {
+        "path": "/k9IAS4TehZFcKi4HVByxZNPfqex.jpg",
+        "title": "Children of Men",
+        "year": 2006
+      },
+      {
+        "path": "/kZ2nZw8D681aphje8NJi8EfbL1U.jpg",
+        "title": "Gravity",
+        "year": 2013
+      }
+    ]
+  },
+  "3186+142391": {
+    "sharedCount": 21,
+    "people": [
+      {
+        "id": 3186,
+        "name": "Trent Reznor",
+        "profilePath": "/v6DcTfFqFTFaR8gqMK6sOODKS0T.jpg"
+      },
+      {
+        "id": 142391,
+        "name": "Atticus Ross",
+        "profilePath": "/q9FkywKCRqe3pNnhTApHYfnwMiC.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/n0ybibhJtQ5icDqTp8eRytcIHJx.jpg",
+        "title": "The Social Network",
+        "year": 2010
+      },
+      {
+        "path": "/8bokS83zGdhaXgN9tjidUKmAftW.jpg",
+        "title": "The Girl with the Dragon Tattoo",
+        "year": 2011
+      },
+      {
+        "path": "/ts996lKsxvjkO2yiYG0ht4qAicO.jpg",
+        "title": "Gone Girl",
+        "year": 2014
+      },
+      {
+        "path": "/rGfGfgL2pEPCfhIvqHXieXFn7gp.jpg",
+        "title": "Bird Box",
+        "year": 2018
+      },
+      {
+        "path": "/hm58Jw4Lw8OIeECIq5qyPYhAeRJ.jpg",
+        "title": "Soul",
+        "year": 2020
+      }
+    ]
+  },
+  "880+1892": {
+    "sharedCount": 12,
+    "people": [
+      {
+        "id": 1892,
+        "name": "Matt Damon",
+        "profilePath": "/aCvBXTAR9B1qRjIRzMBYhhbm1fR.jpg"
+      },
+      {
+        "id": 880,
+        "name": "Ben Affleck",
+        "profilePath": "/aTcqu8cI4wMohU17xTdqmXKTGrw.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/z2FnLKpFi1HPO7BEJxdkv6hpJSU.jpg",
+        "title": "Good Will Hunting",
+        "year": 1997
+      },
+      {
+        "path": "/oxhHl2YokTqcP44QK5tiTgjgLgk.jpg",
+        "title": "Dogma",
+        "year": 1999
+      },
+      {
+        "path": "/zjrJE0fpzPvX8saJXj8VNfcjBoU.jpg",
+        "title": "The Last Duel",
+        "year": 2021
+      },
+      {
+        "path": "/76AKQPdH3M8cvsFR9K8JsOzVlY5.jpg",
+        "title": "Air",
+        "year": 2023
+      },
+      {
+        "path": "/4wsYWH73Hb1B6noGIFaRQSAkuXj.jpg",
+        "title": "The Rip",
+        "year": 2026
+      }
+    ]
+  },
+  "5281+5292": {
+    "sharedCount": 5,
+    "people": [
+      {
+        "id": 5281,
+        "name": "Spike Lee",
+        "profilePath": "/2KOHXgk2uoRXl6u7V9xpAIo3uay.jpg"
+      },
+      {
+        "id": 5292,
+        "name": "Denzel Washington",
+        "profilePath": "/jj2Gcobpopokal0YstuCQW0ldJ4.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/sEa6m5RjfrqfTzY1eHkC85shiUF.jpg",
+        "title": "Mo' Better Blues",
+        "year": 1990
+      },
+      {
+        "path": "/o2s9ow0uRRm1BcF3teznk5twd90.jpg",
+        "title": "Malcolm X",
+        "year": 1992
+      },
+      {
+        "path": "/kd8hRaysUQOz7AvSorZDJHuihcJ.jpg",
+        "title": "He Got Game",
+        "year": 1998
+      },
+      {
+        "path": "/ffMUgkDZICNiyaws1Jkv8qG8uFW.jpg",
+        "title": "Inside Man",
+        "year": 2006
+      },
+      {
+        "path": "/RFQtinuiHhOnbmJaCn3uzegCYF.jpg",
+        "title": "Highest 2 Lowest",
+        "year": 2025
+      }
+    ]
+  },
   "1259+4385": {
     "sharedCount": 8,
     "people": [
@@ -2369,6 +3811,238 @@
       }
     ]
   },
+  "190+4385": {
+    "sharedCount": 3,
+    "people": [
+      {
+        "id": 4385,
+        "name": "Sergio Leone",
+        "profilePath": "/2576qoW8l9Z1nKGM10ar60aIwUu.jpg"
+      },
+      {
+        "id": 190,
+        "name": "Clint Eastwood",
+        "profilePath": "/8TwdCfeOZH7ucRlfLZ6wObxa7cO.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/lBwOEpwVeUAmrmglcstnaGcJq3Y.jpg",
+        "title": "A Fistful of Dollars",
+        "year": 1964
+      },
+      {
+        "path": "/ooqASvA7qxlTVKL3KwOzBwy57Dh.jpg",
+        "title": "For a Few Dollars More",
+        "year": 1965
+      },
+      {
+        "path": "/bX2xnavhMYjWDoZp1VM6VnU1xwe.jpg",
+        "title": "The Good, the Bad and the Ugly",
+        "year": 1966
+      }
+    ]
+  },
+  "4165+11435": {
+    "sharedCount": 5,
+    "people": [
+      {
+        "id": 11435,
+        "name": "Howard Hawks",
+        "profilePath": "/hG2oF9wZlqwGqP6EhG0qaN9Afg7.jpg"
+      },
+      {
+        "id": 4165,
+        "name": "John Wayne",
+        "profilePath": "/4VmiGmCwSnratHtYmT2AyXrdQ64.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/jyNTsAzrIWB441OtvfbgKtx1kFS.jpg",
+        "title": "Red River",
+        "year": 1948
+      },
+      {
+        "path": "/4gI4KKmoi0d3yfsF71YU3S0I5t8.jpg",
+        "title": "Rio Bravo",
+        "year": 1959
+      },
+      {
+        "path": "/fT1Ht8PSM5cFKmejrnufWvpXAPk.jpg",
+        "title": "Hatari!",
+        "year": 1962
+      },
+      {
+        "path": "/poJxkMtTA3E95lJ6RnBgNxF0Vmx.jpg",
+        "title": "El Dorado",
+        "year": 1966
+      },
+      {
+        "path": "/2vlpjEE5GxJr7CiURQ4e2DWybkw.jpg",
+        "title": "Rio Lobo",
+        "year": 1970
+      }
+    ]
+  },
+  "2461+7187": {
+    "sharedCount": 6,
+    "people": [
+      {
+        "id": 7187,
+        "name": "Richard Donner",
+        "profilePath": "/wjRecQiVLUAm6jwyT5craxhg3lD.jpg"
+      },
+      {
+        "id": 2461,
+        "name": "Mel Gibson",
+        "profilePath": "/jnqHMaOslt8cef2atSmOpGRvNla.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/6gt44oqb4nE8vflPElffeGwsHVl.jpg",
+        "title": "Lethal Weapon",
+        "year": 1987
+      },
+      {
+        "path": "/1EEIUw0tkX7AJZ1ikZrtKZZKlC6.jpg",
+        "title": "Lethal Weapon 2",
+        "year": 1989
+      },
+      {
+        "path": "/8FnOudDHPOY7MFJnvQMR1qpuyek.jpg",
+        "title": "Lethal Weapon 3",
+        "year": 1992
+      },
+      {
+        "path": "/mTVbGGi5PIexmxVzeyFd2RYKwfM.jpg",
+        "title": "Maverick",
+        "year": 1994
+      },
+      {
+        "path": "/pTLliHRoG0Qwp6qycmrMB4bD3mr.jpg",
+        "title": "Lethal Weapon 4",
+        "year": 1998
+      }
+    ]
+  },
+  "6384+40644": {
+    "sharedCount": 5,
+    "people": [
+      {
+        "id": 40644,
+        "name": "Chad Stahelski",
+        "profilePath": "/eRCryGwKDH4XqUlrdkERmeBWPo8.jpg"
+      },
+      {
+        "id": 6384,
+        "name": "Keanu Reeves",
+        "profilePath": "/8RZLOyYGsoRe9p44q3xin9QkMHv.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/wXqWR7dHncNRbxoEGybEy7QTe9h.jpg",
+        "title": "John Wick",
+        "year": 2014
+      },
+      {
+        "path": "/hXWBc0ioZP3cN4zCu6SN3YHXZVO.jpg",
+        "title": "John Wick: Chapter 2",
+        "year": 2017
+      },
+      {
+        "path": "/ziEuG1essDuWuC5lpWUaw1uXY2O.jpg",
+        "title": "John Wick: Chapter 3 - Parabellum",
+        "year": 2019
+      },
+      {
+        "path": "/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg",
+        "title": "John Wick: Chapter 4",
+        "year": 2023
+      },
+      {
+        "path": "/2VUmvqsHb6cEtdfscEA6fqqVzLg.jpg",
+        "title": "Ballerina",
+        "year": 2025
+      }
+    ]
+  },
+  "500+11108": {
+    "sharedCount": 6,
+    "people": [
+      {
+        "id": 500,
+        "name": "Tom Cruise",
+        "profilePath": "/maf8PhSvDCdEwjEMbYfGpojR5RP.jpg"
+      },
+      {
+        "id": 11108,
+        "name": "Simon Pegg",
+        "profilePath": "/jw8bEEoTOithyNf0qxu4Zt1yaKp.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/vKGYCpmQyV9uHybWDzXuII8Los5.jpg",
+        "title": "Mission: Impossible III",
+        "year": 2006
+      },
+      {
+        "path": "/eRZTGx7GsiKqPch96k27LK005ZL.jpg",
+        "title": "Mission: Impossible - Ghost Protocol",
+        "year": 2011
+      },
+      {
+        "path": "/fRJLXQBHK2wyznK5yZbO7vmsuVK.jpg",
+        "title": "Mission: Impossible - Rogue Nation",
+        "year": 2015
+      },
+      {
+        "path": "/AkJQpZp9WoNdj7pLYSj1L0RcMMN.jpg",
+        "title": "Mission: Impossible - Fallout",
+        "year": 2018
+      },
+      {
+        "path": "/NNxYkU70HPurnNCSiCjYAmacwm.jpg",
+        "title": "Mission: Impossible - Dead Reckoning Part One",
+        "year": 2023
+      }
+    ]
+  },
+  "2219+7623": {
+    "sharedCount": 3,
+    "people": [
+      {
+        "id": 7623,
+        "name": "Sam Raimi",
+        "profilePath": "/8gssvwiPrFRuFRlr5ruKx68k1Jl.jpg"
+      },
+      {
+        "id": 2219,
+        "name": "Tobey Maguire",
+        "profilePath": "/s6PwSvq6gC7PGEjIku69tPbvR8M.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/or6XJBVpcEbIkma0V9zshnbEtx4.jpg",
+        "title": "Spider-Man",
+        "year": 2002
+      },
+      {
+        "path": "/aGuvNAaaZuWXYQQ6N2v7DeuP6mB.jpg",
+        "title": "Spider-Man 2",
+        "year": 2004
+      },
+      {
+        "path": "/qFmwhVUoUSXjkKRmca5yGDEXBIj.jpg",
+        "title": "Spider-Man 3",
+        "year": 2007
+      }
+    ]
+  },
   "20738+21684": {
     "sharedCount": 5,
     "people": [
@@ -2663,6 +4337,290 @@
       }
     ]
   },
+  "5026+7453": {
+    "sharedCount": 29,
+    "people": [
+      {
+        "id": 5026,
+        "name": "Akira Kurosawa",
+        "profilePath": "/ca8fRqLDfTJTCamLKHp70up23ET.jpg"
+      },
+      {
+        "id": 7453,
+        "name": "Takashi Shimura",
+        "profilePath": "/ydyAm2vyBbEPZRICIMqqjDm0NM9.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/ijWibsAU1iBcCD8tuIZfTmDzMVE.jpg",
+        "title": "Rashomon",
+        "year": 1950
+      },
+      {
+        "path": "/dgNTS4EQDDVfkzJI5msKuHu2Ei3.jpg",
+        "title": "Ikiru",
+        "year": 1952
+      },
+      {
+        "path": "/lOMGc8bnSwQhS4XyE1S99uH8NXf.jpg",
+        "title": "Seven Samurai",
+        "year": 1954
+      },
+      {
+        "path": "/tN7kYPjRhDolpui9sc9Eq9n5b2O.jpg",
+        "title": "Yojimbo",
+        "year": 1961
+      },
+      {
+        "path": "/tgNjemQPG96uIezpiUiXFcer5ga.jpg",
+        "title": "High and Low",
+        "year": 1963
+      }
+    ]
+  },
+  "2201+6648": {
+    "sharedCount": 15,
+    "people": [
+      {
+        "id": 6648,
+        "name": "Ingmar Bergman",
+        "profilePath": "/nkmOaXNRoioViN9OQf2n9Iu6akA.jpg"
+      },
+      {
+        "id": 2201,
+        "name": "Max von Sydow",
+        "profilePath": "/u16BsGyT6v9yuO7wWAF62NayDth.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/wcZ21zrOsy0b52AfAF50XpTiv75.jpg",
+        "title": "The Seventh Seal",
+        "year": 1957
+      },
+      {
+        "path": "/iyTD2QnySNMPUPE3IedZQipSWfz.jpg",
+        "title": "Wild Strawberries",
+        "year": 1957
+      },
+      {
+        "path": "/z70YM3Y4pNYZATMhFMKonngaeMC.jpg",
+        "title": "The Virgin Spring",
+        "year": 1960
+      },
+      {
+        "path": "/rYD30Fm4vAcBqk1kTsxHw1s8P29.jpg",
+        "title": "Through a Glass Darkly",
+        "year": 1961
+      },
+      {
+        "path": "/jSqTnEP1x1OcOglqrInYvGSF1tL.jpg",
+        "title": "Hour of the Wolf",
+        "year": 1968
+      }
+    ]
+  },
+  "4415+5676": {
+    "sharedCount": 5,
+    "people": [
+      {
+        "id": 4415,
+        "name": "Federico Fellini",
+        "profilePath": "/r0GTpMWUrxgPRbMmv38mNggOBvA.jpg"
+      },
+      {
+        "id": 5676,
+        "name": "Marcello Mastroianni",
+        "profilePath": "/bfLnFfNfMC73Q7WW90xQy2PvRZm.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/dZ2v0DAX4aCZartCzZdg4ZinSW2.jpg",
+        "title": "La Dolce Vita",
+        "year": 1960
+      },
+      {
+        "path": "/23VIf7zNxAgaXwIlvzd3IvOd9sY.jpg",
+        "title": "8½",
+        "year": 1963
+      },
+      {
+        "path": "/hSX2YnpQebGlw5ljNlr1jnNSt5q.jpg",
+        "title": "City of Women",
+        "year": 1980
+      },
+      {
+        "path": "/nuhHvDVQLIDzpLpomBHilS1hliL.jpg",
+        "title": "Ginger and Fred",
+        "year": 1986
+      },
+      {
+        "path": "/laP2XdPEPrpTgv0ZjS8c9f47X2t.jpg",
+        "title": "Intervista",
+        "year": 1987
+      }
+    ]
+  },
+  "5676+16757": {
+    "sharedCount": 13,
+    "people": [
+      {
+        "id": 5676,
+        "name": "Marcello Mastroianni",
+        "profilePath": "/bfLnFfNfMC73Q7WW90xQy2PvRZm.jpg"
+      },
+      {
+        "id": 16757,
+        "name": "Sophia Loren",
+        "profilePath": "/lxhkn933v8EuBHvfTWSS5SQQnJ4.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/uRJuHGtdNES7OgCoBpTXkOTO9IL.jpg",
+        "title": "Yesterday, Today and Tomorrow",
+        "year": 1963
+      },
+      {
+        "path": "/1VVQFXwr4i6QSAoPnCs9UmGTUVw.jpg",
+        "title": "Marriage Italian Style",
+        "year": 1964
+      },
+      {
+        "path": "/eVxcQRc3xfA2IOOzXHT0ML1CjzS.jpg",
+        "title": "Sunflower",
+        "year": 1970
+      },
+      {
+        "path": "/jzRn7N1mFowkQ5IkUkfWoxXJtYU.jpg",
+        "title": "A Special Day",
+        "year": 1977
+      },
+      {
+        "path": "/bb8pq3ap09S4KHsOvflXqoNJdWZ.jpg",
+        "title": "Prêt-à-Porter",
+        "year": 1994
+      }
+    ]
+  },
+  "309+3131": {
+    "sharedCount": 8,
+    "people": [
+      {
+        "id": 309,
+        "name": "Pedro Almodóvar",
+        "profilePath": "/dKlaXJk3NLcsC1CKMx6xmyW5BZD.jpg"
+      },
+      {
+        "id": 3131,
+        "name": "Antonio Banderas",
+        "profilePath": "/lpzfDt22374NPhOXZpUq74e9mfw.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/lOehCiqghODNrNBpI1JS76zl6Lx.jpg",
+        "title": "Women on the Verge of a Nervous Breakdown",
+        "year": 1988
+      },
+      {
+        "path": "/4eNyqA543ixNCME8pcADgP9wb1i.jpg",
+        "title": "Tie Me Up! Tie Me Down!",
+        "year": 1990
+      },
+      {
+        "path": "/xa7uCwGYykrf8MMI8iF5dZvNlrG.jpg",
+        "title": "The Skin I Live In",
+        "year": 2011
+      },
+      {
+        "path": "/sQSHPwWlqW9AJEac6sakeIhrMZx.jpg",
+        "title": "I'm So Excited!",
+        "year": 2013
+      },
+      {
+        "path": "/cMlueArJXXwZbeLpb4NhC3pxmBk.jpg",
+        "title": "Pain and Glory",
+        "year": 2019
+      }
+    ]
+  },
+  "1357+12453": {
+    "sharedCount": 11,
+    "people": [
+      {
+        "id": 12453,
+        "name": "Wong Kar-wai",
+        "profilePath": "/yjtamGYg7n8H3lApDxTw6bja9ZR.jpg"
+      },
+      {
+        "id": 1357,
+        "name": "Christopher Doyle",
+        "profilePath": "/dm2g37ak1EzIu1YViAwvZAvytlx.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/43I9DcNoCzpyzK8JCkJYpHqHqGG.jpg",
+        "title": "Chungking Express",
+        "year": 1994
+      },
+      {
+        "path": "/yyM9BPdwttK5LKZSLvHae7QPKo1.jpg",
+        "title": "Fallen Angels",
+        "year": 1995
+      },
+      {
+        "path": "/kO4KjUkQOfWSBw06Bdl7m6AlEP7.jpg",
+        "title": "Happy Together",
+        "year": 1997
+      },
+      {
+        "path": "/8BgGbbWiLNhPtkMkN0gGTnbtvBv.jpg",
+        "title": "In the Mood for Love",
+        "year": 2000
+      },
+      {
+        "path": "/jIN65qw0Giplo4CshzMrxz204Wn.jpg",
+        "title": "2046",
+        "year": 2004
+      }
+    ]
+  },
+  "10099+20738": {
+    "sharedCount": 3,
+    "people": [
+      {
+        "id": 10099,
+        "name": "Park Chan-wook",
+        "profilePath": "/jsSFCVB7MhuVbSLwTgESiXEiNjt.jpg"
+      },
+      {
+        "id": 20738,
+        "name": "Song Kang-ho",
+        "profilePath": "/kBM9UTPYXUA2RNk210DXhztLFns.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/lTpdrei4eWsEsCi4tYYKwdYCFxw.jpg",
+        "title": "Joint Security Area",
+        "year": 2000
+      },
+      {
+        "path": "/uj42ubGbgVL65T10SvPVr0p9mJc.jpg",
+        "title": "Sympathy for Mr. Vengeance",
+        "year": 2002
+      },
+      {
+        "path": "/sBnFQwOcmL3dAIYfiQ9nLvLSW7B.jpg",
+        "title": "Thirst",
+        "year": 2009
+      }
+    ]
+  },
   "608+636": {
     "sharedCount": 11,
     "people": [
@@ -2902,6 +4860,174 @@
         "path": "/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg",
         "title": "Spider-Man: Across the Spider-Verse",
         "year": 2023
+      }
+    ]
+  },
+  "7087+15347": {
+    "sharedCount": 5,
+    "people": [
+      {
+        "id": 7087,
+        "name": "Brad Bird",
+        "profilePath": "/uk7cGqV5MYnbXmR6KDpN8iJ3O1x.jpg"
+      },
+      {
+        "id": 15347,
+        "name": "Michael Giacchino",
+        "profilePath": "/xgurVFMLVgtgz9f5bgrrCppm4xq.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/2LqaLgk4Z226KkgPJuiOQ58wvrm.jpg",
+        "title": "The Incredibles",
+        "year": 2004
+      },
+      {
+        "path": "/t3vaWRPSf6WjDSamIkKDs1iQWna.jpg",
+        "title": "Ratatouille",
+        "year": 2007
+      },
+      {
+        "path": "/eRZTGx7GsiKqPch96k27LK005ZL.jpg",
+        "title": "Mission: Impossible - Ghost Protocol",
+        "year": 2011
+      },
+      {
+        "path": "/kziYpr5Nfw60P0My8aj1sgCEqed.jpg",
+        "title": "Tomorrowland",
+        "year": 2015
+      },
+      {
+        "path": "/9lFKBtaVIhP7E2Pk0IY1CwTKTMZ.jpg",
+        "title": "Incredibles 2",
+        "year": 2018
+      }
+    ]
+  },
+  "15810+15811": {
+    "sharedCount": 9,
+    "people": [
+      {
+        "id": 15810,
+        "name": "Ron Clements",
+        "profilePath": "/u9k9yg2EGlDsxYo3ehf35yRUfcD.jpg"
+      },
+      {
+        "id": 15811,
+        "name": "John Musker",
+        "profilePath": "/vSn1d9JpEpECu9cQbRGTFWZdLhA.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/plcZXvI310FkbwIptvd6rqk63LP.jpg",
+        "title": "The Little Mermaid",
+        "year": 1989
+      },
+      {
+        "path": "/eLFfl7vS8dkeG1hKp5mwbm37V83.jpg",
+        "title": "Aladdin",
+        "year": 1992
+      },
+      {
+        "path": "/dK9rNoC97tgX3xXg5zdxFisdfcp.jpg",
+        "title": "Hercules",
+        "year": 1997
+      },
+      {
+        "path": "/yprv5PbnEksoVj2v6XEnDBg9joR.jpg",
+        "title": "The Princess and the Frog",
+        "year": 2009
+      },
+      {
+        "path": "/m5MDZOIFEFlxGiLuAzWzFSsWcye.jpg",
+        "title": "Moana",
+        "year": 2016
+      }
+    ]
+  },
+  "66193+69797": {
+    "sharedCount": 7,
+    "people": [
+      {
+        "id": 69797,
+        "name": "Dean DeBlois",
+        "profilePath": "/nnaiwvrJdfjpsdqjuyYlq9S0uMA.jpg"
+      },
+      {
+        "id": 66193,
+        "name": "Chris Sanders",
+        "profilePath": "/mrUm1agSL9Kj6dhV6ABVJvrwlie.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/jAbexAtB0aSfP5Ay4TpWHARyVnG.jpg",
+        "title": "Mulan",
+        "year": 1998
+      },
+      {
+        "path": "/cFuLvQJPoZpuruAtN3rVnMmLIH8.jpg",
+        "title": "Lilo & Stitch",
+        "year": 2002
+      },
+      {
+        "path": "/p2R4mhZcikWEBlqv80VfJ7M9xql.jpg",
+        "title": "Lilo & Stitch 2: Stitch Has a Glitch",
+        "year": 2005
+      },
+      {
+        "path": "/ygGmAO60t8GyqUo9xYeYxSZAR3b.jpg",
+        "title": "How to Train Your Dragon",
+        "year": 2010
+      },
+      {
+        "path": "/53dsJ3oEnBhTBVMigWJ9tkA5bzJ.jpg",
+        "title": "How to Train Your Dragon",
+        "year": 2025
+      }
+    ]
+  },
+  "510+531": {
+    "sharedCount": 21,
+    "people": [
+      {
+        "id": 510,
+        "name": "Tim Burton",
+        "profilePath": "/yHEHAHQpN9PfSEQx1UxZPczhcAi.jpg"
+      },
+      {
+        "id": 531,
+        "name": "Danny Elfman",
+        "profilePath": "/bcpur9bF56nLxzFzZowipA2wZhy.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/e0FqKFvGPdQNWG8tF9cZBtev9Em.jpg",
+        "title": "Edward Scissorhands",
+        "year": 1990
+      },
+      {
+        "path": "/oQffRNjK8e19rF7xVYEN8ew0j7b.jpg",
+        "title": "The Nightmare Before Christmas",
+        "year": 1993
+      },
+      {
+        "path": "/iKP6wg3c6COUe8gYutoGG7qcPnO.jpg",
+        "title": "Charlie and the Chocolate Factory",
+        "year": 2005
+      },
+      {
+        "path": "/3RAoVTxUk1OzZClscAsynuu670p.jpg",
+        "title": "Corpse Bride",
+        "year": 2005
+      },
+      {
+        "path": "/o0kre9wRCZz3jjSjaru7QU0UtFz.jpg",
+        "title": "Alice in Wonderland",
+        "year": 2010
       }
     ]
   }
