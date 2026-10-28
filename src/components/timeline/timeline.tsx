@@ -548,6 +548,7 @@ export function Timeline({
         accent={layout.accents.get(film.id) ?? null}
         note={layout.notes.get(film.id) ?? ""}
         laneIndex={laneIndex}
+        nodeLine={nodeLine}
         upcoming={!isReleased(film.releaseDate, today)}
         emphasized={hoveredId === film.id}
         dimmed={tone !== "plain" && activeKey !== null && layout.keys.get(film.id) !== activeKey}
