@@ -1,4 +1,6 @@
-// Builds the local people index behind the search box (src/lib/people-index.generated.json).
+// Builds the local people index behind the search box (src/lib/people-index.generated.json) and,
+// from the same crawled credits, the collaborator graph behind the "Frequent collaborators" chips
+// (src/lib/collaborators.generated.json). One run writes both files.
 //
 //   npm run people:refresh
 //
@@ -11,20 +13,28 @@
 //      /movie/popular, then /movie/{id}/credits for each film);
 //   c. every person that src/lib/examples.ts mentions, so the curated pairings are always findable.
 //
+// The collaborator graph costs no extra TMDB calls: the credits fetched for (b) already say who
+// worked on which film, so for each person in the index the run counts the notable films they
+// share with each co-credited person and keeps the best 12 (src/lib/collaborator-graph.ts).
+//
 // Every TMDB response is cached on disk so reruns are cheap; delete the cache folder (or pass
 // --no-cache) for a fresh crawl. The folder defaults to node_modules/.cache/parallel-people-index
 // and can be moved with PEOPLE_INDEX_CACHE_DIR. Nothing secret goes into the cache or the output.
 //
-// TMDB's terms limit how long cached TMDB data may be kept (six months), so rerun this at least
-// that often and commit the result. See "People search index" in the README.
+// TMDB's terms limit how long cached TMDB data may be kept (six months), and that covers both
+// generated files, so rerun this at least that often and commit the result. See "People search
+// index" and "Frequent collaborators" in the README.
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildCollaboratorRows, membersFromCredits, notabilityScore, type FilmMembers } from "../src/lib/collaborator-graph";
+import { encodeCollaborators } from "../src/lib/collaborators-format";
 import { EXAMPLE_PAIRINGS } from "../src/lib/examples";
 import { encodePeopleIndex } from "../src/lib/people-index-format";
 import type { MatchablePerson } from "../src/lib/people-match";
 
 const OUTPUT = fileURLToPath(new URL("../src/lib/people-index.generated.json", import.meta.url));
+const COLLABORATORS_OUTPUT = fileURLToPath(new URL("../src/lib/collaborators.generated.json", import.meta.url));
 const CACHE_DIR =
   process.env.PEOPLE_INDEX_CACHE_DIR ??
   fileURLToPath(new URL("../node_modules/.cache/parallel-people-index/", import.meta.url));
@@ -196,6 +206,9 @@ function noteFilm(person: Person, film: { id: number; title: string; votes: numb
  */
 const creditCounts = new Map<number, number>();
 
+/** Who counts as a collaborator on each crawled film (see membersFromCredits), for the graph. */
+const filmMembers: FilmMembers[] = [];
+
 const pages = (count: number) => Array.from({ length: count }, (_, i) => String(i + 1));
 
 async function crawlPopularPeople(): Promise<void> {
@@ -249,6 +262,7 @@ async function crawlCredits(films: ReadonlyMap<number, { id: number; title: stri
       if (person) noteFilm(person, film);
     }
     for (const id of credited) creditCounts.set(id, (creditCounts.get(id) ?? 0) + 1);
+    filmMembers.push(membersFromCredits(credits));
     if (++done % 250 === 0) console.log(`  credits: ${done}/${list.length} films`);
   });
 }
@@ -347,13 +361,34 @@ async function main(): Promise<void> {
     return;
   }
 
-  const file = encodePeopleIndex(index, new Date().toISOString());
+  const notability = (id: number) => notabilityScore(creditCounts.get(id) ?? 0, people.get(id)?.popularity ?? 0);
+  const rows = buildCollaboratorRows(
+    filmMembers,
+    index.map((p) => p.id),
+    notability,
+  );
+  if (rows.length === 0) {
+    console.error("people:refresh failed: the collaborator graph is empty (the credits crawl found nothing).");
+    process.exitCode = 1;
+    return;
+  }
+
+  // Both files carry the same timestamp: they come from the same crawl.
+  const generatedAt = new Date().toISOString();
+  const file = encodePeopleIndex(index, generatedAt);
   writeFileSync(OUTPUT, `${JSON.stringify(file)}\n`);
+  writeFileSync(COLLABORATORS_OUTPUT, `${JSON.stringify(encodeCollaborators(rows, generatedAt))}\n`);
 
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
   console.log(
     `\nWrote ${index.length} people to src/lib/people-index.generated.json ` +
       `(${(statSync(OUTPUT).size / 1024 / 1024).toFixed(2)} MB, ${file.titles.length} titles).`,
+  );
+  const candidates = rows.reduce((sum, row) => sum + row[1].length, 0);
+  console.log(
+    `Wrote ${rows.length} collaborator rows to src/lib/collaborators.generated.json ` +
+      `(${(statSync(COLLABORATORS_OUTPUT).size / 1024 / 1024).toFixed(2)} MB, ` +
+      `${(candidates / rows.length).toFixed(1)} candidates per row).`,
   );
   console.log(
     `TMDB calls: ${stats.network} over the network (${stats.retried} retried, ${stats.missing} not found), ` +
