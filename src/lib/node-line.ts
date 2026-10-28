@@ -18,8 +18,3 @@ export function parseNodeLine(value: string | null | undefined): NodeLine {
   const lower = value?.trim().toLowerCase();
   return NODE_LINES.find((candidate) => candidate === lower) ?? DEFAULT_NODE_LINE;
 }
-
-/** The layout named by a query string (`"?nodes=bottom&x=1"`, with or without the leading `?`). */
-export function nodeLineFromSearch(search: string | null | undefined): NodeLine {
-  return parseNodeLine(new URLSearchParams(search ?? "").get(NODES_PARAM));
-}
