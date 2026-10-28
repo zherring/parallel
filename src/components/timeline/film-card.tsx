@@ -1,13 +1,6 @@
 import { memo } from "react";
 import { tmdbImage } from "@/lib/images";
-import {
-  CARD_HEIGHT,
-  POSTER_HEIGHT,
-  QUIET_POSTER_HEIGHT,
-  QUIET_RESTORE_SCALE,
-  cardWidthOf,
-  type NodeLine,
-} from "@/lib/timeline-layout";
+import { CARD_HEIGHT, POSTER_HEIGHT, QUIET_POSTER_HEIGHT, QUIET_RESTORE_SCALE, cardWidthOf } from "@/lib/timeline-layout";
 import { cn } from "./cn";
 
 /**
@@ -47,12 +40,6 @@ interface FilmCardProps {
   note: string;
   /** Index of the lane the card is in. Read by the timeline's delegated hover handlers. */
   laneIndex: number;
-  /**
-   * Which end of the lane its line is at. With the line at the bottom the card stands on it: its box is as tall as a full
-   * card with the poster and caption at the bottom of it, so every caption ends the same distance from the line and a
-   * restored quiet card grows upward, away from the line. With it at the top the card hangs from the top of its box.
-   */
-  nodeLine: NodeLine;
   upcoming: boolean;
   /** The same film is hovered or focused (in this or another lane). */
   emphasized: boolean;
@@ -88,7 +75,6 @@ function FilmCardImpl(props: FilmCardProps) {
     quiet,
     accent,
     laneIndex,
-    nodeLine,
     upcoming,
     emphasized,
     dimmed,
@@ -103,7 +89,6 @@ function FilmCardImpl(props: FilmCardProps) {
   const restored = quiet && (emphasized || selected);
   const faded = quiet && !restored;
   const textSize = quiet ? "text-[10px] leading-[12px]" : "text-[11px] leading-[13px]";
-  const standing = nodeLine === "bottom";
 
   return (
     <li
@@ -126,22 +111,17 @@ function FilmCardImpl(props: FilmCardProps) {
         // The focus ring is drawn on the card inside (it grows with a restored quiet card), so the button has none.
         // Important: the global :focus-visible outline is unlayered CSS and would beat a plain utility.
         // scroll-mb: keyboard focus scrolls the page far enough to clear the control bar pinned to the viewport's bottom.
-        // A quiet card keeps the height of a full one, which it grows into: the hover card opens below this box.
-        // A flex column, so that the card hangs from the top of that taller box (a button centres plain content). With the
-        // line at the bottom every card has that box and stands on its bottom edge instead (see `nodeLine`).
-        className={cn(
-          "group flex w-full scroll-mb-20 cursor-pointer flex-col text-left focus-visible:outline-none!",
-          standing && "justify-end",
-        )}
-        style={quiet || standing ? { height: CARD_HEIGHT } : undefined}
+        // Every card has a box as tall as a full card (a quiet one keeps that height and grows into it) and stands on its
+        // bottom edge, on the lane's line: a flex column pushed to the end (a button centres plain content). So every
+        // caption ends the same distance from the line, and a restored quiet card grows upward, away from the line.
+        // The hover card opens below this box.
+        className="group flex w-full scroll-mb-20 cursor-pointer flex-col text-left focus-visible:outline-none! justify-end"
+        style={{ height: CARD_HEIGHT }}
       >
         <span
           // Opaque on purpose: the grid lines of the track must not show through the caption.
-          // Top centre is the origin, so a restored card stays centred on its x and hangs from the same top.
-          className={cn(
-            "block rounded-[4px] bg-canvas transition-transform duration-150 ease-out group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-focus motion-reduce:transition-none",
-            standing ? "origin-bottom" : "origin-top",
-          )}
+          // Bottom centre is the origin, so a restored card stays centred on its x and keeps standing on the same bottom.
+          className="block rounded-[4px] bg-canvas transition-transform duration-150 ease-out group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-focus motion-reduce:transition-none origin-bottom"
           style={restored ? { transform: `scale(${QUIET_RESTORE_SCALE})` } : undefined}
         >
           <span
