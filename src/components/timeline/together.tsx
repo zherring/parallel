@@ -1,13 +1,13 @@
 "use client";
 
+import { useMemo } from "react";
+import { sharedRows } from "@/lib/film-rows";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import type { PairShared } from "@/lib/shared";
 import type { SharedFilm } from "@/lib/types";
 import type { PersonRef } from "@/lib/lanes";
 import { detailsButtonClass, linkClass, tmdbMovieUrl } from "./film-links";
-import { FilmsTable } from "./films-table";
-import { ShareActions } from "./share-actions";
-import { useFilmsTable } from "./use-films-table";
+import { FilmsSection } from "./films-section";
 
 interface TogetherProps {
   people: PersonRef[];
@@ -24,6 +24,8 @@ interface TogetherProps {
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
+const joinNames = (names: string[]) => new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(names);
+
 export function Together({
   people,
   shared,
@@ -34,37 +36,31 @@ export function Together({
   today,
   onSelect,
 }: TogetherProps) {
+  const rows = useMemo(() => sharedRows(shared, people), [shared, people]);
   const nameById = new Map(people.map((p) => [p.id, p.name]));
+  const names = people.map((p) => p.name);
   const count = shared.length;
-  const table = useFilmsTable(shared, today);
 
   return (
-    <section aria-labelledby="together" className="mt-10">
-      <ShareActions
-        // The export follows the table: the films in the order they are sorted in right now.
-        shared={table.rows}
-        names={people.map((p) => p.name)}
-        canExport
-        share={{ people, count: shareCount }}
-        heading={
-          <h2 id="together" className="text-xl font-semibold text-strong">
-            {count === 0 ? "No films together" : `${count} ${count === 1 ? "film" : "films"} together`}
-          </h2>
-        }
-      />
-
-      {count === 0 ? (
-        <p className="mt-4 max-w-xl text-body">
+    <FilmsSection
+      headingId="together"
+      title={count === 0 ? "No films together" : `${count} ${count === 1 ? "film" : "films"} together`}
+      rows={rows}
+      names={names}
+      caption={`Films ${joinNames(names)} made together`}
+      share={{ people, count: shareCount }}
+      today={today}
+      empty={
+        <>
           No films together found on TMDB. Try adding a collaborator in a nearby role, such as the cinematographer,
           editor or a co-star.
           {minorExtra > 0 && ` Turning on "${MINOR_TOGGLE_LABEL}" would add ${minorExtra}.`}
           {upcomingExtra > 0 &&
             ` ${upcomingExtra} announced ${upcomingExtra === 1 ? "film they share is" : "films they share are"} not out yet and will count once ${upcomingExtra === 1 ? "it is" : "they are"} released.`}
-        </p>
-      ) : (
-        <FilmsTable people={people} table={table} onSelect={onSelect} />
-      )}
-
+        </>
+      }
+      onSelect={onSelect}
+    >
       {pairwise.length > 0 && (
         <details className="mt-6 rounded-lg border border-border bg-surface">
           <summary className="cursor-pointer select-none px-4 py-3 font-semibold text-strong">
@@ -104,6 +100,6 @@ export function Together({
           </div>
         </details>
       )}
-    </section>
+    </FilmsSection>
   );
 }

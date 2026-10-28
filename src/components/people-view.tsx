@@ -3,10 +3,12 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { FilmPanel } from "@/components/film-panel/film-panel";
 import { PersonSearch } from "@/components/person-search/person-search";
-import { ShareActions } from "@/components/timeline/share-actions";
+import { FilmsSection } from "@/components/timeline/films-section";
 import { Timeline, type LaneData } from "@/components/timeline/timeline";
 import { Together } from "@/components/timeline/together";
+import { personRows } from "@/lib/film-rows";
 import { canAddPerson } from "@/lib/lanes";
+import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import { pageHeading } from "@/lib/short-name";
 import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms, type PairShared } from "@/lib/shared";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
@@ -58,6 +60,10 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
     () => (multi && sharedNow.length === 0 ? upcomingSharedFilms(timelines, { includeMinor, today }).length : 0),
     [multi, sharedNow.length, timelines, includeMinor, today],
   );
+  // One person: their own films, as the lane lists them (minor credits hidden unless the toggle is on).
+  const soloRows = useMemo(() => (multi ? [] : personRows(timelines[0], includeMinor)), [multi, timelines, includeMinor]);
+  // Films whose every credit is minor: what the toggle would add to an otherwise empty list.
+  const soloMinorExtra = !multi && !includeMinor && soloRows.length === 0 ? timelines[0].films.length : 0;
   const litIds = useMemo(() => new Set(sharedNow.map((film) => film.id)), [sharedNow]);
 
   const lanes: LaneData[] = useMemo(
@@ -82,7 +88,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
     if (trigger?.isConnected) requestAnimationFrame(() => trigger.focus({ preventScroll: true }));
   }, []);
 
-  const names = people.map((p) => p.name);
   // The link opens the default view, so the share text counts the non-minor films, not what the toggle shows.
   const soloFilmCount = timelines[0].films.filter((film) => !film.minor).length;
   // Three or more people: family names only, with the full names on hover.
@@ -130,9 +135,22 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
           onSelect={handleSelect}
         />
       ) : (
-        <div className="mt-8">
-          <ShareActions shared={[]} names={names} canExport={false} share={{ people, count: soloFilmCount }} />
-        </div>
+        <FilmsSection
+          headingId="films"
+          title={soloRows.length === 0 ? "No films" : `${soloRows.length} ${soloRows.length === 1 ? "film" : "films"}`}
+          rows={soloRows}
+          names={[people[0].name]}
+          caption={`Films ${people[0].name} worked on`}
+          share={{ people, count: soloFilmCount }}
+          today={today}
+          empty={
+            <>
+              No films found on TMDB.
+              {soloMinorExtra > 0 && ` Turning on "${MINOR_TOGGLE_LABEL}" would add ${soloMinorExtra}.`}
+            </>
+          }
+          onSelect={handleSelect}
+        />
       )}
 
       <FilmPanel filmId={selectedId} peopleInView={people} onClose={handleClose} />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sharedFilmsToCsv } from "@/lib/csv";
+import { filmsToCsv } from "@/lib/csv";
 import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms } from "@/lib/shared";
 import type { Credit, Film, PersonTimeline } from "@/lib/types";
 
@@ -173,7 +173,7 @@ describe("films that are not out yet", () => {
   });
 
   it("feeds the export: the CSV has no row for an announced film", () => {
-    const csv = sharedFilmsToCsv(sharedFilms([one, two], { includeMinor: false, today: TODAY }));
+    const csv = filmsToCsv(sharedFilms([one, two], { includeMinor: false, today: TODAY }));
     expect(csv.trim().split("\r\n")).toEqual(["tmdbID,Title,Year", "1,Film 1,2001", "2,Film 2,2026", "3,Film 3,2026"]);
   });
 });

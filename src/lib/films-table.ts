@@ -1,8 +1,8 @@
 /**
- * Sorting rules for the "films together" table: which columns sort, which way a first click goes,
- * what each column sorts by and where films without data end up. Pure and locale-independent
- * where order matters (dates compare as text, titles with a fixed "en" collator), so the table
- * sorts the same in every browser and the rules are testable.
+ * Sorting rules for the films table (the films together, or one person's films): which columns
+ * sort, which way a first click goes, what each column sorts by and where films without data end
+ * up. Pure and locale-independent where order matters (dates compare as text, titles with a fixed
+ * "en" collator), so the table sorts the same in every browser and the rules are testable.
  *
  * What a column sorts by is what its cell shows: a rating under the vote floor, a token or
  * unreleased gross and an empty awards row are all "no data", which sorts last in either
@@ -16,7 +16,8 @@ import {
   revenueDisplay,
   wholeNumber,
 } from "@/lib/film-metrics";
-import type { FilmMetrics, SharedFilm } from "@/lib/types";
+import type { TableFilm } from "@/lib/film-rows";
+import type { FilmMetrics } from "@/lib/types";
 
 export type SortKey = "film" | "year" | "rating" | "box-office" | "awards";
 export type SortDir = "asc" | "desc";
@@ -160,7 +161,7 @@ export type MetricsById = ReadonlyMap<number, FilmMetrics | null>;
 const titles = new Intl.Collator("en", { sensitivity: "base", numeric: true });
 
 /** Release date, then id: the order of the unsorted list, and the tie-breaker of every other sort. */
-function chronological(a: SharedFilm, b: SharedFilm): number {
+function chronological(a: TableFilm, b: TableFilm): number {
   if (a.releaseDate !== b.releaseDate) return a.releaseDate < b.releaseDate ? -1 : 1;
   return a.id - b.id;
 }
@@ -185,12 +186,12 @@ function compareAwards(a: AwardsKey, b: AwardsKey): number {
  * to chronological order, always oldest first, so equal films keep a predictable order whichever
  * way the column goes.
  */
-export function sortFilms(
-  films: readonly SharedFilm[],
+export function sortFilms<T extends TableFilm>(
+  films: readonly T[],
   sort: SortState,
   metrics: MetricsById,
   today: Date | string,
-): SharedFilm[] {
+): T[] {
   const { key, dir } = sort;
 
   if (key === "year") return [...films].sort((a, b) => directed(dir, chronological(a, b)));
@@ -199,14 +200,14 @@ export function sortFilms(
   }
 
   const keys = new Map(films.map((film) => [film.id, metricKeys(metrics.get(film.id), today)] as const));
-  const of = (film: SharedFilm): MetricKeys => keys.get(film.id) ?? NO_KEYS;
+  const of = (film: T): MetricKeys => keys.get(film.id) ?? NO_KEYS;
 
   const compare =
     key === "rating"
-      ? (a: SharedFilm, b: SharedFilm) => compareOptional(of(a).rating, of(b).rating, compareNumbers, dir)
+      ? (a: T, b: T) => compareOptional(of(a).rating, of(b).rating, compareNumbers, dir)
       : key === "box-office"
-        ? (a: SharedFilm, b: SharedFilm) => compareOptional(of(a).boxOffice, of(b).boxOffice, compareNumbers, dir)
-        : (a: SharedFilm, b: SharedFilm) => compareOptional(of(a).awards, of(b).awards, compareAwards, dir);
+        ? (a: T, b: T) => compareOptional(of(a).boxOffice, of(b).boxOffice, compareNumbers, dir)
+        : (a: T, b: T) => compareOptional(of(a).awards, of(b).awards, compareAwards, dir);
 
   return [...films].sort((a, b) => compare(a, b) || chronological(a, b));
 }

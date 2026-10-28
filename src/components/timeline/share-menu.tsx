@@ -11,6 +11,7 @@ import {
   useSyncExternalStore,
   type KeyboardEvent,
 } from "react";
+import { canCopyImage, copyImage, copyImageMessage, imageUrlFor } from "@/lib/copy-image";
 import { menuIndex } from "@/lib/menu-nav";
 import { shareLinks, type ShareInput } from "@/lib/share";
 import { SITE_URL } from "@/lib/site-url";
@@ -28,6 +29,8 @@ const clientOrigin = () => window.location.origin;
 const serverOrigin = () => SITE_URL;
 const clientCanShare = () => typeof navigator.share === "function";
 const serverCanShare = () => false;
+const clientCanCopyImage = () => canCopyImage(window);
+const serverCanCopyImage = () => false;
 
 /** Menu width (w-60) and the gap kept to the screen edge, to decide which side of the button the menu opens towards. */
 const MENU_WIDTH = 240;
@@ -41,16 +44,17 @@ function menuSide(button: HTMLElement | null): "left" | "right" {
   return button.getBoundingClientRect().left + width > screen - SCREEN_GAP ? "right" : "left";
 }
 
-// The primary button of the row: the green one (Export and Copy link are the secondary ones).
+// The primary button of the row: the green one (Export is the secondary one).
 const buttonClass =
   "inline-flex w-full items-center justify-center gap-2 rounded-md bg-accent-green px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-green-hover";
 const itemClass =
   "flex w-full cursor-pointer items-center rounded-md px-3 py-2 text-left text-sm font-medium text-strong hover:bg-border focus:bg-border focus-visible:outline-offset-[-2px]";
 
 /**
- * "Share" button with a small menu: Post on X, Post on Bluesky and, where the browser has a
- * native share sheet, "More...". The items are plain links to the platforms' compose pages, so
- * nothing is sent anywhere until the visitor follows one, and no third-party script is loaded.
+ * "Share" button with a small menu: Post on X, Post on Bluesky, Copy link, Copy image (where the
+ * browser can put an image on the clipboard) and, where it has a native share sheet, "More...".
+ * The posting items are plain links to the platforms' compose pages, so nothing is sent anywhere
+ * until the visitor follows one, and no third-party script is loaded.
  *
  * Menu button pattern: Enter, Space or the arrow keys open it; Arrow keys, Home and End move
  * between items; Escape closes it and returns focus to the button; Tab or a click elsewhere
@@ -60,6 +64,9 @@ const itemClass =
 export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
   const [open, setOpen] = useState(false);
   const [side, setSide] = useState<"left" | "right">("left");
+  const [copying, setCopying] = useState(false);
+  // A failure shown inside the open menu: the menu covers the status line under the buttons.
+  const [problem, setProblem] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -71,6 +78,7 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
   // origin the visitor is actually on (localhost, the Railway URL, the custom domain).
   const origin = useSyncExternalStore(noSubscription, clientOrigin, serverOrigin);
   const canShare = useSyncExternalStore(noSubscription, clientCanShare, serverCanShare);
+  const canImage = useSyncExternalStore(noSubscription, clientCanCopyImage, serverCanCopyImage);
   const pathname = usePathname();
   const url = `${origin}${pathname}`;
   const links = shareLinks(input, url);
@@ -104,7 +112,10 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
 
   const toggle = () => {
     focusOnOpen.current = "first";
-    if (!open) setSide(menuSide(buttonRef.current));
+    if (!open) {
+      setSide(menuSide(buttonRef.current));
+      setProblem("");
+    }
     setOpen((value) => !value);
   };
 
@@ -117,6 +128,7 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
       list[event.key === "ArrowUp" ? list.length - 1 : 0]?.focus();
     } else {
       setSide(menuSide(buttonRef.current));
+      setProblem("");
       setOpen(true);
     }
   };
@@ -153,6 +165,42 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
       // Dismissing the sheet rejects with an AbortError; that is not a failure.
       if (error instanceof DOMException && error.name === "AbortError") return;
       onStatus("Could not open the share sheet.");
+    }
+  };
+
+  /** Tells the status line (for screen readers) and, as the menu stays open, the menu itself. */
+  const fail = (message: string) => {
+    setProblem(message);
+    onStatus(message);
+  };
+
+  // The address bar as it is now, so a link with a sort in it is copied as the visitor sees it.
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+    } catch {
+      fail("Could not copy automatically. Copy the address from your browser's address bar.");
+      return;
+    }
+    onStatus("Link copied");
+    close(true);
+  };
+
+  const copyPreviewImage = async () => {
+    if (copying) return;
+    setCopying(true);
+    // Called straight from the click, with the fetch still pending: see `copyImage`.
+    const outcome = await copyImage(imageUrlFor(window.location), {
+      fetch: (imageUrl) => fetch(imageUrl),
+      clipboard: navigator.clipboard,
+      ClipboardItem: window.ClipboardItem,
+    });
+    setCopying(false);
+    if (outcome === "copied") {
+      onStatus(copyImageMessage(outcome));
+      close(true);
+    } else {
+      fail(copyImageMessage(outcome));
     }
   };
 
@@ -202,10 +250,31 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
         >
           Post on Bluesky<span className="sr-only"> (opens in a new tab)</span>
         </a>
+        <button role="menuitem" tabIndex={-1} type="button" className={itemClass} onClick={copyLink}>
+          Copy link
+        </button>
+        {canImage && (
+          <button
+            role="menuitem"
+            tabIndex={-1}
+            type="button"
+            className={itemClass}
+            aria-disabled={copying || undefined}
+            onClick={copyPreviewImage}
+          >
+            {copying ? "Copying image..." : "Copy image"}
+          </button>
+        )}
         {canShare && (
           <button role="menuitem" tabIndex={-1} type="button" className={itemClass} onClick={nativeShare}>
             More...
           </button>
+        )}
+        {problem && (
+          // The status line (a live region) speaks it; this copy is for the eyes.
+          <p aria-hidden="true" className="mt-1 border-t border-border px-3 py-2 text-xs text-body">
+            {problem}
+          </p>
         )}
       </div>
     </div>
