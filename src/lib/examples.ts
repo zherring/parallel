@@ -529,6 +529,14 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
     ],
     blurb: "Director and actor: Batman Begins, The Prestige, The Dark Knight, The Dark Knight Rises.",
   },
+  {
+    genre: "action-western",
+    people: [
+      { id: 138, name: "Quentin Tarantino" },
+      { id: 2294, name: "Robert Rodriguez" },
+    ],
+    blurb: "Two directors who worked on each other's films: Desperado, From Dusk Till Dawn, Grindhouse, Death Proof.",
+  },
 
   // World Cinema
   {
