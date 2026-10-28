@@ -44,9 +44,9 @@ function menuSide(button: HTMLElement | null): "left" | "right" {
   return button.getBoundingClientRect().left + width > screen - SCREEN_GAP ? "right" : "left";
 }
 
-// The primary button of the row: the green one (Export is the secondary one).
+// The primary button of the row: the white one (Export is the secondary one).
 const buttonClass =
-  "inline-flex w-full items-center justify-center gap-2 rounded-md bg-accent-green px-4 py-2 text-sm font-semibold text-on-accent hover:bg-accent-green-hover";
+  "inline-flex w-full items-center justify-center gap-2 rounded-md bg-strong px-4 py-2 text-sm font-semibold text-canvas hover:bg-strong/85";
 const itemClass =
   "flex w-full cursor-pointer items-center rounded-md px-3 py-2 text-left text-sm font-medium text-strong hover:bg-border focus:bg-border focus-visible:outline-offset-[-2px]";
 
