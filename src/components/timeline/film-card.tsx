@@ -127,7 +127,8 @@ function FilmCardImpl(props: FilmCardProps) {
         // Important: the global :focus-visible outline is unlayered CSS and would beat a plain utility.
         // scroll-mb: keyboard focus scrolls the page far enough to clear the control bar pinned to the viewport's bottom.
         // A quiet card keeps the height of a full one, which it grows into: the hover card opens below this box.
-        // A flex column, so that the card hangs from the top of that taller box (a button centres plain content).
+        // A flex column, so that the card hangs from the top of that taller box (a button centres plain content). With the
+        // line at the bottom every card has that box and stands on its bottom edge instead (see `nodeLine`).
         className={cn(
           "group flex w-full scroll-mb-20 cursor-pointer flex-col text-left focus-visible:outline-none!",
           standing && "justify-end",
