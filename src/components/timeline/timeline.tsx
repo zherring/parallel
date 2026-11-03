@@ -115,18 +115,19 @@ interface TimelineProps {
   selectedId: number | null;
   onSelect: (id: number, trigger: HTMLElement) => void;
   /**
-   * The years a link asked the page to open on (`?from=1978&to=1993`), already resolved against the
-   * films. Once the timeline is on screen it zooms to the nearest step that fits them and scrolls to
-   * the first one; a period that appears later (the address bar is read after hydration) is applied
-   * the same way. Null shows the usual start. A period the visitor just chose on this page (the minimap's brush, the
-   * Share menu) is not scrolled to: it only dims the films outside it, and the view stays where it is.
+   * The period in the page's URL (`?from=1978&to=1993`), already resolved against the films: the years of a link
+   * someone shared, or the ones chosen in the Share menu's Period selects. Films outside it are dimmed. A period that
+   * came with the link is also opened on: once the timeline is on screen it zooms to the nearest step that fits it and
+   * scrolls to its first year (a period that appears later, as the address bar is read after hydration, is applied the
+   * same way). One chosen in the Share menu is not scrolled to: it only dims, and the view stays where it is. Null
+   * shows the usual start.
    */
   period?: Period | null;
-  /** First and last year of the films a period is cut from: the minimap's brush stays inside it. Null: no brush. */
+  /** First and last year of the films a period is cut from. Only the minimap's brush uses it (parked, see `MINIMAP_BRUSH_ENABLED`). Null: no brush. */
   periodSpan?: YearSpan | null;
-  /** The year of each film the preview card shows, for the brush's live film count. */
+  /** The year of each film the preview card shows, for the brush's live film count (parked, see `MINIMAP_BRUSH_ENABLED`). */
   periodYears?: readonly number[];
-  /** Writes the period the brush ends on (null: none); see `useUrlPeriod`. */
+  /** Writes the period the minimap's brush ends on (null: none). The brush is parked behind `MINIMAP_BRUSH_ENABLED`, so nothing calls it for now; see `useUrlPeriod`. */
   onPeriodChange?: (next: Period | null) => void;
 }
 

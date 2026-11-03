@@ -82,6 +82,15 @@ export function viewForKey(key: string, current: View): View | null {
 }
 
 /**
+ * Whether the toolbar says what period the page is showing ("Showing 1966–1981 · Show full career"): only on the Timeline,
+ * where a period dims the films outside it. The Table and the CSV list every film, so a period note there would be a claim
+ * about rows that are not filtered.
+ */
+export function showsPeriodNote(view: View): boolean {
+  return view === "timeline";
+}
+
+/**
  * The film count the page headline carries after the names ("Harrison Ford & George Lucas, 11
  * films"): "11 films", "1 film", or null when there are none, so the headline is just the names
  * and the panel's empty state says what is missing. `count` is the number the table lists (and

@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { OgCardView } from "@/lib/og-render";
+import { OG_CACHE_CONTROL, OgCardView, renderPairOgImage } from "@/lib/og-render";
 import { OG_CENTER_X, OG_WIDTH, buildOgCard, composition, headshotFan } from "@/lib/og-card";
 import type { Film, PersonTimeline } from "@/lib/types";
 
@@ -112,5 +112,20 @@ describe("the card as drawn", () => {
   it("draws no chip for a period that holds no films", () => {
     const { html } = markupOf(pair([1990, 1995]), { from: 2000, to: 2005 });
     expect(html).not.toContain('data-part="chip"');
+  });
+});
+
+describe("the card as a response", () => {
+  it("is a 1200x630 PNG with the cache header every card has", async () => {
+    // No portraits and no posters, so drawing it fetches nothing.
+    const response = await renderPairOgImage({ timelines: pair([2005, 2008, 2012]) });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/png");
+    expect(response.headers.get("cache-control")).toBe(OG_CACHE_CONTROL);
+    expect(OG_CACHE_CONTROL).toBe("public, s-maxage=86400, stale-while-revalidate=604800");
+    const bytes = new DataView(await response.arrayBuffer());
+    expect(bytes.getUint32(0)).toBe(0x89504e47);
+    // The IHDR chunk holds the size: width, then height, from byte 16.
+    expect([bytes.getUint32(16), bytes.getUint32(20)]).toEqual([1200, 630]);
   });
 });

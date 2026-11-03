@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type FocusEvent,
   type KeyboardEvent,
 } from "react";
 import { canCopyImage, copyImage, copyImageMessage, imageUrlFor } from "@/lib/copy-image";
@@ -73,9 +74,13 @@ const selectClass =
  * so a page opened on a period starts them on it and a drag on the minimap moves them.
  *
  * Menu button pattern: Enter, Space or the arrow keys open it; Arrow keys, Home and End move
- * between items (and the two selects, whose list opens with Enter or Space); Escape closes it
- * and returns focus to the button; Tab or a click elsewhere closes it. The menu stays in the DOM
- * (hidden) so that following a link never races with it being removed.
+ * between the menu items and, from them, the two selects; Escape closes it and returns focus to
+ * the button; a click elsewhere, or focus moving out of the menu, closes it. On a menu item Tab
+ * continues from the button, as if the menu had never been in the way. In a select the keys are
+ * the select's own (arrows, Home, End and typing change the year) and Tab moves From to To. The
+ * Period selects sit in the popover next to the `role="menu"` list, not inside it: a menu holds
+ * items, not form controls. The popover stays in the DOM (hidden) so that following a link never
+ * races with it being removed.
  */
 export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
   const [open, setOpen] = useState(false);
@@ -196,6 +201,8 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
       close(true);
       return;
     }
+    // A select keeps its own keys: arrows, Home, End and typing change the year, Tab moves between the selects.
+    if ((event.target as HTMLElement).closest("select")) return;
     if (event.key === "Tab") {
       // Let Tab continue from the button, as if the menu had never been in the way.
       buttonRef.current?.focus();
@@ -262,8 +269,15 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
     }
   };
 
+  // Focus moving to something outside the share control (Tab out of the To select, say) closes the menu. A null
+  // target (a click on the menu's padding, the window losing focus) does not: pressing outside closes it already.
+  const onBlur = (event: FocusEvent<HTMLElement>) => {
+    const next = event.relatedTarget;
+    if (open && next instanceof Node && !rootRef.current?.contains(next)) setOpen(false);
+  };
+
   return (
-    <div ref={rootRef} className={`relative ${className ?? ""}`} onKeyDown={onMenuKeyDown}>
+    <div ref={rootRef} className={`relative ${className ?? ""}`} onKeyDown={onMenuKeyDown} onBlur={onBlur}>
       <button
         ref={buttonRef}
         id={buttonId}
@@ -281,8 +295,6 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
       <div
         ref={menuRef}
         id={menuId}
-        role="menu"
-        aria-labelledby={buttonId}
         hidden={!open}
         className={`absolute ${side === "right" ? "right-0" : "left-0"} top-full z-30 mt-2 w-60 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-surface p-1 shadow-xl shadow-black/40`}
       >
@@ -322,54 +334,56 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
             </div>
           </div>
         )}
-        <a
-          role="menuitem"
-          tabIndex={-1}
-          href={links.x}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={itemClass}
-          onClick={() => close(true)}
-        >
-          Post on X<span className="sr-only"> (opens in a new tab)</span>
-        </a>
-        <a
-          role="menuitem"
-          tabIndex={-1}
-          href={links.bluesky}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={itemClass}
-          onClick={() => close(true)}
-        >
-          Post on Bluesky<span className="sr-only"> (opens in a new tab)</span>
-        </a>
-        <button role="menuitem" tabIndex={-1} type="button" className={itemClass} onClick={copyLink}>
-          Copy link
-        </button>
-        {canImage && (
-          <button
+        <div role="menu" aria-labelledby={buttonId}>
+          <a
             role="menuitem"
             tabIndex={-1}
-            type="button"
+            href={links.x}
+            target="_blank"
+            rel="noopener noreferrer"
             className={itemClass}
-            aria-disabled={copying || undefined}
-            onClick={copyPreviewImage}
+            onClick={() => close(true)}
           >
-            {copying ? "Copying image..." : "Copy image"}
+            Post on X<span className="sr-only"> (opens in a new tab)</span>
+          </a>
+          <a
+            role="menuitem"
+            tabIndex={-1}
+            href={links.bluesky}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={itemClass}
+            onClick={() => close(true)}
+          >
+            Post on Bluesky<span className="sr-only"> (opens in a new tab)</span>
+          </a>
+          <button role="menuitem" tabIndex={-1} type="button" className={itemClass} onClick={copyLink}>
+            Copy link
           </button>
-        )}
-        {canShare && (
-          <button role="menuitem" tabIndex={-1} type="button" className={itemClass} onClick={nativeShare}>
-            More...
-          </button>
-        )}
-        {problem && (
-          // The status line (a live region) speaks it; this copy is for the eyes.
-          <p aria-hidden="true" className="mt-1 border-t border-border px-3 py-2 text-xs text-body">
-            {problem}
-          </p>
-        )}
+          {canImage && (
+            <button
+              role="menuitem"
+              tabIndex={-1}
+              type="button"
+              className={itemClass}
+              aria-disabled={copying || undefined}
+              onClick={copyPreviewImage}
+            >
+              {copying ? "Copying image..." : "Copy image"}
+            </button>
+          )}
+          {canShare && (
+            <button role="menuitem" tabIndex={-1} type="button" className={itemClass} onClick={nativeShare}>
+              More...
+            </button>
+          )}
+          {problem && (
+            // The status line (a live region) speaks it; this copy is for the eyes.
+            <p aria-hidden="true" className="mt-1 border-t border-border px-3 py-2 text-xs text-body">
+              {problem}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import type { TableRow } from "@/lib/film-rows";
-import { showingMessage, type View } from "@/lib/films-view";
+import { showingMessage, showsPeriodNote, type View } from "@/lib/films-view";
 import type { ShareInput } from "@/lib/share";
 import { FilmsTable } from "./films-table";
 import { MinorToggle } from "./minor-toggle";
@@ -100,7 +100,7 @@ export function FilmsSection({
       </h2>
       <div ref={toolbarRef} className="flex flex-wrap items-center gap-x-4 gap-y-3">
         <ViewTabs idBase={headingId} view={view} onChange={select} />
-        {note && <div className="min-w-0 text-sm text-body">{note}</div>}
+        {note && showsPeriodNote(view) && <div className="min-w-0 text-sm text-body">{note}</div>}
         <ShareActions
           // The export follows the table: the films in the order they are sorted in right now.
           films={table.rows}

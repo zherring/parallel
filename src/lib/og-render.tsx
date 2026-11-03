@@ -183,7 +183,6 @@ function caption(value: OgCaption, fontSize: number) {
   );
 }
 
-/** The years-active chip: the pill that used to sit beside the wordmark on period cards, now under the lane on every card. */
 /** A row as wide as the card, centred on its middle: what the chip and the caption sit in, so they share one centre. */
 const centredRow = (top: number) =>
   ({
@@ -195,6 +194,7 @@ const centredRow = (top: number) =>
     width: OG_SIZE.width,
   }) as const;
 
+/** The years-active chip: the pill that used to sit beside the wordmark on period cards, now under the lane on every card. */
 function yearsChip(label: string) {
   return (
     <div

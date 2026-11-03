@@ -560,151 +560,151 @@ export function MinimapBar({
       >
         {leading}
         <div className="relative min-w-0 flex-1">
-        <div
-          ref={trackRef}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-          onLostPointerCapture={endDrag}
-          title={brush && span ? "Drag to choose a period to share" : undefined}
-          className={cn(
-            "relative h-9 w-full select-none rounded-md border border-border bg-surface sm:h-8",
-            // With the brush every press is a pointer gesture of ours (a band, a handle, the window), so the browser
-            // must not scroll the page or zoom from a touch that starts here.
-            brush && span ? "cursor-crosshair touch-none" : "cursor-pointer touch-pan-y",
-          )}
-        >
-          <div aria-hidden className="pointer-events-none absolute inset-0">
-            {ticks.map((tick) => (
-              <span key={tick.year}>
-                {tick.decade && (
-                  <span className="absolute bottom-0 h-1.5 w-px bg-muted/60" style={{ left: `${tick.fraction * 100}%` }} />
-                )}
-                {tick.label && (
-                  <span
-                    className="absolute bottom-1.5 -translate-x-1/2 text-[9px] leading-none tabular-nums text-muted"
-                    style={{ left: tick.labelX }}
-                  >
-                    {tick.label}
-                  </span>
-                )}
-              </span>
-            ))}
-            {!showNodes &&
-              tickMarks.map((fraction, index) => (
-                <span
-                  key={index}
-                  className="absolute top-1.5 h-2 w-px bg-muted/70"
-                  style={{ left: `${fraction * 100}%` }}
-                />
-              ))}
-          </div>
-
           <div
-            ref={windowRef}
-            role="scrollbar"
-            tabIndex={0}
-            aria-label="Timeline position"
-            aria-orientation="horizontal"
-            aria-controls={scrollerId}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={0}
-            onKeyDown={onKeyDown}
-            className="absolute inset-y-0 left-0 w-full min-w-3 cursor-grab touch-none rounded-[5px] border border-strong/70 bg-strong/15 active:cursor-grabbing"
-          />
-
-          {showNodes &&
-            sharedNodes.map(({ film, fraction }) => (
-              <button
-                key={film.id}
-                type="button"
-                data-minimap-node
-                tabIndex={-1}
-                aria-label={`Center the timeline on ${film.title} (${film.year})`}
-                title={`${film.title} (${film.year})`}
-                onClick={() => {
-                  if (suppressClick.current) suppressClick.current = false;
-                  else jumpToFilm(film);
-                }}
-                className="group absolute top-0 z-10 flex h-[62%] w-4 -translate-x-1/2 cursor-pointer items-center justify-center"
-                style={{ left: `${fraction * 100}%` }}
-              >
-                <span className="size-2 rounded-full bg-lit shadow-[0_0_6px_var(--lit-glow)] ring-1 ring-canvas group-hover:scale-125" />
-              </button>
-            ))}
-
-          {brush && span && shownPeriod && band && (
-            <>
-              {/* The band: a tint over the years, with a handle on each edge (the handles are the controls; the band is a body to grab). */}
-              <div
-                aria-hidden
-                className="absolute inset-y-0 z-[5] cursor-move border-y border-accent-green/70 bg-accent-green/25"
-                style={{ left: `${band.left * 100}%`, width: `${(band.right - band.left) * 100}%` }}
-              />
-              {(["start", "end"] as const).map((edge) => (
-                <div
-                  key={edge}
-                  ref={edge === "start" ? startHandleRef : endHandleRef}
-                  role="slider"
-                  tabIndex={0}
-                  aria-label={edge === "start" ? "Period start year" : "Period end year"}
-                  aria-orientation="horizontal"
-                  aria-valuemin={edge === "start" ? span.first : shownPeriod.from}
-                  aria-valuemax={edge === "start" ? shownPeriod.to : span.last}
-                  aria-valuenow={edge === "start" ? shownPeriod.from : shownPeriod.to}
-                  aria-valuetext={String(edge === "start" ? shownPeriod.from : shownPeriod.to)}
-                  onKeyDown={onHandleKeyDown(edge)}
-                  className="group absolute inset-y-0 z-20 flex -translate-x-1/2 cursor-ew-resize touch-none items-center justify-center outline-none"
-                  style={{ left: `${(edge === "start" ? band.left : band.right) * 100}%`, width: BRUSH_HANDLE_HIT }}
-                >
-                  {/* The grip: a pill with two ridges, like the handles of a stock chart's range selector. */}
-                  <span className="flex h-5 w-2.5 items-center justify-center gap-px rounded-[3px] border border-canvas/60 bg-strong shadow-[0_0_0_1px_rgb(0_0_0/0.35)] group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-focus">
-                    <span className="h-2.5 w-px bg-canvas/70" />
-                    <span className="h-2.5 w-px bg-canvas/70" />
-                  </span>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-
-        {brush && span && shownPeriod && (
-          <div
+            ref={trackRef}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            onLostPointerCapture={endDrag}
+            title={brush && span ? "Drag to choose a period to share" : undefined}
             className={cn(
-              "absolute bottom-full z-40 mb-2 -translate-x-1/2",
-              preview ? "pointer-events-none" : "pointer-events-auto",
+              "relative h-9 w-full select-none rounded-md border border-border bg-surface sm:h-8",
+              // With the brush every press is a pointer gesture of ours (a band, a handle, the window), so the browser
+              // must not scroll the page or zoom from a touch that starts here.
+              brush && span ? "cursor-crosshair touch-none" : "cursor-pointer touch-pan-y",
             )}
-            style={{ left: labelLeft }}
-            aria-hidden={preview ? true : undefined}
           >
-            <div className="flex items-center gap-1 whitespace-nowrap rounded-md border border-border bg-surface py-1 pl-2.5 pr-1 text-xs font-medium tabular-nums text-strong shadow-lg shadow-black/40">
-              <span>{brushLabel(shownPeriod, brush.years)}</span>
-              {!preview && (
-                <>
-                  <button
-                    type="button"
-                    onClick={requestShareMenu}
-                    className="ml-1 cursor-pointer rounded bg-button-green px-2 py-0.5 text-xs font-semibold text-white hover:bg-button-green-hover"
-                  >
-                    Share
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Clear period"
-                    onClick={() => onChangeRef.current?.(null)}
-                    className="inline-flex size-6 cursor-pointer items-center justify-center rounded text-muted hover:text-strong"
-                  >
-                    <svg aria-hidden viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
-                      <path d="M4 4l8 8M12 4l-8 8" />
-                    </svg>
-                  </button>
-                </>
-              )}
+            <div aria-hidden className="pointer-events-none absolute inset-0">
+              {ticks.map((tick) => (
+                <span key={tick.year}>
+                  {tick.decade && (
+                    <span className="absolute bottom-0 h-1.5 w-px bg-muted/60" style={{ left: `${tick.fraction * 100}%` }} />
+                  )}
+                  {tick.label && (
+                    <span
+                      className="absolute bottom-1.5 -translate-x-1/2 text-[9px] leading-none tabular-nums text-muted"
+                      style={{ left: tick.labelX }}
+                    >
+                      {tick.label}
+                    </span>
+                  )}
+                </span>
+              ))}
+              {!showNodes &&
+                tickMarks.map((fraction, index) => (
+                  <span
+                    key={index}
+                    className="absolute top-1.5 h-2 w-px bg-muted/70"
+                    style={{ left: `${fraction * 100}%` }}
+                  />
+                ))}
             </div>
+
+            <div
+              ref={windowRef}
+              role="scrollbar"
+              tabIndex={0}
+              aria-label="Timeline position"
+              aria-orientation="horizontal"
+              aria-controls={scrollerId}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={0}
+              onKeyDown={onKeyDown}
+              className="absolute inset-y-0 left-0 w-full min-w-3 cursor-grab touch-none rounded-[5px] border border-strong/70 bg-strong/15 active:cursor-grabbing"
+            />
+
+            {showNodes &&
+              sharedNodes.map(({ film, fraction }) => (
+                <button
+                  key={film.id}
+                  type="button"
+                  data-minimap-node
+                  tabIndex={-1}
+                  aria-label={`Center the timeline on ${film.title} (${film.year})`}
+                  title={`${film.title} (${film.year})`}
+                  onClick={() => {
+                    if (suppressClick.current) suppressClick.current = false;
+                    else jumpToFilm(film);
+                  }}
+                  className="group absolute top-0 z-10 flex h-[62%] w-4 -translate-x-1/2 cursor-pointer items-center justify-center"
+                  style={{ left: `${fraction * 100}%` }}
+                >
+                  <span className="size-2 rounded-full bg-lit shadow-[0_0_6px_var(--lit-glow)] ring-1 ring-canvas group-hover:scale-125" />
+                </button>
+              ))}
+
+            {brush && span && shownPeriod && band && (
+              <>
+                {/* The band: a tint over the years, with a handle on each edge (the handles are the controls; the band is a body to grab). */}
+                <div
+                  aria-hidden
+                  className="absolute inset-y-0 z-[5] cursor-move border-y border-accent-green/70 bg-accent-green/25"
+                  style={{ left: `${band.left * 100}%`, width: `${(band.right - band.left) * 100}%` }}
+                />
+                {(["start", "end"] as const).map((edge) => (
+                  <div
+                    key={edge}
+                    ref={edge === "start" ? startHandleRef : endHandleRef}
+                    role="slider"
+                    tabIndex={0}
+                    aria-label={edge === "start" ? "Period start year" : "Period end year"}
+                    aria-orientation="horizontal"
+                    aria-valuemin={edge === "start" ? span.first : shownPeriod.from}
+                    aria-valuemax={edge === "start" ? shownPeriod.to : span.last}
+                    aria-valuenow={edge === "start" ? shownPeriod.from : shownPeriod.to}
+                    aria-valuetext={String(edge === "start" ? shownPeriod.from : shownPeriod.to)}
+                    onKeyDown={onHandleKeyDown(edge)}
+                    className="group absolute inset-y-0 z-20 flex -translate-x-1/2 cursor-ew-resize touch-none items-center justify-center outline-none"
+                    style={{ left: `${(edge === "start" ? band.left : band.right) * 100}%`, width: BRUSH_HANDLE_HIT }}
+                  >
+                    {/* The grip: a pill with two ridges, like the handles of a stock chart's range selector. */}
+                    <span className="flex h-5 w-2.5 items-center justify-center gap-px rounded-[3px] border border-canvas/60 bg-strong shadow-[0_0_0_1px_rgb(0_0_0/0.35)] group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-focus">
+                      <span className="h-2.5 w-px bg-canvas/70" />
+                      <span className="h-2.5 w-px bg-canvas/70" />
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
-        )}
+
+          {brush && span && shownPeriod && (
+            <div
+              className={cn(
+                "absolute bottom-full z-40 mb-2 -translate-x-1/2",
+                preview ? "pointer-events-none" : "pointer-events-auto",
+              )}
+              style={{ left: labelLeft }}
+              aria-hidden={preview ? true : undefined}
+            >
+              <div className="flex items-center gap-1 whitespace-nowrap rounded-md border border-border bg-surface py-1 pl-2.5 pr-1 text-xs font-medium tabular-nums text-strong shadow-lg shadow-black/40">
+                <span>{brushLabel(shownPeriod, brush.years)}</span>
+                {!preview && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={requestShareMenu}
+                      className="ml-1 cursor-pointer rounded bg-button-green px-2 py-0.5 text-xs font-semibold text-white hover:bg-button-green-hover"
+                    >
+                      Share
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Clear period"
+                      onClick={() => onChangeRef.current?.(null)}
+                      className="inline-flex size-6 cursor-pointer items-center justify-center rounded text-muted hover:text-strong"
+                    >
+                      <svg aria-hidden viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+                        <path d="M4 4l8 8M12 4l-8 8" />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
         {children}
       </div>
