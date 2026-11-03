@@ -18,6 +18,7 @@ import {
 import { connectionKey, connectionLegend, slotColor } from "@/lib/connections";
 import { filmCardContent } from "@/lib/film-credits";
 import { joinNames } from "@/lib/format";
+import { outsidePeriodIds, type Period, type YearSpan } from "@/lib/period";
 import { laneFacts, peopleHref, removePersonHref, yearSpan, type PersonRef } from "@/lib/lanes";
 import { laneScrollTop, mostVisibleLane } from "@/lib/lane-dock";
 import { isReleased } from "@/lib/released";
@@ -52,11 +53,13 @@ import {
   quietFilmIds,
   rowCount,
   scrollLeftForCenter,
+  scrollLeftForYearStart,
   sharedAcrossLanes,
   stackLanes,
   totalHeight,
   trackWidth,
   xForYear,
+  zoomForPeriod,
   type PackedFilm,
 } from "@/lib/timeline-layout";
 import type { Film, PersonSummary } from "@/lib/types";
@@ -68,6 +71,7 @@ import { FilmPopover, useFilmPopover, type PopoverTarget } from "./film-popover"
 import { LaneAvatars } from "./lane-avatars";
 import { LaneHeader } from "./lane-header";
 import { MinimapBar, type MinimapFilm } from "./minimap";
+import { isSenderPeriod } from "./use-period";
 import { scrollBehavior } from "./scroll-behavior";
 import { useDragPan } from "./use-drag-pan";
 
@@ -110,6 +114,20 @@ interface TimelineProps {
   today: string;
   selectedId: number | null;
   onSelect: (id: number, trigger: HTMLElement) => void;
+  /**
+   * The years a link asked the page to open on (`?from=1978&to=1993`), already resolved against the
+   * films. Once the timeline is on screen it zooms to the nearest step that fits them and scrolls to
+   * the first one; a period that appears later (the address bar is read after hydration) is applied
+   * the same way. Null shows the usual start. A period the visitor just chose on this page (the minimap's brush, the
+   * Share menu) is not scrolled to: it only dims the films outside it, and the view stays where it is.
+   */
+  period?: Period | null;
+  /** First and last year of the films a period is cut from: the minimap's brush stays inside it. Null: no brush. */
+  periodSpan?: YearSpan | null;
+  /** The year of each film the preview card shows, for the brush's live film count. */
+  periodYears?: readonly number[];
+  /** Writes the period the brush ends on (null: none); see `useUrlPeriod`. */
+  onPeriodChange?: (next: Period | null) => void;
 }
 
 /** How long the lane a top-bar avatar jumped to keeps its highlight ring. */
@@ -156,6 +174,10 @@ export function Timeline({
   today,
   selectedId,
   onSelect,
+  period = null,
+  periodSpan = null,
+  periodYears = [],
+  onPeriodChange,
 }: TimelineProps) {
   const [pxPerYear, setPxPerYear] = useState(DEFAULT_ZOOM);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
@@ -181,6 +203,10 @@ export function Timeline({
   // Click-and-drag on the empty surface pans the scroller; starting one closes the hover card.
   const { isPanning } = useDragPan(scrollerRef, hidePopover);
   const pendingCenter = useRef<number | null>(null);
+  /** A period link's first year and the zoom it needs: scrolled to once that zoom is the one on screen. */
+  const pendingStart = useRef<{ from: number; zoom: number } | null>(null);
+  /** The period (as "from-to") the timeline last opened on, so each one is applied once. */
+  const appliedPeriod = useRef<string | null>(null);
   const didInitialScroll = useRef(false);
   const wasActive = useRef(false);
   /** Where the scroller was last seen on screen: a hidden scroller reads (and forgets) zero. */
@@ -196,6 +222,8 @@ export function Timeline({
   const jump = useRef<{ lane: number; settledTop: number | null } | null>(null);
 
   const multi = lanes.length > 1;
+  // Films outside the period the page was opened on or the brush chose: shared or not, their cards, connectors and nodes fade.
+  const outsideIds = useMemo(() => outsidePeriodIds(lanes.flatMap((lane) => lane.films), period), [lanes, period]);
 
   const layout = useMemo(() => {
     const years = lanes.flatMap((lane) => lane.films.map((film) => film.year));
@@ -449,6 +477,40 @@ export function Timeline({
     remember();
   });
 
+  // A link to a period: zoom to the years and show them from their first one. Applied once per
+  // period, when the timeline is on screen (a hidden scroller has no width to fit them to).
+  const periodKey = period ? `${period.from}-${period.to}` : null;
+  const openOnPeriod = useCallback(
+    (target: Period) => {
+      // One the visitor chose here, with the brush or the Share menu, is not a link to open on: stay where we are.
+      if (isSenderPeriod(target)) {
+        appliedPeriod.current = `${target.from}-${target.to}`;
+        return;
+      }
+      const width = viewportTrackWidth();
+      if (width <= 0) return;
+      appliedPeriod.current = `${target.from}-${target.to}`;
+      const zoomStep = zoomForPeriod(target, width);
+      pendingStart.current = { from: target.from, zoom: zoomStep };
+      setPxPerYear(zoomStep);
+    },
+    // viewportTrackWidth only reads refs.
+    [],
+  );
+  useLayoutEffect(() => {
+    if (active && period && periodKey !== appliedPeriod.current) openOnPeriod(period);
+  }, [active, period, periodKey, openOnPeriod]);
+
+  useLayoutEffect(() => {
+    const pending = pendingStart.current;
+    const scroller = scrollerRef.current;
+    if (!active || !pending || !scroller || pending.zoom !== pxPerYear) return;
+    pendingStart.current = null;
+    scroller.scrollLeft = scrollLeftForYearStart(pending.from, scale);
+    remember();
+    updateEdges();
+  });
+
   const zoom = (direction: "in" | "out") => {
     const next = nextZoom(pxPerYear, direction);
     if (next === pxPerYear) return;
@@ -598,6 +660,7 @@ export function Timeline({
         upcoming={!isReleased(film.releaseDate, today)}
         emphasized={hoveredId === film.id}
         dimmed={tone !== "plain" && activeKey !== null && layout.keys.get(film.id) !== activeKey}
+        outside={outsideIds.has(film.id)}
         selected={selectedId === film.id}
         describedBy={describedByFor(film.id, laneIndex)}
         onSelect={handleSelect}
@@ -689,7 +752,7 @@ export function Timeline({
                     y1={c.y1}
                     y2={c.y2}
                     strokeWidth={strokeWidth + 3}
-                    opacity={activeKey !== null && activeKey !== key ? DIMMED : 1}
+                    opacity={(activeKey !== null && activeKey !== key) || outsideIds.has(c.filmId) ? DIMMED : 1}
                     className="stroke-black/70"
                   />
                 );
@@ -707,7 +770,7 @@ export function Timeline({
                     y1={c.y1}
                     y2={c.y2}
                     strokeWidth={strokeWidth}
-                    opacity={activeKey !== null && activeKey !== key ? DIMMED : 1}
+                    opacity={(activeKey !== null && activeKey !== key) || outsideIds.has(c.filmId) ? DIMMED : 1}
                     style={{ stroke: c.kind === "all" ? "var(--lit)" : slotColor(c.slot ?? 0), ...(c.kind === "all" ? LIT_GLOW : undefined) }}
                   />
                 );
@@ -725,7 +788,7 @@ export function Timeline({
                           cx={x}
                           cy={y}
                           r={NODE_RADIUS[tone]}
-                          opacity={dimmed ? DIMMED : 1}
+                          opacity={dimmed || outsideIds.has(film.id) ? DIMMED : 1}
                           stroke={tone === "plain" ? undefined : "var(--bg)"}
                           strokeWidth={tone === "plain" ? undefined : 1.5}
                           style={{
@@ -887,6 +950,7 @@ export function Timeline({
         scale={scale}
         sharedFilms={minimapFilms.shared}
         filmTicks={minimapFilms.ticks}
+        brush={onPeriodChange ? { span: periodSpan, period, years: periodYears, onChange: onPeriodChange } : undefined}
         leading={
           multi ? (
             <LaneAvatars people={lanes.map((lane) => lane.person)} activeIndex={activeLane} onJump={jumpToLane} />

@@ -52,7 +52,10 @@ import {
   totalHeight,
   trackWidth,
   xForDate,
+  xForYear,
   yearFraction,
+  zoomForPeriod,
+  scrollLeftForYearStart,
 } from "@/lib/timeline-layout";
 import type { Credit, Film, PersonTimeline } from "@/lib/types";
 
@@ -1188,6 +1191,48 @@ describe("zoom", () => {
       seen.push(z);
     }
     expect([...new Set(seen)]).toEqual([...ZOOM_STEPS]);
+  });
+
+  describe("opening on a shared period", () => {
+    it("picks the step at which the years fill the viewport", () => {
+      // 16 years in 900 - 80 of padding: about 51px a year; 56 is the nearest step and spills only 9%.
+      expect(zoomForPeriod({ from: 1978, to: 1993 }, 900)).toBe(56);
+      // 10 years in 1000 - 80: 92px a year.
+      expect(zoomForPeriod({ from: 1990, to: 1999 }, 1000)).toBe(96);
+    });
+
+    it("never spills more than a tenth of the period past the right edge", () => {
+      for (const viewport of [320, 600, 900, 1200, 1600]) {
+        for (const years of [1, 2, 5, 8, 16, 30, 60]) {
+          const step = zoomForPeriod({ from: 1950, to: 1950 + years - 1 }, viewport);
+          expect(ZOOM_STEPS).toContain(step);
+          if (step > MIN_ZOOM) expect(step * years).toBeLessThanOrEqual((viewport - 2 * TRACK_PAD) * 1.1);
+        }
+      }
+    });
+
+    it("zooms all the way in for one year and all the way out for a lifetime", () => {
+      expect(zoomForPeriod({ from: 1994, to: 1994 }, 900)).toBe(MAX_ZOOM);
+      expect(zoomForPeriod({ from: 1920, to: 2020 }, 400)).toBe(MIN_ZOOM);
+    });
+
+    it("copes with a viewport that has no width yet", () => {
+      expect(zoomForPeriod({ from: 1978, to: 1993 }, 0)).toBe(MIN_ZOOM);
+    });
+
+    it("scrolls so the first year starts at the left edge, with room for its cards", () => {
+      const scale = makeScale({ startYear: 1960, endYear: 2030 }, 56);
+      const left = scrollLeftForYearStart(1978, scale);
+      expect(left).toBe(Math.round(TRACK_PAD + 18 * 56 - TRACK_PAD));
+      // Seen from that scroll position the year starts TRACK_PAD from the edge.
+      expect(xForYear(scale, 1978) - left).toBe(TRACK_PAD);
+    });
+
+    it("does not scroll before the start of the axis", () => {
+      const scale = makeScale({ startYear: 1960, endYear: 2030 }, 56);
+      expect(scrollLeftForYearStart(1960, scale)).toBe(0);
+      expect(scrollLeftForYearStart(1950, scale)).toBe(0);
+    });
   });
 
   it("keeps the centre year fixed across a zoom", () => {

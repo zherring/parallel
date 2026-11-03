@@ -45,18 +45,32 @@ export interface ShareInput {
    * as the page shows them by default.
    */
   count: number;
+  /**
+   * The year of each film `count` counts (the page's default films), for the Share menu's Period
+   * control: its choices and the number of films in the chosen period. `shareText` does not read it.
+   */
+  years?: readonly number[];
+  /**
+   * A stretch of years the link opens on ("1978–1993"); `count` is then the number of films in it.
+   * The text ends with it: "... 6 films together, 1978–1993".
+   */
+  period?: string;
 }
 
 const filmWord = (count: number) => (count === 1 ? "film" : "films");
 
-function pairSentence(names: string, count: number): string {
+function pairSentence(names: string, count: number, period: string | undefined): string {
+  const years = period ? `, ${period}` : "";
   return count > 0
-    ? `My favorite film collaborations: ${names}, ${count} ${filmWord(count)} together`
-    : `Film careers side by side: ${names}`;
+    ? `My favorite film collaborations: ${names}, ${count} ${filmWord(count)} together${years}`
+    : `Film careers side by side: ${names}${years}`;
 }
 
-function soloSentence(name: string, count: number): string {
-  return count > 0 ? `${name}: a career in film, ${count} ${filmWord(count)} on a timeline` : `${name}: a career in film`;
+function soloSentence(name: string, count: number, period: string | undefined): string {
+  const years = period ? `, ${period}` : "";
+  return count > 0
+    ? `${name}: a career in film, ${count} ${filmWord(count)} on a timeline${years}`
+    : `${name}: a career in film${years}`;
 }
 
 /**
@@ -70,14 +84,14 @@ function soloSentence(name: string, count: number): string {
  *  3. "{first}, {second} & {k} more", for three or more,
  *  4. the same, cut short with an ellipsis (only for absurdly long names).
  *
- * No hashtags, emoji or pronouns about the people.
+ * No hashtags, emoji or pronouns about the people. A period ("1978–1993") is added at the end.
  */
 export function shareText(input: ShareInput, budget: number = X_TEXT_BUDGET): string {
-  const { people, count } = input;
+  const { people, count, period } = input;
   if (people.length === 0) return "";
 
   const solo = people.length === 1;
-  const build = (names: string) => (solo ? soloSentence(names, count) : pairSentence(names, count));
+  const build = (names: string) => (solo ? soloSentence(names, count, period) : pairSentence(names, count, period));
   const fits = (text: string) => xLength(text) <= budget;
 
   const candidates = [pageHeading(people).text];

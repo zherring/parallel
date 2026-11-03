@@ -25,6 +25,8 @@ interface FilmsSectionProps {
   caption: string;
   /** What the Share menu posts about. */
   share: ShareInput;
+  /** A short note in the toolbar between the tabs and the buttons ("Showing 1966–1981 · Show full career"); nothing when null. */
+  note?: ReactNode;
   /** yyyy-mm-dd, the page's date (computed once on the server). */
   today: string;
   /** What to say instead of a table when there are no films. */
@@ -59,6 +61,7 @@ export function FilmsSection({
   names,
   caption,
   share,
+  note,
   today,
   empty,
   timeline,
@@ -97,6 +100,7 @@ export function FilmsSection({
       </h2>
       <div ref={toolbarRef} className="flex flex-wrap items-center gap-x-4 gap-y-3">
         <ViewTabs idBase={headingId} view={view} onChange={select} />
+        {note && <div className="min-w-0 text-sm text-body">{note}</div>}
         <ShareActions
           // The export follows the table: the films in the order they are sorted in right now.
           films={table.rows}

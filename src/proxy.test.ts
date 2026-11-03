@@ -39,6 +39,22 @@ describe("proxy", () => {
       expect(proxy(imageRequest("198.51.100.11", "999-another")).status).toBe(429);
     });
 
+    it("counts the period card, /og, against the same budget as the default one", () => {
+      const periodRequest = (ip: string) =>
+        new NextRequest("http://localhost/p/3151-jack-lemmon%2B6837-walter-matthau/og?from=1966&to=1981", {
+          headers: { "x-forwarded-for": ip },
+        });
+      const statuses = Array.from({ length: 31 }, () => proxy(periodRequest("198.51.100.16")).status);
+      expect(statuses.slice(0, 30).every((s) => s === 200)).toBe(true);
+      expect(statuses[30]).toBe(429);
+
+      // Half the budget on each route is the whole budget.
+      for (let i = 0; i < 15; i++) proxy(imageRequest("198.51.100.17"));
+      for (let i = 0; i < 15; i++) proxy(periodRequest("198.51.100.17"));
+      expect(proxy(imageRequest("198.51.100.17")).status).toBe(429);
+      expect(proxy(periodRequest("198.51.100.17")).status).toBe(429);
+    });
+
     it("keeps its budget apart from /api", () => {
       for (let i = 0; i < 31; i++) proxy(imageRequest("198.51.100.12"));
       expect(proxy(request("198.51.100.12")).status).toBe(200);
@@ -69,11 +85,19 @@ describe("proxy matcher", () => {
     expect(matches("/p/564-richard-linklater%2B569-ethan-hawke/opengraph-image?d2a84846e289b634")).toBe(true);
   });
 
+  it("covers the period card of every /p/ page, whatever the query", () => {
+    expect(matches("/p/7467-david-fincher/og")).toBe(true);
+    expect(matches("/p/564-richard-linklater%2B569-ethan-hawke/og?from=1990&to=2000")).toBe(true);
+    expect(matches("/p/564-richard-linklater+569-ethan-hawke/og?from=abc")).toBe(true);
+  });
+
   it("leaves pages, the home image and static files alone", () => {
     expect(matches("/")).toBe(false);
     expect(matches("/opengraph-image")).toBe(false);
     expect(matches("/p/7467-david-fincher")).toBe(false);
     expect(matches("/p/7467-david-fincher/other")).toBe(false);
+    expect(matches("/p/7467-david-fincher/og/more")).toBe(false);
+    expect(matches("/p/7467-david-fincher?from=1990&to=2000")).toBe(false);
     expect(matches("/_next/static/chunk.js")).toBe(false);
   });
 });

@@ -48,6 +48,11 @@ interface FilmCardProps {
    * poster, at full size and brightness. It never applies to a quiet card, which the legend leaves alone.
    */
   dimmed: boolean;
+  /**
+   * The film is outside the period a link or the brush chose (see `Period`): the whole card fades and loses its colour,
+   * so a shared film (green outline and glow) is as faint as any other. Hovering, focusing or opening it brings it back.
+   */
+  outside?: boolean;
   selected: boolean;
   /** id of the hover card while it is open for this card. */
   describedBy: string | undefined;
@@ -78,6 +83,7 @@ function FilmCardImpl(props: FilmCardProps) {
     upcoming,
     emphasized,
     dimmed,
+    outside = false,
     selected,
     describedBy,
     onSelect,
@@ -96,7 +102,13 @@ function FilmCardImpl(props: FilmCardProps) {
       // the captions over them. The posters of shared films sit over the lines: a line passes behind them (its own
       // film's too, so it shows again right below the caption) instead of through them. A quiet card that is
       // restored is over the lines and over the shared posters (z-16) too, so that it can be read in full.
-      className={cn("absolute", tone !== "plain" && "z-[16]", restored && "z-[18]")}
+      className={cn(
+        "absolute",
+        tone !== "plain" && "z-[16]",
+        restored && "z-[18]",
+        "transition-[opacity,filter] duration-150 motion-reduce:transition-none",
+        outside && !emphasized && !selected && "opacity-25 grayscale",
+      )}
       style={{ left, top, width }}
     >
       <button

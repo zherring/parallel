@@ -549,6 +549,26 @@ export function nextZoom(current: number, direction: "in" | "out"): number {
   return [...ZOOM_STEPS].reverse().find((step) => step < current) ?? MIN_ZOOM;
 }
 
+/**
+ * The zoom step a link to a period opens at: the nearest of ZOOM_STEPS (in proportion) to the
+ * zoom at which the period's years just fill `viewportTrackWidth`, never one that would spill
+ * more than 10% of the period past the right edge, and never below MIN_ZOOM. `to` counts as a
+ * whole year, since films of its last month are on the axis too.
+ */
+export function zoomForPeriod(period: { from: number; to: number }, viewportTrackWidth: number): number {
+  const years = Math.max(1, period.to - period.from + 1);
+  const ideal = Math.max(1, viewportTrackWidth - 2 * TRACK_PAD) / years;
+  const fitting = ZOOM_STEPS.filter((step) => step <= ideal * 1.1);
+  if (fitting.length === 0) return MIN_ZOOM;
+  const nearest = (a: number, b: number) => Math.abs(Math.log(a / ideal)) - Math.abs(Math.log(b / ideal));
+  return [...fitting].sort(nearest)[0];
+}
+
+/** The scrollLeft that puts the start of year `from` at the left edge of the visible track, with room for the edge cards. */
+export function scrollLeftForYearStart(from: number, scale: Pick<Scale, "pxPerYear" | "axisStartYear" | "pad">): number {
+  return Math.max(0, Math.round(xForYear(scale, from) - TRACK_PAD));
+}
+
 /** Fractional year under the centre of the visible track area. */
 export function centerYear(scrollLeft: number, viewportTrackWidth: number, scale: Scale): number {
   const trackX = scrollLeft + viewportTrackWidth / 2;

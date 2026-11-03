@@ -4,11 +4,14 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { FilmPanel } from "@/components/film-panel/film-panel";
 import { PersonSearch } from "@/components/person-search/person-search";
 import { FilmsSection } from "@/components/timeline/films-section";
+import { useUrlPeriod } from "@/components/timeline/use-period";
 import { useViewTab } from "@/components/timeline/use-view-tab";
 import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
 import { Together } from "@/components/timeline/together";
+import { cardFilms } from "@/lib/card-films";
 import { personRows } from "@/lib/film-rows";
 import { headlineCount } from "@/lib/films-view";
+import { periodLabel, resolvePeriod, spanOfYears } from "@/lib/period";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import { pageHeading } from "@/lib/short-name";
 import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms, type PairShared } from "@/lib/shared";
@@ -40,6 +43,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
   const triggerRef = useRef<HTMLElement | null>(null);
   const timelineRef = useRef<TimelineHandle>(null);
   const [view] = useViewTab();
+  const [urlPeriod, setPeriod] = useUrlPeriod();
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
   const multi = timelines.length > 1;
@@ -97,6 +101,12 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
     if (trigger?.isConnected) requestAnimationFrame(() => trigger.focus({ preventScroll: true }));
   }, []);
 
+  // The years of the films a shared link is about (the ones its preview card shows): the Share menu's Period
+  // choices, and what the page's own `?from=&to=` is resolved against, so the server and the browser agree.
+  const filmYears = useMemo(() => cardFilms(timelines, today).films.map((film) => film.year), [timelines, today]);
+  const periodSpan = useMemo(() => spanOfYears(filmYears), [filmYears]);
+  const period = useMemo(() => resolvePeriod(urlPeriod, periodSpan), [urlPeriod, periodSpan]);
+
   // The link opens the default view, so the share text counts the non-minor films, not what the toggle shows.
   const soloFilmCount = timelines[0].films.filter((film) => !film.minor).length;
   // Three or more people: family names only, with the full names on hover.
@@ -104,6 +114,24 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
   // The headline's count is the table's: the films they share, or the films listed for one person. It follows the
   // checkbox like the table does; the server renders the default (checkbox off), so the first client render matches.
   const filmCount = headlineCount(multi ? sharedNow.length : soloRows.length);
+
+  // The note in the toolbar: it says what the page is showing and takes the period away. It is in the toolbar's row
+  // (not above it) so that choosing a period with the brush does not push the timeline down.
+  const periodNote = period && (
+    <p>
+      Showing <span className="font-semibold text-strong">{periodLabel(period)}</span>
+      <span aria-hidden="true" className="mx-2 text-muted">
+        &middot;
+      </span>
+      <button
+        type="button"
+        onClick={() => setPeriod(null)}
+        className="cursor-pointer rounded text-accent-blue underline-offset-2 hover:underline"
+      >
+        Show full career
+      </button>
+    </p>
+  );
 
   const timeline = (
     <Timeline
@@ -116,6 +144,10 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
       today={today}
       selectedId={selectedId}
       onSelect={handleSelect}
+      period={period}
+      periodSpan={periodSpan}
+      periodYears={filmYears}
+      onPeriodChange={setPeriod}
     />
   );
 
@@ -156,6 +188,8 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
           minorExtra={minorExtra}
           upcomingExtra={upcomingExtra}
           shareCount={shared.length}
+          shareYears={filmYears}
+          note={periodNote}
           today={today}
           timeline={timeline}
           includeMinor={includeMinor}
@@ -170,7 +204,8 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
           rows={soloRows}
           names={[people[0].name]}
           caption={`Films ${people[0].name} worked on`}
-          share={{ people, count: soloFilmCount }}
+          share={{ people, count: soloFilmCount, years: filmYears }}
+          note={periodNote}
           today={today}
           timeline={timeline}
           includeMinor={includeMinor}

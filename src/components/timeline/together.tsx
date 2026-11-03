@@ -19,8 +19,12 @@ interface TogetherProps {
   upcomingExtra: number;
   /** Films together as the page shows them by default (non-minor credits), for the share text. */
   shareCount: number;
+  /** The year of each film the preview card shows, for the Share menu's Period choices. */
+  shareYears: readonly number[];
   /** yyyy-mm-dd, the page's date (computed once on the server). */
   today: string;
+  /** The note in the section's toolbar (see `FilmsSection`). */
+  note?: ReactNode;
   /** The Timeline tab of the section. */
   timeline: ReactNode;
   includeMinor: boolean;
@@ -37,6 +41,8 @@ export function Together({
   minorExtra,
   upcomingExtra,
   shareCount,
+  shareYears,
+  note,
   today,
   timeline,
   includeMinor,
@@ -56,7 +62,8 @@ export function Together({
       rows={rows}
       names={names}
       caption={`Films ${joinNames(names)} made together`}
-      share={{ people, count: shareCount }}
+      share={{ people, count: shareCount, years: shareYears }}
+      note={note}
       today={today}
       timeline={timeline}
       includeMinor={includeMinor}

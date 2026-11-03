@@ -5,8 +5,10 @@ import { clientIp, createRateLimiter } from "@/lib/ratelimit";
 const checkApi = createRateLimiter();
 
 /**
- * /p/<people>/opengraph-image: 30 requests per minute per client, counted apart from /api so one
- * cannot starve the other. Every id combination is its own image and each one costs a render
+ * /p/<people>/opengraph-image and /p/<people>/og (the card of a shared period): 30 requests per
+ * minute per client, counted apart from /api so one cannot starve the other, and counted together
+ * so a client cannot double its budget by asking for both. Every id combination (and every period
+ * of it) is its own image and each one costs a render
  * (a fraction of a second of CPU) plus up to eight TMDB image downloads, so the URL space is a
  * free way to burn the server and the TMDB budget. Real use is far below this: a link unfurl
  * fetches the card once, and caches in front of the app keep it for a day (`Cache-Control` on the
@@ -14,7 +16,7 @@ const checkApi = createRateLimiter();
  */
 const checkImage = createRateLimiter({ limit: 30 });
 
-const IMAGE_PATH = /^\/p\/[^/]+\/opengraph-image\/?$/;
+const IMAGE_PATH = /^\/p\/[^/]+\/(?:opengraph-image|og)\/?$/;
 
 export function proxy(request: NextRequest) {
   const check = IMAGE_PATH.test(request.nextUrl.pathname) ? checkImage : checkApi;
@@ -27,4 +29,4 @@ export function proxy(request: NextRequest) {
   );
 }
 
-export const config = { matcher: ["/api/:path*", "/p/:people/opengraph-image"] };
+export const config = { matcher: ["/api/:path*", "/p/:people/opengraph-image", "/p/:people/og"] };

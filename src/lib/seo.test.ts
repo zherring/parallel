@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { peopleDescription, peopleSocial, peopleTitle } from "@/lib/seo";
+import { peopleDescription, peopleSocial, peopleTitle, periodImagePath, periodTitle } from "@/lib/seo";
 import { sharedFilms } from "@/lib/shared";
 import type { Film, PersonTimeline, SharedFilm } from "@/lib/types";
 
@@ -110,5 +110,57 @@ describe("peopleSocial", () => {
   it("sets no image of its own, leaving og:image and twitter:image to the generated card", () => {
     expect(social.openGraph).not.toHaveProperty("images");
     expect(social.twitter).not.toHaveProperty("images");
+  });
+});
+
+describe("period metadata", () => {
+  const period = { from: 1990, to: 2001 };
+  const credit = { role: "actor" as const, job: "Actor", minor: false };
+  const dated = (id: number, year: number): Film => ({ ...film(id, year), credits: [credit] });
+  const people = [timeline(1, "A", [dated(1, 1985), dated(2, 1995), dated(3, 2000)]), timeline(2, "B", [dated(1, 1985), dated(2, 1995), dated(3, 2000)])];
+  const sharedAll = sharedFilms(people, { includeMinor: false, today: "2026-06-01" });
+
+  it("titles the period after the usual title", () => {
+    expect(periodTitle("A & B: films made together", period)).toBe("A & B: films made together, 1990–2001");
+    expect(periodTitle("A & B: films made together", { from: 1995, to: 1995 })).toBe("A & B: films made together, 1995");
+  });
+
+  it("names only the films of the period, and says which years", () => {
+    expect(peopleDescription(people, sharedAll, period)).toBe("Films made together by A & B in 1990–2001: Film 2, Film 3.");
+  });
+
+  it("says so when the period holds nothing they made together", () => {
+    expect(peopleDescription(people, sharedAll, { from: 1986, to: 1994 })).toBe(
+      "No films made together by A & B in 1986–1994 found on TMDB.",
+    );
+  });
+
+  it("leaves the description alone without a period", () => {
+    expect(peopleDescription(people, sharedAll, null)).toBe(peopleDescription(people, sharedAll));
+    expect(peopleDescription(people, sharedAll)).toBe("Films made together by A & B: Film 1, Film 2, Film 3.");
+  });
+
+  it("describes a person's films of the period", () => {
+    const solo = timeline(1, "A", [film(1, 1985), film(2, 1995), film(3, 2000), film(4, 2010)]);
+    expect(peopleDescription([solo], [], period)).toBe("A: 2 films from 1995 to 2000 on a timeline.");
+    expect(peopleDescription([solo], [], { from: 1995, to: 1995 })).toBe("A: 1 film from 1995 to 1995 on a timeline.");
+    expect(peopleDescription([solo], [], { from: 1950, to: 1960 })).toBe("A: no films in 1950–1960 found on TMDB.");
+  });
+
+  it("points the image at the period route, in the canonical spelling", () => {
+    expect(periodImagePath("3151-jack-lemmon+6837-walter-matthau", { from: 1966, to: 1981 })).toBe(
+      "/p/3151-jack-lemmon+6837-walter-matthau/og?from=1966&to=1981",
+    );
+  });
+
+  const social = peopleSocial("T, 1990–2001", "D", "/p/1-a+2-b?from=1990&to=2001", {
+    path: "/p/1-a+2-b/og?from=1990&to=2001",
+    alt: "T: films from 1990–2001",
+  });
+
+  it("sets the image on Open Graph and Twitter when given one", () => {
+    const image = { url: "/p/1-a+2-b/og?from=1990&to=2001", width: 1200, height: 630, alt: "T: films from 1990–2001" };
+    expect(social.openGraph).toMatchObject({ url: "/p/1-a+2-b?from=1990&to=2001", images: [image] });
+    expect(social.twitter).toMatchObject({ card: "summary_large_image", images: [image] });
   });
 });
