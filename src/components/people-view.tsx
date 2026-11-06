@@ -4,15 +4,21 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { FilmPanel } from "@/components/film-panel/film-panel";
 import { PersonSearch } from "@/components/person-search/person-search";
 import { FilmsSection } from "@/components/timeline/films-section";
+import { FilmSettings } from "@/components/timeline/film-settings";
+import { PeoplePanel, type PanelLayout, type PanelPerson } from "@/components/timeline/people-panel";
+import { TrackModeToggle, type TrackMode } from "@/components/timeline/track-mode-toggle";
 import { useUrlPeriod } from "@/components/timeline/use-period";
 import { useViewTab } from "@/components/timeline/use-view-tab";
 import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
 import { Together } from "@/components/timeline/together";
 import { cardFilms } from "@/lib/card-films";
+import { toggleHidden } from "@/lib/combined-track";
 import { personRows } from "@/lib/film-rows";
 import { headlineCount } from "@/lib/films-view";
+import { laneFacts, removePersonHref } from "@/lib/lanes";
 import { periodLabel, resolvePeriod, spanOfYears } from "@/lib/period";
-import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
+import { personColorCss, personSlots } from "@/lib/person-colors";
+import { MINOR_TOGGLE_LABEL, roleSummary } from "@/lib/roles";
 import { pageHeading } from "@/lib/short-name";
 import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms, type PairShared } from "@/lib/shared";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
@@ -39,14 +45,22 @@ export function PeopleView(props: Props) {
 
 function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
   const [includeMinor, setIncludeMinor] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const timelineRef = useRef<TimelineHandle>(null);
   const [view] = useViewTab();
   const [urlPeriod, setPeriod] = useUrlPeriod();
+  // Start with one shared track; separating changes only how the people's films are drawn.
+  const [trackMode, setTrackMode] = useState<TrackMode>("combined");
+  const [hiddenIds, setHiddenIds] = useState<ReadonlySet<number>>(() => new Set());
+  const [openIds, setOpenIds] = useState<ReadonlySet<number>>(() => new Set());
+  // Full-height docking is an explicit choice of the top control, not a side effect of opening the last row.
+  const [panelLayout, setPanelLayout] = useState<PanelLayout>("condense");
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
   const multi = timelines.length > 1;
+  const combined = multi && trackMode === "combined";
 
   // The server sends the default (non-minor) lists; recompute only when the toggle is on.
   const sharedNow = useMemo(
@@ -82,7 +96,56 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
     [timelines, includeMinor],
   );
 
-  // The checkbox lives under the panels, away from the timeline: ask the timeline to keep the year in the middle first.
+  // Combined: the people whose eye is on, and what the people column says of everyone.
+  const slots = useMemo(() => personSlots(people), [people]);
+  const visibleLanes = useMemo(() => lanes.filter((lane) => !hiddenIds.has(lane.person.id)), [lanes, hiddenIds]);
+  const panelPeople: PanelPerson[] = useMemo(
+    () =>
+      lanes.map(({ person, films }) => ({
+        person,
+        slot: slots.get(person.id) ?? 0,
+        roles: roleSummary(films.flatMap((film) => film.credits.filter((credit) => includeMinor || !credit.minor))),
+        facts: laneFacts(
+          person,
+          films.map((film) => film.year),
+        ),
+        filmCount: films.length,
+        visible: !hiddenIds.has(person.id),
+        removeHref: removePersonHref(people, person.id),
+      })),
+    [lanes, slots, includeMinor, hiddenIds, people],
+  );
+
+  // Hiding someone changes the axis (it spans the films shown): keep the year in the middle where it is.
+  const handleToggleVisible = useCallback(
+    (personId: number) => {
+      timelineRef.current?.rememberCenter();
+      setHiddenIds((prev) => toggleHidden(prev, personId, people.map((p) => p.id)));
+    },
+    [people],
+  );
+  const handleToggleOpen = useCallback((personId: number) => {
+    timelineRef.current?.rememberCenter();
+    setPanelLayout("condense");
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(personId)) next.add(personId);
+      return next;
+    });
+  }, []);
+
+  const handleTrackModeChange = useCallback((mode: TrackMode) => {
+    timelineRef.current?.rememberCenter();
+    setTrackMode(mode);
+  }, []);
+
+  const handlePanelLayoutChange = useCallback((layout: PanelLayout) => {
+    timelineRef.current?.rememberCenter();
+    setPanelLayout(layout);
+    setOpenIds(new Set(layout === "stack" ? people.map((person) => person.id) : []));
+  }, [people]);
+
+  // Filtering can change the axis; keep the year in the middle before updating either view.
   const handleIncludeMinorChange = useCallback((next: boolean) => {
     timelineRef.current?.rememberCenter();
     setIncludeMinor(next);
@@ -133,11 +196,42 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
     </p>
   );
 
+  const settingsControl = (
+    <FilmSettings
+      showAll={showAll}
+      onShowAllChange={setShowAll}
+      includeMinor={includeMinor}
+      onIncludeMinorChange={handleIncludeMinorChange}
+    />
+  );
+
   const timeline = (
     <Timeline
       ref={timelineRef}
       active={view === "timeline"}
-      lanes={lanes}
+      lanes={visibleLanes}
+      combined={combined}
+      showAll={showAll}
+      settingsControl={settingsControl}
+      layoutToggle={multi ? <TrackModeToggle mode={trackMode} onChange={handleTrackModeChange} /> : undefined}
+      slots={slots}
+      sidebarExpanded={panelLayout === "stack"}
+      sidebar={
+        // The people column belongs to both layouts: the eye and the details stay where they were
+        // when the track switches between combined and separate.
+        multi
+          ? (
+              <PeoplePanel
+                people={panelPeople}
+                layout={panelLayout}
+                onLayoutChange={handlePanelLayoutChange}
+                openIds={openIds}
+                onToggleOpen={handleToggleOpen}
+                onToggleVisible={handleToggleVisible}
+              />
+            )
+          : undefined
+      }
       people={people}
       litIds={litIds}
       includeMinor={includeMinor}
@@ -153,6 +247,8 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-6xl px-4 py-8">
+      {/* The combined timeline's colours, as custom properties (src/lib/person-colors.ts): the hover card is in a portal. */}
+      {multi && <style>{personColorCss()}</style>}
       {/*
         The title row: the headline (the names and, muted, the film count the table lists) and the Add
         a person field. They share a row while the headline leaves room for the field; a longer
@@ -192,14 +288,12 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
           note={periodNote}
           today={today}
           timeline={timeline}
-          includeMinor={includeMinor}
-          onIncludeMinorChange={handleIncludeMinorChange}
+          settingsControl={settingsControl}
           onSelect={handleSelect}
         />
       ) : (
         <FilmsSection
           headingId="films"
-          count={soloRows.length}
           together={false}
           rows={soloRows}
           names={[people[0].name]}
@@ -208,8 +302,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
           note={periodNote}
           today={today}
           timeline={timeline}
-          includeMinor={includeMinor}
-          onIncludeMinorChange={handleIncludeMinorChange}
+          settingsControl={settingsControl}
           empty={
             <>
               No films found on TMDB.

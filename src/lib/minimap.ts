@@ -3,9 +3,9 @@
  * acts as a scrollbar for the timeline's horizontal scroller.
  *
  * Everything is in "track" coordinates: x = 0 is the left edge of the axis track, which sits
- * to the right of the sticky lane header. The visible part of the track is the scroller's
- * clientWidth minus that header (`viewport`), and the whole track is the scroller's
- * scrollWidth minus the header (`track`). With that, scrollLeft runs from 0 to
+ * to the right of the sticky lane header, or the spacer for the floating People panel. The
+ * unobstructed part of the track is the scroller's clientWidth minus that inset (`viewport`),
+ * and the whole track is its scrollWidth minus the inset (`track`). With that, scrollLeft runs from 0 to
  * `track - viewport` and the viewport window on the bar is `scrollLeft / track` wide
  * `viewport / track` (fractions of the bar), so a film at track x sits at `x / track` on the
  * bar, directly above where it is in the timeline.

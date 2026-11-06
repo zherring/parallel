@@ -16,10 +16,6 @@ interface LaneHeaderProps {
   soloHref: string | null;
   /** Page without this person; `/` when they are the last one. */
   removeHref: string;
-  /** Films this lane shows only as nodes on the line while collapsed; the control is hidden at 0. */
-  overflowCount: number;
-  expanded: boolean;
-  onToggleExpanded: () => void;
   /**
    * Draws the line under the lane. The header and the track each draw their own half of it
    * (rather than the lane's section drawing one border), so that the timeline's SVG, which runs
@@ -57,9 +53,6 @@ export function LaneHeader({
   span,
   soloHref,
   removeHref,
-  overflowCount,
-  expanded,
-  onToggleExpanded,
   divider,
 }: LaneHeaderProps) {
   const details = [roles, facts].filter(Boolean).join(". ");
@@ -108,28 +101,6 @@ export function LaneHeader({
 
       <PersonBio person={person} roles={roles} />
 
-      {overflowCount > 0 && (
-        <button
-          type="button"
-          aria-expanded={expanded}
-          onClick={onToggleExpanded}
-          className="mt-2 flex w-full shrink-0 cursor-pointer flex-col items-center rounded-md border border-border bg-surface px-1 py-1 text-[10px] leading-tight text-body hover:border-muted hover:text-strong sm:flex-row sm:justify-center sm:gap-1 sm:px-2 sm:text-xs"
-        >
-          {expanded ? (
-            "Show fewer"
-          ) : (
-            <>
-              <span>
-                +{overflowCount} more<span className="max-sm:sr-only"> films</span>
-              </span>
-              <span aria-hidden className="max-sm:hidden">
-                &middot;
-              </span>
-              <span className="font-medium text-strong">Show all</span>
-            </>
-          )}
-        </button>
-      )}
     </div>
   );
 }

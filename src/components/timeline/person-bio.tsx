@@ -1,5 +1,6 @@
 "use client";
 
+import { X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { PersonAvatar } from "@/components/person-avatar";
@@ -15,6 +16,13 @@ interface PersonBioProps {
   person: PersonSummary;
   /** Union of the person's roles across the films shown, e.g. "Director, Writer". */
   roles: string;
+  /**
+   * The teaser sits in a panel that takes the height it needs (the combined timeline's people
+   * column) instead of the fixed-height lane header: three lines, with the same More button.
+   */
+  flow?: boolean;
+  /** Use the person's name as the modal opener, without a teaser. Works even when no biography is available. */
+  nameTrigger?: boolean;
 }
 
 /**
@@ -26,7 +34,7 @@ interface PersonBioProps {
  * the teaser shrinks line by line, down to just the button. The full text is only rendered
  * while the dialog is open.
  */
-export function PersonBio({ person, roles }: PersonBioProps) {
+export function PersonBio({ person, roles, flow = false, nameTrigger = false }: PersonBioProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const wasOpen = useRef(false);
@@ -43,7 +51,43 @@ export function PersonBio({ person, roles }: PersonBioProps) {
     wasOpen.current = open;
   }, [open]);
 
+  if (nameTrigger) {
+    return (
+      <>
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-haspopup="dialog"
+          aria-label={`Biography of ${person.name}`}
+          onClick={() => setOpen(true)}
+          className="cursor-pointer rounded text-left hover:underline"
+        >
+          {person.name}
+        </button>
+        {open && createPortal(<BioDialog person={person} roles={roles} onClose={() => setOpen(false)} />, document.body)}
+      </>
+    );
+  }
+
   if (!biography || !snippet) return null;
+
+  if (flow) {
+    return (
+      <div data-person-bio className="mt-2">
+        <p className="line-clamp-3 text-xs leading-snug text-body">{snippet}</p>
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-haspopup="dialog"
+          onClick={() => setOpen(true)}
+          className="mt-0.5 inline-flex h-6 cursor-pointer items-center rounded-md text-xs font-medium text-accent-blue hover:underline"
+        >
+          More<span className="sr-only"> about {person.name}</span>
+        </button>
+        {open && createPortal(<BioDialog person={person} roles={roles} onClose={() => setOpen(false)} />, document.body)}
+      </div>
+    );
+  }
 
   return (
     <div data-person-bio className="mt-1.5 sm:mt-2 sm:min-h-6 sm:shrink sm:grow-0 sm:basis-24 sm:[container-type:size]">
@@ -124,9 +168,18 @@ function BioDialog({ person, roles, onClose }: PersonBioProps & { onClose: () =>
       }}
       className="m-auto w-[36rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl border border-border bg-canvas p-0 text-body shadow-2xl shadow-black/60 backdrop:bg-black/70"
     >
-      <div className="flex max-h-[80dvh] flex-col">
+      <div className="relative flex max-h-[80dvh] flex-col">
+        <button
+          type="button"
+          aria-label="Close biography"
+          title="Close biography"
+          onClick={onClose}
+          className="absolute right-5 top-3 z-10 inline-flex size-8 cursor-pointer items-center justify-center rounded-md bg-canvas text-muted hover:bg-surface hover:text-strong"
+        >
+          <X aria-hidden="true" className="size-4" />
+        </button>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5 pt-5 sm:px-6">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 pr-8">
             <PersonAvatar name={person.name} profilePath={person.profilePath} size={72} imageSize="w185" />
             <div className="min-w-0">
               <h2
@@ -142,6 +195,7 @@ function BioDialog({ person, roles, onClose }: PersonBioProps & { onClose: () =>
             </div>
           </div>
           <div className="mt-5 space-y-4 text-[0.9375rem] leading-7 text-body">
+            {paragraphs.length === 0 && <p>No biography available on TMDB.</p>}
             {paragraphs.map((paragraph, index) => (
               <p key={index}>{paragraph}</p>
             ))}
