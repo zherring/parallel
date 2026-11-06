@@ -102,6 +102,18 @@ describe("imageUrlFor", () => {
       "http://localhost:4700/p/1-a%2B2-b/opengraph-image",
     );
   });
+
+  it("is the period card, /og with the years, for a shared period", () => {
+    expect(
+      imageUrlFor({ origin: "https://parallel.example", pathname: "/p/1-a+2-b/" }, { from: 1978, to: 1993 }),
+    ).toBe("https://parallel.example/p/1-a+2-b/og?from=1978&to=1993");
+  });
+
+  it("is the page's own card without a period", () => {
+    expect(imageUrlFor({ origin: "https://parallel.example", pathname: "/p/1-a+2-b" }, null)).toBe(
+      "https://parallel.example/p/1-a+2-b/opengraph-image",
+    );
+  });
 });
 
 describe("copyImage", () => {

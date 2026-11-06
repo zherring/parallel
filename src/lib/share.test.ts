@@ -180,6 +180,50 @@ describe("shareText", () => {
   it("returns nothing without people", () => {
     expect(shareText({ people: [], count: 3 })).toBe("");
   });
+
+  describe("with a period", () => {
+    it("ends with the years, counting the films in them", () => {
+      expect(shareText({ people: [linklater, hawke], count: 6, period: "1978–1993" })).toBe(
+        "My favorite film collaborations: Richard Linklater & Ethan Hawke, 6 films together, 1978–1993",
+      );
+      expect(shareText({ people: [linklater, hawke], count: 1, period: "1994" })).toBe(
+        "My favorite film collaborations: Richard Linklater & Ethan Hawke, 1 film together, 1994",
+      );
+    });
+
+    it("describes a single person's years", () => {
+      expect(shareText({ people: [fincher], count: 4, period: "1995–2010" })).toBe(
+        "David Fincher: a career in film, 4 films on a timeline, 1995–2010",
+      );
+    });
+
+    it("still names the years when there are no films in them", () => {
+      expect(shareText({ people: [linklater, hawke], count: 0, period: "1978–1993" })).toBe(
+        "Film careers side by side: Richard Linklater & Ethan Hawke, 1978–1993",
+      );
+    });
+
+    it("is the usual text without one, and ignores the years list", () => {
+      expect(shareText({ people: [linklater, hawke], count: 9, years: [1995, 2004] })).toBe(
+        shareText({ people: [linklater, hawke], count: 9 }),
+      );
+    });
+
+    it("counts the years against the budget, shortening the names first", () => {
+      const people = [person(1, "Q".repeat(60)), person(2, "Z".repeat(60))];
+      const text = shareText({ people, count: 12, period: "1978–1993" });
+      expect(xPostLength(text)).toBeLessThanOrEqual(X_POST_LIMIT);
+      expect(text.endsWith("1978–1993")).toBe(true);
+    });
+
+    it("carries the period link into every output", () => {
+      const url = "https://parallel.zachherring.com/p/564-richard-linklater+569-ethan-hawke?from=1978&to=1993";
+      const links = shareLinks({ people: [linklater, hawke], count: 6, period: "1978–1993" }, url);
+      expect(new URL(links.x).searchParams.get("url")).toBe(url);
+      expect(new URL(links.bluesky).searchParams.get("text")).toBe(`${links.text} ${url}`);
+      expect(links.text).toContain("6 films together, 1978–1993");
+    });
+  });
 });
 
 describe("intent links", () => {

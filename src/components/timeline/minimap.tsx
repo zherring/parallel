@@ -24,12 +24,39 @@ import {
   windowRect,
   type ScrollGeometry,
 } from "@/lib/minimap";
+import type { Period, YearSpan } from "@/lib/period";
+import {
+  BRUSH_HANDLE_HIT,
+  BRUSH_SLOP,
+  bandFractions,
+  brushLabel,
+  brushTarget,
+  commitPeriod,
+  createPeriod,
+  deltaYears,
+  keyboardPeriod,
+  movePeriod,
+  resizePeriod,
+  samePeriod,
+  viewportExtent,
+  yearAtX,
+  type BrushEdge,
+  type Extent,
+} from "@/lib/period-brush";
 import { xForDate, type Scale } from "@/lib/timeline-layout";
 import { cn } from "./cn";
 import { scrollBehavior } from "./scroll-behavior";
+import { requestShareMenu } from "./share-event";
 
 /** Pointer travel (px) after which a press on a film node counts as a drag instead of a click. */
 const NODE_DRAG_SLOP = 4;
+
+/**
+ * The period brush (drag on the minimap to pick the years to share) is parked: the minimap is only a scrubber for now, because
+ * letting one strip both scrub the timeline and subselect a view is more trouble than it is worth yet. Everything the brush
+ * does lives behind this flag; set it to true and the minimap is a range selector again, exactly as it was.
+ */
+export const MINIMAP_BRUSH_ENABLED = false;
 
 export interface MinimapFilm {
   id: number;
@@ -37,6 +64,31 @@ export interface MinimapFilm {
   year: number;
   releaseDate: string;
 }
+
+/** The period brush: what the bar needs to let a visitor pick the years to share by dragging on it. */
+export interface MinimapBrush {
+  /** First and last year of the films a period is cut from; the brush stays inside it. Null without films: no brush. */
+  span: YearSpan | null;
+  /** The chosen period (the page's `?from=&to=`), or null for none. */
+  period: Period | null;
+  /** The year of each film the card shows, for the live label's film count. */
+  years: readonly number[];
+  /** Called with the period a drag (or a key) ends on; null when it covers every year or was cleared. */
+  onChange: (next: Period | null) => void;
+}
+
+/** A drag in progress on the band or on a new one. `origin` is the period when it began. */
+type Gesture =
+  | { kind: "create"; pointerId: number; left: number; width: number; anchorYear: number }
+  | { kind: "move" | "start" | "end"; pointerId: number; left: number; width: number; startX: number; origin: Period };
+
+/** Half the width of the live label, to keep its middle clear of the bar's ends. */
+const LABEL_HALF = 104;
+
+const toExtent = (band: { left: number; right: number }, width: number): Extent => ({
+  left: band.left * width,
+  right: band.right * width,
+});
 
 interface MinimapBarProps {
   /** The timeline's scrolling container; the minimap reads and writes its scrollLeft. */
@@ -50,6 +102,8 @@ interface MinimapBarProps {
   sharedFilms: MinimapFilm[];
   /** Muted ticks, one per film; shown when there are no shared films so the bar is never empty. */
   filmTicks: MinimapFilm[];
+  /** The period brush; without it the bar is only a scrollbar. */
+  brush?: MinimapBrush;
   /** Rendered at the left end of the bar's row, before the track (the lane avatars). */
   leading?: ReactNode;
   /** Rendered at the right end of the bar's row (the zoom controls). */
@@ -61,6 +115,15 @@ interface MinimapBarProps {
  * window is the part currently visible, and dragging it (or clicking the bar, or using the
  * keyboard on the handle) scrolls the timeline.
  *
+ * With a `brush` it is also a range selector, like the one under a stock chart, for choosing the
+ * years to share: dragging on the bar outside the window sweeps out a band from the year pressed to
+ * the year released, the band has a handle on each end (resize) and drags by its body (move), and
+ * it is the page's period (`?from=&to=`). The window keeps scrolling when it is dragged; a plain click
+ * outside it still centres it there (that now happens on release, since a press may start a band).
+ * Shift-drag sweeps a band even over the window, for when the window fills most of the bar. While a
+ * band is dragged it is only a preview here; the period is written once, on release. The timeline
+ * itself never moves for it.
+ *
  * Scrolling never re-renders React: the window is moved by writing its style directly from a
  * requestAnimationFrame-throttled scroll listener.
  */
@@ -71,9 +134,12 @@ export function MinimapBar({
   scale,
   sharedFilms,
   filmTicks,
+  brush: brushProp,
   leading,
   children,
 }: MinimapBarProps) {
+  // Parked (see MINIMAP_BRUSH_ENABLED): with no brush the bar is the plain scrollbar it was before the brush.
+  const brush = MINIMAP_BRUSH_ENABLED ? brushProp : undefined;
   const trackRef = useRef<HTMLDivElement>(null);
   const windowRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -83,7 +149,18 @@ export function MinimapBar({
   const pendingNode = useRef<{ pointerId: number; startX: number } | null>(null);
   /** Set when a press on a node became a drag, so the click that may follow does not also jump. */
   const suppressClick = useRef(false);
+  const startHandleRef = useRef<HTMLDivElement>(null);
+  const endHandleRef = useRef<HTMLDivElement>(null);
+  /** A press that may become a new band (outside the window) or a move of the band, once it travels BRUSH_SLOP. */
+  const pendingBrush = useRef<{ pointerId: number; startX: number; kind: "create" | "move"; onNode: boolean } | null>(null);
+  const gesture = useRef<Gesture | null>(null);
+  const previewRef = useRef<Period | null>(null);
+  const periodRef = useRef<Period | null>(null);
+  const spanRef = useRef<YearSpan | null>(null);
+  const onChangeRef = useRef<MinimapBrush["onChange"] | null>(null);
 
+  /** The band while it is being dragged; the period itself is only written on release. */
+  const [preview, setPreview] = useState<Period | null>(null);
   const [barWidth, setBarWidth] = useState(0);
   const [barHeight, setBarHeight] = useState(0);
   const [stuck, setStuck] = useState(false);
@@ -117,6 +194,16 @@ export function MinimapBar({
     scaleRef.current = scale;
     sync();
   }, [scale, sync]);
+
+  const span = brush?.span ?? null;
+  const period = brush?.period ?? null;
+  const onChange = brush?.onChange;
+  // What the handlers below read: they are bound to the DOM events, so they read the latest through refs.
+  useLayoutEffect(() => {
+    periodRef.current = period;
+    spanRef.current = span;
+    onChangeRef.current = onChange ?? null;
+  }, [period, span, onChange]);
 
   useEffect(() => {
     const scroller = scrollerRef.current;
@@ -220,10 +307,105 @@ export function MinimapBar({
     box.focus({ preventScroll: true });
   };
 
+  // ---- The brush ------------------------------------------------------------
+
+  /** Shows (or, with null, drops) the band being dragged. The ref is what the release reads. */
+  const showPreview = (next: Period | null) => {
+    previewRef.current = next;
+    setPreview(next);
+  };
+
+  /** Writes a finished band: null when it covers every year (no period). Focus follows to where the band's controls are. */
+  const commit = (next: Period) => {
+    const currentSpan = spanRef.current;
+    if (!currentSpan) return;
+    const committed = commitPeriod(next, currentSpan);
+    if (!samePeriod(committed, periodRef.current)) onChangeRef.current?.(committed);
+    // The handles exist once the period has been written and the bar re-rendered.
+    requestAnimationFrame(() => (committed ? endHandleRef.current : windowRef.current)?.focus({ preventScroll: true }));
+  };
+
+  /** Ends the drag in progress. The band is written only when the pointer was released on it, never when the gesture was cancelled. */
+  const finishGesture = (write: boolean) => {
+    const next = previewRef.current;
+    gesture.current = null;
+    pendingBrush.current = null;
+    showPreview(null);
+    if (write && next) commit(next);
+  };
+
+  const startGesture = (next: Gesture) => {
+    gesture.current = next;
+    trackRef.current?.setPointerCapture(next.pointerId);
+  };
+
+  /** The band for the pointer at `clientX`, from the gesture that is in progress. */
+  const bandFor = (state: Gesture, clientX: number): Period | null => {
+    const currentSpan = spanRef.current;
+    if (!currentSpan) return null;
+    const scaleNow = scaleRef.current;
+    if (state.kind === "create") {
+      return createPeriod(state.anchorYear, yearAtX(scaleNow, clientX - state.left, state.width), currentSpan);
+    }
+    const delta = deltaYears(scaleNow, clientX - state.startX, state.width);
+    if (state.kind === "move") return movePeriod(state.origin, delta, currentSpan);
+    return resizePeriod(state.origin, state.kind, delta, currentSpan);
+  };
+
+  // Escape while dragging puts the band back as it was.
+  const dragging = preview !== null;
+  useEffect(() => {
+    if (!dragging) return;
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const state = gesture.current;
+      finishGesture(false);
+      if (state && trackRef.current?.hasPointerCapture(state.pointerId)) trackRef.current.releasePointerCapture(state.pointerId);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // finishGesture only touches refs and the state setter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragging]);
+
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     suppressClick.current = false;
-    if ((event.target as Element).closest("[data-minimap-node]")) {
+    const onNode = (event.target as Element).closest("[data-minimap-node]") !== null;
+
+    const track = trackRef.current;
+    const geometry = readGeometry();
+    if (brush && span && track && geometry) {
+      const rect = track.getBoundingClientRect();
+      const currentPeriod = periodRef.current;
+      const target = brushTarget({
+        x: event.clientX - rect.left,
+        selection: currentPeriod ? toExtent(bandFractions(scaleRef.current, currentPeriod), rect.width) : null,
+        viewport: viewportExtent(windowRect(geometry), rect.width),
+        forceCreate: event.shiftKey,
+      });
+      if (target === "start" || target === "end") {
+        // A handle: resize at once, there is no click to keep.
+        event.preventDefault();
+        if (!currentPeriod) return;
+        startGesture({ kind: target, pointerId: event.pointerId, left: rect.left, width: rect.width, startX: event.clientX, origin: currentPeriod });
+        showPreview(currentPeriod);
+        (target === "start" ? startHandleRef : endHandleRef).current?.focus({ preventScroll: true });
+        return;
+      }
+      if (target === "move" || target === "create") {
+        // The band's body, or the bar outside the window: a drag from here makes or moves a band, a click stays a click.
+        pendingBrush.current = { pointerId: event.pointerId, startX: event.clientX, kind: target, onNode };
+        if (!onNode) {
+          event.preventDefault();
+          track.setPointerCapture(event.pointerId);
+        }
+        return;
+      }
+    }
+
+    // The window (or a bar without a brush): scroll, as the minimap always did.
+    if (onNode) {
       // A press on a film node is a click (jump to the film) unless it turns into a drag.
       pendingNode.current = { pointerId: event.pointerId, startX: event.clientX };
       return;
@@ -233,6 +415,39 @@ export function MinimapBar({
   };
 
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const track = trackRef.current;
+    const waiting = pendingBrush.current;
+    if (waiting && waiting.pointerId === event.pointerId && track && Math.abs(event.clientX - waiting.startX) > BRUSH_SLOP) {
+      pendingBrush.current = null;
+      suppressClick.current = true;
+      const rect = track.getBoundingClientRect();
+      const origin = periodRef.current;
+      if (waiting.kind === "create") {
+        startGesture({
+          kind: "create",
+          pointerId: waiting.pointerId,
+          left: rect.left,
+          width: rect.width,
+          anchorYear: yearAtX(scaleRef.current, waiting.startX - rect.left, rect.width),
+        });
+      } else if (origin) {
+        startGesture({ kind: "move", pointerId: waiting.pointerId, left: rect.left, width: rect.width, startX: waiting.startX, origin });
+      }
+    }
+
+    const state = gesture.current;
+    if (state && state.pointerId === event.pointerId) {
+      // The release was missed (the pointer went up outside the window or the browser lost it): treat it as a release.
+      if (event.pointerType === "mouse" && event.buttons === 0) {
+        finishGesture(true);
+        if (track?.hasPointerCapture(event.pointerId)) track.releasePointerCapture(event.pointerId);
+        return;
+      }
+      const next = bandFor(state, event.clientX);
+      if (next) showPreview(next);
+      return;
+    }
+
     const pending = pendingNode.current;
     if (pending && pending.pointerId === event.pointerId && Math.abs(event.clientX - pending.startX) > NODE_DRAG_SLOP) {
       pendingNode.current = null;
@@ -240,14 +455,14 @@ export function MinimapBar({
       beginDrag(pending.pointerId, pending.startX);
     }
 
-    const state = drag.current;
+    const scrolling = drag.current;
     const geometry = readGeometry();
-    if (!state || state.pointerId !== event.pointerId || !geometry) return;
+    if (!scrolling || scrolling.pointerId !== event.pointerId || !geometry) return;
     setScrollLeft(
       dragScrollLeft({
-        startScrollLeft: state.startScrollLeft,
-        deltaPx: event.clientX - state.startX,
-        barWidth: state.barWidth,
+        startScrollLeft: scrolling.startScrollLeft,
+        deltaPx: event.clientX - scrolling.startX,
+        barWidth: scrolling.barWidth,
         track: geometry.track,
         viewport: geometry.viewport,
       }),
@@ -255,10 +470,51 @@ export function MinimapBar({
   };
 
   const endDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const track = trackRef.current;
+    const released = event.type === "pointerup";
+
+    const waiting = pendingBrush.current;
+    if (waiting?.pointerId === event.pointerId) {
+      pendingBrush.current = null;
+      // A press and release with no drag outside the window is a click: centre the window there, as before.
+      // (On a film node the node's own click jumps to the film instead.)
+      if (released && waiting.kind === "create" && !waiting.onNode && track) {
+        const rect = track.getBoundingClientRect();
+        const geometry = readGeometry();
+        if (geometry) setScrollLeft(scrollLeftForBarClick(event.clientX - rect.left, rect.width, geometry.track, geometry.viewport));
+      }
+      if (track?.hasPointerCapture(event.pointerId)) track.releasePointerCapture(event.pointerId);
+      return;
+    }
+
+    const state = gesture.current;
+    if (state?.pointerId === event.pointerId) {
+      finishGesture(released);
+      if (track?.hasPointerCapture(event.pointerId)) track.releasePointerCapture(event.pointerId);
+      return;
+    }
+
     if (pendingNode.current?.pointerId === event.pointerId) pendingNode.current = null;
     if (drag.current?.pointerId !== event.pointerId) return;
     drag.current = null;
-    if (trackRef.current?.hasPointerCapture(event.pointerId)) trackRef.current.releasePointerCapture(event.pointerId);
+    if (track?.hasPointerCapture(event.pointerId)) track.releasePointerCapture(event.pointerId);
+  };
+
+  /** Keys on one of the band's handles: arrows move the edge (Shift: five years), Home and End as far as it goes. */
+  const onHandleKeyDown = (edge: BrushEdge) => (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.altKey || event.ctrlKey || event.metaKey || !span || !period) return;
+    const next = keyboardPeriod(event.key, event.shiftKey, edge, period, span);
+    if (!next) return;
+    event.preventDefault();
+    commit(next);
+  };
+
+  /** Escape on anything in the bar takes the period away. */
+  const onBarKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Escape" || !period || gesture.current) return;
+    event.preventDefault();
+    onChangeRef.current?.(null);
+    windowRef.current?.focus({ preventScroll: true });
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -281,12 +537,20 @@ export function MinimapBar({
 
   const showNodes = sharedNodes.length > 0;
 
+  // The band shown: the one being dragged, else the chosen period.
+  const shownPeriod = brush && span ? (preview ?? period) : null;
+  const band = shownPeriod ? bandFractions(scale, shownPeriod) : null;
+  // The label sits over the middle of the band, kept clear of the bar's ends.
+  const labelHalf = Math.min(LABEL_HALF, barWidth / 2);
+  const labelLeft = band ? Math.min(Math.max(((band.left + band.right) / 2) * barWidth, labelHalf), Math.max(labelHalf, barWidth - labelHalf)) : 0;
+
   return (
     <>
       <div ref={sentinelRef} aria-hidden className="-mb-px h-px" />
       <div
         ref={barRef}
         data-minimap-bar
+        onKeyDown={brush ? onBarKeyDown : undefined}
         className={cn(
           // The bar is rendered after the timeline and pins to the bottom of the viewport while any of the timeline is on
           // screen, resting right under it otherwise. Opaque, above the lanes and below the film panel and hover card.
@@ -295,74 +559,152 @@ export function MinimapBar({
         )}
       >
         {leading}
-        <div
-          ref={trackRef}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-          onLostPointerCapture={endDrag}
-          className="relative h-9 min-w-0 flex-1 cursor-pointer touch-pan-y select-none rounded-md border border-border bg-surface sm:h-8"
-        >
-          <div aria-hidden className="pointer-events-none absolute inset-0">
-            {ticks.map((tick) => (
-              <span key={tick.year}>
-                {tick.decade && (
-                  <span className="absolute bottom-0 h-1.5 w-px bg-muted/60" style={{ left: `${tick.fraction * 100}%` }} />
-                )}
-                {tick.label && (
-                  <span
-                    className="absolute bottom-1.5 -translate-x-1/2 text-[9px] leading-none tabular-nums text-muted"
-                    style={{ left: tick.labelX }}
-                  >
-                    {tick.label}
-                  </span>
-                )}
-              </span>
-            ))}
-            {!showNodes &&
-              tickMarks.map((fraction, index) => (
-                <span
-                  key={index}
-                  className="absolute top-1.5 h-2 w-px bg-muted/70"
-                  style={{ left: `${fraction * 100}%` }}
-                />
+        <div className="relative min-w-0 flex-1">
+          <div
+            ref={trackRef}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            onLostPointerCapture={endDrag}
+            title={brush && span ? "Drag to choose a period to share" : undefined}
+            className={cn(
+              "relative h-9 w-full select-none rounded-md border border-border bg-surface sm:h-8",
+              // With the brush every press is a pointer gesture of ours (a band, a handle, the window), so the browser
+              // must not scroll the page or zoom from a touch that starts here.
+              brush && span ? "cursor-crosshair touch-none" : "cursor-pointer touch-pan-y",
+            )}
+          >
+            <div aria-hidden className="pointer-events-none absolute inset-0">
+              {ticks.map((tick) => (
+                <span key={tick.year}>
+                  {tick.decade && (
+                    <span className="absolute bottom-0 h-1.5 w-px bg-muted/60" style={{ left: `${tick.fraction * 100}%` }} />
+                  )}
+                  {tick.label && (
+                    <span
+                      className="absolute bottom-1.5 -translate-x-1/2 text-[9px] leading-none tabular-nums text-muted"
+                      style={{ left: tick.labelX }}
+                    >
+                      {tick.label}
+                    </span>
+                  )}
+                </span>
               ))}
+              {!showNodes &&
+                tickMarks.map((fraction, index) => (
+                  <span
+                    key={index}
+                    className="absolute top-1.5 h-2 w-px bg-muted/70"
+                    style={{ left: `${fraction * 100}%` }}
+                  />
+                ))}
+            </div>
+
+            <div
+              ref={windowRef}
+              role="scrollbar"
+              tabIndex={0}
+              aria-label="Timeline position"
+              aria-orientation="horizontal"
+              aria-controls={scrollerId}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={0}
+              onKeyDown={onKeyDown}
+              className="absolute inset-y-0 left-0 w-full min-w-3 cursor-grab touch-none rounded-[5px] border border-strong/70 bg-strong/15 active:cursor-grabbing"
+            />
+
+            {showNodes &&
+              sharedNodes.map(({ film, fraction }) => (
+                <button
+                  key={film.id}
+                  type="button"
+                  data-minimap-node
+                  tabIndex={-1}
+                  aria-label={`Center the timeline on ${film.title} (${film.year})`}
+                  title={`${film.title} (${film.year})`}
+                  onClick={() => {
+                    if (suppressClick.current) suppressClick.current = false;
+                    else jumpToFilm(film);
+                  }}
+                  className="group absolute top-0 z-10 flex h-[62%] w-4 -translate-x-1/2 cursor-pointer items-center justify-center"
+                  style={{ left: `${fraction * 100}%` }}
+                >
+                  <span className="size-2 rounded-full bg-lit shadow-[0_0_6px_var(--lit-glow)] ring-1 ring-canvas group-hover:scale-125" />
+                </button>
+              ))}
+
+            {brush && span && shownPeriod && band && (
+              <>
+                {/* The band: a tint over the years, with a handle on each edge (the handles are the controls; the band is a body to grab). */}
+                <div
+                  aria-hidden
+                  className="absolute inset-y-0 z-[5] cursor-move border-y border-accent-green/70 bg-accent-green/25"
+                  style={{ left: `${band.left * 100}%`, width: `${(band.right - band.left) * 100}%` }}
+                />
+                {(["start", "end"] as const).map((edge) => (
+                  <div
+                    key={edge}
+                    ref={edge === "start" ? startHandleRef : endHandleRef}
+                    role="slider"
+                    tabIndex={0}
+                    aria-label={edge === "start" ? "Period start year" : "Period end year"}
+                    aria-orientation="horizontal"
+                    aria-valuemin={edge === "start" ? span.first : shownPeriod.from}
+                    aria-valuemax={edge === "start" ? shownPeriod.to : span.last}
+                    aria-valuenow={edge === "start" ? shownPeriod.from : shownPeriod.to}
+                    aria-valuetext={String(edge === "start" ? shownPeriod.from : shownPeriod.to)}
+                    onKeyDown={onHandleKeyDown(edge)}
+                    className="group absolute inset-y-0 z-20 flex -translate-x-1/2 cursor-ew-resize touch-none items-center justify-center outline-none"
+                    style={{ left: `${(edge === "start" ? band.left : band.right) * 100}%`, width: BRUSH_HANDLE_HIT }}
+                  >
+                    {/* The grip: a pill with two ridges, like the handles of a stock chart's range selector. */}
+                    <span className="flex h-5 w-2.5 items-center justify-center gap-px rounded-[3px] border border-canvas/60 bg-strong shadow-[0_0_0_1px_rgb(0_0_0/0.35)] group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-focus">
+                      <span className="h-2.5 w-px bg-canvas/70" />
+                      <span className="h-2.5 w-px bg-canvas/70" />
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
 
-          <div
-            ref={windowRef}
-            role="scrollbar"
-            tabIndex={0}
-            aria-label="Timeline position"
-            aria-orientation="horizontal"
-            aria-controls={scrollerId}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={0}
-            onKeyDown={onKeyDown}
-            className="absolute inset-y-0 left-0 w-full min-w-3 cursor-grab touch-none rounded-[5px] border border-strong/70 bg-strong/15 active:cursor-grabbing"
-          />
-
-          {showNodes &&
-            sharedNodes.map(({ film, fraction }) => (
-              <button
-                key={film.id}
-                type="button"
-                data-minimap-node
-                tabIndex={-1}
-                aria-label={`Center the timeline on ${film.title} (${film.year})`}
-                title={`${film.title} (${film.year})`}
-                onClick={() => {
-                  if (suppressClick.current) suppressClick.current = false;
-                  else jumpToFilm(film);
-                }}
-                className="group absolute top-0 z-10 flex h-[62%] w-4 -translate-x-1/2 cursor-pointer items-center justify-center"
-                style={{ left: `${fraction * 100}%` }}
-              >
-                <span className="size-2 rounded-full bg-lit shadow-[0_0_6px_var(--lit-glow)] ring-1 ring-canvas group-hover:scale-125" />
-              </button>
-            ))}
+          {brush && span && shownPeriod && (
+            <div
+              className={cn(
+                "absolute bottom-full z-40 mb-2 -translate-x-1/2",
+                preview ? "pointer-events-none" : "pointer-events-auto",
+              )}
+              style={{ left: labelLeft }}
+              aria-hidden={preview ? true : undefined}
+            >
+              <div className="flex items-center gap-1 whitespace-nowrap rounded-md border border-border bg-surface py-1 pl-2.5 pr-1 text-xs font-medium tabular-nums text-strong shadow-lg shadow-black/40">
+                <span>{brushLabel(shownPeriod, brush.years)}</span>
+                {!preview && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={requestShareMenu}
+                      className="ml-1 cursor-pointer rounded bg-button-green px-2 py-0.5 text-xs font-semibold text-white hover:bg-button-green-hover"
+                    >
+                      Share
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Clear period"
+                      onClick={() => onChangeRef.current?.(null)}
+                      className="inline-flex size-6 cursor-pointer items-center justify-center rounded text-muted hover:text-strong"
+                    >
+                      <svg aria-hidden viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+                        <path d="M4 4l8 8M12 4l-8 8" />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
         {children}
       </div>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { joinNames } from "@/lib/format";
+import { inPeriod, periodLabel, searchWithPeriod, type Period } from "@/lib/period";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
 const MAX_TITLES = 6;
@@ -16,31 +17,61 @@ export function peopleTitle(names: string[]): string {
     : `${joinNames(names)}: films made together`;
 }
 
-/** `shared` is the all-people shared list (non-minor credits only). */
-export function peopleDescription(timelines: PersonTimeline[], shared: SharedFilm[]): string {
+/**
+ * `shared` is the all-people shared list (non-minor credits only). With a `period` (a link to a
+ * stretch of years), only the films of those years are named, and the sentence says so.
+ */
+export function peopleDescription(timelines: PersonTimeline[], shared: SharedFilm[], period: Period | null = null): string {
   const names = joinNames(timelines.map((t) => t.person.name));
+  const within = period ? ` in ${periodLabel(period)}` : "";
 
   if (timelines.length > 1) {
-    return shared.length > 0
-      ? `Films made together by ${names}: ${titleList(shared.map((f) => f.title))}.`
-      : `No films made together by ${names} found on TMDB.`;
+    const films = shared.filter((f) => inPeriod(f.year, period));
+    return films.length > 0
+      ? `Films made together by ${names}${within}: ${titleList(films.map((f) => f.title))}.`
+      : `No films made together by ${names}${within} found on TMDB.`;
   }
 
-  const films = timelines[0].films.filter((f) => !f.minor);
-  if (films.length === 0) return `${names}: filmography timeline.`;
+  const films = timelines[0].films.filter((f) => !f.minor && inPeriod(f.year, period));
+  if (films.length === 0) return period ? `${names}: no films${within} found on TMDB.` : `${names}: filmography timeline.`;
   // TMDB has no usable "best known" ordering here, and the chronological first films are often shorts or music videos.
-  return `${names}: ${films.length} films from ${films[0].year} to ${films[films.length - 1].year} on a timeline.`;
+  const noun = period && films.length === 1 ? "film" : "films";
+  return `${names}: ${films.length} ${noun} from ${films[0].year} to ${films[films.length - 1].year} on a timeline.`;
+}
+
+/** The page title with the period appended: "A & B: films made together, 1978–1993". */
+export function periodTitle(title: string, period: Period): string {
+  return `${title}, ${periodLabel(period)}`;
+}
+
+/** Where the card of a shared period is drawn: the `/og` route next to the page's own `opengraph-image`. */
+export function periodImagePath(canonicalSlug: string, period: Period): string {
+  return `/p/${canonicalSlug}/og${searchWithPeriod("", period)}`;
+}
+
+/** A card of its own for the page's link: the path of the image, and what it shows (alt text). */
+export interface SocialImage {
+  path: string;
+  alt: string;
 }
 
 /**
- * Open Graph and Twitter card metadata for a /p/ page. It deliberately sets no image: the
+ * Open Graph and Twitter card metadata for a /p/ page. By default it sets no image: the
  * generated card in `opengraph-image.tsx` next to the page supplies `og:image` and
- * `twitter:image` (absolute, through `metadataBase`). A manual `images` entry here would compete
- * with it. `siteName` is repeated because a page's `openGraph` replaces the layout's wholesale.
+ * `twitter:image` (absolute, through `metadataBase`), and a manual `images` entry would compete
+ * with it. A link to a shared period passes `image` (see `periodImagePath`): that card replaces
+ * the default one, because the file convention cannot see the page's search params. `siteName` is
+ * repeated because a page's `openGraph` replaces the layout's wholesale.
  */
-export function peopleSocial(title: string, description: string, path: string): Pick<Metadata, "openGraph" | "twitter"> {
+export function peopleSocial(
+  title: string,
+  description: string,
+  path: string,
+  image?: SocialImage,
+): Pick<Metadata, "openGraph" | "twitter"> {
+  const images = image ? [{ url: image.path, width: 1200, height: 630, alt: image.alt }] : undefined;
   return {
-    openGraph: { title, description, url: path, type: "website", siteName: "Parallel" },
-    twitter: { card: "summary_large_image", title, description },
+    openGraph: { title, description, url: path, type: "website", siteName: "Parallel", ...(images ? { images } : {}) },
+    twitter: { card: "summary_large_image", title, description, ...(images ? { images } : {}) },
   };
 }

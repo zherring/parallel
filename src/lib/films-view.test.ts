@@ -11,6 +11,7 @@ import {
   parseView,
   searchWithView,
   showingMessage,
+  showsPeriodNote,
   viewForKey,
 } from "@/lib/films-view";
 
@@ -209,5 +210,16 @@ describe("showingMessage", () => {
   it("says so when there is nothing to show", () => {
     expect(showingMessage(0, true)).toBe("No films together to show");
     expect(showingMessage(0, false)).toBe("No films to show");
+  });
+});
+
+describe("showsPeriodNote", () => {
+  it("is for the Timeline only: a period dims its films, and the Table and the CSV list every one", () => {
+    expect(showsPeriodNote("timeline")).toBe(true);
+    expect(showsPeriodNote("table")).toBe(false);
+  });
+
+  it("says yes to no view but the Timeline", () => {
+    expect(VIEWS.filter(showsPeriodNote)).toEqual(["timeline"]);
   });
 });

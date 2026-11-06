@@ -1,3 +1,5 @@
+import { searchWithPeriod, type Period } from "@/lib/period";
+
 /**
  * "Copy image" in the share menu: puts the page's generated preview card (the PNG behind
  * `/p/<slug>/opengraph-image`) on the clipboard, ready to paste into a post or a chat.
@@ -29,10 +31,12 @@ export function canCopyImage(env: ImageClipboardEnv): boolean {
 
 /**
  * Where this page's preview card is, on the same origin: `<page>/opengraph-image`. The route
- * serves the card without the content-hash query the page's meta tags carry.
+ * serves the card without the content-hash query the page's meta tags carry. For a shared
+ * period (`?from=1978&to=1993`) the card of that period is `<page>/og?from=1978&to=1993`.
  */
-export function imageUrlFor(location: { origin: string; pathname: string }): string {
-  return `${location.origin}${location.pathname.replace(/\/+$/, "")}/opengraph-image`;
+export function imageUrlFor(location: { origin: string; pathname: string }, period?: Period | null): string {
+  const base = `${location.origin}${location.pathname.replace(/\/+$/, "")}`;
+  return period ? `${base}/og${searchWithPeriod("", period)}` : `${base}/opengraph-image`;
 }
 
 export type CopyImageOutcome = "copied" | "rate-limited" | "failed";
