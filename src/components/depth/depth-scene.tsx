@@ -67,6 +67,14 @@ function filmElement(target: EventTarget | null): HTMLElement | null {
   return target instanceof Element ? target.closest<HTMLElement>("[data-film]") : null;
 }
 
+/** The box of a film made together's poster with the caption under it, or null for any other poster. */
+function captionedRect(element: HTMLElement): { left: number; top: number; right: number; bottom: number } | null {
+  const caption = element.querySelector("[data-poster-caption]");
+  if (!caption) return null;
+  const { left, top, right, bottom } = element.getBoundingClientRect();
+  return { left, top, right, bottom: Math.max(bottom, caption.getBoundingClientRect().bottom) };
+}
+
 function popoverTargetOf(element: HTMLElement): PopoverTarget {
   return { trigger: element, filmId: Number(element.dataset.film), laneIndex: Number(element.dataset.lane) };
 }
@@ -144,6 +152,8 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
   const pinned = useCallback((element: HTMLElement, on: boolean) => {
     element.closest("[data-poster]")?.toggleAttribute("data-pinned", on);
   }, []);
+  // The hover card anchors to the poster; a film made together, to the poster and the caption under it, so the card opens below the caption.
+  const targetOf = (element: HTMLElement): PopoverTarget => ({ ...popoverTargetOf(element), anchor: () => captionedRect(element) });
   // A mouse drag scrolls the scene (touch keeps its native scrolling); the hover card closes when one starts and none opens under it.
   const { isPanning } = useDragPan(
     scrollerRef,
@@ -163,7 +173,7 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
     pinned(element, true);
     if (element === hoverElement.current) return;
     hoverElement.current = element;
-    showPopover(popoverTargetOf(element), "hover");
+    showPopover(targetOf(element), "hover");
   };
 
   const handlePointerOut = (event: PointerEvent<HTMLElement>) => {
@@ -180,7 +190,7 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
     const element = filmElement(event.target);
     if (element && focusIsVisible(element)) {
       pinned(element, true);
-      showPopover(popoverTargetOf(element), "focus");
+      showPopover(targetOf(element), "focus");
     }
   };
 

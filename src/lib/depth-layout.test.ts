@@ -691,6 +691,22 @@ describe("depthLayout", () => {
       }
     });
 
+    it("leaves room under a film made together, for its caption, before the next one in the column (and none of the solo gap)", () => {
+      for (const l of [crowded("shared"), layout([[[1, "2000-01-01"], [2, "2001-06-01"], [3, "2003-01-01"]], [[1, "2000-01-01"], [2, "2001-06-01"], [3, "2003-01-01"]]])]) {
+        const collab = l.films.filter((f) => f.layer === 0);
+        for (const a of collab) {
+          for (const b of collab) {
+            if (a === b || a.col !== b.col) continue;
+            expect(Math.abs(a.y - b.y)).toBeGreaterThanOrEqual(DEPTH.collab.h + DEPTH.collabGap - 1e-9);
+          }
+        }
+      }
+      // The caption: 6px of air, two 16px lines of title and a 15px year.
+      expect(DEPTH.collabGap).toBeGreaterThanOrEqual(6 + 2 * 16 + 15);
+      // A person's own films have no caption and keep the tighter gap.
+      expect(DEPTH.rowGap).toBeLessThan(DEPTH.collabGap);
+    });
+
     it("keeps the films several people made on the centre line unless they crowd", () => {
       expect(Math.max(...crowded("shared").films.map((f) => f.col))).toBeGreaterThan(0);
       const sparse = layout([[[1, "1990-01-01"], [2, "2000-01-01"], [3, "2010-01-01"]], [[1, "1990-01-01"], [2, "2000-01-01"], [3, "2010-01-01"]]]);

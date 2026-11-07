@@ -66,6 +66,13 @@ export const DEPTH = {
   singleZ: 0,
   /** Vertical gap (px) between posters of a column. */
   rowGap: 14,
+  /**
+   * Vertical gap (px) between two films several people made in a column: room for the caption that shows under the first
+   * (`DepthPoster`: 6px of air, a title of up to two 16px lines and a 15px year, 53px), so it never sits on the next poster.
+   * A tighter run of films takes the next column over, as before; only the posters of one column need it (the caption is as
+   * wide as its poster, and the columns are further apart than that).
+   */
+  collabGap: 56,
 } as const;
 
 /**
@@ -445,7 +452,7 @@ export function depthLayout(
       ? new Map(
           packFilms(
             group.map((entry) => entry.film),
-            { pxPerYear, axisStartYear: scale.axisStartYear, pad: scale.pad, cardWidth: size.h, gap: DEPTH.rowGap },
+            { pxPerYear, axisStartYear: scale.axisStartYear, pad: scale.pad, cardWidth: size.h, gap: DEPTH.collabGap },
           ).map(({ film, x: y, row }) => [film.id, { y, col: row }]),
         )
       : scatterColumns(

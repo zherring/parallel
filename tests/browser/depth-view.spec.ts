@@ -630,6 +630,100 @@ test("keyboard focus brightens a background poster too, and reduced motion appli
   await expect(li.locator('img[data-window="sharp"]')).toHaveCSS("transition-property", "none");
 });
 
+/** The title and the year of a film's caption (only the films made together have one), or null: their opacities and what staggers them. */
+const captionOf = (page: Page, id: string) =>
+  scene(page).evaluate((scroller, filmId) => {
+    const li = scroller.querySelector<HTMLElement>(`[data-poster="${filmId}"]`)!;
+    const caption = li.querySelector<HTMLElement>("[data-poster-caption]");
+    if (!caption) return null;
+    const [title, year] = Array.from(caption.querySelectorAll<HTMLElement>("[data-caption-line]"), (line) => getComputedStyle(line));
+    return {
+      title: Number(title.opacity),
+      year: Number(year.opacity),
+      titleDelay: title.transitionDelay,
+      yearDelay: year.transitionDelay,
+      titleTransform: title.transform,
+      ariaHidden: caption.getAttribute("aria-hidden"),
+      text: caption.textContent,
+      marked: li.hasAttribute("data-caption"),
+    };
+  }, id);
+
+test("only the films made together have a caption, hidden at rest, and it does not touch the poster's box", async ({ page }) => {
+  await openDepth(page);
+  const region = scene(page);
+
+  // The films made together have one (title and year); the posters behind have none, ever.
+  await expect(region.locator("[data-poster-caption]")).toHaveCount(9);
+  await expect(region.locator('li:has(button:not([data-layer="0"])) [data-poster-caption]')).toHaveCount(0);
+  await expect(region.locator('li:has(button[data-layer="0"]) [data-poster-caption]')).toHaveCount(9);
+  // Hidden at rest: opacity 0 for every one, nudged down (so it can rise), and for the screen readers the poster's label already says it all.
+  const rest = await Promise.all([100, 101, 107, 200].map((id) => captionOf(page, String(id))));
+  for (const caption of rest) {
+    expect(caption).toMatchObject({ title: 0, year: 0, ariaHidden: "true", marked: false });
+    expect(caption!.titleTransform).not.toBe("none");
+  }
+  expect(rest[0]!.text).toBe("Scroll Film 1002000");
+
+  // Under the poster, outside its box: the poster is the same size with a caption as it would be without (136 x 204, drawn a ninth larger).
+  const geometry = await region.evaluate((scroller) => {
+    const li = scroller.querySelector<HTMLElement>('[data-poster="100"]')!;
+    const box = li.querySelector("button")!.getBoundingClientRect();
+    const caption = li.querySelector("[data-poster-caption]")!.getBoundingClientRect();
+    return { liW: li.offsetWidth, liH: li.offsetHeight, boxH: box.height, captionTop: caption.top, boxBottom: box.bottom, captionW: caption.width, boxW: box.width };
+  });
+  expect([geometry.liW, geometry.liH]).toEqual([136, 204]);
+  expect(Math.round(geometry.boxH)).toBe(227);
+  expect(geometry.captionTop).toBeGreaterThan(geometry.boxBottom);
+  expect(geometry.captionW).toBeCloseTo(geometry.boxW, 0);
+});
+
+test("hovering a film made together brings its caption in, title first, and leaving takes it out", async ({ page }) => {
+  await openDepth(page);
+  const poster = scene(page).getByRole("button", { name: FIRST_SHARED });
+  expect(await captionOf(page, "100")).toMatchObject({ title: 0, year: 0 });
+
+  await poster.hover();
+  await expect.poll(async () => (await captionOf(page, "100"))!.title).toBe(1);
+  await expect.poll(async () => (await captionOf(page, "100"))!.year).toBe(1);
+  // In: the title first and the year 50ms after it; the lines have risen into place (no transform left).
+  const shown = (await captionOf(page, "100"))!;
+  expect([shown.titleDelay, shown.yearDelay]).toEqual(["0s", "0.05s"]);
+  expect(shown.titleTransform).toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
+  // The caption is under the poster but the pointer is only ever on the poster (the caption takes no pointer events).
+  expect(await scene(page).evaluate((scroller) => getComputedStyle(scroller.querySelector("[data-poster-caption]")!).pointerEvents)).toBe("none");
+
+  // Out again when the pointer leaves.
+  await page.mouse.move(20, 300);
+  await expect.poll(async () => (await captionOf(page, "100"))!.title).toBe(0);
+  await expect.poll(async () => (await captionOf(page, "100"))!.year).toBe(0);
+});
+
+test("keyboard focus shows the caption of a film made together", async ({ page }) => {
+  await openDepth(page);
+  const poster = scene(page).getByRole("button", { name: FIRST_SHARED });
+  await poster.focus();
+  // Only keyboard focus shows (a script's focus counts as one when nothing was clicked before it).
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Shift+Tab");
+  await expect(poster).toBeFocused();
+  await expect.poll(async () => (await captionOf(page, "100"))!.title).toBe(1);
+  await expect.poll(async () => (await captionOf(page, "100"))!.year).toBe(1);
+});
+
+test("with reduced motion the caption just appears and disappears: no travel, no transition", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openDepth(page);
+  const poster = scene(page).getByRole("button", { name: FIRST_SHARED });
+  expect(await captionOf(page, "100")).toMatchObject({ title: 0, titleTransform: "none" });
+  await expect(scene(page).locator('[data-poster="100"] [data-caption-line]').first()).toHaveCSS("transition-property", "none");
+  await poster.hover();
+  await expect.poll(async () => (await captionOf(page, "100"))!.title).toBe(1);
+  expect(await captionOf(page, "100")).toMatchObject({ year: 1, titleTransform: "none" });
+  await page.mouse.move(20, 300);
+  await expect.poll(async () => (await captionOf(page, "100"))!.title).toBe(0);
+});
+
 test("the people pill opens on a press and closes when the scene scrolls", async ({ page }) => {
   await openDepth(page);
   const button = pill(page);
@@ -734,5 +828,77 @@ test.describe("on a phone", () => {
     expect((await lookOf(page, 1014)).focus).toBeGreaterThan(0.99);
     await scene(page).evaluate((scroller) => { scroller.scrollTop += 700; });
     await expect.poll(async () => (await lookOf(page, 1014)).opacity).toBeCloseTo(0.45, 2);
+  });
+  /** Scrolls so that the centre of film `id`'s poster is `distance` px (on screen, down is positive) from the middle line of the screen. */
+  const scrollToOffset = async (page: Page, id: number, distance: number) => {
+    await scene(page).evaluate(
+      (scroller, [filmId, d]) => {
+        const li = scroller.querySelector<HTMLElement>(`[data-poster="${filmId}"]`)!;
+        const f = Number.parseFloat(li.style.getPropertyValue("--f"));
+        scroller.scrollTop = Number.parseFloat(li.style.top) + li.offsetHeight / 2 - scroller.clientHeight / 2 - d / f;
+      },
+      [id, distance],
+    );
+    // The focus loop has had a frame.
+    await page.waitForTimeout(100);
+  };
+  const shown = async (page: Page, id: number) => {
+    const caption = (await captionOf(page, String(id)))!;
+    return caption.marked && caption.title === 1 && caption.year === 1;
+  };
+
+  test("a film made together's caption comes in as its poster is in the middle of the screen, and goes as it leaves", async ({ page }) => {
+    await openDepth(page);
+    // The scene opens with the first collaboration in the middle: its caption is in, the others' (a film made together at the end) are not.
+    await expect.poll(() => shown(page, 100)).toBe(true);
+    expect((await captionOf(page, "200"))).toMatchObject({ title: 0, year: 0, marked: false });
+    // Nothing has a caption that is not a film made together, and nothing popped (a finger has no hover).
+    await expect(scene(page).locator('li:has(button:not([data-layer="0"])) [data-poster-caption]')).toHaveCount(0);
+
+    // Scrolled away, it goes (animated: opacity is polled down to 0), and the attribute the loop set is gone.
+    await scene(page).evaluate((scroller) => { scroller.scrollTop += 700; });
+    await expect.poll(async () => (await captionOf(page, "100"))!.title).toBe(0);
+    expect((await captionOf(page, "100"))).toMatchObject({ year: 0, marked: false });
+    // And back to the middle: it is in again.
+    await scrollToOffset(page, 100, 0);
+    await expect.poll(() => shown(page, 100)).toBe(true);
+    // A tap on the poster still opens the film (the caption is not in the way, and it stays while the panel is open).
+    await scene(page).getByRole("button", { name: FIRST_SHARED }).tap();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    expect((await captionOf(page, "100"))).toMatchObject({ marked: true });
+  });
+
+  test("the caption has hysteresis at the band's edge: it comes in nearer the middle than it goes out", async ({ page }) => {
+    await openDepth(page);
+    // Far away: out. A poster at the band's edge (105px from the middle line: between 92px, where it comes in, and 119px, where it goes out) stays out...
+    await scrollToOffset(page, 100, 400);
+    await expect.poll(async () => (await captionOf(page, "100"))!.title).toBe(0);
+    await scrollToOffset(page, 100, 105);
+    expect((await captionOf(page, "100"))!.marked).toBe(false);
+    // ...comes in at the middle, and, going out again, stays in at the same place, until it is past 119px.
+    await scrollToOffset(page, 100, 0);
+    expect((await captionOf(page, "100"))!.marked).toBe(true);
+    await scrollToOffset(page, 100, 105);
+    expect((await captionOf(page, "100"))!.marked).toBe(true);
+    await scrollToOffset(page, 100, 130);
+    expect((await captionOf(page, "100"))!.marked).toBe(false);
+  });
+
+  test("captions stay in the area left of the rail and the page does not scroll sideways", async ({ page }) => {
+    await openDepth(page);
+    await expect.poll(() => shown(page, 100)).toBe(true);
+    const fits = await scene(page).evaluate((scroller) => {
+      const rail = document.querySelector("[data-depth-rail]")!.getBoundingClientRect();
+      return Array.from(scroller.querySelectorAll("[data-poster-caption]"), (caption) => {
+        const box = caption.getBoundingClientRect();
+        return { left: box.left, right: box.right, rail: rail.left };
+      }).filter((box) => box.right > 0 && box.left < innerWidth);
+    });
+    expect(fits.length).toBeGreaterThan(0);
+    for (const box of fits) {
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.right).toBeLessThanOrEqual(box.rail + 0.5);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
   });
 });

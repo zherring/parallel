@@ -20,6 +20,8 @@ export interface PopoverTarget {
   trigger: HTMLElement;
   filmId: number;
   laneIndex: number;
+  /** Where on screen to put the card next to, when it is not the trigger's own box (the Depth view's poster that slid clear of the one in front of it). */
+  anchor?: () => { left: number; top: number; right: number; bottom: number } | null;
 }
 
 interface OpenState {
@@ -168,7 +170,7 @@ export function FilmPopover({ id, target, content, lit, colorOf, today, bottomEd
     }
     const prefer = side.current?.trigger === target.trigger ? side.current.placement : undefined;
     const { left, top, placement } = placePopover(
-      target.trigger.getBoundingClientRect(),
+      target.anchor?.() ?? target.trigger.getBoundingClientRect(),
       { width: card.offsetWidth, height: card.offsetHeight },
       { width: document.documentElement.clientWidth, height: Math.min(window.innerHeight, bottomEdge?.() ?? window.innerHeight) },
       { prefer },

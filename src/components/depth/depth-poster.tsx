@@ -36,6 +36,12 @@ function accessibleName(title: string, year: number, roles: string, note: string
 
 const round = (value: number) => Math.round(value * 100) / 100;
 
+/**
+ * A dark outline on the caption, as on the flat timeline's, but heavier: a poster of any colour may be behind it (a film made together
+ * has a dark pool under it, globals.css, and the caption's own scrim adds to that).
+ */
+const CAPTION_OUTLINE = "[text-shadow:0_0_2px_rgb(0_0_0/0.95),0_1px_3px_rgb(0_0_0/0.9),0_0_8px_rgb(0_0_0/0.8)]";
+
 /** The title in a box, for a film TMDB has no poster of. */
 function TitleFace({ title }: { title: string }) {
   return (
@@ -213,6 +219,25 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
             )}
           </span>
         </span>
+        {shared && (
+          // Under the poster, out of its box (the layout and the packing do not know it): the title, two lines at most, and the year. Hidden until
+          // the poster is hovered or has keyboard focus, or, on a phone, is in the middle of the screen (the focus field marks the `li`
+          // `data-caption`); see `[data-poster-caption]` in globals.css. The button's label already says all of it.
+          <span aria-hidden data-poster-caption className="pointer-events-none absolute inset-x-0 top-full mt-1.5 block text-center">
+            <span
+              data-caption-line
+              className={cn("-mx-1 line-clamp-2 break-words px-1 pb-px text-[13px] leading-4 text-strong max-sm:text-[14px]", CAPTION_OUTLINE)}
+            >
+              {film.title}
+            </span>
+            <span
+              data-caption-line="year"
+              className={cn("block text-[12px] leading-[15px] tabular-nums text-muted max-sm:text-[13px]", CAPTION_OUTLINE)}
+            >
+              {film.year}
+            </span>
+          </span>
+        )}
       </button>
     </li>
   );
