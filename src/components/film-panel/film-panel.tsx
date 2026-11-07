@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import {
+  useCallback,
   useEffect,
   useId,
   useLayoutEffect,
@@ -51,9 +52,36 @@ export function FilmPanel({ filmId, peopleInView, onClose }: FilmPanelProps) {
     return () => document.removeEventListener("pointerdown", remember, true);
   }, []);
 
-  if (filmId === null || !mounted) return null;
+  // The dialog stays mounted for as long as its exit animation takes: `filmId` going back to null starts it (`closing`),
+  // and the dialog says when it is over (`exited`). Each opening is a dialog of its own (`session`), so a film opened
+  // while the last one is still sliding away does not inherit its state.
+  const [shown, setShown] = useState<{ filmId: number | null; session: number; closing: boolean }>({
+    filmId: null,
+    session: 0,
+    closing: false,
+  });
+  if (filmId !== null) {
+    // A different film while the dialog is open stays in the same dialog (it starts at the top); one opened after
+    // (or during) a close is a new dialog.
+    if (shown.filmId === null || shown.closing) setShown({ filmId, session: shown.session + 1, closing: false });
+    else if (shown.filmId !== filmId) setShown({ ...shown, filmId });
+  } else if (shown.filmId !== null && !shown.closing) {
+    setShown({ ...shown, closing: true });
+  }
+  const exited = useCallback(() => {
+    setShown((current) => (current.closing ? { ...current, filmId: null, closing: false } : current));
+  }, []);
+
+  if (shown.filmId === null || !mounted) return null;
   return createPortal(
-    <FilmDialog filmId={filmId} peopleInView={peopleInView} onClose={onClose} />,
+    <FilmDialog
+      key={shown.session}
+      filmId={shown.filmId}
+      peopleInView={peopleInView}
+      closing={shown.closing}
+      onExited={exited}
+      onClose={onClose}
+    />,
     document.body,
   );
 }
@@ -61,10 +89,15 @@ export function FilmPanel({ filmId, peopleInView, onClose }: FilmPanelProps) {
 function FilmDialog({
   filmId,
   peopleInView,
+  closing,
+  onExited,
   onClose,
 }: {
   filmId: number;
   peopleInView: FilmPanelProps["peopleInView"];
+  /** The panel was closed: it slides out (and the page is the visitor's again at once), then `onExited` removes it. */
+  closing: boolean;
+  onExited: () => void;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -74,6 +107,7 @@ function FilmDialog({
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
+  const onExitedRef = useRef(onExited);
   const openerRef = useRef<Element | null>(null);
   const { state, retry } = useFilmDetails(filmId);
 
@@ -83,6 +117,7 @@ function FilmDialog({
 
   useEffect(() => {
     onCloseRef.current = onClose;
+    onExitedRef.current = onExited;
   });
 
   // Close once an "Add" navigation has finished, so the new lane is visible.
@@ -91,8 +126,8 @@ function FilmDialog({
     wasAdding.current = isAdding;
   }, [isAdding]);
 
-  // Slide in from the right (md and up) or up from the bottom, and fade the backdrop. There is no
-  // exit animation. Skipped entirely for visitors who prefer reduced motion.
+  // Slide in from the right (md and up) or up from the bottom, and fade the backdrop. Skipped entirely
+  // for visitors who prefer reduced motion.
   useLayoutEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const fromSide = window.matchMedia("(min-width: 48rem)").matches;
@@ -106,6 +141,36 @@ function FilmDialog({
     );
   }, []);
 
+  // And back out the way it came when it is closed (X, Escape, a press outside, or the parent letting go of the film).
+  // The dialog stays until the animation ends and `onExited` removes it; with reduced motion that is at once.
+  useLayoutEffect(() => {
+    if (!closing) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      onExitedRef.current();
+      return;
+    }
+    const toSide = window.matchMedia("(min-width: 48rem)").matches;
+    const animations = [
+      backdropRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: "ease-in", fill: "forwards" }),
+      panelRef.current?.animate(
+        [{ transform: "none" }, { transform: toSide ? "translateX(100%)" : "translateY(100%)" }],
+        { duration: 200, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" },
+      ),
+    ].filter((animation) => animation !== undefined);
+    let cancelled = false;
+    // A cancelled animation (reopened, unmounted) rejects: nothing to do then.
+    Promise.all(animations.map((animation) => animation.finished)).then(
+      () => {
+        if (!cancelled) onExitedRef.current();
+      },
+      () => {},
+    );
+    return () => {
+      cancelled = true;
+      animations.forEach((animation) => animation.cancel());
+    };
+  }, [closing]);
+
   // Focus in on open. This must run before the inert effect below: making the page inert blurs
   // whatever has focus, so the opener has to be read first.
   useEffect(() => {
@@ -116,6 +181,7 @@ function FilmDialog({
 
   // Lock page scroll without shifting the layout when the scrollbar disappears.
   useEffect(() => {
+    if (closing) return;
     const { body, documentElement } = document;
     const previous = { overflow: body.style.overflow, paddingRight: body.style.paddingRight };
     const scrollbar = window.innerWidth - documentElement.clientWidth;
@@ -125,10 +191,11 @@ function FilmDialog({
       body.style.overflow = previous.overflow;
       body.style.paddingRight = previous.paddingRight;
     };
-  }, []);
+  }, [closing]);
 
   // Everything else on the page is unreachable (keyboard, pointer and assistive tech) while open.
   useEffect(() => {
+    if (closing) return;
     const root = rootRef.current;
     const inerted: Element[] = [];
     for (const child of Array.from(document.body.children)) {
@@ -142,9 +209,10 @@ function FilmDialog({
       inerted.push(child);
     }
     return () => inerted.forEach((child) => child.removeAttribute("inert"));
-  }, []);
+  }, [closing]);
 
   useEffect(() => {
+    if (closing) return;
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
       event.preventDefault();
@@ -152,21 +220,23 @@ function FilmDialog({
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [closing]);
 
   // A different film starts at the top.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [filmId]);
 
-  // Focus back to the opener on close. Declared last on purpose: unmount cleanups run in
-  // declaration order, so by now the page is no longer inert and can take focus again.
+  // Focus back to the opener on close, as soon as the panel starts to slide away (the page is the visitor's again
+  // then, not when the animation ends). Declared last on purpose: cleanups run in declaration order, so by now the
+  // page is no longer inert and can take focus again. Unmounting without having been closed does the same.
   useEffect(() => {
+    if (closing) return;
     return () => {
       const opener = openerRef.current;
       if (opener instanceof HTMLElement && opener.isConnected) opener.focus({ preventScroll: true });
     };
-  }, []);
+  }, [closing]);
 
   function trapTab(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "Tab") return;
@@ -199,7 +269,12 @@ function FilmDialog({
   const loading = state.status === "loading";
 
   return (
-    <div ref={rootRef} className="fixed inset-0 z-50">
+    // While it slides away the page underneath is live again: presses go through to it.
+    <div
+      ref={rootRef}
+      inert={closing || undefined}
+      className={closing ? "pointer-events-none fixed inset-0 z-50" : "fixed inset-0 z-50"}
+    >
       <div
         ref={backdropRef}
         aria-hidden="true"

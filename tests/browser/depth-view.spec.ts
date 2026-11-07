@@ -65,6 +65,50 @@ test("a poster opens the film dialog, and Escape closes it and returns focus", a
   await expect(poster).toBeFocused();
 });
 
+/** Records what the film dialog is animated with, so a test can tell a slide-out from a disappearance. */
+async function recordDialogAnimations(page: Page) {
+  await page.evaluate(() => {
+    const seen: { role: string | null; transforms: string[] }[] = [];
+    (window as unknown as { __dialogAnimations: typeof seen }).__dialogAnimations = seen;
+    const animate = HTMLElement.prototype.animate;
+    HTMLElement.prototype.animate = function (this: HTMLElement, keyframes, options) {
+      if (this.getAttribute("role") === "dialog") {
+        const frames = (keyframes ?? []) as Keyframe[];
+        seen.push({ role: this.getAttribute("role"), transforms: frames.map((frame) => String(frame.transform ?? "")) });
+      }
+      return animate.call(this, keyframes, options);
+    };
+  });
+  return () =>
+    page.evaluate(
+      () => (window as unknown as { __dialogAnimations: { role: string | null; transforms: string[] }[] }).__dialogAnimations,
+    );
+}
+
+test.describe("closing the film panel slides it out", () => {
+  for (const how of ["the close button", "Escape", "a press outside it"] as const) {
+    test(`${how} plays the exit animation, then removes the panel and returns focus`, async ({ page }) => {
+      await openDepth(page);
+      const poster = scene(page).getByRole("button", { name: FIRST_SHARED });
+      await poster.click();
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+      // The slide-in has finished: whatever is recorded from here on is the exit.
+      await expect.poll(() => dialog.evaluate((element) => element.getAnimations().length)).toBe(0);
+      const animations = await recordDialogAnimations(page);
+
+      if (how === "the close button") await page.getByRole("button", { name: "Close film details" }).click();
+      else if (how === "Escape") await page.keyboard.press("Escape");
+      else await page.mouse.click(120, 300);
+
+      // It slides toward the edge it came from (right on a desktop) rather than just vanishing.
+      await expect.poll(async () => (await animations()).flatMap((entry) => entry.transforms)).toContain("translateX(100%)");
+      await expect(dialog).toBeHidden();
+      await expect(poster).toBeFocused();
+    });
+  }
+});
+
 test("the people pill opens on a press and closes when the scene scrolls", async ({ page }) => {
   await openDepth(page);
   const button = pill(page);
