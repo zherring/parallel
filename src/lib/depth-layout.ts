@@ -67,12 +67,15 @@ export const DEPTH = {
   /** Vertical gap (px) between posters of a column. */
   rowGap: 14,
   /**
-   * Vertical gap (px) between two films several people made in a column: room for the caption that shows under the first
-   * (`DepthPoster`: 6px of air, a title of up to two 16px lines and a 15px year, 53px), so it never sits on the next poster.
-   * A tighter run of films takes the next column over, as before; only the posters of one column need it (the caption is as
-   * wide as its poster, and the columns are further apart than that).
+   * Vertical gap (px) between two films several people made in a column: room for the two labels that sit outside the poster's
+   * box (`DepthPoster`), the year chip under the first and the title chip over the next, so neither sits on the other or on a
+   * poster. Each chip is 6px off its poster's edge; the year chip is a 15px line and 6px of padding (21px); the title chip is
+   * two 16px lines at most and 6px of padding (38px); and 6px of air between the two chips: 6 + 21 + 6 + 38 + 6 = 77, and 80 leaves
+   * 3px over. A tighter run of films takes the next column over, as before; only the posters of one column need it (a chip is no
+   * wider than its poster, and the columns are further apart than that). The first title chip hangs 44px over the first
+   * poster, which `pad` has room for.
    */
-  collabGap: 56,
+  collabGap: 80,
 } as const;
 
 /**

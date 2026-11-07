@@ -20,7 +20,7 @@ export interface PopoverTarget {
   trigger: HTMLElement;
   filmId: number;
   laneIndex: number;
-  /** Where on screen to put the card next to, when it is not the trigger's own box (the Depth view's poster that slid clear of the one in front of it). */
+  /** Where on screen to put the card next to, when it is not the trigger's own box (the Depth view's film made together, with the title chip over it and the year chip under it). */
   anchor?: () => { left: number; top: number; right: number; bottom: number } | null;
 }
 

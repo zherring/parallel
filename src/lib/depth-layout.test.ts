@@ -691,7 +691,7 @@ describe("depthLayout", () => {
       }
     });
 
-    it("leaves room under a film made together, for its caption, before the next one in the column (and none of the solo gap)", () => {
+    it("leaves room under a film made together, for its year chip and the next one's title chip, before it in the column (and none of the solo gap)", () => {
       for (const l of [crowded("shared"), layout([[[1, "2000-01-01"], [2, "2001-06-01"], [3, "2003-01-01"]], [[1, "2000-01-01"], [2, "2001-06-01"], [3, "2003-01-01"]]])]) {
         const collab = l.films.filter((f) => f.layer === 0);
         for (const a of collab) {
@@ -701,10 +701,20 @@ describe("depthLayout", () => {
           }
         }
       }
-      // The caption: 6px of air, two 16px lines of title and a 15px year.
-      expect(DEPTH.collabGap).toBeGreaterThanOrEqual(6 + 2 * 16 + 15);
-      // A person's own films have no caption and keep the tighter gap.
+      // The labels: 6px of air, the year chip (a 15px line and 6px of padding), 6px clear between the chips, the next one's title chip (two 16px
+      // lines at most and 6px of padding) and 6px of air to its poster.
+      const air = 6;
+      const yearChip = 15 + 6;
+      const titleChip = 2 * 16 + 6;
+      expect(DEPTH.collabGap).toBeGreaterThanOrEqual(air + yearChip + 6 + titleChip + air);
+      // A person's own films have no labels and keep the tighter gap.
       expect(DEPTH.rowGap).toBeLessThan(DEPTH.collabGap);
+    });
+
+    it("leaves room above the first film made together, in the track, for its title chip", () => {
+      // The chip hangs over the poster's top edge by 6px of air, two 16px lines and 6px of padding (44px) at most; the layer is drawn `layerFactor(0)` larger.
+      const hang = (DEPTH.collab.h / 2 + 6 + (2 * 16 + 6)) * layerFactor(0);
+      expect(DEPTH.pad).toBeGreaterThanOrEqual(hang);
     });
 
     it("keeps the films several people made on the centre line unless they crowd", () => {

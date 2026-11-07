@@ -67,12 +67,21 @@ function filmElement(target: EventTarget | null): HTMLElement | null {
   return target instanceof Element ? target.closest<HTMLElement>("[data-film]") : null;
 }
 
-/** The box of a film made together's poster with the caption under it, or null for any other poster. */
-function captionedRect(element: HTMLElement): { left: number; top: number; right: number; bottom: number } | null {
-  const caption = element.querySelector("[data-poster-caption]");
-  if (!caption) return null;
+/**
+ * The box of a film made together's poster with its labels (the title chip above, the year chip below), or null for any other poster:
+ * the hover card opens below the year chip, or above the title chip, and never covers either.
+ */
+function labelledRect(element: HTMLElement): { left: number; top: number; right: number; bottom: number } | null {
+  const labels = element.querySelectorAll("[data-poster-caption]");
+  if (labels.length === 0) return null;
   const { left, top, right, bottom } = element.getBoundingClientRect();
-  return { left, top, right, bottom: Math.max(bottom, caption.getBoundingClientRect().bottom) };
+  const box = { left, top, right, bottom };
+  for (const label of labels) {
+    const rect = label.getBoundingClientRect();
+    box.top = Math.min(box.top, rect.top);
+    box.bottom = Math.max(box.bottom, rect.bottom);
+  }
+  return box;
 }
 
 function popoverTargetOf(element: HTMLElement): PopoverTarget {
@@ -152,8 +161,8 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
   const pinned = useCallback((element: HTMLElement, on: boolean) => {
     element.closest("[data-poster]")?.toggleAttribute("data-pinned", on);
   }, []);
-  // The hover card anchors to the poster; a film made together, to the poster and the caption under it, so the card opens below the caption.
-  const targetOf = (element: HTMLElement): PopoverTarget => ({ ...popoverTargetOf(element), anchor: () => captionedRect(element) });
+  // The hover card anchors to the poster; a film made together, to the poster and the labels over and under it, so the card opens below the year chip.
+  const targetOf = (element: HTMLElement): PopoverTarget => ({ ...popoverTargetOf(element), anchor: () => labelledRect(element) });
   // A mouse drag scrolls the scene (touch keeps its native scrolling); the hover card closes when one starts and none opens under it.
   const { isPanning } = useDragPan(
     scrollerRef,

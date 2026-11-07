@@ -170,20 +170,3 @@ button:focus-visible > [data-poster-card][data-collab]::after {
     transition: none;
   }
 }
-
-/*
- * The caption of a film made together (title and year, under its poster; `DepthPoster`) is always there: nothing about it
- * changes with the pointer, the focus or the scroll position. A soft dark scrim behind the lines keeps them legible over any
- * poster. (A hover or keyboard focus only brightens the title a little: see `DepthPoster`.)
- */
-[data-poster-caption] {
-  isolation: isolate;
-}
-[data-poster-caption]::before {
-  content: "";
-  position: absolute;
-  inset: -8px -20px -10px;
-  z-index: -1;
-  pointer-events: none;
-  background: radial-gradient(closest-side, rgb(0 0 0 / 0.55), rgb(0 0 0 / 0.38) 55%, transparent);
-}

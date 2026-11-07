@@ -37,10 +37,11 @@ function accessibleName(title: string, year: number, roles: string, note: string
 const round = (value: number) => Math.round(value * 100) / 100;
 
 /**
- * A dark outline on the caption, as on the flat timeline's, but heavier: a poster of any colour may be behind it (a film made together
- * has a dark pool under it, globals.css, and the caption's own scrim adds to that).
+ * The chip behind a label (title above a film made together, year below): near-black (`rgb(10 12 14)`, a shade under the page's
+ * `--bg` #14181c, at 92%) so it reads as black on the scene and the text is legible over any poster behind it. Tight padding (3px
+ * above and below, 8px at the sides) and rounded; the chip hugs its text up to the poster's width.
  */
-const CAPTION_OUTLINE = "[text-shadow:0_0_2px_rgb(0_0_0/0.95),0_1px_3px_rgb(0_0_0/0.9),0_0_8px_rgb(0_0_0/0.8)]";
+const LABEL_CHIP = "max-w-full rounded-md bg-[rgb(10_12_14/0.92)] px-2 py-[3px]";
 
 /** The title in a box, for a film TMDB has no poster of. */
 function TitleFace({ title }: { title: string }) {
@@ -220,27 +221,32 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
           </span>
         </span>
         {shared && (
-          // Under the poster, out of its box (the layout and the packing do not know it): the title, two lines at most, and the year. Always
-          // there; the scrim behind it is in globals.css (`[data-poster-caption]`). A hover or keyboard focus brightens the title from 90% to
-          // full (a pointer that can hover only: Tailwind's `hover:` variant), and nothing moves. The button's label already says all of it.
-          <span aria-hidden data-poster-caption className="pointer-events-none absolute inset-x-0 top-full mt-1.5 block text-center">
-            <span
-              data-caption-line
-              className={cn(
-                "-mx-1 line-clamp-2 break-words px-1 pb-px text-[13px] leading-4 text-strong/90 max-sm:text-[14px]",
-                "transition-colors duration-150 group-hover:text-strong group-focus-visible:text-strong motion-reduce:transition-none",
-                CAPTION_OUTLINE,
-              )}
-            >
-              {film.title}
+          <>
+            {/* The labels of a film made together, out of the poster's box (the layout and the packing know their room, `DEPTH.collabGap`, but
+                they are absolutely positioned and add nothing to the poster's size): the title just above the poster's top edge, two lines at most,
+                and the year just below its bottom edge, 6px of air each, each on a near-black chip. Always there; a hover or keyboard focus brightens the title
+                from 90% to full (a pointer that can hover only: Tailwind's `hover:` variant) and nothing moves. The button's label already says all of it. */}
+            <span aria-hidden data-poster-caption="title" className="pointer-events-none absolute inset-x-0 bottom-full mb-1.5 flex justify-center">
+              <span data-caption-chip className={LABEL_CHIP}>
+                <span
+                  data-caption-line
+                  className={cn(
+                    "line-clamp-2 break-words text-center text-[13px] leading-4 text-strong/90 max-sm:text-[14px]",
+                    "transition-colors duration-150 group-hover:text-strong group-focus-visible:text-strong motion-reduce:transition-none",
+                  )}
+                >
+                  {film.title}
+                </span>
+              </span>
             </span>
-            <span
-              data-caption-line="year"
-              className={cn("block text-[12px] leading-[15px] tabular-nums text-muted max-sm:text-[13px]", CAPTION_OUTLINE)}
-            >
-              {film.year}
+            <span aria-hidden data-poster-caption="year" className="pointer-events-none absolute inset-x-0 top-full mt-1.5 flex justify-center">
+              <span data-caption-chip className={LABEL_CHIP}>
+                <span data-caption-line="year" className="block text-center text-[12px] leading-[15px] tabular-nums text-muted max-sm:text-[13px]">
+                  {film.year}
+                </span>
+              </span>
             </span>
-          </span>
+          </>
         )}
       </button>
     </li>

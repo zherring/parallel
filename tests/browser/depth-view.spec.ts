@@ -677,13 +677,16 @@ const scrollToOffset = async (page: Page, id: number, distance: number) => {
   await page.waitForTimeout(100);
 };
 
-/** The title and the year of a film's caption (only the films made together have one), or null: their opacities, the title's colour and its travel. */
+/**
+ * The labels of a film's caption (only the films made together have them: a title chip over the poster and a year chip under it), or null:
+ * the opacities of the lines, the title's colour and its travel.
+ */
 const captionOf = (page: Page, id: string) =>
   scene(page).evaluate((scroller, filmId) => {
     const li = scroller.querySelector<HTMLElement>(`[data-poster="${filmId}"]`)!;
-    const caption = li.querySelector<HTMLElement>("[data-poster-caption]");
-    if (!caption) return null;
-    const [title, year] = Array.from(caption.querySelectorAll<HTMLElement>("[data-caption-line]"), (line) => getComputedStyle(line));
+    const labels = Array.from(li.querySelectorAll<HTMLElement>("[data-poster-caption]"));
+    if (labels.length === 0) return null;
+    const [title, year] = labels.map((label) => getComputedStyle(label.querySelector<HTMLElement>("[data-caption-line]")!));
     return {
       title: Number(title.opacity),
       year: Number(year.opacity),
@@ -692,40 +695,142 @@ const captionOf = (page: Page, id: string) =>
       yearAlpha: Number(/\/ ([\d.]+)\)$/.exec(year.color)?.[1] ?? 1),
       titleTransform: title.transform,
       titleTransition: title.transitionProperty,
-      ariaHidden: caption.getAttribute("aria-hidden"),
-      text: caption.textContent,
-      box: (({ left, top, width, height }) => [left, top, width, height])(caption.getBoundingClientRect()),
+      ariaHidden: labels.map((label) => label.getAttribute("aria-hidden")),
+      text: labels.map((label) => label.textContent).join(""),
+      box: labels.flatMap((label) => {
+        const { left, top, width, height } = label.querySelector("[data-caption-chip]")!.getBoundingClientRect();
+        return [left, top, width, height];
+      }),
       marked: li.hasAttribute("data-caption"),
     };
   }, id);
 
-/** Every caption in the scene is there in full: opaque, not nudged, and never marked or hidden by anything the focus loop does. */
+/** Every caption in the scene is there in full: opaque, not nudged, with no scrim behind it, and never marked or hidden by anything the focus loop does. */
 const allCaptionsShown = (page: Page) =>
   scene(page).evaluate((scroller) =>
-    Array.from(scroller.querySelectorAll<HTMLElement>("[data-poster-caption]"), (caption) => {
-      const lines = Array.from(caption.querySelectorAll<HTMLElement>("[data-caption-line]"), (line) => getComputedStyle(line));
-      const scrim = getComputedStyle(caption, "::before");
+    Array.from(scroller.querySelectorAll<HTMLElement>("[data-poster]"), (li) => {
+      const labels = Array.from(li.querySelectorAll<HTMLElement>("[data-poster-caption]"));
+      const lines = labels.map((label) => getComputedStyle(label.querySelector<HTMLElement>("[data-caption-line]")!));
       return {
+        labels: labels.length,
         opacities: lines.map((line) => Number(line.opacity)),
         transforms: lines.map((line) => line.transform),
-        scrim: Number(scrim.opacity),
-        marked: caption.closest("[data-poster]")!.hasAttribute("data-caption"),
+        // The radial scrim is gone: the chips are the background now.
+        scrim: labels.map((label) => getComputedStyle(label, "::before").content),
+        marked: li.hasAttribute("data-caption"),
       };
-    }),
+    }).filter((one) => one.labels > 0),
   );
 
-test("only the films made together have a caption, always showing, and it does not touch the poster's box", async ({ page }) => {
+/** What `allCaptionsShown` finds for a caption that is all there: the title and the year, opaque, in place, with no scrim, unmarked. */
+const SHOWN = { labels: 2, opacities: [1, 1], transforms: ["none", "none"], scrim: ["none", "none"], marked: false };
+
+interface Rect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** For every film made together: its poster's box, its title chip's and its year chip's (screen px) and the chips' background colours. */
+const labelGeometry = (page: Page) =>
+  scene(page).evaluate((scroller) => {
+    const rect = (element: Element): Rect => {
+      const { left, top, right, bottom } = element.getBoundingClientRect();
+      return { left, top, right, bottom };
+    };
+    return Array.from(scroller.querySelectorAll<HTMLElement>("[data-poster]"), (li) => {
+      const title = li.querySelector('[data-poster-caption="title"] [data-caption-chip]');
+      const year = li.querySelector('[data-poster-caption="year"] [data-caption-chip]');
+      if (!title || !year) return null;
+      return {
+        id: li.dataset.poster!,
+        // The poster's column in the layout (steps from the centre line, `--col`): films in one column are `h + collabGap` apart.
+        column: li.style.getPropertyValue("--col"),
+        poster: rect(li.querySelector("[data-poster-card]")!),
+        title: rect(title),
+        year: rect(year),
+        titleBg: getComputedStyle(title).backgroundColor,
+        yearBg: getComputedStyle(year).backgroundColor,
+        pointerEvents: [title, year].map((chip) => getComputedStyle(chip.parentElement!).pointerEvents),
+        position: [title, year].map((chip) => getComputedStyle(chip.parentElement!).position),
+      };
+    }).filter((one) => one !== null);
+  });
+
+const overlap = (a: Rect, b: Rect, tolerance = 0.5) =>
+  a.left < b.right - tolerance && b.left < a.right - tolerance && a.top < b.bottom - tolerance && b.top < a.bottom - tolerance;
+
+/** The channels and alpha of a computed `rgb(a)` colour. */
+const channelsOf = (colour: string) => {
+  const match = /rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)/.exec(colour);
+  return match ? { rgb: [match[1], match[2], match[3]].map(Number), alpha: Number(match[4] ?? 1) } : null;
+};
+
+/**
+ * The title chip sits over its poster and the year chip under it, both on a near-black background that is nearly opaque, and no chip of a
+ * film made together lies on another's chip or on another's poster.
+ */
+async function expectLabelsClear(page: Page) {
+  const films = await labelGeometry(page);
+  expect(films.length).toBeGreaterThan(1);
+  for (const film of films) {
+    // Above the top edge and below the bottom edge, a few px of air (6px laid out, scaled by the layer and the screen), and centred on the poster.
+    expect(film.title.bottom).toBeLessThan(film.poster.top);
+    expect(film.year.top).toBeGreaterThan(film.poster.bottom);
+    expect(film.poster.top - film.title.bottom).toBeGreaterThan(3);
+    expect(film.poster.top - film.title.bottom).toBeLessThan(10);
+    expect(film.year.top - film.poster.bottom).toBeGreaterThan(3);
+    expect(film.year.top - film.poster.bottom).toBeLessThan(10);
+    for (const chip of [film.title, film.year]) {
+      expect((chip.left + chip.right) / 2).toBeCloseTo((film.poster.left + film.poster.right) / 2, 0);
+      // Hugs its text, no wider than the poster.
+      expect(chip.right - chip.left).toBeLessThanOrEqual(film.poster.right - film.poster.left + 0.5);
+    }
+    // Near-black and nearly opaque, on both chips.
+    for (const bg of [film.titleBg, film.yearBg]) {
+      const colour = channelsOf(bg)!;
+      expect(colour.alpha).toBeGreaterThanOrEqual(0.85);
+      for (const channel of colour.rgb) expect(channel).toBeLessThanOrEqual(24);
+    }
+    // Out of the layout: positioned absolutely, and the pointer goes through them.
+    expect(film.position).toEqual(["absolute", "absolute"]);
+    expect(film.pointerEvents).toEqual(["none", "none"]);
+  }
+  // No chip lies on another film's chip or poster. Films in one column of the layout are held apart by `DEPTH.collabGap`, which is what has room for
+  // the chips; films in different columns are apart across the page, except where the stage is too narrow for the columns and the scene clamps them
+  // together (the fixture packs eight films into under two years, so on a phone a few columns collapse into one): that is the stage's, not the labels'.
+  // So the films are checked where they share a column or where their posters are apart across the page.
+  let checked = 0;
+  for (const a of films) {
+    for (const b of films) {
+      if (a.id >= b.id) continue;
+      const acrossApart = a.poster.right <= b.poster.left + 0.5 || b.poster.right <= a.poster.left + 0.5;
+      if (a.column !== b.column && !acrossApart) continue;
+      if (a.column === b.column) checked += 1;
+      for (const [nameA, boxA] of [["title", a.title], ["year", a.year], ["poster", a.poster]] as const) {
+        for (const [nameB, boxB] of [["title", b.title], ["year", b.year], ["poster", b.poster]] as const) {
+          expect(overlap(boxA, boxB), `${a.id} ${nameA} on ${b.id} ${nameB}`).toBe(false);
+        }
+      }
+    }
+  }
+  expect(checked).toBeGreaterThan(0);
+}
+
+test("only the films made together have a caption, a title over the poster and a year under it, always showing, and it does not touch the poster's box", async ({ page }) => {
   await openDepth(page);
   const region = scene(page);
 
-  // The films made together have one (title and year); the posters behind have none, ever.
-  await expect(region.locator("[data-poster-caption]")).toHaveCount(9);
+  // The films made together have one (a title chip over the poster, a year chip under it); the posters behind have none, ever.
+  await expect(region.locator('[data-poster-caption="title"]')).toHaveCount(9);
+  await expect(region.locator('[data-poster-caption="year"]')).toHaveCount(9);
   await expect(region.locator('li:has(button:not([data-layer="0"])) [data-poster-caption]')).toHaveCount(0);
-  await expect(region.locator('li:has(button[data-layer="0"]) [data-poster-caption]')).toHaveCount(9);
+  await expect(region.locator('li:has(button[data-layer="0"]) [data-poster-caption]')).toHaveCount(18);
   // Shown at rest, with no pointer on anything: opaque, in its place (no travel), and for the screen readers the poster's label already says it all.
   const rest = await Promise.all([100, 101, 107, 200].map((id) => captionOf(page, String(id))));
   for (const caption of rest) {
-    expect(caption).toMatchObject({ title: 1, year: 1, titleTransform: "none", ariaHidden: "true", marked: false });
+    expect(caption).toMatchObject({ title: 1, year: 1, titleTransform: "none", ariaHidden: ["true", "true"], marked: false });
     // The title is a little under full strength until its poster is hovered.
     expect(caption!.titleAlpha).toBeCloseTo(0.9, 2);
   }
@@ -733,20 +838,19 @@ test("only the films made together have a caption, always showing, and it does n
   // All nine, wherever their posters are (the scene is scrolled to the first collaboration, so most are off screen).
   const everyone = await allCaptionsShown(page);
   expect(everyone).toHaveLength(9);
-  for (const caption of everyone) expect(caption).toEqual({ opacities: [1, 1], transforms: ["none", "none"], scrim: 1, marked: false });
+  for (const caption of everyone) expect(caption).toEqual(SHOWN);
   await expect(region.locator("[data-caption]")).toHaveCount(0);
 
-  // Under the poster, outside its box: the poster is the same size with a caption as it would be without (136 x 204, drawn a ninth larger).
+  // Out of the poster's box: the poster is the same size with its labels as it would be without (136 x 204, drawn a ninth larger).
   const geometry = await region.evaluate((scroller) => {
     const li = scroller.querySelector<HTMLElement>('[data-poster="100"]')!;
     const box = li.querySelector("button")!.getBoundingClientRect();
-    const caption = li.querySelector("[data-poster-caption]")!.getBoundingClientRect();
-    return { liW: li.offsetWidth, liH: li.offsetHeight, boxH: box.height, captionTop: caption.top, boxBottom: box.bottom, captionW: caption.width, boxW: box.width };
+    return { liW: li.offsetWidth, liH: li.offsetHeight, boxH: box.height };
   });
   expect([geometry.liW, geometry.liH]).toEqual([136, 204]);
   expect(Math.round(geometry.boxH)).toBe(227);
-  expect(geometry.captionTop).toBeGreaterThan(geometry.boxBottom);
-  expect(geometry.captionW).toBeCloseTo(geometry.boxW, 0);
+  // The title over the top edge and the year under the bottom edge, centred, on near-black chips, and none on another film's poster or chip.
+  await expectLabelsClear(page);
 });
 
 test("a caption is showing wherever its poster is on the screen: scrolled to the middle, the end, or back", async ({ page }) => {
@@ -757,12 +861,12 @@ test("a caption is showing wherever its poster is on the screen: scrolled to the
     const caption = (await captionOf(page, String(id)))!;
     expect(caption).toMatchObject({ title: 1, year: 1, titleTransform: "none", marked: false });
     const { top, bottom } = await scene(page).evaluate((scroller, filmId) => {
-      const box = scroller.querySelector(`[data-poster="${filmId}"] [data-poster-caption]`)!.getBoundingClientRect();
-      return { top: box.top, bottom: box.bottom };
+      const boxes = Array.from(scroller.querySelectorAll(`[data-poster="${filmId}"] [data-poster-caption]`), (label) => label.getBoundingClientRect());
+      return { top: Math.min(...boxes.map((box) => box.top)), bottom: Math.max(...boxes.map((box) => box.bottom)) };
     }, id);
     expect(bottom).toBeGreaterThan(0);
     expect(top).toBeLessThan(page.viewportSize()!.height);
-    for (const one of await allCaptionsShown(page)) expect(one).toEqual({ opacities: [1, 1], transforms: ["none", "none"], scrim: 1, marked: false });
+    for (const one of await allCaptionsShown(page)) expect(one).toEqual(SHOWN);
   }
 });
 
@@ -779,13 +883,36 @@ test("hovering a film made together brightens its title a little and moves nothi
   const hovered = (await captionOf(page, "100"))!;
   expect(hovered).toMatchObject({ title: 1, year: 1, titleTransform: "none", yearAlpha: before.yearAlpha });
   expect(hovered.box).toEqual(before.box);
-  // The caption is under the poster but the pointer is only ever on the poster (the caption takes no pointer events).
-  expect(await scene(page).evaluate((scroller) => getComputedStyle(scroller.querySelector("[data-poster-caption]")!).pointerEvents)).toBe("none");
+  // The labels are over and under the poster but the pointer is only ever on the poster (they take no pointer events).
+  expect(await scene(page).evaluate((scroller) => Array.from(scroller.querySelectorAll("[data-poster-caption]"), (label) => getComputedStyle(label).pointerEvents))).toEqual(
+    Array(18).fill("none"),
+  );
 
   // Back to what it was when the pointer leaves.
   await page.mouse.move(20, 300);
   await expect.poll(async () => (await captionOf(page, "100"))!.titleAlpha).toBeCloseTo(0.9, 2);
   expect(await captionOf(page, "100")).toMatchObject({ title: 1, year: 1 });
+});
+
+test("the hover card of a film made together opens below its year chip and covers neither chip", async ({ page }) => {
+  // Tall enough for the card (about 240px) to fit under the year chip of the poster in the middle of the screen.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openDepth(page);
+  await scene(page).getByRole("button", { name: FIRST_SHARED }).hover();
+  const card = page.getByRole("tooltip");
+  await expect(card).toBeVisible();
+  // The card slides up into place as it opens (translateY of 10px to none, 160ms): wait for it to settle.
+  await page.waitForTimeout(300);
+  const cardBox = (await card.boundingBox())!;
+  const film = (await labelGeometry(page)).find((one) => one.id === "100")!;
+  // Below the year chip (with the card's usual 10px of air under the anchor), and centred on the poster.
+  expect(cardBox.y).toBeGreaterThanOrEqual(film.year.bottom + 8);
+  expect(cardBox.y).toBeLessThanOrEqual(film.year.bottom + 14);
+  expect(cardBox.x + cardBox.width / 2).toBeCloseTo((film.poster.left + film.poster.right) / 2, 0);
+  const cardRect = { left: cardBox.x, top: cardBox.y, right: cardBox.x + cardBox.width, bottom: cardBox.y + cardBox.height };
+  expect(overlap(cardRect, film.year)).toBe(false);
+  expect(overlap(cardRect, film.title)).toBe(false);
+  expect(overlap(cardRect, film.poster)).toBe(false);
 });
 
 test("keyboard focus brightens the title of a film made together too", async ({ page }) => {
@@ -1124,7 +1251,7 @@ test.describe("on a phone", () => {
       await scrollToOffset(page, 100, distance);
       expect(await captionOf(page, "100")).toMatchObject({ title: 1, year: 1, titleTransform: "none", marked: false });
     }
-    for (const one of await allCaptionsShown(page)) expect(one).toEqual({ opacities: [1, 1], transforms: ["none", "none"], scrim: 1, marked: false });
+    for (const one of await allCaptionsShown(page)) expect(one).toEqual(SHOWN);
     await expect(scene(page).locator("[data-caption]")).toHaveCount(0);
 
     // Scrolled so that the poster is off the screen, it is still there (and back in view, still there).
@@ -1155,13 +1282,13 @@ test.describe("on a phone", () => {
     expect(behind).toContain("0px 4px 11px");
   });
 
-  test("captions stay in the area left of the rail and the page does not scroll sideways", async ({ page }) => {
+  test("the labels stay in the area left of the rail, the page does not scroll sideways, and no chip lies on another film's poster or chip", async ({ page }) => {
     await openDepth(page);
-    await expect(scene(page).locator('[data-poster="100"] [data-poster-caption]')).toBeVisible();
+    await expect(scene(page).locator('[data-poster="100"] [data-poster-caption="title"]')).toBeVisible();
     const fits = await scene(page).evaluate((scroller) => {
       const rail = document.querySelector("[data-depth-rail]")!.getBoundingClientRect();
-      return Array.from(scroller.querySelectorAll("[data-poster-caption]"), (caption) => {
-        const box = caption.getBoundingClientRect();
+      return Array.from(scroller.querySelectorAll("[data-caption-chip]"), (chip) => {
+        const box = chip.getBoundingClientRect();
         return { left: box.left, right: box.right, rail: rail.left };
       }).filter((box) => box.right > 0 && box.left < innerWidth);
     });
@@ -1171,5 +1298,7 @@ test.describe("on a phone", () => {
       expect(box.right).toBeLessThanOrEqual(box.rail + 0.5);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+    // The title over the poster, the year under it, near-black chips, clear of every other film's poster and chips, on a phone too.
+    await expectLabelsClear(page);
   });
 });
