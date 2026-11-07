@@ -92,28 +92,34 @@ body {
 /*
  * The Depth view's posters are cards that lie on one another. Each has a layered shadow under it, on the ::before of its
  * `data-poster-card`: a tight contact shadow and a soft, wide ambient one, so the poster in front casts onto the one behind it.
- * The films several people made are the heaviest: no glow (green is only a crisp 2px ring on the poster itself), but a dark
- * outline outside that ring and a deep, layered shadow (contact, tight, mid, a large one thrown down and a wide dark pool all round,
- * reaching 80px and more) that clearly darkens every poster within 40 to 60px of a collaboration, so the films several people made
- * stand apart from a dense cluster of posters behind them. A film made together deepens while its button is hovered or focused: a larger,
- * softer shadow on the ::after fades in (opacity is the only thing that animates, and the shadows themselves are painted once). The posters
+ * Every shadow is the page background (`--bg`) at some strength, not black: the poster sinks into the scene instead of
+ * punching a dark hole in it, and over a poster behind it still reads as a shade of the night they all sit in.
+ * The films several people made are the heaviest: no glow (green is only a crisp 2px ring on the poster itself), but an outline
+ * outside that ring and a layered shadow (contact, tight, mid, one thrown down and a wide pool all round, reaching 60px and more)
+ * that darkens every poster within 30 to 45px of a collaboration, so the films several people made stand apart from a dense
+ * cluster of posters behind them. A film made together deepens while its button is hovered or focused: a larger, softer
+ * shadow on the ::after fades in (opacity is the only thing that animates, and the shadows themselves are painted once). The posters
  * behind keep their resting shadow when hovered: they brighten (see `data-pinned` below), they do not come forward. A phone gets shorter
  * blurs (they are what costs there).
  */
 :root {
-  --depth-shadow-rest: 0 1px 2px rgb(0 0 0 / 0.6), 0 8px 24px rgb(0 0 0 / 0.55);
-  --depth-shadow-collab: 0 0 0 3px rgb(0 0 0 / 0.6), 0 4px 8px rgb(0 0 0 / 0.8), 0 18px 36px rgb(0 0 0 / 0.75),
-    0 40px 80px -8px rgb(0 0 0 / 0.85), 0 0 80px 32px rgb(0 0 0 / 0.72);
-  --depth-shadow-collab-lift: 0 0 0 3px rgb(0 0 0 / 0.65), 0 6px 12px rgb(0 0 0 / 0.85), 0 24px 48px rgb(0 0 0 / 0.8),
-    0 52px 100px -6px rgb(0 0 0 / 0.9), 0 0 104px 40px rgb(0 0 0 / 0.78);
+  --depth-shadow-rest: 0 1px 2px color-mix(in srgb, var(--bg) 48%, transparent), 0 6px 18px color-mix(in srgb, var(--bg) 42%, transparent);
+  --depth-shadow-collab: 0 0 0 3px color-mix(in srgb, var(--bg) 45%, transparent), 0 3px 6px color-mix(in srgb, var(--bg) 60%, transparent),
+    0 13px 26px color-mix(in srgb, var(--bg) 55%, transparent), 0 29px 58px -6px color-mix(in srgb, var(--bg) 62%, transparent),
+    0 0 58px 23px color-mix(in srgb, var(--bg) 52%, transparent);
+  --depth-shadow-collab-lift: 0 0 0 3px color-mix(in srgb, var(--bg) 49%, transparent), 0 4px 9px color-mix(in srgb, var(--bg) 65%, transparent),
+    0 17px 35px color-mix(in srgb, var(--bg) 59%, transparent), 0 37px 72px -4px color-mix(in srgb, var(--bg) 67%, transparent),
+    0 0 75px 29px color-mix(in srgb, var(--bg) 56%, transparent);
 }
 @media (max-width: 639px) {
   :root {
-    --depth-shadow-rest: 0 1px 2px rgb(0 0 0 / 0.6), 0 5px 14px rgb(0 0 0 / 0.55);
-    --depth-shadow-collab: 0 0 0 3px rgb(0 0 0 / 0.6), 0 3px 6px rgb(0 0 0 / 0.8), 0 12px 24px rgb(0 0 0 / 0.75),
-      0 26px 52px -5px rgb(0 0 0 / 0.85), 0 0 52px 21px rgb(0 0 0 / 0.72);
-    --depth-shadow-collab-lift: 0 0 0 3px rgb(0 0 0 / 0.65), 0 4px 8px rgb(0 0 0 / 0.85), 0 16px 32px rgb(0 0 0 / 0.8),
-      0 34px 65px -4px rgb(0 0 0 / 0.9), 0 0 68px 26px rgb(0 0 0 / 0.78);
+    --depth-shadow-rest: 0 1px 2px color-mix(in srgb, var(--bg) 48%, transparent), 0 4px 11px color-mix(in srgb, var(--bg) 42%, transparent);
+    --depth-shadow-collab: 0 0 0 3px color-mix(in srgb, var(--bg) 45%, transparent), 0 2px 4px color-mix(in srgb, var(--bg) 60%, transparent),
+      0 9px 17px color-mix(in srgb, var(--bg) 55%, transparent), 0 19px 38px -4px color-mix(in srgb, var(--bg) 62%, transparent),
+      0 0 38px 15px color-mix(in srgb, var(--bg) 52%, transparent);
+    --depth-shadow-collab-lift: 0 0 0 3px color-mix(in srgb, var(--bg) 49%, transparent), 0 3px 6px color-mix(in srgb, var(--bg) 65%, transparent),
+      0 11px 23px color-mix(in srgb, var(--bg) 59%, transparent), 0 24px 47px -3px color-mix(in srgb, var(--bg) 67%, transparent),
+      0 0 49px 19px color-mix(in srgb, var(--bg) 56%, transparent);
   }
 }
 [data-poster-card] {
@@ -166,24 +172,12 @@ button:focus-visible > [data-poster-card][data-collab]::after {
 }
 
 /*
- * The caption of a film made together (title and year, under its poster; `DepthPoster`) is hidden at rest and comes in on hover or
- * keyboard focus, and on a phone while the poster is in the middle of the screen (the focus field sets `data-caption` on the poster's
- * `li`, with hysteresis: see `useFocusField`). `--caption` is 0 or 1 and is all that changes: the lines (and a soft dark scrim behind them
- * that keeps them legible over any poster) fade in and rise 7px, the title first and the year 50ms later, over 220ms with an ease-out;
- * leaving is quicker (140ms), with no stagger. Only opacity and transform. Reduced motion: it just appears and disappears.
- * A hover only counts for a pointer that can hover: a tap leaves a "hover" on a phone, and the tap opens the film instead.
+ * The caption of a film made together (title and year, under its poster; `DepthPoster`) is always there: nothing about it
+ * changes with the pointer, the focus or the scroll position. A soft dark scrim behind the lines keeps them legible over any
+ * poster. (A hover or keyboard focus only brightens the title a little: see `DepthPoster`.)
  */
 [data-poster-caption] {
-  --caption: 0;
   isolation: isolate;
-}
-:is([data-caption] > button, button:focus-visible) > [data-poster-caption] {
-  --caption: 1;
-}
-@media (hover: hover) and (pointer: fine) {
-  button:hover > [data-poster-caption] {
-    --caption: 1;
-  }
 }
 [data-poster-caption]::before {
   content: "";
@@ -192,27 +186,4 @@ button:focus-visible > [data-poster-card][data-collab]::after {
   z-index: -1;
   pointer-events: none;
   background: radial-gradient(closest-side, rgb(0 0 0 / 0.55), rgb(0 0 0 / 0.38) 55%, transparent);
-}
-[data-poster-caption]::before,
-[data-caption-line] {
-  opacity: var(--caption);
-  transition-property: opacity, transform;
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-  transition-duration: calc(140ms + var(--caption) * 80ms);
-  transition-delay: calc(var(--caption) * var(--caption-delay, 0ms));
-}
-[data-caption-line] {
-  transform: translateY(calc((1 - var(--caption)) * 7px));
-}
-[data-caption-line="year"] {
-  --caption-delay: 50ms;
-}
-@media (prefers-reduced-motion: reduce) {
-  [data-poster-caption]::before,
-  [data-caption-line] {
-    transition: none;
-  }
-  [data-caption-line] {
-    transform: none;
-  }
 }

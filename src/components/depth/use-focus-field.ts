@@ -15,14 +15,6 @@ const IDLE_MS = 150;
 const VIEW_BUFFER = 200;
 /** A poster's `--focus` is only rewritten when it moved by more than this. */
 const MIN_STEP = 0.01;
-/**
- * The caption of a film made together (see `DepthPoster`) shows on a phone while the poster is in the middle band: the band's own
- * weight (`focusWeight`, 1 within 0.35 of the radius of the middle line and falling to 0 at the radius) from `CAPTION_ON`, and until it
- * falls under `CAPTION_OFF`. The two differ so that a poster resting at the band's edge does not flicker: on a 160px radius, in from 92px
- * of the middle line and out past 119px (a poster is about 170px tall there).
- */
-const CAPTION_ON = 0.7;
-const CAPTION_OFF = 0.35;
 
 interface FieldItem {
   el: HTMLElement;
@@ -32,19 +24,13 @@ interface FieldItem {
   x: number;
   /** Scale of the poster on screen: its own factor (`posterFactor`), as obscure films sit further back than their layer. */
   f: number;
-  /** A film made together: it has a caption, which the band shows (`data-caption`), and no `--focus` (it is always in focus). */
-  collab: boolean;
-  /** Whether the caption is showing, for a film made together. */
-  captioned: boolean;
 }
 
 /**
  * The field of focus: the pointer (or, with no pointer, a band through the middle of the screen) sharpens the soft
  * posters of the layers behind. Each poster's `--focus` (0 to 1) is the opacity of its sharp image over its blurred one, and
  * lifts the poster from its resting opacity (fainter the more obscure the film) to 1, so it is the only thing that animates;
- * posters of the front layer (and a page of one person's) are never sharpened. On a phone the same loop also shows the caption of a
- * film made together while its poster is in the band (the poster's `li` gets `data-caption`, with hysteresis, see `CAPTION_ON`): a
- * pointer shows it by hovering (CSS), so the loop clears it then.
+ * posters of the front layer (and a page of one person's) are never sharpened, so the loop leaves them alone.
  *
  * Where a poster is on screen is worked out from numbers (`depth-projection.ts`), never read from the DOM: the work
  * per frame is arithmetic over the posters that are in view. The loop runs only while the scene scrolls or the pointer
@@ -67,12 +53,9 @@ export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, fil
     for (const item of films) {
       const el = elements.get(String(item.film.id));
       if (!el) continue;
-      if (item.shared) {
-        items.push({ el, film: item, y: item.y, x: 0, f: posterFactor(item), collab: true, captioned: el.hasAttribute("data-caption") });
-      } else if (item.background) {
-        items.push({ el, film: item, y: item.y, x: 0, f: posterFactor(item), collab: false, captioned: false });
-        written.set(el, Number.parseFloat(el.style.getPropertyValue("--focus")) || 0);
-      }
+      if (!item.background) continue;
+      items.push({ el, film: item, y: item.y, x: 0, f: posterFactor(item) });
+      written.set(el, Number.parseFloat(el.style.getPropertyValue("--focus")) || 0);
     }
 
     let width = scroller.clientWidth;
@@ -106,17 +89,6 @@ export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, fil
       for (const item of items) {
         const { from, to } = visibleDocRange(scrollTop, height, item.f, VIEW_BUFFER);
         const near = item.y >= from && item.y <= to;
-        if (item.collab) {
-          // The band only (a pointer hovers: CSS shows the caption), and only on screen: the distance from the middle line is all of it.
-          const weight = !usePointer && near ? focusWeight(focusDistance(0, projectY(item.y, scrollTop, height, item.f), height, null), radius) : 0;
-          const shown = item.captioned ? weight > CAPTION_OFF : weight >= CAPTION_ON;
-          if (shown !== item.captioned) {
-            item.captioned = shown;
-            if (shown) item.el.setAttribute("data-caption", "");
-            else item.el.removeAttribute("data-caption");
-          }
-          continue;
-        }
         if (!near) continue;
         let weight = 0;
         if (focus || !usePointer) {
@@ -168,7 +140,6 @@ export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, fil
       scroller.removeEventListener("pointerleave", onPointerLeave);
       observer?.disconnect();
       if (frame) cancelAnimationFrame(frame);
-      for (const item of items) if (item.collab && item.captioned) item.el.removeAttribute("data-caption");
     };
   }, [scrollerRef, films, peopleCount]);
 }

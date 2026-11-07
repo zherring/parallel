@@ -220,13 +220,17 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
           </span>
         </span>
         {shared && (
-          // Under the poster, out of its box (the layout and the packing do not know it): the title, two lines at most, and the year. Hidden until
-          // the poster is hovered or has keyboard focus, or, on a phone, is in the middle of the screen (the focus field marks the `li`
-          // `data-caption`); see `[data-poster-caption]` in globals.css. The button's label already says all of it.
+          // Under the poster, out of its box (the layout and the packing do not know it): the title, two lines at most, and the year. Always
+          // there; the scrim behind it is in globals.css (`[data-poster-caption]`). A hover or keyboard focus brightens the title from 90% to
+          // full (a pointer that can hover only: Tailwind's `hover:` variant), and nothing moves. The button's label already says all of it.
           <span aria-hidden data-poster-caption className="pointer-events-none absolute inset-x-0 top-full mt-1.5 block text-center">
             <span
               data-caption-line
-              className={cn("-mx-1 line-clamp-2 break-words px-1 pb-px text-[13px] leading-4 text-strong max-sm:text-[14px]", CAPTION_OUTLINE)}
+              className={cn(
+                "-mx-1 line-clamp-2 break-words px-1 pb-px text-[13px] leading-4 text-strong/90 max-sm:text-[14px]",
+                "transition-colors duration-150 group-hover:text-strong group-focus-visible:text-strong motion-reduce:transition-none",
+                CAPTION_OUTLINE,
+              )}
             >
               {film.title}
             </span>
