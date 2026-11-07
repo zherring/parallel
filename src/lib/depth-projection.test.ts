@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { focusDistance, focusWeight, jsLayerTranslate, projectX, projectY, visibleDocRange } from "@/lib/depth-projection";
+import { focusDistance, focusWeight, inWindow, jsLayerTranslate, projectX, projectY, visibleDocRange } from "@/lib/depth-projection";
 
 const FACTORS = [1, 0.758, 0.61, 0.526, 0.476];
 
@@ -108,5 +108,28 @@ describe("focusDistance", () => {
     expect(focusDistance(10, 500, 800, null)).toBe(100);
     expect(focusDistance(900, 300, 800, null)).toBe(100);
     expect(focusDistance(0, 400, 800, null)).toBe(0);
+  });
+});
+
+describe("inWindow", () => {
+  it("is the viewport widened by the buffer, in screen px, whatever the layer", () => {
+    for (const f of FACTORS) {
+      // A poster whose screen y is within the viewport plus 1.5 screens is in; one a hair beyond is out.
+      for (const screenY of [-1199, 0, 450, 900, 2249]) {
+        const docY = 3000 + (screenY - 450 * (1 - f)) / f;
+        expect(inWindow(docY, 3000, 900, f, 1350)).toBe(true);
+      }
+      for (const screenY of [-1351, 2251]) {
+        const docY = 3000 + (screenY - 450 * (1 - f)) / f;
+        expect(inWindow(docY, 3000, 900, f, 1350)).toBe(false);
+      }
+    }
+  });
+
+  it("holds for a layer in front of the screen plane (a factor above 1) too", () => {
+    const f = 1.11;
+    const docY = 3000 + (500 - 450 * (1 - f)) / f;
+    expect(inWindow(docY, 3000, 900, f, 0)).toBe(true);
+    expect(inWindow(3000 + 1000, 3000, 900, f, 0)).toBe(false);
   });
 });

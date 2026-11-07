@@ -41,6 +41,46 @@ test("the scene opens scrolled to the first collaboration", async ({ page }) => 
   await expect(page.locator("html")).toHaveAttribute("data-view", "depth");
 });
 
+test("the posters near the screen have their images, whichever layer they are on, and the far ones wait", async ({ page }) => {
+  await openDepth(page);
+  const region = scene(page);
+
+  // Posters whose images are not loaded yet, split by where they are on screen (a screen and more either side is "near").
+  const unloaded = () =>
+    region.evaluate((scroller) => {
+      const height = scroller.clientHeight;
+      const result = { near: 0, nearBackground: 0, far: 0, farWithoutSource: 0 };
+      scroller.querySelectorAll<HTMLElement>("[data-poster]").forEach((poster) => {
+        const box = poster.getBoundingClientRect();
+        const images = Array.from(poster.querySelectorAll("img"));
+        const near = box.bottom > -height && box.top < height * 2;
+        const background = poster.querySelector("button")?.getAttribute("data-layer") !== "0";
+        // The first image is the one that shows (the soft one on the layers behind).
+        if (near && !(images[0].complete && images[0].naturalWidth > 0)) {
+          result.near++;
+          if (background) result.nearBackground++;
+        }
+        if (!near) {
+          result.far++;
+          if (images.every((image) => !image.hasAttribute("src"))) result.farWithoutSource++;
+        }
+      });
+      return result;
+    });
+
+  await expect.poll(async () => (await unloaded()).near).toBe(0);
+  // Not everything is fetched at once: posters well away from the screen have no `src` yet.
+  expect((await unloaded()).farWithoutSource).toBeGreaterThan(0);
+
+  // Scrolling to the far end (in one jump, as the rail would) brings those in, background layers included.
+  await region.evaluate((scroller) => { scroller.scrollTop = scroller.scrollHeight; });
+  await expect.poll(async () => (await unloaded()).near).toBe(0);
+  await region.evaluate((scroller) => { scroller.scrollTop = 0; });
+  await expect.poll(async () => (await unloaded()).nearBackground).toBe(0);
+  // Every poster there is a poster with an image to show.
+  expect(await region.locator("[data-poster] img").count()).toBeGreaterThan(20);
+});
+
 test("a linked period dims the posters outside it", async ({ page }) => {
   await openDepth(page, "&from=2000&to=2001");
   const region = scene(page);

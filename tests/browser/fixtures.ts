@@ -7,7 +7,7 @@ const movie = (id: number, date: string): RawCastCredit => ({
   id,
   title: `Scroll Film ${id}`,
   release_date: date,
-  poster_path: null,
+  poster_path: `/poster-${id}.png`,
   vote_count: 100,
   order: 0,
   character: "Lead",
@@ -28,7 +28,14 @@ const people: Record<string, RawPerson> = {
   "90000002": { id: 90000002, name: "Scroll Beta", profile_path: null, birthday: "1962-01-01", biography: "Another actor whose filmography shares a cluster of closely released films." },
 };
 
+/** A 1x1 PNG: every poster request is answered with it, so the browser tests need no network and still load images. */
+const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+
 export const test = base.extend({
+  page: async ({ page }, provide) => {
+    await page.route("https://image.tmdb.org/**", (route) => route.fulfill({ contentType: "image/png", body: PIXEL }));
+    await provide(page);
+  },
   next: async ({ next }, provide) => {
     next.onFetch((request) => {
       const url = new URL(request.url);

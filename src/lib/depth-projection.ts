@@ -30,6 +30,12 @@ export function visibleDocRange(scrollTop: number, viewportH: number, f: number,
   return { from: docY(-buffer), to: docY(viewportH + buffer) };
 }
 
+/** Whether document y `y` is on screen, or within `buffer` px (screen px) of it, on a layer of factor `f`. */
+export function inWindow(y: number, scrollTop: number, viewportH: number, f: number, buffer: number): boolean {
+  const { from, to } = visibleDocRange(scrollTop, viewportH, f, buffer);
+  return y >= from && y <= to;
+}
+
 /**
  * How much a poster at screen distance `distance` from the focus (the pointer, or the centre band) is in focus, 0 to 1:
  * 1 within 0.35 of `radius`, 0 from `radius` on, a smoothstep between.

@@ -3,9 +3,11 @@
 import { useCallback, useId, useLayoutEffect, useMemo, useRef, type CSSProperties, type FocusEvent, type PointerEvent, type RefObject } from "react";
 import { DepthPoster } from "@/components/depth/depth-poster";
 import { useFocusField } from "@/components/depth/use-focus-field";
+import { SOFT_WINDOW, usePosterImages } from "@/components/depth/use-poster-images";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "@/components/timeline/film-popover";
 import type { CombinedFilmInfo } from "@/lib/combined-track";
 import { anchorScrollTop, depthSceneCss, layerDepth, layerFactor, type DepthFilm, type DepthLayout } from "@/lib/depth-layout";
+import { inWindow } from "@/lib/depth-projection";
 import { filmCardContent } from "@/lib/film-credits";
 import { joinNames } from "@/lib/format";
 import { personColor } from "@/lib/person-colors";
@@ -35,6 +37,9 @@ interface DepthSceneProps {
   today: string;
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
+
+/** The viewport height (px) the posters that are fetched up front are chosen for: the server does not know the real one. */
+const NOMINAL_VIEWPORT_H = 900;
 
 interface Layer {
   layer: number;
@@ -110,6 +115,18 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
   }, [scrollerRef, anchorY, trackHeight]);
 
   useFocusField(scrollerRef, layout.films, layout.hasShared, people.length);
+  usePosterImages(scrollerRef, layout.films);
+
+  // The posters whose images are in the markup (see `DepthPoster`'s `eager`): those within the fetch window of where the
+  // scene opens, worked out for a nominal viewport so the server and the browser agree. The rest wait for `usePosterImages`.
+  const eagerIds = useMemo(() => {
+    const top = anchorScrollTop(anchorY, NOMINAL_VIEWPORT_H, trackHeight);
+    return new Set(
+      layout.films
+        .filter((item) => inWindow(item.y, top, NOMINAL_VIEWPORT_H, layerFactor(item.layer), SOFT_WINDOW * NOMINAL_VIEWPORT_H))
+        .map((item) => item.film.id),
+    );
+  }, [layout.films, anchorY, trackHeight]);
 
   // ---- hover, focus and the film card ---------------------------------------
   const popoverId = useId();
@@ -206,6 +223,7 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
                     hasShared={layout.hasShared}
                     outside={outsideIds.has(film.id)}
                     selected={selectedId === film.id}
+                    eager={eagerIds.has(film.id)}
                     describedBy={popoverTarget && popoverContent && popoverTarget.filmId === film.id ? popoverId : undefined}
                     onSelect={handleSelect}
                   />

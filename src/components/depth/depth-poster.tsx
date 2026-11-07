@@ -4,13 +4,6 @@ import { blurFor, columnIndex, isBlurred, phoneBlurFor, type DepthFilm } from "@
 import { personColor, personGlow } from "@/lib/person-colors";
 import { cn } from "@/components/timeline/cn";
 
-/**
- * Room (px) around a poster inside its list item for its glow. The item is `content-visibility: auto`, which clips
- * painting to its padding box, so the glow has to fit in it; the item itself takes no pointer events, so the room
- * never covers a neighbouring poster.
- */
-const GLOW_ROOM = 28;
-
 interface DepthPosterProps {
   item: DepthFilm;
   /** "Ann: Director. Bo: Writer", from `describeCombined`. */
@@ -26,6 +19,11 @@ interface DepthPosterProps {
   /** Outside the period a link chose: faint and grey. */
   outside: boolean;
   selected: boolean;
+  /**
+   * Inside the window of posters whose images are fetched (`usePosterImages`) at the scene's opening position: the images
+   * have their `src` in the markup, so the first paint has them. The others get theirs as the scene scrolls.
+   */
+  eager: boolean;
   /** id of the hover card while it is open for this poster. */
   describedBy?: string;
   onSelect: (id: number, trigger: HTMLElement) => void;
@@ -49,7 +47,7 @@ function TitleFace({ title }: { title: string }) {
   );
 }
 
-function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, outside, selected, describedBy, onSelect }: DepthPosterProps) {
+function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, outside, selected, eager, describedBy, onSelect }: DepthPosterProps) {
   const { film, shared, slots, layer, y, band, col, jitter, w, h } = item;
   // Collaborations are the sharp ones in front: a bigger image. The posters of the layers behind are two images, a soft
   // one (small and blurred, drawn once) under a sharp one whose opacity the focus field raises (see `useFocusField`).
@@ -61,7 +59,7 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
   const ringColor = ring === null ? null : personColor(ring);
 
   const style = {
-    top: round(y - h / 2 - GLOW_ROOM),
+    top: round(y - h / 2),
     // Where a poster is across is the same markup for every viewport: its band (a fraction of the stage), its column in steps
     // from the band and its jitter, which the scene's CSS (`depthSceneCss`) turns into `left` with the viewport's spacing and
     // its layer's `--f`. The films several people made sit on the centre line.
@@ -70,10 +68,9 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
     "--jit": round(jitter),
     "--step": layer === 0 ? "var(--step-collab)" : "var(--step-solo)",
     "--w": `${w}px`,
-    "--lead": `${round(w / 2 + GLOW_ROOM)}px`,
-    width: w + GLOW_ROOM * 2,
-    height: h + GLOW_ROOM * 2,
-    padding: GLOW_ROOM,
+    "--lead": `${round(w / 2)}px`,
+    width: w,
+    height: h,
     // How much the focus field has sharpened this poster, 0 to 1 (the posters it does not drive are always in focus), and the blur it is behind.
     "--focus": soft ? 0 : 1,
     "--layer-blur": `${blurFor(layer, hasShared)}px`,
@@ -85,7 +82,7 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
     <li
       data-poster={film.id}
       className={cn(
-        "pointer-events-none absolute [content-visibility:auto]",
+        "pointer-events-none absolute",
         "transition-[opacity,filter] duration-150 motion-reduce:transition-none",
         outside && !selected && "opacity-25 grayscale",
       )}
@@ -115,7 +112,7 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
               aria-hidden
               className="absolute rounded-[6px]"
               style={{
-                inset: GLOW_ROOM,
+                inset: 0,
                 boxShadow: `0 0 18px 2px ${personGlow(ring)}`,
                 opacity: "calc(0.3 + var(--focus) * 0.7)",
               }}
@@ -133,11 +130,12 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
             {soft &&
               (softSrc ? (
                 <img
-                  src={softSrc}
+                  // The image is fetched as the scene scrolls (`usePosterImages`), not by the browser's lazy loading.
+                  src={eager ? softSrc : undefined}
+                  data-src={softSrc}
                   alt=""
                   width={w}
                   height={h}
-                  loading="lazy"
                   decoding="async"
                   draggable={false}
                   // Blurred once and left alone; scaled up so the blur's soft edge falls outside the clip. A phone blurs the first
@@ -151,11 +149,13 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
               ))}
             {src ? (
               <img
-                src={src}
+                // The sharp image of a soft poster is only wanted when it is close (the hook has it); a poster that is not soft has only this one.
+                src={eager && !soft ? src : undefined}
+                data-src={src}
+                data-window={soft ? "sharp" : "soft"}
                 alt=""
                 width={w}
                 height={h}
-                loading="lazy"
                 decoding="async"
                 draggable={false}
                 className={cn(
