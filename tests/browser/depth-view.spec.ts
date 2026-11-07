@@ -60,13 +60,13 @@ test("the films made together float in front: larger, with their own shadow, and
     "preserve-3d",
   ]);
   // The shadows hang from the card's ::before: no green glow, but a dark outline outside the ring and layers of near-black
-  // (contact, mid, a large ambient one thrown down, a soft halo all round), the heaviest in the scene. Green is only the crisp 2px ring on the poster.
+  // (contact, tight, mid, a deep one thrown down, a wide pool all round), the heaviest in the scene. Green is only the crisp 2px ring on the poster.
   const shadow = (selector: string) =>
     region.locator(selector).first().evaluate((card) => getComputedStyle(card, "::before").boxShadow);
   const collabShadow = await shadow("[data-poster-card][data-collab]");
   expect(collabShadow).not.toContain("224, 84");
   expect(collabShadow.match(/rgba\(0, 0, 0/g)).toHaveLength(5);
-  expect(collabShadow).toContain("0px 30px 60px -10px");
+  expect(collabShadow).toContain("0px 40px 80px -8px");
   await expect(poster.locator("[data-poster-card] > span").first()).toHaveCSS("box-shadow", "rgb(0, 224, 84) 0px 0px 0px 2px");
   // Every poster behind has the layered drop shadow too: a tight contact shadow and a soft ambient one.
   const behindShadow = await shadow("[data-poster-card]:not([data-collab])");
