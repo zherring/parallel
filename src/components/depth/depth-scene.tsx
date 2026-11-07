@@ -207,7 +207,9 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
               aria-label={layerLabel(group, people)}
               className="absolute inset-x-0 top-0 m-0 list-none p-0"
               // `--f`: how much smaller the layer is on screen, for the posters' x (see `depthSceneCss`).
-              style={{ transform: `translateZ(${-layerDepth(group.layer)}px)`, "--f": layerFactor(group.layer) } as CSSProperties}
+              // Everything but the films several people made is behind the screen plane; they are in front of it (a negative depth).
+              // The z-index is for a browser that flattens the 3D context: the films several people made still paint last.
+              style={{ transform: `translateZ(${-layerDepth(group.layer)}px)`, zIndex: group.layer === 0 ? layers.length : 0, "--f": layerFactor(group.layer) } as CSSProperties}
             >
               {group.films.map((item) => {
                 const film = item.film;

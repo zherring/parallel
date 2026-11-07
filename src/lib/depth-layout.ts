@@ -1,8 +1,8 @@
 /**
  * Pure geometry for the Depth view: the combined films laid down a vertical axis (oldest at the top), each on one
  * of several layers that the browser's perspective turns into parallax. Layer 0 holds the films several people made
- * (large, in front, on the centre spine); layer k holds the films of the person in palette slot k - 1, further back
- * the higher k is. Every layer is laid on the same document axis, `y = yForDate(releaseDate)`, so a poster lines up
+ * (large, brought forward of the screen plane so it also moves a little faster than the scroll, on the centre spine);
+ * layer k holds the films of the person in palette slot k - 1, further back the higher k is. Every layer is laid on the same document axis, `y = yForDate(releaseDate)`, so a poster lines up
  * with the year rail where the layer's depth factor is 1 or at the viewport's centre, and drifts elsewhere.
  *
  * It reuses the flat timeline's pure helpers (`makeScale`, `xForDate`, `packFilms`, `trackWidth`) with x read as y and
@@ -34,12 +34,17 @@ import type { Film } from "@/lib/types";
 export const DEPTH = {
   /** CSS `perspective`, px. */
   perspective: 1000,
-  /** Distance behind the screen plane (px) of each layer: 0 is the films several people made, k the person in slot k - 1. */
-  z: [0, 320, 640, 900, 1100],
+  /**
+   * Distance behind the screen plane (px) of each layer: 0 is the films several people made, k the person in slot k - 1.
+   * The first is negative: the films several people made float 100px in front of the screen plane (`translateZ(+100px)`),
+   * drawn a ninth larger than they are laid out and moving a ninth faster than the scroll.
+   */
+  z: [-100, 320, 640, 900, 1100],
   pxPerYear: 128,
   /** Empty space before the first and after the last year, so the edge posters are not cut off. */
   pad: 200,
-  collab: { w: 112, h: 168 },
+  /** Laid out at this size; the layer's factor (1.11) draws it about 151 x 227 px on a desktop (see `TIERS`' `collabScale` for smaller screens). */
+  collab: { w: 136, h: 204 },
   solo: { w: 80, h: 120 },
   /** Vertical gap (px) between posters of a column. */
   rowGap: 14,
@@ -62,6 +67,8 @@ export interface XSpec {
   gutter: number;
   /** Distance (px on screen) between two columns of the posters of films several people made. */
   stepCollab: number;
+  /** How much the posters of films several people made are scaled down about their centres (1 on a desktop): a phone's stage is narrower. */
+  collabScale: number;
   /** Distance (px on screen) between two columns of a person's own films. */
   stepSolo: number;
   /** Width (px on screen) the jitter of a solo poster is spread over. */
@@ -77,9 +84,9 @@ export interface XSpec {
  * is what lets a desktop use its width while a phone keeps three columns inside 362px.
  */
 const TIERS: Record<DepthTier, Omit<XSpec, "bands"> & { stepSoloOne: number; spread: number }> = {
-  phone: { rail: 28, gutter: 4, stepCollab: 120, stepSolo: 70, stepSoloOne: 96, jitterSpan: 8, spread: 0.8 },
-  tablet: { rail: 56, gutter: 8, stepCollab: 132, stepSolo: 100, stepSoloOne: 190, jitterSpan: 20, spread: 0.9 },
-  desktop: { rail: 56, gutter: 8, stepCollab: 150, stepSolo: 120, stepSoloOne: 300, jitterSpan: 36, spread: 1 },
+  phone: { rail: 28, gutter: 4, stepCollab: 128, collabScale: 0.76, stepSolo: 70, stepSoloOne: 96, jitterSpan: 8, spread: 0.8 },
+  tablet: { rail: 56, gutter: 8, stepCollab: 146, collabScale: 0.9, stepSolo: 100, stepSoloOne: 190, jitterSpan: 20, spread: 0.9 },
+  desktop: { rail: 56, gutter: 8, stepCollab: 166, collabScale: 1, stepSolo: 120, stepSoloOne: 300, jitterSpan: 36, spread: 1 },
 };
 
 /** Columns a person's own films scatter over (the centre line and one to each side); a crowd of films takes more. */
@@ -206,12 +213,13 @@ export function bandFor(slot: number, peopleCount: number, tier: DepthTier = "de
 
 /** The spacing of the x axis for a viewport and a page of `peopleCount` people. */
 export function xSpec(tier: DepthTier, peopleCount: number): XSpec {
-  const { rail, gutter, stepCollab, stepSolo, stepSoloOne, jitterSpan } = TIERS[tier];
+  const { rail, gutter, stepCollab, collabScale, stepSolo, stepSoloOne, jitterSpan } = TIERS[tier];
   const people = Math.min(Math.max(1, Math.trunc(peopleCount)), BANDS.length - 1);
   return {
     rail,
     gutter,
     stepCollab,
+    collabScale,
     // A page of one person has the whole width to itself: its columns are spread further apart.
     stepSolo: people === 1 ? stepSoloOne : stepSolo,
     jitterSpan,
@@ -229,11 +237,13 @@ export function xSpec(tier: DepthTier, peopleCount: number): XSpec {
  */
 export function docCenterX(film: Pick<DepthFilm, "layer" | "band" | "col" | "jitter" | "w">, width: number, spec: XSpec): number {
   const f = layerFactor(film.layer);
+  // What is kept inside the stage is the poster as drawn: the films several people made are scaled down on a small screen.
+  const w = film.layer === 0 ? film.w * spec.collabScale : film.w;
   const q = film.band === null ? 0.5 : (spec.bands[Math.min(film.band, spec.bands.length - 1)] ?? 0.5);
   const step = film.layer === 0 ? spec.stepCollab : spec.stepSolo;
   const x = width / 2 + ((width - spec.rail) * q - width / 2 + columnIndex(film.col) * step + film.jitter * spec.jitterSpan) / f;
-  const least = width / 2 + (spec.gutter - width / 2) / f + film.w / 2;
-  const greatest = width / 2 + (width / 2 - spec.rail - spec.gutter) / f - film.w / 2;
+  const least = width / 2 + (spec.gutter - width / 2) / f + w / 2;
+  const greatest = width / 2 + (width / 2 - spec.rail - spec.gutter) / f - w / 2;
   return Math.max(least, Math.min(x, greatest));
 }
 
@@ -244,6 +254,7 @@ function specDeclarations(spec: XSpec): string {
     `--rail:${spec.rail}px`,
     `--gutter:${spec.gutter}px`,
     `--step-collab:${spec.stepCollab}px`,
+    `--collab-scale:${round(spec.collabScale)}`,
     `--step-solo:${spec.stepSolo}px`,
     `--jit-span:${spec.jitterSpan}px`,
     ...spec.bands.map((band, slot) => `--band-${slot}:${round(band)}`),
@@ -252,15 +263,15 @@ function specDeclarations(spec: XSpec): string {
 
 /**
  * The scene's horizontal spacing as CSS: the custom properties of each viewport (`xSpec`) on `[data-depth-scene]`, and the
- * one rule that turns them and a poster's own (`--q` band, `--col` steps from it, `--jit`, `--step`, `--w`, `--lead`, with
+ * one rule that turns them and a poster's own (`--q` band, `--col` steps from it, `--jit`, `--step`, `--w`, `--ps` (its scale, `--collab-scale` for the films several people made), `--lead`, with
  * its layer's `--f`) into `left`, the same sum as `docCenterX`. It is generated from the same numbers the JS uses, so the
  * two cannot drift apart, and it is the same markup for every viewport: the browser picks the spacing.
  */
 export function depthSceneCss(peopleCount: number): string {
   const rule = (tier: DepthTier) => `[data-depth-scene]{${specDeclarations(xSpec(tier, peopleCount))}}`;
   const x = "calc(50% + ((100% - var(--rail)) * var(--q) - 50% + var(--col) * var(--step) + var(--jit) * var(--jit-span)) / var(--f))";
-  const least = "calc(50% + (var(--gutter) - 50%) / var(--f) + var(--w) / 2)";
-  const greatest = "calc(50% + (50% - var(--rail) - var(--gutter)) / var(--f) - var(--w) / 2)";
+  const least = "calc(50% + (var(--gutter) - 50%) / var(--f) + var(--w) * var(--ps) / 2)";
+  const greatest = "calc(50% + (50% - var(--rail) - var(--gutter)) / var(--f) - var(--w) * var(--ps) / 2)";
   return [
     rule("phone"),
     `@media (min-width:${TIER_MIN_WIDTH.tablet}px){${rule("tablet")}}`,

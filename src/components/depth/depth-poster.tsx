@@ -38,6 +38,19 @@ function accessibleName(title: string, year: number, roles: string, note: string
 
 const round = (value: number) => Math.round(value * 100) / 100;
 
+/**
+ * A film several people made floats above the scene: a green ring and a strong glow, a tight contact shadow, a nearer soft
+ * one and a wide ambient one thrown down and away, in near-black (the posters it covers go darker under it). The layers
+ * are drawn in front of everything else, so the shadow lands on whatever poster is behind.
+ */
+const COLLAB_SHADOW = [
+  "0 0 0 2px var(--lit)",
+  "0 0 34px 8px rgb(0 224 84 / 0.55)",
+  "0 2px 3px rgb(0 0 0 / 0.8)",
+  "0 12px 24px -4px rgb(0 0 0 / 0.65)",
+  "0 44px 72px -12px rgb(0 0 0 / 0.6)",
+].join(",");
+
 /** The title in a box, for a film TMDB has no poster of. */
 function TitleFace({ title }: { title: string }) {
   return (
@@ -68,6 +81,9 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
     "--jit": round(jitter),
     "--step": layer === 0 ? "var(--step-collab)" : "var(--step-solo)",
     "--w": `${w}px`,
+    // The films several people made are drawn smaller on a small screen (the viewport's `--collab-scale`): about the poster's centre.
+    "--ps": layer === 0 ? "var(--collab-scale)" : 1,
+    ...(layer === 0 ? { transform: "scale(var(--collab-scale))" } : null),
     "--lead": `${round(w / 2)}px`,
     width: w,
     height: h,
@@ -121,11 +137,10 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
           <span
             className={cn(
               "relative block size-full overflow-hidden rounded-[4px] bg-surface",
-              shared && "shadow-lit",
               selected && "outline outline-2 outline-offset-2 outline-strong",
               "group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-focus",
             )}
-            style={ringColor !== null ? { boxShadow: `0 0 0 1.5px ${ringColor}` } : undefined}
+            style={shared ? { boxShadow: COLLAB_SHADOW } : ringColor !== null ? { boxShadow: `0 0 0 1.5px ${ringColor}` } : undefined}
           >
             {soft &&
               (softSrc ? (

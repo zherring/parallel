@@ -56,17 +56,23 @@ const layout = (lanes: [number, string][][]) => {
 const byId = (l: ReturnType<typeof layout>, id: number) => l.films.find((f) => f.film.id === id) as DepthFilm;
 
 describe("layerFactor", () => {
-  it("is 1 at the screen plane and decreases with every layer", () => {
-    expect(layerFactor(0)).toBe(1);
+  it("is above 1 for the films several people made, in front of the screen plane, and decreases with every layer behind it", () => {
+    expect(layerFactor(0)).toBeGreaterThan(1);
+    expect(layerFactor(0)).toBeCloseTo(1000 / 900, 10);
     const factors = DEPTH.z.map((_, layer) => layerFactor(layer));
     for (let i = 1; i < factors.length; i++) expect(factors[i]).toBeLessThan(factors[i - 1]);
     expect(layerFactor(1)).toBeCloseTo(1000 / 1320, 10);
   });
 
+  it("brings the films several people made 100px forward and keeps the rest behind", () => {
+    expect(DEPTH.z[0]).toBe(-100);
+    expect(DEPTH.z.slice(1).every((z) => z > 0)).toBe(true);
+  });
+
   it("takes the perspective as a parameter and clamps layers past the table to the last one", () => {
     expect(layerFactor(1, 500)).toBeCloseTo(500 / 820, 10);
     expect(layerDepth(99)).toBe(DEPTH.z[DEPTH.z.length - 1]);
-    expect(layerDepth(-3)).toBe(0);
+    expect(layerDepth(-3)).toBe(DEPTH.z[0]);
   });
 });
 
@@ -156,9 +162,25 @@ describe("xSpec", () => {
       for (const people of [1, 2, 3, 4]) {
         const spec = xSpec(tier, people);
         expect((spec.stepSolo - spec.jitterSpan) / layerFactor(1)).toBeGreaterThanOrEqual(DEPTH.solo.w);
-        expect(spec.stepCollab).toBeGreaterThanOrEqual(DEPTH.collab.w);
+        // The posters several people made, as drawn (scaled for the viewport), one step apart in the layer's own space.
+        expect(spec.stepCollab / layerFactor(0)).toBeGreaterThanOrEqual(DEPTH.collab.w * spec.collabScale);
       }
     }
+  });
+
+  it("draws the posters several people made about 150 x 225 px on a desktop and smaller on a phone, so they fit left of the rail", () => {
+    const drawn = (tier: "phone" | "tablet" | "desktop") => {
+      const scale = xSpec(tier, 2).collabScale * layerFactor(0);
+      return { w: DEPTH.collab.w * scale, h: DEPTH.collab.h * scale };
+    };
+    expect(drawn("desktop").w).toBeGreaterThan(148);
+    expect(drawn("desktop").h).toBeGreaterThan(222);
+    expect(drawn("phone").w).toBeLessThan(drawn("tablet").w);
+    expect(drawn("tablet").w).toBeLessThan(drawn("desktop").w);
+    // Three columns of them side by side (the most a crowd opens that stay on screen) fit a 390px phone's stage, which is
+    // 390 less the 28px rail, gutters included.
+    const spec = xSpec("phone", 2);
+    expect(3 * drawn("phone").w + 2 * spec.gutter).toBeLessThanOrEqual(390 - spec.rail);
   });
 
   it("leaves a phone room for the year rail's 28px and a desktop its 56px", () => {
@@ -207,7 +229,7 @@ describe("docCenterX", () => {
       for (const people of [1, 2, 3, 4]) {
         const spec = xSpec(tier, people);
         for (let layer = 0; layer <= people; layer++) {
-          const half = (layer === 0 ? DEPTH.collab.w : DEPTH.solo.w) / 2;
+          const half = (layer === 0 ? DEPTH.collab.w * spec.collabScale : DEPTH.solo.w) / 2;
           for (let slot = 0; slot < people; slot++) {
             for (let col = 0; col < 10; col++) {
               const item = film(layer, layer === 0 ? null : slot, col, 0.5);
@@ -231,6 +253,7 @@ describe("depthSceneCss", () => {
       expect(css).toContain(`--rail:${spec.rail}px`);
       expect(css).toContain(`--step-solo:${spec.stepSolo}px`);
       expect(css).toContain(`--step-collab:${spec.stepCollab}px`);
+      expect(css).toContain(`--collab-scale:${spec.collabScale}`);
       expect(css).toContain(`--band-0:${spec.bands[0]}`);
       expect(css).toContain(`--band-1:${spec.bands[1]}`);
     }
@@ -377,7 +400,7 @@ describe("depthLayout", () => {
   });
 
   describe("columns", () => {
-    // Nine films a year and a half apart, 168 + 14 px is about 1.4 years: neighbours collide, so they take columns.
+    // Nine films a year and a half apart, 204 + 14 px is about 1.7 years: neighbours collide, so they take columns.
     const crowded = (layer: "shared" | "solo") => {
       const dates = Array.from({ length: 9 }, (_, i): [number, string] => [100 + i, `${2000 + Math.floor(i * 0.5)}-0${1 + (i % 2) * 5}-01`]);
       return layer === "shared" ? layout([dates, dates]) : layout([dates, [[1, "1990-01-01"]]]);
@@ -392,7 +415,9 @@ describe("depthLayout", () => {
           for (const a of l.films) {
             for (const b of l.films) {
               if (a === b || a.layer !== b.layer || a.band !== b.band) continue;
-              const apartX = Math.abs(xOf(a) - xOf(b)) >= (a.w + b.w) / 2 - 1e-9;
+              // As drawn: the films several people made are scaled down on a small screen.
+              const drawnW = (f: DepthFilm) => (f.layer === 0 ? f.w * spec.collabScale : f.w);
+              const apartX = Math.abs(xOf(a) - xOf(b)) >= (drawnW(a) + drawnW(b)) / 2 - 1e-9;
               const apartY = Math.abs(a.y - b.y) >= (a.h + b.h) / 2 - 1e-9;
               expect(apartX || apartY).toBe(true);
             }

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { focusDistance, focusWeight, inWindow, jsLayerTranslate, projectX, projectY, visibleDocRange } from "@/lib/depth-projection";
 
-const FACTORS = [1, 0.758, 0.61, 0.526, 0.476];
+// The first is a layer in front of the screen plane (100px forward), the rest are behind it.
+const FACTORS = [1.111, 1, 0.758, 0.61, 0.526, 0.476];
 
 describe("projectY", () => {
   it("is the plain position minus the scroll at factor 1", () => {

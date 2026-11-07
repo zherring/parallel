@@ -41,6 +41,37 @@ test("the scene opens scrolled to the first collaboration", async ({ page }) => 
   await expect(page.locator("html")).toHaveAttribute("data-view", "depth");
 });
 
+test("the films made together float in front: larger, with their own shadow, and above every layer behind", async ({ page }) => {
+  await openDepth(page);
+  const region = scene(page);
+  const poster = region.getByRole("button", { name: FIRST_SHARED });
+
+  // About 150 x 225 on a desktop (laid out 136 x 204 and drawn a ninth larger by being 100px forward).
+  const box = (await poster.boundingBox())!;
+  expect(box.width).toBeGreaterThan(145);
+  expect(box.width).toBeLessThan(160);
+  expect(box.height).toBeGreaterThan(218);
+  await expect(region.locator("ol").first()).toHaveCSS("transform", /matrix3d/);
+  expect(await region.locator("ol").first().evaluate((list) => list.style.transform)).toBe("translateZ(100px)");
+  await expect(poster.locator("span").nth(1)).toHaveCSS("box-shadow", /rgba?\(0, 0, 0/);
+
+  // A background poster dragged under it does not show through: what is on top at a point of overlap is the film made together.
+  const covered = await region.evaluate((scroller) => {
+    const front = scroller.querySelector<HTMLElement>('button[data-layer="0"]')!;
+    const behind = scroller.querySelector<HTMLElement>('button[data-layer="1"]')!;
+    const a = front.getBoundingClientRect();
+    const b = behind.getBoundingClientRect();
+    const li = behind.closest<HTMLElement>("[data-poster]")!;
+    // Slide the poster behind (in its own layer's pixels) until its centre is on the front one's.
+    const f = 1000 / 1320;
+    li.style.transform = `translate(${(a.left + a.width / 2 - (b.left + b.width / 2)) / f}px, ${(a.top + a.height / 2 - (b.top + b.height / 2)) / f}px)`;
+    const x = a.left + a.width / 2;
+    const y = a.top + a.height / 2;
+    return document.elementFromPoint(x, y)?.closest("button")?.getAttribute("data-layer") ?? null;
+  });
+  expect(covered).toBe("0");
+});
+
 test("the posters near the screen have their images, whichever layer they are on, and the far ones wait", async ({ page }) => {
   await openDepth(page);
   const region = scene(page);
