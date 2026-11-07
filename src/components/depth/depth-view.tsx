@@ -92,6 +92,8 @@ function DepthViewInner({ timelines, today }: Props) {
         scrollerId={scrollerId}
         layout={layout}
         people={people}
+        lanes={lanes}
+        slots={slots}
         info={info}
         outsideIds={outsideIds}
         selectedId={selectedId}

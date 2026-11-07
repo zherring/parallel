@@ -266,7 +266,11 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        onLostPointerCapture={endDrag}
+        // A touch is captured by what it pressed (a dot, the window) until beginDrag moves the capture to the rail; that
+        // hand-over is a lost capture on the child, which bubbles here and must not end the drag it just started.
+        onLostPointerCapture={(event) => {
+          if (event.target === event.currentTarget) endDrag(event);
+        }}
         className="relative size-full cursor-pointer touch-none select-none border-l border-border bg-canvas/80"
       >
         <div aria-hidden className="pointer-events-none absolute inset-0">

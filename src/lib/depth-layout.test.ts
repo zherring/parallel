@@ -8,6 +8,7 @@ import {
   columnOffset,
   depthLayout,
   hashUnit,
+  isBlurred,
   layerDepth,
   layerFactor,
   type DepthFilm,
@@ -105,6 +106,13 @@ describe("blurFor", () => {
 
   it("keeps the first person's layer sharp when nothing is shared, as it is then the front-most", () => {
     expect([0, 1, 2, 3].map((layer) => blurFor(layer, false))).toEqual([0, 0, 3, 3]);
+  });
+});
+
+describe("isBlurred", () => {
+  it("is whether blurFor blurs the layer: the focus field only drives those", () => {
+    expect([0, 1, 2, 3].map((layer) => isBlurred(layer, true))).toEqual([false, true, true, true]);
+    expect([0, 1, 2, 3].map((layer) => isBlurred(layer, false))).toEqual([false, false, true, true]);
   });
 });
 

@@ -118,6 +118,11 @@ export function blurFor(layer: number, hasShared: boolean): number {
   return 3;
 }
 
+/** Whether a layer's posters are drawn soft until the focus field sharpens them (see `blurFor`): the others are always sharp. */
+export function isBlurred(layer: number, hasShared: boolean): boolean {
+  return blurFor(layer, hasShared) > 0;
+}
+
 /** Where a person's films are centred (fraction of the width): the middle for a page of one person, else the slot's band. */
 export function bandFor(slot: number, peopleCount: number): number {
   if (peopleCount <= 1) return 0.5;

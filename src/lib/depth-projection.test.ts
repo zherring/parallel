@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { focusWeight, jsLayerTranslate, projectX, projectY, visibleDocRange } from "@/lib/depth-projection";
+import { focusDistance, focusWeight, jsLayerTranslate, projectX, projectY, visibleDocRange } from "@/lib/depth-projection";
 
 const FACTORS = [1, 0.758, 0.61, 0.526, 0.476];
 
@@ -96,5 +96,17 @@ describe("jsLayerTranslate", () => {
         expect(y * f - S + jsLayerTranslate(S, H, f)).toBeCloseTo(projectY(y, S, H, f), 9);
       }
     }
+  });
+});
+
+describe("focusDistance", () => {
+  it("is the straight distance to the pointer", () => {
+    expect(focusDistance(130, 220, 800, { x: 100, y: 180 })).toBe(50);
+  });
+
+  it("is the distance to the middle line of the viewport without a pointer, whatever x is", () => {
+    expect(focusDistance(10, 500, 800, null)).toBe(100);
+    expect(focusDistance(900, 300, 800, null)).toBe(100);
+    expect(focusDistance(0, 400, 800, null)).toBe(0);
   });
 });

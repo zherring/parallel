@@ -42,6 +42,14 @@ export function focusWeight(distance: number, radius: number): number {
 }
 
 /**
+ * Screen distance (px) from a poster's centre to the focus: the pointer when there is one, else the horizontal band
+ * through the middle of the viewport (a finger has no hover; the posters sharpen as they scroll through the middle).
+ */
+export function focusDistance(screenX: number, screenY: number, viewportH: number, pointer: { x: number; y: number } | null): number {
+  return pointer ? Math.hypot(screenX - pointer.x, screenY - pointer.y) : Math.abs(screenY - viewportH / 2);
+}
+
+/**
  * The fallback for a browser that does not parallax perspective layers by scrolling: a layer drawn flat at
  * `translateZ(0)`, its posters pre-scaled by `f` about the viewport's centre, is moved by this much (px, down) per
  * frame, so the screen geometry is the one `projectY` gives.
