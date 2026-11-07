@@ -45,6 +45,24 @@ export function quoteLineCount(text: string, fontSize: number, width: number = Q
   return lines;
 }
 
+/**
+ * The attribution line ("— {speaker} on {about}") sits beside the Parallel wordmark: this is the width it may take
+ * before it would run into it, and the sizes it is set in, largest first (22 is also the size of the source line under
+ * it). A long credit ("K. J. Donnelly and Steven Rawle on Hitchcock & Herrmann") takes the first size it fits in.
+ */
+export const ATTRIBUTION_WIDTH = 720;
+export const ATTRIBUTION_FONT_SIZES = [28, 25, 22] as const;
+
+/** Width of an average character of Inter SemiBold as a multiple of its size, rounded up from what the card draws (about 0.52). */
+const ATTRIBUTION_CHAR_WIDTH = 0.55;
+
+/** The largest of `ATTRIBUTION_FONT_SIZES` at which `text` fits `ATTRIBUTION_WIDTH` on one line; the smallest when none does (the card then wraps it). */
+export function attributionFontSize(text: string): number {
+  const length = Array.from(text).length;
+  for (const size of ATTRIBUTION_FONT_SIZES) if (length * size * ATTRIBUTION_CHAR_WIDTH <= ATTRIBUTION_WIDTH) return size;
+  return ATTRIBUTION_FONT_SIZES[ATTRIBUTION_FONT_SIZES.length - 1];
+}
+
 export interface QuoteCardType {
   fontSize: number;
   lineHeight: number;

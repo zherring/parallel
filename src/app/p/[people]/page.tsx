@@ -4,11 +4,14 @@ import { PeopleView } from "@/components/people-view";
 import { cardFilms } from "@/lib/card-films";
 import { getPairClippingSet } from "@/lib/clippings";
 import { clippingById, parseQuoteId, quoteLinkSearch } from "@/lib/clippings-view";
-import { getPairEssays } from "@/lib/essays";
+import { getPairCritics } from "@/lib/critics";
+import { criticById } from "@/lib/critics-view";
 import { loadPeople } from "@/lib/people";
 import { parsePeriodParams, rawPeriodSearch, resolvePeriod, searchWithPeriod, spanOfYears } from "@/lib/period";
 import { todayIso } from "@/lib/released";
 import {
+  criticQuoteDescription,
+  criticQuoteTitle,
   peopleDescription,
   peopleSocial,
   peopleTitle,
@@ -34,19 +37,27 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const shared = sharedFilms(timelines, { includeMinor: false, today });
   const url = `/p/${canonical}`;
 
-  // A link to one quote of the Clippings (`?view=clippings&quote=<id>`) gets the quote's card and words. An id the
-  // pair does not have is ignored, as it is on the page; a quote wins over a period, since a link names one or the other.
-  const clipping = clippingById(getPairClippingSet(timelines.map((t) => t.person.id))?.clippings ?? [], parseQuoteId(query));
-  if (clipping) {
-    const title = quoteTitle(clipping);
-    const description = quoteDescription(clipping);
-    const image = { path: quoteImagePath(canonical, clipping.id), alt: title };
+  // A link to one quote of the Clippings (`?view=clippings&quote=<id>`), an artist's or a critic's (whose ids start with
+  // "critic-"), gets the quote's card and words. An id the pair does not have is ignored, as it is on the page; a quote
+  // wins over a period, since a link names one or the other.
+  const ids = timelines.map((t) => t.person.id);
+  const quoteId = parseQuoteId(query);
+  const clipping = clippingById(getPairClippingSet(ids)?.clippings ?? [], quoteId);
+  const criticSet = getPairCritics(ids);
+  const critic = criticById(criticSet?.critics ?? [], quoteId);
+  const quote = clipping
+    ? { id: clipping.id, title: quoteTitle(clipping), description: quoteDescription(clipping) }
+    : critic && criticSet
+      ? { id: critic.id, title: criticQuoteTitle(critic), description: criticQuoteDescription(critic, criticSet.people) }
+      : null;
+  if (quote) {
+    const image = { path: quoteImagePath(canonical, quote.id), alt: quote.title };
     return {
-      title,
-      description,
+      title: quote.title,
+      description: quote.description,
       // The quote is a view of the page, not another page: search engines are pointed at the whole one.
       alternates: { canonical: url },
-      ...peopleSocial(title, description, `${url}${quoteLinkSearch(clipping.id)}`, image),
+      ...peopleSocial(quote.title, quote.description, `${url}${quoteLinkSearch(quote.id)}`, image),
     };
   }
 
@@ -87,7 +98,7 @@ export default async function PeoplePage({ params, searchParams }: Props) {
       pairwise={sharedFilmsPairwise(timelines, opts)}
       today={opts.today}
       clippings={getPairClippingSet(timelines.map((t) => t.person.id))}
-      essays={getPairEssays(timelines.map((t) => t.person.id))}
+      critics={getPairCritics(timelines.map((t) => t.person.id))}
     />
   );
 }

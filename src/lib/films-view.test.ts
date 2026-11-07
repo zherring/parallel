@@ -29,23 +29,26 @@ describe("VIEWS", () => {
 });
 
 describe("hasClippingsTab", () => {
-  const quotes = { clippings: [] };
-  const reading = { essays: [] };
+  const quotes = { clippings: [{}] };
+  const criticQuotes = { critics: [{}], reading: [] };
+  const readingOnly = { critics: [], reading: [{}] };
 
-  it("is true for a page with quotes, with essays, or with both", () => {
+  it("is true for a page with quotes, with critics, with reading only, or with several", () => {
     expect(hasClippingsTab(quotes, null)).toBe(true);
-    expect(hasClippingsTab(null, reading)).toBe(true);
-    expect(hasClippingsTab(quotes, reading)).toBe(true);
+    expect(hasClippingsTab(null, criticQuotes)).toBe(true);
+    expect(hasClippingsTab(null, readingOnly)).toBe(true);
+    expect(hasClippingsTab(quotes, criticQuotes)).toBe(true);
   });
 
-  it("is false for a page with neither", () => {
+  it("is false for a page with none of them", () => {
     expect(hasClippingsTab(null, null)).toBe(false);
     expect(hasClippingsTab(undefined, undefined)).toBe(false);
+    expect(hasClippingsTab({ clippings: [] }, { critics: [], reading: [] })).toBe(false);
   });
 });
 
 describe("availableViews", () => {
-  it("offers Timeline and Table to every page, and Clippings only to a page that has quotes or essays", () => {
+  it("offers Timeline and Table to every page, and Clippings only to a page that has quotes, critics or reading", () => {
     expect(availableViews(false)).toEqual(["timeline", "table"]);
     expect(availableViews(false)).toBe(BASE_VIEWS);
     expect(availableViews(true)).toEqual(["timeline", "table", "clippings"]);
@@ -58,11 +61,12 @@ describe("resolveView", () => {
     expect(resolveView("clippings", availableViews(true))).toBe("clippings");
   });
 
-  it("keeps Clippings for a page that has essays but no quotes", () => {
-    expect(resolveView("clippings", availableViews(hasClippingsTab(null, { essays: [] })))).toBe("clippings");
+  it("keeps Clippings for a page that has critics or reading but no quotes", () => {
+    expect(resolveView("clippings", availableViews(hasClippingsTab(null, { critics: [], reading: [{}] })))).toBe("clippings");
+    expect(resolveView("clippings", availableViews(hasClippingsTab(null, { critics: [{}], reading: [] })))).toBe("clippings");
   });
 
-  it("falls back to the default view for one it does not offer: ?view=clippings on a page with neither quotes nor essays", () => {
+  it("falls back to the default view for one it does not offer: ?view=clippings on a page with neither quotes nor critics", () => {
     expect(resolveView(parseView("?view=clippings"), availableViews(hasClippingsTab(null, null)))).toBe("timeline");
     expect(resolveView(parseView("?view=clippings&sort=rating"), availableViews(false))).toBe("timeline");
   });

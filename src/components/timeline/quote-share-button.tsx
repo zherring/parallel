@@ -3,7 +3,6 @@
 import { Check, Share2 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import type { Clipping } from "@/lib/clippings";
 import { quoteLinkSearch, truncateQuote } from "@/lib/clippings-view";
 import { cn } from "./cn";
 
@@ -13,6 +12,13 @@ const LINK_COPIED = "Link copied";
 const STATUS_MS = 2600;
 /** The longest a quote is in the text a share sheet is offered; the link's own card carries the rest. */
 const SHARE_TEXT_QUOTE_CHARS = 140;
+
+/** What the button needs of a quote, an artist's or a critic's: its id, the words and whose they are (the critic, or the publication for an unsigned piece). */
+export interface ShareableQuote {
+  id: string;
+  quote: string;
+  speaker: string;
+}
 
 /** A phone or a tablet in the hand: the visitor has a share sheet to choose from there, and a hover does not exist. */
 function prefersShareSheet(): boolean {
@@ -33,7 +39,7 @@ function prefersShareSheet(): boolean {
  * Visible on touch screens; where there is a hover it appears with the pointer over the quote (the
  * `quote` group of the item that holds it) or with focus on it, and stays for the status.
  */
-export function QuoteShareButton({ clipping }: { clipping: Pick<Clipping, "id" | "quote" | "speaker"> }) {
+export function QuoteShareButton({ item }: { item: ShareableQuote }) {
   const pathname = usePathname();
   const [status, setStatus] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -47,11 +53,11 @@ export function QuoteShareButton({ clipping }: { clipping: Pick<Clipping, "id" |
   };
 
   const share = async () => {
-    const url = `${window.location.origin}${pathname}${quoteLinkSearch(clipping.id)}`;
+    const url = `${window.location.origin}${pathname}${quoteLinkSearch(item.id)}`;
 
     if (prefersShareSheet()) {
       try {
-        await navigator.share({ text: `“${truncateQuote(clipping.quote, SHARE_TEXT_QUOTE_CHARS)}” — ${clipping.speaker}`, url });
+        await navigator.share({ text: `“${truncateQuote(item.quote, SHARE_TEXT_QUOTE_CHARS)}” — ${item.speaker}`, url });
       } catch (error) {
         // Dismissing the sheet rejects with an AbortError; that is not a failure.
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -74,7 +80,7 @@ export function QuoteShareButton({ clipping }: { clipping: Pick<Clipping, "id" |
         type="button"
         onClick={share}
         title="Share this quote"
-        aria-label={`Share this quote by ${clipping.speaker}`}
+        aria-label={`Share this quote by ${item.speaker}`}
         className={cn(
           "inline-flex size-9 cursor-pointer items-center justify-center rounded-full text-muted transition-[color,opacity] hover:text-strong motion-reduce:transition-none",
           // Touch has no hover to reveal it; with a pointer it shows over the quote, and with the keyboard on the button.

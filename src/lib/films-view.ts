@@ -1,6 +1,6 @@
 /**
- * The views of a page's films, "Timeline" and "Table" (and, for a pair with curated quotes or
- * further reading, "Clippings"), as tabs of one section: which view a
+ * The views of a page's films, "Timeline" and "Table" (and, for a pair with curated quotes, critics
+ * or reading, "Clippings"), as tabs of one section: which view a
  * URL selects, how a tab change is written back to the URL, how the view is carried when the
  * visitor adds a person, the film count of the headline and the tab keys. Pure, so the rules are
  * testable and the server and the browser agree on them.
@@ -30,11 +30,15 @@ export const VIEW_LABELS: Record<View, string> = {
 export const BASE_VIEWS: readonly View[] = ["timeline", "table"];
 
 /**
- * Whether a page has anything for the Clippings tab: the pair's quotes (`clippings`), or its essays (`essays`,
- * the tab's "Further reading"). Either alone is enough; the tab then shows only the one there is.
+ * Whether a page has anything for the Clippings tab: any quote of the pair about each other (`clippings`), any critic's
+ * quote or any piece of reading about the collaboration (`critics`). Any one alone is enough; the tab then shows only
+ * what there is.
  */
-export function hasClippingsTab(clippings: object | null | undefined, essays: object | null | undefined): boolean {
-  return Boolean(clippings) || Boolean(essays);
+export function hasClippingsTab(
+  clippings: { clippings: readonly unknown[] } | null | undefined,
+  critics: { critics: readonly unknown[]; reading: readonly unknown[] } | null | undefined,
+): boolean {
+  return (clippings?.clippings.length ?? 0) > 0 || (critics?.critics.length ?? 0) > 0 || (critics?.reading.length ?? 0) > 0;
 }
 
 /** The views a page offers as tabs: Clippings only when the page has something for it, see `hasClippingsTab`. */
@@ -44,7 +48,7 @@ export function availableViews(clippingsTab: boolean): readonly View[] {
 
 /**
  * The view to show for what the URL selected: the same, unless the page does not offer it (a
- * `?view=clippings` link to a pair with neither quotes nor essays), when it is the default.
+ * `?view=clippings` link to a pair with neither quotes nor critics), when it is the default.
  */
 export function resolveView(view: View, available: readonly View[]): View {
   return available.includes(view) ? view : DEFAULT_VIEW;

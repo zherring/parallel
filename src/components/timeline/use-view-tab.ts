@@ -26,7 +26,7 @@ const getServerView = (): View => DEFAULT_VIEW;
  * and the server's HTML, are the Timeline) and written back with `history.replaceState`, which
  * neither navigates nor re-renders the route. Every component that uses it follows the same
  * address bar. A view the page does not offer (`?view=clippings` on a pair with neither quotes nor
- * essays) is the default view.
+ * critics) is the default view.
  */
 export function useViewTab(clippingsTab: boolean): readonly [View, (view: View) => void] {
   const selected = useSyncExternalStore(subscribe, getView, getServerView);

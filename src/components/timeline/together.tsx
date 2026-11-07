@@ -2,7 +2,7 @@
 
 import { useMemo, type ReactNode } from "react";
 import type { VoicedClippings } from "@/lib/clippings";
-import type { Essay } from "@/lib/essays";
+import type { PairCritics } from "@/lib/critics";
 import { sharedRows } from "@/lib/film-rows";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import type { PairShared } from "@/lib/shared";
@@ -33,8 +33,8 @@ interface TogetherProps {
   onSelect: (id: number, trigger: HTMLElement) => void;
   /** The quotes the two people of the page have about each other, when it has any (see `FilmsSection`). */
   clippings?: VoicedClippings | null;
-  /** The essays about the collaboration, when there are any: the Clippings tab's "Further reading" (see `FilmsSection`). */
-  essays?: Essay[] | null;
+  /** What the critics have written about the collaboration, when there is any: the Clippings tab's critics' quotes and "More reading" (see `FilmsSection`). */
+  critics?: PairCritics | null;
 }
 
 const joinNames = (names: string[]) => new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(names);
@@ -53,7 +53,7 @@ export function Together({
   settingsControl,
   onSelect,
   clippings,
-  essays,
+  critics,
 }: TogetherProps) {
   const rows = useMemo(() => sharedRows(shared, people), [shared, people]);
   const nameById = new Map(people.map((p) => [p.id, p.name]));
@@ -82,7 +82,7 @@ export function Together({
       }
       onSelect={onSelect}
       clippings={clippings}
-      essays={essays}
+      critics={critics}
     >
       {pairwise.length > 0 && (
         <details className="mt-6 rounded-lg border border-border bg-surface">

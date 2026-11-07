@@ -14,6 +14,13 @@ vi.mock("@/lib/clippings", async (importOriginal) => {
   return { ...actual, getPairClippingSet: (ids: readonly number[]) => actual.pairClippingsFrom(data, ids) };
 });
 
+// ... and critics of its own (see `CRITIC_DATA`), as two real pairs have in essays.json.
+vi.mock("@/lib/critics", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/critics")>();
+  const { CRITIC_DATA: data } = await import("@/lib/test-people");
+  return { ...actual, getPairCritics: (ids: readonly number[]) => actual.pairCriticsFrom(data, ids) };
+});
+
 // The page hands the people to a client component; it is not what these tests are about.
 vi.mock("@/components/people-view", () => ({ PeopleView: function PeopleView() {} }));
 
@@ -153,6 +160,64 @@ describe("generateMetadata with a quote in the link", () => {
   it("reads a period when the id is not a quote of the pair", async () => {
     const meta = await generateMetadata(props(PAIR_SLUG, { quote: "nope", from: "1970", to: "1980" }));
     expect(meta.openGraph?.images).toEqual([expect.objectContaining({ url: `/p/${PAIR_SLUG}/og?from=1970&to=1980` })]);
+  });
+});
+
+describe("generateMetadata with a critic's quote in the link", () => {
+  const SHORT = { view: "clippings", quote: "critic-short" };
+  const QUOTE_IMAGE = (id: string) => ({ url: `/p/${PAIR_SLUG}/og?quote=${id}`, width: 1200, height: 630 });
+
+  it("points og:image and twitter:image at the critic's card", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, SHORT));
+    expect(meta.openGraph?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("critic-short"))]);
+    expect(meta.twitter?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("critic-short"))]);
+  });
+
+  it("titles the link with the quote and the critic, and describes who wrote it about whom and where", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, SHORT));
+    expect(meta.title).toBe("\u201cThe odd couple, in every sense.\u201d \u2014 Pat Critic");
+    expect(meta.openGraph?.title).toBe(meta.title);
+    expect(meta.twitter?.title).toBe(meta.title);
+    expect(meta.description).toBe("Pat Critic on Lemmon & Matthau \u00b7 Example Review, 1999");
+    expect(meta.openGraph?.description).toBe(meta.description);
+  });
+
+  it("credits the publication for a piece that is not signed, and cuts a long quote", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, { quote: "critic-unsigned" }));
+    const title = String(meta.title);
+    expect(title.endsWith("\u2026\u201d \u2014 Kirkus Reviews")).toBe(true);
+    expect(meta.description).toBe("Kirkus Reviews on Lemmon & Matthau \u00b7 Kirkus Reviews, 2025");
+  });
+
+  it("keeps the plain page as canonical, and the link as the page's own url", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, SHORT));
+    expect(meta.openGraph?.url).toBe(`/p/${PAIR_SLUG}?view=clippings&quote=critic-short`);
+    expect(meta.alternates?.canonical).toBe(`/p/${PAIR_SLUG}`);
+  });
+
+  it("wins over a period in the same link", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, { ...SHORT, from: "1970", to: "1980" }));
+    expect(meta.openGraph?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("critic-short"))]);
+  });
+
+  it("does not take an artist's id for a critic's, or the reverse", async () => {
+    // Each id is looked up among its own kind only: "short-one" is a clipping, "critic-short" a critic, and neither answers to the other's lookup.
+    const clipping = await generateMetadata(props(PAIR_SLUG, { quote: "short-one" }));
+    expect(String(clipping.title)).toContain("\u2014 Jack Lemmon");
+    const critic = await generateMetadata(props(PAIR_SLUG, { quote: "critic-short" }));
+    expect(String(critic.title)).toContain("\u2014 Pat Critic");
+    const crossed = await generateMetadata(props(PAIR_SLUG, { quote: "critic-short-one" }));
+    expect(crossed.openGraph).not.toHaveProperty("images");
+  });
+
+  it.each([
+    ["an id the pair does not have", { quote: "critic-nope" }],
+    ["an id of another case", { quote: "CRITIC-SHORT" }],
+    ["the id without its prefix", { quote: "short" }],
+  ])("is the plain page's metadata, with no image of its own, for %s", async (_name, query) => {
+    const meta = await generateMetadata(props(PAIR_SLUG, query));
+    expect(meta.title).toBe("Jack Lemmon & Walter Matthau: films made together");
+    expect(meta.openGraph).not.toHaveProperty("images");
   });
 });
 

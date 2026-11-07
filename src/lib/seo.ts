@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import type { Clipping } from "@/lib/clippings";
 import { clippingYear, quoteCardSearch, truncateQuote } from "@/lib/clippings-view";
+import type { Critic } from "@/lib/critics";
+import { criticAbout, criticName } from "@/lib/critics-view";
 import { joinNames } from "@/lib/format";
 import { inPeriod, periodLabel, searchWithPeriod, type Period } from "@/lib/period";
+import type { HeadingPerson } from "@/lib/short-name";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
 const MAX_TITLES = 6;
@@ -63,6 +66,25 @@ export function quoteTitle(clipping: Pick<Clipping, "quote" | "speaker">): strin
 export function quoteDescription(clipping: Pick<Clipping, "speaker" | "about" | "publication" | "said_year" | "date">): string {
   const year = clippingYear(clipping);
   return `${clipping.speaker} on ${clipping.about} · ${clipping.publication}${year === null ? "" : `, ${year}`}`;
+}
+
+/** The title of a link to one critic's quote: the quote, cut if long, and the critic (the publication when the piece is not signed). */
+export function criticQuoteTitle(critic: Pick<Critic, "quote" | "critic" | "publication">): string {
+  return quoteTitle({ quote: critic.quote, speaker: criticName(critic) });
+}
+
+/** The description of a link to one critic's quote: who wrote it about whom, and where ("Rebecca Keegan on Spielberg & Williams · Los Angeles Times, 2012"). */
+export function criticQuoteDescription(
+  critic: Pick<Critic, "critic" | "publication" | "date">,
+  people: readonly HeadingPerson[],
+): string {
+  return quoteDescription({
+    speaker: criticName(critic),
+    about: criticAbout(people),
+    publication: critic.publication,
+    said_year: null,
+    date: critic.date,
+  });
 }
 
 /** Where the card of one quote is drawn: the `/og` route next to the page's own `opengraph-image`, asked for the quote by its id. */

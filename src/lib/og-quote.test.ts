@@ -3,15 +3,47 @@ import raw from "@/lib/clippings.json";
 import type { ClippingsData } from "@/lib/clippings";
 import { truncateQuote } from "@/lib/clippings-view";
 import {
+  ATTRIBUTION_FONT_SIZES,
+  ATTRIBUTION_WIDTH,
   QUOTE_CARD_MAX_CHARS,
   QUOTE_FONT_SIZES,
   QUOTE_LINE_HEIGHT,
   QUOTE_TEXT_HEIGHT,
   QUOTE_TEXT_WIDTH,
+  attributionFontSize,
   quoteCardType,
   quoteLineCount,
   splitQuoteTail,
 } from "@/lib/og-quote";
+
+describe("attributionFontSize", () => {
+  it("sets a short credit in the largest size, as the cards of artists always were", () => {
+    expect(attributionFontSize("\u2014 Steven Spielberg on John Williams")).toBe(ATTRIBUTION_FONT_SIZES[0]);
+    expect(attributionFontSize("\u2014 Alfred Hitchcock on Bernard Herrmann")).toBe(ATTRIBUTION_FONT_SIZES[0]);
+    expect(attributionFontSize("\u2014 Neil Sinyard on Hitchcock & Herrmann")).toBe(ATTRIBUTION_FONT_SIZES[0]);
+  });
+
+  it("steps down for a longer credit, so that it stays clear of the wordmark", () => {
+    expect(attributionFontSize("\u2014 Florence Scott-Anderton on Spielberg & Williams")).toBeLessThan(ATTRIBUTION_FONT_SIZES[0]);
+    expect(attributionFontSize("\u2014 K. J. Donnelly and Steven Rawle on Hitchcock & Herrmann")).toBe(22);
+  });
+
+  it("never grows with the text, and ends at the smallest size however long it is", () => {
+    let last = Infinity;
+    for (let n = 1; n <= 120; n += 1) {
+      const size = attributionFontSize("x".repeat(n));
+      expect(size).toBeLessThanOrEqual(last);
+      last = size;
+    }
+    expect(attributionFontSize("x".repeat(500))).toBe(ATTRIBUTION_FONT_SIZES[ATTRIBUTION_FONT_SIZES.length - 1]);
+  });
+
+  it("fits the width it is given at the size it picks, for anything that fits at all", () => {
+    for (const text of ["\u2014 A on B", "\u2014 Rebecca Keegan on Spielberg & Williams", "\u2014 Nicolas Magenham on Hitchcock & Herrmann"]) {
+      expect(Array.from(text).length * attributionFontSize(text) * 0.55).toBeLessThanOrEqual(ATTRIBUTION_WIDTH);
+    }
+  });
+});
 
 describe("quoteLineCount", () => {
   it("is one line for a few words, and counts nothing but words", () => {

@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import type { VoicedClippings } from "@/lib/clippings";
-import type { Essay } from "@/lib/essays";
+import type { PairCritics } from "@/lib/critics";
 import type { TableRow } from "@/lib/film-rows";
 import { availableViews, hasClippingsTab, isFilmView, showsPeriodNote, type View } from "@/lib/films-view";
 import type { ShareInput } from "@/lib/share";
@@ -38,8 +38,8 @@ interface FilmsSectionProps {
   onSelect: (id: number, trigger: HTMLElement) => void;
   /** The pair's quotes about each other, which add a Clippings tab; none (the default) for a page without any. */
   clippings?: VoicedClippings | null;
-  /** The essays about the pair's collaboration, which add the Clippings tab too (and "Further reading" to it); none (the default) for a page without any. */
-  essays?: Essay[] | null;
+  /** What the critics have written about the pair's collaboration, which adds the Clippings tab too (their quotes, and "More reading"); none (the default) for a page without any. */
+  critics?: PairCritics | null;
   /** More content under the table, in the Table tab (the "By pair" lists). */
   children?: ReactNode;
 }
@@ -49,7 +49,7 @@ interface FilmsSectionProps {
  * tabs: the tabs and Export and Share on one row (the section's heading is for screen readers; the
  * page headline above carries the film count), then the selected view and the small source note.
  * Preferences live in the timeline's gear or, for Table, beside its tabs. A pair with curated quotes
- * (`clippings`) or essays about their collaboration (`essays`) has a third tab, Clippings; it is not about the films, so while it is selected the
+ * (`clippings`) or critics writing about their collaboration (`critics`) has a third tab, Clippings; it is not about the films, so while it is selected the
  * period note, Export, the settings control and the source note are left out (Share stays).
  *
  * The panels are always mounted (the server renders them all, the inactive ones `hidden`): the table's
@@ -72,11 +72,11 @@ export function FilmsSection({
   settingsControl,
   onSelect,
   clippings = null,
-  essays = null,
+  critics = null,
   children,
 }: FilmsSectionProps) {
   const table = useFilmsTable(rows, today);
-  const clippingsTab = hasClippingsTab(clippings, essays);
+  const clippingsTab = hasClippingsTab(clippings, critics);
   const views = availableViews(clippingsTab);
   const [view, setView] = useViewTab(clippingsTab);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -150,7 +150,7 @@ export function FilmsSection({
           hidden={hidden("clippings")}
           className="mt-4"
         >
-          <ClippingsPanel pair={clippings} essays={essays} active={view === "clippings"} />
+          <ClippingsPanel pair={clippings} critics={critics} active={view === "clippings"} />
         </div>
       )}
 

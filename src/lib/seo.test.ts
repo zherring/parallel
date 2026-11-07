@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  criticQuoteDescription,
+  criticQuoteTitle,
   peopleDescription,
   peopleSocial,
   peopleTitle,
@@ -211,5 +213,39 @@ describe("quote metadata", () => {
     expect(quoteImagePath("488-steven-spielberg+491-john-williams", "john-is-much-more-of-a")).toBe(
       "/p/488-steven-spielberg+491-john-williams/og?quote=john-is-much-more-of-a",
     );
+  });
+});
+
+describe("critic quote metadata", () => {
+  const critic = {
+    critic: "Rebecca Keegan",
+    publication: "Los Angeles Times",
+    date: "2012-01",
+    quote: "That stylistic versatility has been the foundation of their partnership.",
+  };
+  const people = [
+    { id: 488, name: "Steven Spielberg" },
+    { id: 491, name: "John Williams" },
+  ];
+
+  it("titles the link with the quote in curly quotes and the critic", () => {
+    expect(criticQuoteTitle(critic)).toBe(
+      "\u201cThat stylistic versatility has been the foundation of their partnership.\u201d \u2014 Rebecca Keegan",
+    );
+  });
+
+  it("credits the publication when the piece is not signed, and cuts a long quote as an artist's is cut", () => {
+    expect(criticQuoteTitle({ ...critic, critic: null }).endsWith("\u201d \u2014 Los Angeles Times")).toBe(true);
+    const title = criticQuoteTitle({ ...critic, quote: "word ".repeat(60) });
+    expect(title.slice(1, title.indexOf("\u201d")).endsWith("\u2026")).toBe(true);
+  });
+
+  it("describes who wrote it about the pair, in family names, and where and when", () => {
+    expect(criticQuoteDescription(critic, people)).toBe("Rebecca Keegan on Spielberg & Williams \u00b7 Los Angeles Times, 2012");
+    expect(criticQuoteDescription({ ...critic, critic: null }, people)).toBe("Los Angeles Times on Spielberg & Williams \u00b7 Los Angeles Times, 2012");
+  });
+
+  it("leaves the year out when the date is not one", () => {
+    expect(criticQuoteDescription({ ...critic, date: "" }, people)).toBe("Rebecca Keegan on Spielberg & Williams \u00b7 Los Angeles Times");
   });
 });

@@ -8,7 +8,9 @@ import {
   clippingYear,
   dateYear,
   filterClippings,
+  filterCritics,
   filterOptions,
+  isCriticId,
   parseQuoteId,
   quoteCardSearch,
   quoteLinkSearch,
@@ -70,6 +72,28 @@ describe("filterClippings", () => {
     expect(filterClippings(all, people, "first").map((c) => c.quote)).toEqual(["a1", "a2"]);
     expect(filterClippings(all, people, "second").map((c) => c.quote)).toEqual(["b1"]);
   });
+
+  it("shows none of the artists' quotes for the critics", () => {
+    expect(filterClippings(all, people, "critics")).toEqual([]);
+  });
+});
+
+describe("filterCritics", () => {
+  const critics = [{ id: "critic-1" }, { id: "critic-2" }];
+
+  it("shows every critic under all and under critics, in order", () => {
+    expect(filterCritics(critics, "all")).toEqual(critics);
+    expect(filterCritics(critics, "critics")).toEqual(critics);
+  });
+
+  it("shows none under either direction of the artists", () => {
+    expect(filterCritics(critics, "first")).toEqual([]);
+    expect(filterCritics(critics, "second")).toEqual([]);
+  });
+
+  it("returns a copy", () => {
+    expect(filterCritics(critics, "all")).not.toBe(critics);
+  });
 });
 
 describe("filterOptions", () => {
@@ -85,6 +109,28 @@ describe("filterOptions", () => {
     expect(filterOptions([aOnB, aOnB2], people)).toEqual([]);
     expect(filterOptions([bOnA], people)).toEqual([]);
     expect(filterOptions([], people)).toEqual([]);
+  });
+
+  it("adds Critics, with a count, when the pair has critics' quotes too", () => {
+    expect(filterOptions([aOnB, aOnB2, bOnA], people, 4)).toEqual([
+      { id: "all", label: "All", title: "All clippings", count: 7 },
+      { id: "first", label: "Spielberg on Williams", title: "Steven Spielberg on John Williams", count: 2 },
+      { id: "second", label: "Williams on Spielberg", title: "John Williams on Steven Spielberg", count: 1 },
+      { id: "critics", label: "Critics", title: "Critics and scholars on the collaboration", count: 4 },
+    ]);
+  });
+
+  it("offers only the directions that have clippings next to Critics", () => {
+    expect(filterOptions([aOnB, aOnB2], people, 3).map((o) => o.id)).toEqual(["all", "first", "critics"]);
+    expect(filterOptions([bOnA], people, 3).map((o) => o.id)).toEqual(["all", "second", "critics"]);
+  });
+
+  it("has no filter for critics alone, since there is nothing to filter between", () => {
+    expect(filterOptions([], people, 5)).toEqual([]);
+  });
+
+  it("does not offer Critics when there are none", () => {
+    expect(filterOptions([aOnB, bOnA], people, 0).map((o) => o.id)).toEqual(["all", "first", "second"]);
   });
 
   it("uses full names when the two share a family name", () => {
@@ -173,6 +219,22 @@ describe("clippingById", () => {
   it("compares the id exactly, not case-insensitively or as a prefix", () => {
     expect(clippingById(all, aOnB.id.toUpperCase())).toBeNull();
     expect(clippingById(all, aOnB.id.slice(0, -1))).toBeNull();
+  });
+
+  it("never answers to a critic's id, even for a clipping that was given one by mistake", () => {
+    const stray = { ...aOnB, id: "critic-stray" };
+    expect(clippingById([stray], "critic-stray")).toBeNull();
+    expect(clippingById(all, "critic-that-stylistic-versatility-has-been-the")).toBeNull();
+  });
+});
+
+describe("isCriticId", () => {
+  it("is true for an id that starts with critic- and for no other", () => {
+    expect(isCriticId("critic-my-own-view")).toBe(true);
+    expect(isCriticId("john-is-much-more-of-a")).toBe(false);
+    expect(isCriticId("Critic-x")).toBe(false);
+    expect(isCriticId("a-critic-x")).toBe(false);
+    expect(isCriticId("")).toBe(false);
   });
 });
 

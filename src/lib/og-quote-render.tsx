@@ -1,8 +1,17 @@
 import { ImageResponse } from "next/og";
 import type { Clipping, PairClippings } from "@/lib/clippings";
 import { clippingVoices, clippingYear, speakerIndex, truncateQuote } from "@/lib/clippings-view";
+import type { Critic, PairCritics } from "@/lib/critics";
+import { criticAbout, criticName, criticYear } from "@/lib/critics-view";
 import { OG_CACHE_CONTROL, loadImage } from "@/lib/og-render";
-import { QUOTE_CARD_MAX_CHARS, QUOTE_TEXT_HEIGHT, quoteCardType, splitQuoteTail } from "@/lib/og-quote";
+import {
+  ATTRIBUTION_WIDTH,
+  QUOTE_CARD_MAX_CHARS,
+  QUOTE_TEXT_HEIGHT,
+  attributionFontSize,
+  quoteCardType,
+  splitQuoteTail,
+} from "@/lib/og-quote";
 import { OG, OG_SIZE, ogQuoteFonts, ogWordmark } from "@/lib/og-theme";
 import { personHex } from "@/lib/person-colors";
 import { initials } from "@/lib/person-labels";
@@ -25,6 +34,14 @@ export interface QuoteOgImageInput {
   /** The pair's clippings, which say which of the two is the speaker. */
   set: PairClippings;
   clipping: Clipping;
+}
+
+export interface CriticOgImageInput {
+  /** The two people of the page: for their headshots. */
+  timelines: PersonTimeline[];
+  /** The pair's critics, which name the two people (and the order they are written in). */
+  set: PairCritics;
+  critic: Critic;
 }
 
 function headshot(name: string, src: string | null, ring: string) {
@@ -55,37 +72,32 @@ function headshot(name: string, src: string | null, ring: string) {
   );
 }
 
-/**
- * Draws the 1200x630 card of one quote, in the manner of a quote restacked on Substack and quietly typographic: the
- * site's dark canvas, a large opening mark in the speaker's colour, the quote set large in Newsreader at the biggest
- * size that fits (see `quoteCardType`; a quote past `QUOTE_CARD_MAX_CHARS` is cut with an ellipsis) and closed by a
- * mark in the same colour, then, small, "Speaker on About", the source and year, the two people's round headshots
- * (the speaker first, ringed in their colour) and the Parallel wordmark in the corner. The headshots are fetched up
- * front, since the renderer throws on an image it cannot load; a missing one is initials.
- *
- * The speaker's colour is the one they have on the page's Timeline (`person-colors.ts`), which depends on their
- * position in the page's URL. `timelines` is in the order of the address the card was asked for (`loadPeople`, and the
- * route redirects any other spelling of it to the canonical one, which keeps the order), so a card shared from
- * `/p/491-john-williams+488-steven-spielberg` colours the two the other way round from one shared from the reverse.
- */
-export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgImageInput): Promise<ImageResponse> {
-  const voices = clippingVoices(set.people, timelines.map((t) => t.person));
-  const side = speakerIndex(clipping, voices);
-  const accent = side === null ? OG.muted : personHex(voices[side].slot);
-  const glow = side === null ? "0, 0, 0" : rgbOf(accent);
+/** What `drawQuoteCard` draws; the two kinds of quote (an artist's, a critic's) differ only in what they hand it. */
+interface QuoteCard {
+  /** The colour of the marks, and of the first headshot's ring when it is the speaker's. */
+  accent: string;
+  /** "r, g, b" of the faint wash behind the quote. */
+  glow: string;
+  quote: string;
+  /** The round headshots, left to right, each with its ring. */
+  people: { name: string; profilePath: string | null; ring: string }[];
+  speaker: string;
+  /** What follows the speaker, in the muted colour: " on John Williams". */
+  about: string;
+  /** "Variety · 2023". */
+  source: string;
+}
 
-  // The speaker first, then the one they are talking about.
-  const speakerId = side === null ? null : set.people[side].id;
-  const people = [...timelines].sort((a, b) => Number(b.person.id === speakerId) - Number(a.person.id === speakerId));
-  const [images, fonts] = await Promise.all([Promise.all(people.map((p) => loadImage(p.person.profilePath))), ogQuoteFonts()]);
+async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, about, source }: QuoteCard): Promise<ImageResponse> {
+  const [images, fonts] = await Promise.all([Promise.all(people.map((p) => loadImage(p.profilePath))), ogQuoteFonts()]);
 
-  const quote = truncateQuote(clipping.quote, QUOTE_CARD_MAX_CHARS);
+  const quote = truncateQuote(fullQuote, QUOTE_CARD_MAX_CHARS);
   const { fontSize, lineHeight } = quoteCardType(`${quote}”`);
   // The renderer cannot colour one character of a wrapping line, so the quote is set a word at a time and its last
   // words are one box with the closing mark in the speaker's colour.
   const { words, tail } = splitQuoteTail(quote);
-  const year = clippingYear(clipping);
-  const source = year === null ? clipping.publication : `${clipping.publication} · ${year}`;
+  // A long credit shrinks, and wraps if it must, rather than run into the wordmark.
+  const attributionSize = attributionFontSize(`\u2014 ${speaker}${about}`);
 
   return new ImageResponse(
     (
@@ -134,14 +146,12 @@ export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgIm
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 22 }}>
           <div style={{ display: "flex", alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 10 }}>
-              {people.map((p, i) => headshot(p.person.name, images[i], i === 0 ? accent : OG.border))}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", marginLeft: 24 }}>
-              <div style={{ display: "flex", fontSize: 28, lineHeight: 1.2, fontWeight: 600 }}>
+            <div style={{ display: "flex", gap: 10 }}>{people.map((p, i) => headshot(p.name, images[i], p.ring))}</div>
+            <div style={{ display: "flex", flexDirection: "column", marginLeft: 24, maxWidth: ATTRIBUTION_WIDTH }}>
+              <div style={{ display: "flex", flexWrap: "wrap", fontSize: attributionSize, lineHeight: 1.2, fontWeight: 600 }}>
                 <span style={{ color: OG.muted, whiteSpace: "pre" }}>{"\u2014 "}</span>
-                <span style={{ color: OG.strong }}>{clipping.speaker}</span>
-                <span style={{ color: OG.muted, whiteSpace: "pre" }}>{` on ${clipping.about}`}</span>
+                <span style={{ color: OG.strong }}>{speaker}</span>
+                <span style={{ color: OG.muted, whiteSpace: "pre" }}>{about}</span>
               </div>
               <div style={{ display: "flex", marginTop: 5, fontSize: 22, lineHeight: 1.2, fontWeight: 600, color: OG.muted }}>{source}</div>
             </div>
@@ -152,4 +162,64 @@ export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgIm
     ),
     { ...OG_SIZE, fonts, headers: { "Cache-Control": OG_CACHE_CONTROL } },
   );
+}
+
+/** "Publication · 2023", or the publication alone when the year is not known. */
+const sourceLine = (publication: string, year: number | null) => (year === null ? publication : `${publication} · ${year}`);
+
+/**
+ * Draws the 1200x630 card of one quote, in the manner of a quote restacked on Substack and quietly typographic: the
+ * site's dark canvas, a large opening mark in the speaker's colour, the quote set large in Newsreader at the biggest
+ * size that fits (see `quoteCardType`; a quote past `QUOTE_CARD_MAX_CHARS` is cut with an ellipsis) and closed by a
+ * mark in the same colour, then, small, "Speaker on About", the source and year, the two people's round headshots
+ * (the speaker first, ringed in their colour) and the Parallel wordmark in the corner. The headshots are fetched up
+ * front, since the renderer throws on an image it cannot load; a missing one is initials.
+ *
+ * The speaker's colour is the one they have on the page's Timeline (`person-colors.ts`), which depends on their
+ * position in the page's URL. `timelines` is in the order of the address the card was asked for (`loadPeople`, and the
+ * route redirects any other spelling of it to the canonical one, which keeps the order), so a card shared from
+ * `/p/491-john-williams+488-steven-spielberg` colours the two the other way round from one shared from the reverse.
+ */
+export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgImageInput): Promise<ImageResponse> {
+  const voices = clippingVoices(set.people, timelines.map((t) => t.person));
+  const side = speakerIndex(clipping, voices);
+  const accent = side === null ? OG.muted : personHex(voices[side].slot);
+  const glow = side === null ? "0, 0, 0" : rgbOf(accent);
+
+  // The speaker first, then the one they are talking about.
+  const speakerId = side === null ? null : set.people[side].id;
+  const ordered = [...timelines].sort((a, b) => Number(b.person.id === speakerId) - Number(a.person.id === speakerId));
+
+  return drawQuoteCard({
+    accent,
+    glow,
+    quote: clipping.quote,
+    people: ordered.map((p, i) => ({ name: p.person.name, profilePath: p.person.profilePath, ring: i === 0 ? accent : OG.border })),
+    speaker: clipping.speaker,
+    about: ` on ${clipping.about}`,
+    source: sourceLine(clipping.publication, clippingYear(clipping)),
+  });
+}
+
+/**
+ * The card of one critic's quote: the artist's card (`renderQuoteOgImage`) made quiet. The marks and the wash are the
+ * neutral grey, not a person's colour; both artists' headshots are there, in the order the attribution names them, in
+ * neutral rings; the attribution is "— {critic} on {A} & {B}" (the publication when the piece is unsigned), the source
+ * the publication and the year.
+ */
+export async function renderCriticOgImage({ timelines, set, critic }: CriticOgImageInput): Promise<ImageResponse> {
+  const accent = OG.muted;
+  return drawQuoteCard({
+    accent,
+    glow: rgbOf(accent),
+    quote: critic.quote,
+    people: set.people.map((p) => ({
+      name: p.name,
+      profilePath: timelines.find((t) => t.person.id === p.id)?.person.profilePath ?? null,
+      ring: OG.border,
+    })),
+    speaker: criticName(critic),
+    about: ` on ${criticAbout(set.people)}`,
+    source: sourceLine(critic.publication, criticYear(critic)),
+  });
 }

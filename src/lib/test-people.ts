@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Clipping, ClippingsData } from "@/lib/clippings";
+import type { Critic, CriticsData } from "@/lib/critics";
 import { buildPeopleSlug, parsePeopleSlug } from "@/lib/slug";
 import type { Film, PersonTimeline } from "@/lib/types";
 
@@ -71,6 +72,34 @@ export const QUOTE_DATA: ClippingsData = {
     clippings: [
       quote({ id: "short-one", quote: "Walter could make a telephone book funny.", said_year: 1998, date: "2001-03" }),
       quote({ id: "long-one", speaker: "Walter Matthau", about: "Jack Lemmon", quote: "Jack never stopped working. ".repeat(20), said_year: null, date: "1975" }),
+    ],
+  },
+};
+
+const critic = (overrides: Partial<Critic>): Critic => ({
+  id: "critic-placeholder",
+  critic: "Pat Critic",
+  publication: "Example Review",
+  via: null,
+  title: "Placeholder essay",
+  date: "1999-10-19",
+  url: "https://example.com/c",
+  kind: "essay",
+  quote: "Placeholder.",
+  ...overrides,
+});
+
+/** The pair's critics, for the tests of the quote card route and of the page's metadata (which mock `getPairCritics` with these). */
+export const CRITIC_DATA: CriticsData = {
+  "3151+6837": {
+    pair: ["Jack Lemmon", "Walter Matthau"],
+    tmdb_ids: [3151, 6837],
+    critics: [
+      critic({ id: "critic-short", quote: "The odd couple, in every sense.", date: "1999-10-19" }),
+      critic({ id: "critic-unsigned", critic: null, publication: "Kirkus Reviews", quote: "Critics never stopped talking. ".repeat(20), date: "2025" }),
+    ],
+    reading: [
+      { title: "A book on the pair", author: "Some Author", publication: "Example Press", date: "2017-01", url: "https://example.com/r", paywalled: true },
     ],
   },
 };

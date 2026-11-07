@@ -1,8 +1,8 @@
 /**
  * What the Clippings tab does with a pair's clippings: which of the two people said each one, the
- * direction filter ("All", "A on B", "B on A"), the year a quote goes under, and the link to a single
- * quote (`?view=clippings&quote=<id>`). Pure, and free of the JSON itself (see `clippings.ts`), so
- * that client components can import it.
+ * filter ("All", "A on B", "B on A", and "Critics" when the pair has critics' quotes too, see `critics-view.ts`),
+ * the year a quote goes under, and the link to a single quote (`?view=clippings&quote=<id>`). Pure, and free
+ * of the JSON itself (see `clippings.ts`), so that client components can import it.
  */
 
 import type { Clipping, ClippingsPerson, ClippingsVoice, PairClippings, VoicedClippings } from "@/lib/clippings";
@@ -11,12 +11,12 @@ import { personSlots } from "@/lib/person-colors";
 import { headingNames } from "@/lib/short-name";
 import type { PersonSummary } from "@/lib/types";
 
-/** "all", or the clippings the first / the second person of the pair said about the other. */
-export type ClippingsFilter = "all" | "first" | "second";
+/** "all", the clippings the first / the second person of the pair said about the other, or only the critics' quotes. */
+export type ClippingsFilter = "all" | "first" | "second" | "critics";
 
 export interface FilterOption {
   id: ClippingsFilter;
-  /** The button's text: "All", "Spielberg on Williams". */
+  /** The button's text: "All", "Spielberg on Williams", "Critics". */
   label: string;
   /** The full wording, for a tooltip and screen readers: "Steven Spielberg on John Williams". */
   title: string;
@@ -72,29 +72,36 @@ export function voiceClippings(
   return { ...set, people: clippingVoices(set.people, page) };
 }
 
-/** The clippings a filter shows, in their order. Those whose speaker is neither of the pair show under "all" only. */
+/** The artists' clippings a filter shows, in their order. Those whose speaker is neither of the pair show under "all" only; "critics" shows none. */
 export function filterClippings(
   clippings: readonly Clipping[],
   people: Pair,
   filter: ClippingsFilter,
 ): Clipping[] {
   if (filter === "all") return [...clippings];
+  if (filter === "critics") return [];
   const wanted = filter === "first" ? 0 : 1;
   return clippings.filter((clipping) => speakerIndex(clipping, people) === wanted);
 }
 
+/** The critics' quotes a filter shows, in the order given: under "all" and "critics", and under neither direction of the artists. */
+export function filterCritics<T>(critics: readonly T[], filter: ClippingsFilter): T[] {
+  return filter === "all" || filter === "critics" ? [...critics] : [];
+}
+
 /**
- * The options of the direction filter: "All" and each direction that has clippings. Empty when
- * fewer than two directions do, since a filter between "all" and the only direction would do
- * nothing; the tab then shows no filter.
+ * The options of the filter: "All", each direction that has clippings, and "Critics" when the pair has critics'
+ * quotes (`criticCount`, none by default). Empty when fewer than two of those groups have anything, since a
+ * filter between "all" and the only group would do nothing; the tab then shows no filter.
  */
-export function filterOptions(clippings: readonly Clipping[], people: Pair): FilterOption[] {
+export function filterOptions(clippings: readonly Clipping[], people: Pair, criticCount = 0): FilterOption[] {
   const counts = [0, 0];
   for (const clipping of clippings) {
     const index = speakerIndex(clipping, people);
     if (index !== null) counts[index] += 1;
   }
-  if (counts.filter((count) => count > 0).length < 2) return [];
+  const groups = counts.filter((count) => count > 0).length + (criticCount > 0 ? 1 : 0);
+  if (groups < 2) return [];
 
   // Family names for the buttons (the full names would wrap on a phone), the full names when the two share one.
   const short = headingNames(people, true);
@@ -103,11 +110,11 @@ export function filterOptions(clippings: readonly Clipping[], people: Pair): Fil
     title: `${people[index].name} on ${people[1 - index].name}`,
     count: counts[index],
   });
-  return [
-    { id: "all", label: "All", title: "All clippings", count: clippings.length },
-    { id: "first", ...direction(0) },
-    { id: "second", ...direction(1) },
-  ];
+  const options: FilterOption[] = [{ id: "all", label: "All", title: "All clippings", count: clippings.length + criticCount }];
+  if (counts[0] > 0) options.push({ id: "first", ...direction(0) });
+  if (counts[1] > 0) options.push({ id: "second", ...direction(1) });
+  if (criticCount > 0) options.push({ id: "critics", label: "Critics", title: "Critics and scholars on the collaboration", count: criticCount });
+  return options;
 }
 
 /** What a polite live region says after the filter is changed: "Showing 3 clippings". */
@@ -150,9 +157,20 @@ export function parseQuoteId(source: string | URLSearchParams | Record<string, P
   return first ? first : null;
 }
 
-/** The clipping with this id among a pair's clippings (ids are unique within a pair), or null: no id, or one the pair does not have. */
+/** What every critic's id starts with, and no clipping's does: the two kinds of quote share the `?quote=` parameter and this tells them apart. */
+export const CRITIC_ID_PREFIX = "critic-";
+
+/** Whether an id names a critic's quote (see `criticById` in `critics-view.ts`) rather than an artist's. */
+export function isCriticId(id: string): boolean {
+  return id.startsWith(CRITIC_ID_PREFIX);
+}
+
+/**
+ * The clipping with this id among a pair's clippings (ids are unique within a pair), or null: no id, one the pair
+ * does not have, or a critic's (a clipping never answers to one, whatever the data holds).
+ */
 export function clippingById(clippings: readonly Clipping[], id: string | null | undefined): Clipping | null {
-  if (!id) return null;
+  if (!id || isCriticId(id)) return null;
   return clippings.find((clipping) => clipping.id === id) ?? null;
 }
 
