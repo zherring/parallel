@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, type RefObject } from "react";
-import { layerFactor, type DepthFilm } from "@/lib/depth-layout";
+import { posterFactor, type DepthFilm } from "@/lib/depth-layout";
 import { inWindow, projectY } from "@/lib/depth-projection";
 
 /**
@@ -27,7 +27,7 @@ interface PosterImages {
  * lazy heuristic measures a poster against the viewport in layout space, which for a layer behind the screen plane is not
  * where it is drawn, and a rule that depends on it left posters blank (or late) when the visitor jumped or scrolled
  * quickly. Here the same arithmetic as the focus field (`depth-projection.ts`) says which posters are within a screen and
- * a half of the viewport, on each layer's own factor, and their images are requested nearest first, so what is on screen
+ * a half of the viewport, on each poster's own factor, and their images are requested nearest first, so what is on screen
  * comes before what is only coming. Anything that is not on screen yet is fetched at low priority.
  *
  * A poster's markup has `data-src` for each image and a real `src` only when it was inside that window at the scene's
@@ -35,7 +35,7 @@ interface PosterImages {
  * It runs on scroll and on resize (a frame at most): once every image has its `src` it does no work. A request that fails
  * is repeated twice.
  */
-export function usePosterImages(scrollerRef: RefObject<HTMLDivElement | null>, films: readonly DepthFilm[], peopleCount: number): void {
+export function usePosterImages(scrollerRef: RefObject<HTMLDivElement | null>, films: readonly DepthFilm[]): void {
   useEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
@@ -51,7 +51,7 @@ export function usePosterImages(scrollerRef: RefObject<HTMLDivElement | null>, f
         if (img.hasAttribute("src")) return;
         pending.push({ img, window: img.dataset.window === "sharp" ? SHARP_WINDOW : SOFT_WINDOW });
       });
-      if (pending.length > 0) posters.push({ y: item.y, f: layerFactor(item.layer, undefined, peopleCount), pending });
+      if (pending.length > 0) posters.push({ y: item.y, f: posterFactor(item), pending });
     }
 
     let remaining = posters.length;
@@ -122,5 +122,5 @@ export function usePosterImages(scrollerRef: RefObject<HTMLDivElement | null>, f
       if (frame) cancelAnimationFrame(frame);
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [scrollerRef, films, peopleCount]);
+  }, [scrollerRef, films]);
 }

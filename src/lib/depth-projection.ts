@@ -1,9 +1,10 @@
 /**
  * Where the browser's perspective puts things, worked out from numbers instead of read from the DOM (a layout read
  * per poster per frame would be the one thing that makes a scene like this janky). The scroller has
- * `perspective: P` with its origin at its centre, a layer sits `Z` behind the screen plane (a negative `Z` is in
- * front of it), and its scale on screen is `f = P / (P + Z)` (see `layerFactor`): below 1 behind the screen plane, above 1
- * in front of it, where the layer also moves faster than the scroll. With the viewport `W` by `H` scrolled to `S`, a point at document
+ * `perspective: P` with its origin at its centre, a poster sits `Z` behind the screen plane (a negative `Z` is in
+ * front of it), and its scale on screen is `f = P / (P + Z)` (see `posterFactor`): below 1 behind the screen plane, above 1
+ * in front of it, where the poster also moves faster than the scroll. `Z` is the poster's own, its layer's plus the push back
+ * its film's obscurity gives it, so the posters of one layer have different factors and parallax against one another. With the viewport `W` by `H` scrolled to `S`, a point at document
  * (`x`, `y`) on that layer lands at
  *
  *   screen_y = (y - S) f + (H / 2)(1 - f)        screen_x = (x - W / 2) f + W / 2

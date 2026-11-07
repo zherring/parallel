@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { combineLanes } from "@/lib/combined-track";
 import {
   DEPTH,
+  OBSCURITY_CUES,
   SOLO_COLUMNS,
   TIER_MIN_WIDTH,
   anchorScrollTop,
@@ -10,13 +11,16 @@ import {
   columnIndex,
   columnOffset,
   depthLayout,
+  depthPush,
   depthSceneCss,
   docCenterX,
   hashUnit,
-  isBlurred,
-  phoneBlurFor,
   layerDepth,
   layerFactor,
+  obscurityOf,
+  phoneBlurFor,
+  posterFactor,
+  restOpacityFor,
   tierOf,
   xSpec,
   type DepthFilm,
@@ -29,27 +33,30 @@ import type { Film } from "@/lib/types";
 
 const TODAY = "2026-01-01";
 
-function film(id: number, releaseDate: string): Film {
+/** A film and (optionally) its vote count: the third entry of a `[id, date, votes]` triple. */
+type FilmSpec = [id: number, date: string, votes?: number];
+
+function film(id: number, releaseDate: string, votes = 0): Film {
   return {
     id,
     title: `Film ${id}`,
     releaseDate,
     year: Number(releaseDate.slice(0, 4)),
     posterPath: null,
-    voteCount: 0,
+    voteCount: votes,
     credits: [{ role: "director", job: "Director", minor: false }],
     minor: false,
   };
 }
 
 /** The entries of `combineLanes` for people 10, 20, 30 ... with the films given by id/date. */
-function entriesOf(lanes: [number, string][][]) {
+function entriesOf(lanes: FilmSpec[][]) {
   const people = lanes.map((_, i) => ({ id: (i + 1) * 10 }));
-  const made = lanes.map((films, i) => ({ person: people[i], films: films.map(([id, date]) => film(id, date)) }));
+  const made = lanes.map((films, i) => ({ person: people[i], films: films.map(([id, date, votes]) => film(id, date, votes)) }));
   return { entries: combineLanes(made, personSlots(people), TODAY), peopleCount: people.length };
 }
 
-const layout = (lanes: [number, string][][]) => {
+const layout = (lanes: FilmSpec[][]) => {
   const { entries, peopleCount } = entriesOf(lanes);
   return depthLayout(entries, peopleCount, TODAY);
 };
@@ -88,11 +95,12 @@ describe("a page of one person", () => {
     expect(layerFactor(1, undefined, 3)).toBeCloseTo(1000 / 1320, 10);
   });
 
-  it("is never blurred, so it has no soft image and no focus crossfade", () => {
-    // Nothing can be shared on a page of one person, so the first person's layer is the sharp front.
-    expect(blurFor(1, false)).toBe(0);
-    expect(phoneBlurFor(1, false)).toBe(0);
-    expect(isBlurred(1, false)).toBe(false);
+  it("has no obscurity cue: its posters are level, opaque and not background, whatever their votes", () => {
+    const l = layout([[[1, "1990-01-01", 90_000], [2, "2000-01-01", 3], [3, "2005-01-01", 0]]]);
+    for (const poster of l.films) {
+      expect(poster).toMatchObject({ obscurity: 0, push: 0, depth: DEPTH.singleZ, background: false });
+      expect(posterFactor(poster)).toBe(1);
+    }
   });
 });
 
@@ -231,16 +239,18 @@ describe("xSpec", () => {
 });
 
 describe("docCenterX", () => {
-  const film = (layer: number, band: number | null, col = 0, jitter = 0, people = 2) => ({
+  /** A poster of `layer`, pushed `push` px behind its layer's plane (its obscurity's doing). */
+  const film = (layer: number, band: number | null, col = 0, jitter = 0, people = 2, push = 0) => ({
     layer,
     band,
     col,
     jitter,
     w: layer === 0 ? DEPTH.collab.w : people === 1 ? DEPTH.single.w : DEPTH.solo.w,
+    depth: layerDepth(layer, people) + push,
   });
   /** Where on screen the poster's centre is. */
   const onScreen = (item: ReturnType<typeof film>, width: number, spec: ReturnType<typeof xSpec>) =>
-    projectX(docCenterX(item, width, spec), width, layerFactor(item.layer, undefined, spec.people));
+    projectX(docCenterX(item, width, spec), width, posterFactor(item));
 
   it("puts a band where it was asked for, on screen, whatever the depth of its layer", () => {
     const width = 1440;
@@ -250,6 +260,21 @@ describe("docCenterX", () => {
     expect(onScreen(film(2, 1), width, spec)).toBeCloseTo(stage * 0.76, 6);
     // The same band on a layer further back lands in the same place: that is what undoing the perspective is for.
     expect(onScreen(film(4, 0), width, spec)).toBeCloseTo(stage * 0.24, 6);
+  });
+
+  it("undoes the poster's own perspective, not its layer's: an obscure film pushed back within its layer lands on the same band", () => {
+    const width = 1440;
+    const spec = xSpec("desktop", 2);
+    const stage = width - spec.rail;
+    for (const push of [0, 80, 160, 320]) {
+      expect(onScreen(film(1, 0, 0, 0, 2, push), width, spec)).toBeCloseTo(stage * 0.24, 6);
+      expect(onScreen(film(2, 1, 0, 0, 2, push), width, spec)).toBeCloseTo(stage * 0.76, 6);
+      expect(onScreen(film(1, 0, 1, 0.25, 2, push), width, spec) - onScreen(film(1, 0, 0, 0, 2, push), width, spec)).toBeCloseTo(spec.stepSolo + 0.25 * spec.jitterSpan, 6);
+    }
+    // In its own plane the further back it is pushed the further from the middle it is (that is the compensation), though not on screen.
+    const near = docCenterX(film(1, 0), width, spec);
+    const far = docCenterX(film(1, 0, 0, 0, 2, 320), width, spec);
+    expect(Math.abs(far - width / 2)).toBeGreaterThan(Math.abs(near - width / 2));
   });
 
   it("centres the films several people made in the stage, left of the rail", () => {
@@ -279,11 +304,14 @@ describe("docCenterX", () => {
           const half = (layer === 0 ? DEPTH.collab.w * spec.collabScale : (people === 1 ? DEPTH.single.w : DEPTH.solo.w) * spec.soloScale) / 2;
           for (let slot = 0; slot < people; slot++) {
             for (let col = 0; col < 10; col++) {
-              const item = film(layer, layer === 0 ? null : slot, col, 0.5, people);
-              const x = onScreen(item, width, spec);
-              const f = layerFactor(layer, undefined, people);
-              expect(x - half * f).toBeGreaterThanOrEqual(spec.gutter - 1e-6);
-              expect(x + half * f).toBeLessThanOrEqual(width - spec.rail - spec.gutter + 1e-6);
+              // A background poster at either end of its layer's depth: the nearest and the most obscure.
+              for (const push of layer === 0 || people === 1 ? [0] : [0, DEPTH.spread]) {
+                const item = film(layer, layer === 0 ? null : slot, col, 0.5, people, push);
+                const x = onScreen(item, width, spec);
+                const f = posterFactor(item);
+                expect(x - half * f).toBeGreaterThanOrEqual(spec.gutter - 1e-6);
+                expect(x + half * f).toBeLessThanOrEqual(width - spec.rail - spec.gutter + 1e-6);
+              }
             }
           }
         }
@@ -319,30 +347,218 @@ describe("depthSceneCss", () => {
   });
 });
 
-describe("blurFor", () => {
-  it("leaves the front layer sharp and blurs the ones behind it more the further back they are", () => {
-    expect([0, 1, 2, 3, 4].map((layer) => blurFor(layer, true))).toEqual([0, 1, 1.5, 1.5, 1.5]);
+describe("obscurityOf", () => {
+  const MAX = 26_892;
+
+  it("is 0 for the best-known film, 1 for a film with 0 or 1 votes, and in between for the rest", () => {
+    expect(obscurityOf(MAX, MAX)).toBe(0);
+    expect(obscurityOf(0, MAX)).toBe(1);
+    expect(obscurityOf(1, MAX)).toBe(1);
+    for (const votes of [2, 3, 5, 20, 100, 307, 1000, 7907, 14_990, 26_000]) {
+      const o = obscurityOf(votes, MAX);
+      expect(o).toBeGreaterThan(0);
+      expect(o).toBeLessThan(1);
+    }
   });
 
-  it("keeps the first person's layer sharp when nothing is shared, as it is then the front-most", () => {
-    expect([0, 1, 2, 3].map((layer) => blurFor(layer, false))).toEqual([0, 0, 1.5, 1.5]);
+  it("follows the logarithm of the votes: each tenfold in votes is the same step", () => {
+    const step = obscurityOf(10, 100_000) - obscurityOf(100, 100_000);
+    expect(step).toBeCloseTo(0.2, 10);
+    expect(obscurityOf(100, 100_000) - obscurityOf(1000, 100_000)).toBeCloseTo(step, 10);
+    expect(obscurityOf(1000, 100_000) - obscurityOf(10_000, 100_000)).toBeCloseTo(step, 10);
+  });
+
+  it("never scores a film with more votes higher, and gives films with the same votes the same score", () => {
+    const votes = [0, 1, 1, 2, 3, 7, 7, 40, 41, 300, 5000, 5000, 26_892];
+    const scores = votes.map((v) => obscurityOf(v, MAX));
+    for (let i = 1; i < votes.length; i++) {
+      expect(scores[i]).toBeLessThanOrEqual(scores[i - 1]);
+      if (votes[i] === votes[i - 1]) expect(scores[i]).toBe(scores[i - 1]);
+    }
+    expect(scores.every((o) => o >= 0 && o <= 1)).toBe(true);
+  });
+
+  it("stays between 0 and 1 for votes beyond the maximum, and for nonsense", () => {
+    expect(obscurityOf(MAX * 10, MAX)).toBe(0);
+    expect(obscurityOf(-5, MAX)).toBe(1);
+    expect(obscurityOf(Number.NaN, MAX)).toBe(1);
+    expect(obscurityOf(100, Number.NaN)).toBe(1);
+    expect(obscurityOf(Number.POSITIVE_INFINITY, MAX)).toBe(1);
+  });
+
+  it("scores every film alike when nothing on the page has more than one vote (all zero: all obscure, none divides by ln 1)", () => {
+    for (const max of [0, 1]) {
+      for (const votes of [0, 1]) expect(obscurityOf(votes, max)).toBe(1);
+    }
+    expect(obscurityOf(0, 0)).toBe(1);
+  });
+
+  it("scores a page of equally voted films as the best-known: all 0", () => {
+    for (const votes of [2, 100, 5000]) expect(obscurityOf(votes, votes)).toBe(0);
+  });
+
+  it("spreads a typical filmography over the whole range (Scorsese's, from TMDB's votes)", () => {
+    // Every fifth film of his, from the most-voted to the least; the page's most-voted film is 26,892.
+    const votes = [26_892, 7843, 4975, 2390, 1270, 611, 426, 275, 153, 72, 46, 19, 7, 2, 0];
+    const scores = votes.map((v) => obscurityOf(v, MAX));
+    expect(scores[0]).toBe(0);
+    expect(scores[scores.length - 1]).toBe(1);
+    // Neither bunched at the famous end nor at the obscure one.
+    expect(scores.filter((o) => o < 0.34).length).toBeGreaterThanOrEqual(4);
+    expect(scores.filter((o) => o >= 0.34 && o < 0.67).length).toBeGreaterThanOrEqual(4);
+    expect(scores.filter((o) => o >= 0.67).length).toBeGreaterThanOrEqual(4);
   });
 });
 
-describe("phoneBlurFor", () => {
-  it("is a light blur on the first person's layer only, and none further back (the cost is on the phone)", () => {
-    expect([0, 1, 2, 3, 4].map((layer) => phoneBlurFor(layer, true))).toEqual([0, 0.75, 0, 0, 0]);
+describe("what obscurity does to a poster", () => {
+  const range = Array.from({ length: 21 }, (_, i) => i / 20);
+
+  it("pushes a poster back from its layer's plane: nothing for the best-known, the spread for the most obscure, more the more obscure", () => {
+    expect(depthPush(0)).toBe(0);
+    expect(depthPush(1)).toBe(DEPTH.spread);
+    expect(depthPush(0.5)).toBe(DEPTH.spread / 2);
+    expect(DEPTH.spread).toBeGreaterThanOrEqual(250);
+    expect(DEPTH.spread).toBeLessThanOrEqual(400);
+    const pushes = range.map(depthPush);
+    for (let i = 1; i < pushes.length; i++) expect(pushes[i]).toBeGreaterThan(pushes[i - 1]);
   });
 
-  it("is none where the layer is not blurred at all: nothing shared, so the first person's layer is the sharp front", () => {
-    expect([0, 1, 2, 3].map((layer) => phoneBlurFor(layer, false))).toEqual([0, 0, 0, 0]);
+  it("fades a background poster from 0.8 at rest for the best-known to about 0.45 for the most obscure", () => {
+    expect(restOpacityFor(0)).toBe(0.8);
+    expect(restOpacityFor(1)).toBeCloseTo(0.45, 10);
+    expect(restOpacityFor(0.5)).toBeCloseTo(0.625, 10);
+    const opacities = range.map(restOpacityFor);
+    for (let i = 1; i < opacities.length; i++) expect(opacities[i]).toBeLessThan(opacities[i - 1]);
+  });
+
+  it("blurs the soft image from about 1px for the best-known to 3px for the most obscure", () => {
+    expect(blurFor(0)).toBe(1);
+    expect(blurFor(1)).toBe(3);
+    expect(blurFor(0.5)).toBe(2);
+    const blurs = range.map(blurFor);
+    for (let i = 1; i < blurs.length; i++) expect(blurs[i]).toBeGreaterThan(blurs[i - 1]);
+  });
+
+  it("blurs gently on a phone: 0.5px to 1.5px, never more than the desktop's", () => {
+    expect(phoneBlurFor(0)).toBe(0.5);
+    expect(phoneBlurFor(1)).toBe(1.5);
+    for (const o of range) expect(phoneBlurFor(o)).toBeLessThan(blurFor(o));
+    const blurs = range.map(phoneBlurFor);
+    for (let i = 1; i < blurs.length; i++) expect(blurs[i]).toBeGreaterThan(blurs[i - 1]);
+  });
+
+  it("clamps an obscurity outside 0 to 1, and one that is not a number is the best-known", () => {
+    expect([depthPush(-1), depthPush(2)]).toEqual([0, DEPTH.spread]);
+    expect([restOpacityFor(-1), restOpacityFor(2)]).toEqual([OBSCURITY_CUES.opacity.best, OBSCURITY_CUES.opacity.worst]);
+    expect([blurFor(-1), blurFor(2)]).toEqual([OBSCURITY_CUES.blur.best, OBSCURITY_CUES.blur.worst]);
+    expect([depthPush(Number.NaN), restOpacityFor(Number.NaN), blurFor(Number.NaN)]).toEqual([0, 0.8, 1]);
   });
 });
 
-describe("isBlurred", () => {
-  it("is whether blurFor blurs the layer: the focus field only drives those", () => {
-    expect([0, 1, 2, 3].map((layer) => isBlurred(layer, true))).toEqual([false, true, true, true]);
-    expect([0, 1, 2, 3].map((layer) => isBlurred(layer, false))).toEqual([false, false, true, true]);
+describe("posterFactor", () => {
+  it("is the perspective over the perspective plus the poster's own depth", () => {
+    expect(posterFactor({ depth: 0 })).toBe(1);
+    expect(posterFactor({ depth: -100 })).toBeCloseTo(1000 / 900, 10);
+    expect(posterFactor({ depth: 320 })).toBeCloseTo(layerFactor(1), 10);
+    expect(posterFactor({ depth: 320 + 320 })).toBeCloseTo(1000 / 1640, 10);
+    expect(posterFactor({ depth: 500 }, 500)).toBeCloseTo(0.5, 10);
+  });
+
+  it("is smaller for a poster pushed back within its layer, and bounded by the layer's factor", () => {
+    for (const layer of [1, 2, 3, 4]) {
+      const base = posterFactor({ depth: layerDepth(layer) });
+      expect(base).toBeCloseTo(layerFactor(layer), 10);
+      let last = base;
+      for (const o of [0.25, 0.5, 0.75, 1]) {
+        const f = posterFactor({ depth: layerDepth(layer) + depthPush(o) });
+        expect(f).toBeLessThan(last);
+        last = f;
+      }
+    }
+  });
+});
+
+describe("the cloud of a person's films", () => {
+  // Scorsese-like: one famous film, some middling, one with no votes; Schoonmaker-like on the other layer; one shared film (layer 0, not counted).
+  const pair: FilmSpec[][] = [
+    [[1, "1990-01-01", 20_000], [2, "1995-01-01", 400], [3, "2000-01-01", 0], [9, "2005-01-01", 90_000]],
+    [[4, "1991-01-01", 9000], [5, "1996-01-01", 30], [9, "2005-01-01", 90_000]],
+  ];
+
+  it("measures obscurity against the most-voted background film of the page, not against a film several people made", () => {
+    const l = layout(pair);
+    // 9 (90,000 votes) is shared, so layer 0: it neither has a cue nor sets the scale.
+    expect(byId(l, 9)).toMatchObject({ layer: 0, obscurity: 0, push: 0, depth: DEPTH.z[0], background: false });
+    expect(byId(l, 1).obscurity).toBe(0);
+    expect(byId(l, 3).obscurity).toBe(1);
+    expect(byId(l, 2).obscurity).toBeCloseTo(1 - Math.log(400) / Math.log(20_000), 10);
+    // The other person's films are measured on the same scale: 9,000 votes is a little more obscure than 20,000.
+    expect(byId(l, 4).obscurity).toBeCloseTo(1 - Math.log(9000) / Math.log(20_000), 10);
+    expect(byId(l, 4).obscurity).toBeGreaterThan(0);
+    expect(byId(l, 5).obscurity).toBeGreaterThan(byId(l, 2).obscurity);
+  });
+
+  it("gives each background poster the depth of its layer plus a push by its obscurity, and a factor of its own", () => {
+    const l = layout(pair);
+    for (const poster of l.films.filter((f) => f.background)) {
+      expect(poster.layer).toBeGreaterThan(0);
+      expect(poster.push).toBe(depthPush(poster.obscurity));
+      expect(poster.depth).toBe(layerDepth(poster.layer, 2) + poster.push);
+    }
+    // Two of the first person's posters, one famous and one with no votes, are 320px apart in depth and so differ in factor.
+    expect(byId(l, 1).depth).toBe(DEPTH.z[1]);
+    expect(byId(l, 3).depth).toBe(DEPTH.z[1] + DEPTH.spread);
+    expect(posterFactor(byId(l, 3))).toBeLessThan(posterFactor(byId(l, 1)));
+    expect(posterFactor(byId(l, 1))).toBeCloseTo(layerFactor(1), 10);
+  });
+
+  it("keeps the order of the people: the best-known of each is on its layer's plane, and the ranges overlap by at most a little", () => {
+    for (let layer = 1; layer < DEPTH.z.length - 1; layer++) {
+      // The nearest a person's film can be is its layer's plane, so the best-known films of person 1 are in front of person 2's.
+      expect(DEPTH.z[layer]).toBeLessThan(DEPTH.z[layer + 1]);
+      const overlap = DEPTH.z[layer] + DEPTH.spread - DEPTH.z[layer + 1];
+      expect(overlap).toBeLessThanOrEqual(DEPTH.spread / 2);
+    }
+    // The first two people, the pair that every page of two or three has, do not overlap at all.
+    expect(DEPTH.z[1] + DEPTH.spread).toBeLessThanOrEqual(DEPTH.z[2]);
+    // And a person's films never come nearer than their layer's plane nor go further back than the spread.
+    const l = layout([
+      Array.from({ length: 20 }, (_, i): FilmSpec => [100 + i, `${1980 + i}-01-01`, Math.floor(10 ** (i / 4))]),
+      Array.from({ length: 20 }, (_, i): FilmSpec => [200 + i, `${1980 + i}-06-01`, Math.floor(10 ** (i / 4))]),
+      [[300, "1990-01-01", 5]],
+    ]);
+    for (const poster of l.films) {
+      expect(poster.depth).toBeGreaterThanOrEqual(layerDepth(poster.layer, 3));
+      expect(poster.depth).toBeLessThanOrEqual(layerDepth(poster.layer, 3) + DEPTH.spread);
+    }
+    const first = l.films.filter((f) => f.layer === 1);
+    const second = l.films.filter((f) => f.layer === 2);
+    // Person 1's median film is still in front of person 2's.
+    const median = (posters: DepthFilm[]) => [...posters].map((f) => f.depth).sort((a, b) => a - b)[Math.floor(posters.length / 2)];
+    expect(median(first)).toBeLessThan(median(second));
+  });
+
+  it("treats every film of a page of several people as background when nothing is shared, and none of a page of one person's", () => {
+    const apart = layout([[[1, "1990-01-01", 500], [2, "2000-01-01", 5]], [[3, "1995-01-01", 80]]]);
+    expect(apart.hasShared).toBe(false);
+    expect(apart.films.every((f) => f.background)).toBe(true);
+    expect(byId(apart, 1).obscurity).toBe(0);
+    expect(byId(apart, 2).obscurity).toBeGreaterThan(0.5);
+    const alone = layout([[[1, "1990-01-01", 500], [2, "2000-01-01", 5]]]);
+    expect(alone.films.every((f) => !f.background && f.obscurity === 0 && f.push === 0)).toBe(true);
+  });
+
+  it("gives films with the same votes the same cue, and a page where every film has none the most obscure", () => {
+    const l = layout([[[1, "1990-01-01", 70], [2, "2000-01-01", 70]], [[3, "1995-01-01", 70], [4, "1999-01-01", 5]]]);
+    expect(new Set([1, 2, 3].map((id) => byId(l, id).obscurity))).toEqual(new Set([0]));
+    expect(byId(l, 4).obscurity).toBeGreaterThan(0);
+    const none = layout([[[1, "1990-01-01"], [2, "2000-01-01"]], [[3, "1995-01-01"]]]);
+    expect(none.films.every((f) => f.obscurity === 1 && f.push === DEPTH.spread)).toBe(true);
+  });
+
+  it("puts the cue on an upcoming film several people are making, as on any film of the first person's layer", () => {
+    const l = layout([[[1, "2030-01-01", 0], [2, "2000-01-01", 900]], [[1, "2030-01-01", 0], [3, "1999-01-01", 40]]]);
+    expect(byId(l, 1)).toMatchObject({ layer: 1, background: true, obscurity: 1 });
   });
 });
 
@@ -458,14 +674,15 @@ describe("depthLayout", () => {
         for (const tier of ["phone", "tablet", "desktop"] as const) {
           const people = l.layerCount - 1;
           const spec = xSpec(tier, people);
-          // Across in the layer's own space: what is chosen on screen, undone by the layer's scale.
-          const xOf = (f: DepthFilm) => (columnOffset(f.col, f.layer === 0 ? spec.stepCollab : spec.stepSolo) + f.jitter * spec.jitterSpan) / layerFactor(f.layer, undefined, people);
+          // Across on screen: what is chosen on screen is the same for every depth, and a poster is drawn `f` times its width.
+          const xOf = (f: DepthFilm) => columnOffset(f.col, f.layer === 0 ? spec.stepCollab : spec.stepSolo) + f.jitter * spec.jitterSpan;
           for (const a of l.films) {
             for (const b of l.films) {
               if (a === b || a.layer !== b.layer || a.band !== b.band) continue;
               // As drawn: the films several people made are scaled down on a small screen.
-              const drawnW = (f: DepthFilm) => f.w * (f.layer === 0 ? spec.collabScale : spec.soloScale);
+              const drawnW = (f: DepthFilm) => f.w * (f.layer === 0 ? spec.collabScale : spec.soloScale) * posterFactor(f);
               const apartX = Math.abs(xOf(a) - xOf(b)) >= (drawnW(a) + drawnW(b)) / 2 - 1e-9;
+              // (Down the axis it is the layer's own space: posters of one layer at different depths do cross on screen, by parallax.)
               const apartY = Math.abs(a.y - b.y) >= (a.h + b.h) / 2 - 1e-9;
               expect(apartX || apartY).toBe(true);
             }

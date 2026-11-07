@@ -13,9 +13,14 @@
  * and which the focus field mirrors in numbers (`docCenterX`); the only other thing that needs the viewport is the
  * initial scroll (`anchorScrollTop`).
  *
- * A poster's x is worked out in the space the visitor sees, then pushed back through the layer's perspective: the band
- * where a person's films are centred is a fraction of the visible stage (the width less the year rail), and a layer
- * `f` times smaller on screen has its offset from the centre divided by `f`, so a far layer's band lands where it was
+ * Within its person's layer a background poster is pushed further back the more obscure its film is (`obscurity`,
+ * from TMDB's vote count), so a person's films read as a cloud with depth, and it is also fainter and softer: the cues
+ * are `depthPush`, `restOpacityFor` and `blurFor`. Because of that a poster has its own depth and so its own factor `f`
+ * (`posterFactor`), not its layer's: everything that places or projects a poster uses it.
+ *
+ * A poster's x is worked out in the space the visitor sees, then pushed back through the poster's perspective: the band
+ * where a person's films are centred is a fraction of the visible stage (the width less the year rail), and a poster
+ * `f` times smaller on screen has its offset from the centre divided by `f`, so a far poster's band lands where it was
  * asked to instead of collapsing towards the middle. The posters are never allowed under the rail or past the left edge.
  */
 
@@ -40,6 +45,12 @@ export const DEPTH = {
    * drawn a ninth larger than they are laid out and moving a ninth faster than the scroll.
    */
   z: [-100, 320, 640, 900, 1100],
+  /**
+   * How far (px) behind its layer the most obscure film of a person is pushed (`depthPush`): the best-known stay on the layer's
+   * plane. It is the gap between layers 1 and 2 (and 0 and 1), so the first person's cloud ends where the second's begins, and
+   * it overlaps the next person's by only 60 and 120px for slots 3 and 4, whose layers are closer together.
+   */
+  spread: 320,
   pxPerYear: 128,
   /** Empty space before the first and after the last year, so the edge posters are not cut off. */
   pad: 200,
@@ -48,13 +59,24 @@ export const DEPTH = {
   solo: { w: 80, h: 120 },
   /**
    * A page of one person has nothing made together to put in front, so their own films take the front: this big (the
-   * films several people made are 136 x 204) and at `singleZ`, with no blur (see `blurFor`). Scaled down on a smaller screen.
+   * films several people made are 136 x 204) and at `singleZ`, sharp, opaque and with no push back (`DepthFilm.background` is false: there is nothing behind). Scaled down on a smaller screen.
    */
   single: { w: 120, h: 180 },
   /** Depth (px behind the screen plane) of the layer of a page of one person: at the screen plane, so every poster is at full size and level with the rail. */
   singleZ: 0,
   /** Vertical gap (px) between posters of a column. */
   rowGap: 14,
+} as const;
+
+/**
+ * What obscurity does to a background poster, by the poster's `obscurity` (0 best-known, 1 most obscure): its resting
+ * opacity (the focus field and hover raise it to 1) and the blur of its soft image (px; a phone's is gentler: the blur is
+ * what costs there).
+ */
+export const OBSCURITY_CUES = {
+  opacity: { best: 0.8, worst: 0.45 },
+  blur: { best: 1, worst: 3 },
+  phoneBlur: { best: 0.5, worst: 1.5 },
 } as const;
 
 /** Viewport widths (px) from which the `tablet` and `desktop` spacings apply: Tailwind's `sm` and `lg`. */
@@ -130,6 +152,21 @@ export interface DepthFilm {
   jitter: number;
   w: number;
   h: number;
+  /**
+   * How obscure the film is on this page, 0 (the best-known background film) to 1 (the most obscure), from its vote count
+   * (see `obscurityOf`). 0 for the films several people made and for every film of a page of one person: they have no cue.
+   */
+  obscurity: number;
+  /** Distance (px) the poster is pushed behind its layer's plane by its obscurity (`depthPush`); 0 when it has no cue. */
+  push: number;
+  /** Distance (px) behind the screen plane, negative in front of it: the layer's (`layerDepth`) plus `push`. Its factor on screen is `posterFactor`. */
+  depth: number;
+  /**
+   * A poster of a layer behind, on a page of several people: drawn soft, faded by its obscurity and pushed back by it, until
+   * the focus field (or a hover) brings it into focus. False for the films several people made and for a page of one person's
+   * posters, which are always sharp, opaque and level.
+   */
+  background: boolean;
 }
 
 export interface DepthLayout {
@@ -142,6 +179,7 @@ export interface DepthLayout {
   anchorY: number | null;
   /** Layers to draw: one for the shared films and one per person. */
   layerCount: number;
+  /** Whether any released film is made by several people. */
   hasShared: boolean;
 }
 
@@ -150,8 +188,9 @@ export interface DepthOptions {
 }
 
 /**
- * Scale of a layer on screen, `p / (p + z)`: 1 at the screen plane, above 1 in front of it, smaller the further back.
- * `peopleCount` is the people on the page (a page of one has its films at the front, see `layerDepth`).
+ * Scale on screen of a layer's own plane, `p / (p + z)`: 1 at the screen plane, above 1 in front of it, smaller the further back.
+ * `peopleCount` is the people on the page (a page of one has its films at the front, see `layerDepth`). A background poster
+ * is pushed behind this plane and has its own factor (`posterFactor`).
  */
 export function layerFactor(layer: number, perspective: number = DEPTH.perspective, peopleCount: number = 2): number {
   return perspective / (perspective + layerDepth(layer, peopleCount));
@@ -165,6 +204,15 @@ export function layerFactor(layer: number, perspective: number = DEPTH.perspecti
 export function layerDepth(layer: number, peopleCount: number = 2): number {
   if (peopleCount === 1 && layer >= 1) return DEPTH.singleZ;
   return DEPTH.z[Math.min(Math.max(0, Math.trunc(layer)), DEPTH.z.length - 1)];
+}
+
+/**
+ * Scale of a poster on screen, `p / (p + depth)` with the poster's own `depth` (its layer's plus its obscurity's push): what
+ * the browser's perspective does to it. The projection, the focus field, the image window, the stage bounds and the CSS's `--f`
+ * all use it, never the layer's.
+ */
+export function posterFactor(film: Pick<DepthFilm, "depth">, perspective: number = DEPTH.perspective): number {
+  return perspective / (perspective + film.depth);
 }
 
 /** How many steps from its layer's centre line a column is: 0, +1, -1, +2, -2, ... for columns 0, 1, 2, 3, 4, ... */
@@ -191,29 +239,47 @@ export function hashUnit(id: number): number {
   return (h >>> 0) / 4294967296;
 }
 
-/**
- * Blur (px) of a layer's posters while they are out of focus: none in front, a soft one on the first person's layer and
- * a stronger one further back. With nothing shared the first person's layer is the front-most one, so it stays sharp
- * (which is every page of one person: nothing can be shared, so its posters are sharp images with no soft copy under them).
- */
-export function blurFor(layer: number, hasShared: boolean): number {
-  if (layer <= 0) return 0;
-  if (layer === 1) return hasShared ? 1 : 0;
-  return 1.5;
-}
+const clamp01 = (value: number) => (value > 0 ? (value < 1 ? value : 1) : 0);
+const lerp = (from: number, to: number, t: number) => from + (to - from) * clamp01(t);
 
 /**
- * The blur (px) of a layer's soft posters on a phone: a light one on the first person's layer, the one nearest the
- * screen, and none further back (a blur is what costs on a phone, and the small image of those layers, blown up, is
- * soft enough already). Only where `blurFor` blurs the layer at all.
+ * How obscure a film is, 0 (as well known as the page's best-known background film) to 1 (the most obscure), from its TMDB
+ * vote count and the most votes any background film on the page has:
+ *
+ *   obscurity = 1 - ln(votes) / ln(maxVotes)
+ *
+ * A logarithm, because votes are spread over orders of magnitude (a hundred, a few thousand, tens of thousands) and a person's
+ * films fall fairly evenly across 0 to 1 that way (Scorsese's seventy: 4, 9, 8, 9, 10, 8, 6, 8, 6 and 2 films per tenth, live TMDB
+ * data). A rank within the page would force an even spread but reads a page of well-known films as half obscure, and one obscure
+ * person's best film as famous; this keeps the meaning of the vote count and only takes its scale from the page. Films with 0 or 1
+ * votes (ln is 0, and 0 has no ln) are the most obscure, 1; a film as voted as the best-known, or more, is 0; films with the same
+ * votes score the same, and more votes never score higher. If no film has more than one vote, none can be told apart: all are 1.
  */
-export function phoneBlurFor(layer: number, hasShared: boolean): number {
-  return layer === 1 && blurFor(layer, hasShared) > 0 ? 0.75 : 0;
+export function obscurityOf(votes: number, maxVotes: number): number {
+  const v = Number.isFinite(votes) ? votes : 0;
+  const max = Number.isFinite(maxVotes) ? maxVotes : 0;
+  if (v <= 1 || max <= 1) return 1;
+  return clamp01(1 - Math.log(v) / Math.log(max));
 }
 
-/** Whether a layer's posters are drawn soft until the focus field sharpens them (see `blurFor`): the others are always sharp. */
-export function isBlurred(layer: number, hasShared: boolean): boolean {
-  return blurFor(layer, hasShared) > 0;
+/** How far (px) behind its layer's plane a poster of this obscurity is pushed: nothing for the best-known, `DEPTH.spread` for the most obscure. */
+export function depthPush(obscurity: number): number {
+  return lerp(0, DEPTH.spread, obscurity);
+}
+
+/** The opacity (0 to 1) of a background poster at rest, out of focus: 0.8 for the best-known, fading to 0.45 for the most obscure. Focus brings it to 1. */
+export function restOpacityFor(obscurity: number): number {
+  return lerp(OBSCURITY_CUES.opacity.best, OBSCURITY_CUES.opacity.worst, obscurity);
+}
+
+/** Blur (px) of a background poster's soft image while it is out of focus: about 1px for the best-known to 3px for the most obscure. */
+export function blurFor(obscurity: number): number {
+  return lerp(OBSCURITY_CUES.blur.best, OBSCURITY_CUES.blur.worst, obscurity);
+}
+
+/** The same on a phone, where a blur is what costs: gentler, 0.5px to 1.5px. */
+export function phoneBlurFor(obscurity: number): number {
+  return lerp(OBSCURITY_CUES.phoneBlur.best, OBSCURITY_CUES.phoneBlur.worst, obscurity);
 }
 
 /** Which spacing a viewport `width` px wide gets. */
@@ -250,15 +316,15 @@ export function xSpec(tier: DepthTier, peopleCount: number): XSpec {
 }
 
 /**
- * Where a poster's centre is in its layer's own space (px from the left edge of the scroll area) on a viewport `width`
+ * Where a poster's centre is in its own plane (px from the left edge of the scroll area) on a viewport `width`
  * px wide: the number the CSS rule in `depthSceneCss` works out, for the focus field to project without reading the DOM.
  * What is chosen is where the poster is on screen: the stage fraction of its band, plus its column's steps and its jitter,
- * all in screen px; the layer's perspective (`f`) maps the layer's x to the screen's as `(x - width / 2) f + width / 2`,
+ * all in screen px; the poster's perspective (`f`, its own: `posterFactor`) maps its x to the screen's as `(x - width / 2) f + width / 2`,
  * so the offset from the centre is divided by `f`. The posters are kept inside the stage: the bounds are that mapping
  * undone for the least and greatest x a poster clear of the edge and the rail can be at.
  */
-export function docCenterX(film: Pick<DepthFilm, "layer" | "band" | "col" | "jitter" | "w">, width: number, spec: XSpec): number {
-  const f = layerFactor(film.layer, DEPTH.perspective, spec.people);
+export function docCenterX(film: Pick<DepthFilm, "layer" | "band" | "col" | "jitter" | "w" | "depth">, width: number, spec: XSpec): number {
+  const f = posterFactor(film);
   // What is kept inside the stage is the poster as drawn: the films several people made (and a page of one person's) are scaled down on a small screen.
   const w = film.w * (film.layer === 0 ? spec.collabScale : spec.soloScale);
   const q = film.band === null ? 0.5 : (spec.bands[Math.min(film.band, spec.bands.length - 1)] ?? 0.5);
@@ -287,7 +353,7 @@ function specDeclarations(spec: XSpec): string {
 /**
  * The scene's horizontal spacing as CSS: the custom properties of each viewport (`xSpec`) on `[data-depth-scene]`, and the
  * one rule that turns them and a poster's own (`--q` band, `--col` steps from it, `--jit`, `--step`, `--w`, `--ps` (its scale, `--collab-scale` for the films several people made), `--lead`, with
- * its layer's `--f`) into `left`, the same sum as `docCenterX`. It is generated from the same numbers the JS uses, so the
+ * its own `--f`) into `left`, the same sum as `docCenterX`. It is generated from the same numbers the JS uses, so the
  * two cannot drift apart, and it is the same markup for every viewport: the browser picks the spacing.
  */
 export function depthSceneCss(peopleCount: number): string {
@@ -364,6 +430,10 @@ export function depthLayout(
     else byLayer.set(layer, [entry]);
   }
 
+  // The cues are for the layers behind on a page of several people; the most votes among those films is what obscurity is measured against.
+  const cued = peopleCount >= 2;
+  const maxVotes = cued ? Math.max(0, ...placeable.filter((entry) => layerOf(entry) > 0).map((entry) => entry.film.voteCount || 0)) : 0;
+
   const films: DepthFilm[] = [];
   for (const layer of [...byLayer.keys()].sort((a, b) => a - b)) {
     const group = byLayer.get(layer) ?? [];
@@ -388,6 +458,9 @@ export function depthLayout(
       const { y, col } = columns.get(film.id) as { y: number; col: number };
       // The vertical jitter stays within half the gap on each side, so two posters that were `rowGap` apart still do not touch.
       const dy = spine ? 0 : (hashUnit(film.id * 7 + 1) - 0.5) * DEPTH.rowGap;
+      const background = cued && !spine;
+      const obscurity = background ? obscurityOf(film.voteCount, maxVotes) : 0;
+      const push = background ? depthPush(obscurity) : 0;
       films.push({
         film,
         shared: entry.shared,
@@ -400,6 +473,10 @@ export function depthLayout(
         jitter: spine ? 0 : hashUnit(film.id) - 0.5,
         w: size.w,
         h: size.h,
+        obscurity,
+        push,
+        depth: layerDepth(layer, peopleCount) + push,
+        background,
       });
     }
   }

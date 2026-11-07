@@ -53,6 +53,12 @@ test("the films made together float in front: larger, with their own shadow, and
   expect(box.height).toBeGreaterThan(218);
   await expect(region.locator("ol").first()).toHaveCSS("transform", /matrix3d/);
   expect(await region.locator("ol").first().evaluate((list) => list.style.transform)).toBe("translateZ(100px)");
+  // Every layer's list is `preserve-3d`: a background poster's own translateZ (its obscurity's push) only takes inside one.
+  expect(await region.locator("ol").evaluateAll((lists) => lists.map((list) => getComputedStyle(list).transformStyle))).toEqual([
+    "preserve-3d",
+    "preserve-3d",
+    "preserve-3d",
+  ]);
   // The shadows hang from the card's ::before: no green glow, but a dark outline outside the ring and layers of near-black
   // (contact, mid, a large ambient one thrown down, a soft halo all round), the heaviest in the scene. Green is only the crisp 2px ring on the poster.
   const shadow = (selector: string) =>
@@ -77,9 +83,9 @@ test("the films made together float in front: larger, with their own shadow, and
     const a = front.getBoundingClientRect();
     const b = behind.getBoundingClientRect();
     const li = behind.closest<HTMLElement>("[data-poster]")!;
-    // Slide the poster behind (in its own layer's pixels) until its centre is on the front one's.
-    const f = 1000 / 1320;
-    li.style.transform = `translate(${(a.left + a.width / 2 - (b.left + b.width / 2)) / f}px, ${(a.top + a.height / 2 - (b.top + b.height / 2)) / f}px)`;
+    // Slide the poster behind (in its own pixels, scaled by its own factor) until its centre is on the front one's.
+    const f = Number.parseFloat(li.style.getPropertyValue("--f"));
+    li.style.transform = `translate(${(a.left + a.width / 2 - (b.left + b.width / 2)) / f}px, ${(a.top + a.height / 2 - (b.top + b.height / 2)) / f}px) ${li.style.transform}`;
     const x = a.left + a.width / 2;
     const y = a.top + a.height / 2;
     return document.elementFromPoint(x, y)?.closest("button")?.getAttribute("data-layer") ?? null;
@@ -182,6 +188,11 @@ test("a page of one person has its posters at the front, big and sharp", async (
     all.map((image) => ({ source: image.getAttribute("data-src"), filter: getComputedStyle(image).filter, opacity: getComputedStyle(image).opacity })),
   );
   expect(images.every((image) => image.source?.includes("/w342/") && image.filter === "none" && image.opacity === "1")).toBe(true);
+  // No obscurity cue either: every poster is opaque and level on the layer's plane, whatever the votes of its film.
+  const cues = await posters.evaluateAll((all) =>
+    all.map((poster) => ({ opacity: getComputedStyle(poster).opacity, transform: (poster as HTMLElement).style.transform, rest: (poster as HTMLElement).style.getPropertyValue("--rest-opacity"), f: (poster as HTMLElement).style.getPropertyValue("--f") })),
+  );
+  expect(cues.every((cue) => cue.opacity === "1" && !cue.transform.includes("translateZ") && cue.rest === "" && cue.f === "1")).toBe(true);
 
   // Big: 120 x 180 on a desktop, and, being at the screen plane, exactly where the layout puts it (level with the rail).
   const first = posters.first();
@@ -196,10 +207,14 @@ test("a linked period dims the posters outside it", async ({ page }) => {
   await openDepth(page, "&from=2000&to=2001");
   const region = scene(page);
 
-  // 1990 is outside 2000-2001 (opacity fades in over a moment); 2000 is inside.
+  // 1990 is outside 2000-2001 (opacity fades in over a moment); 2000 is inside. The dimming is the whole opacity: it wins over the
+  // obscurity's (1000 is the best-known background film, which at rest would be 0.8, and 1014 the most obscure, 0.45), and it does not stack under it.
   await expect(region.locator('[data-poster="1000"]')).toHaveCSS("opacity", "0.25");
+  await expect(region.locator('[data-poster="1014"]')).toHaveCSS("opacity", "0.25");
+  await expect(region.locator('[data-poster="1000"]')).toHaveCSS("filter", /grayscale/);
+  // A film made together, inside it: 1. A film of one person's inside it: its own resting opacity, which is not 0.25 and not 1 (1010 has 9 votes).
   await expect(region.locator('[data-poster="100"]')).toHaveCSS("opacity", "1");
-  await expect(region.locator('[data-poster="1010"]')).toHaveCSS("opacity", "1");
+  await expect.poll(async () => Number(await region.locator('[data-poster="1010"]').evaluate((poster) => getComputedStyle(poster).opacity))).toBeCloseTo(0.53, 1);
 });
 
 test("a poster opens the film dialog, and Escape closes it and returns focus", async ({ page }) => {
@@ -319,12 +334,14 @@ async function slideBackgroundPosterUnderCollab(page: Page, layer: number) {
   return scene(page).evaluate((scroller, layerNumber) => {
     const frontButton = scroller.querySelector<HTMLElement>('button[data-film="200"]')!;
     const behind = scroller.querySelector<HTMLElement>(`button[data-layer="${layerNumber}"]`)!;
-    const f = 1000 / (1000 + [-100, 320, 640, 900, 1100][layerNumber]);
+    const li = behind.closest<HTMLElement>("[data-poster]")!;
+    // The poster's own factor (it is pushed back within its layer by its obscurity), and its own depth is kept.
+    const f = Number.parseFloat(li.style.getPropertyValue("--f"));
     const a = frontButton.getBoundingClientRect();
     const b = behind.getBoundingClientRect();
     // Its centre on the front poster's right edge: the left half is under it, the right half is exposed.
-    behind.closest<HTMLElement>("[data-poster]")!.style.transform =
-      `translate(${(a.left + a.width * 0.9 - (b.left + b.width / 2)) / f}px, ${(a.top + a.height / 2 - (b.top + b.height / 2)) / f}px)`;
+    li.style.transform =
+      `translate(${(a.left + a.width * 0.9 - (b.left + b.width / 2)) / f}px, ${(a.top + a.height / 2 - (b.top + b.height / 2)) / f}px) ${li.style.transform}`;
     return behind.dataset.film!;
   }, layer);
 }
@@ -342,6 +359,14 @@ const hitAt = (page: Page, x: number, y: number) =>
     const button = document.elementFromPoint(px, py)?.closest<HTMLElement>("button");
     return { film: button?.dataset.film ?? null, inCopy: !!button?.closest("[data-pop-layer]") };
   }, [x, y]);
+
+/** How the hover copy looks: its opacity, its `--focus` and the opacity of its sharp image over the soft one. */
+const copyLook = (page: Page) =>
+  page.evaluate(() => {
+    const copy = document.querySelector<HTMLElement>("[data-pop-layer] [data-pop]")!;
+    const sharp = copy.querySelector<HTMLElement>('img[data-window="sharp"]')!;
+    return { opacity: getComputedStyle(copy).opacity, focus: copy.style.getPropertyValue("--focus"), sharp: getComputedStyle(sharp).opacity };
+  });
 
 /** The copy's scale on screen (the `a` of its matrix), or null without one. */
 const copyScale = (page: Page) =>
@@ -367,6 +392,8 @@ test("a hovered background poster pops forward over the poster of a nearer layer
   await expect.poll(() => copyScale(page)).toBeGreaterThan(base * 1.07);
   await expect.poll(async () => (await hitAt(page, box.x, box.y)).inCopy).toBe(true);
   expect((await hitAt(page, box.x, box.y)).film).toBe(id);
+  // The copy is at full opacity and fully sharp, whatever the film's obscurity.
+  expect(await copyLook(page)).toEqual({ opacity: "1", focus: "1", sharp: "1" });
   // The hover card still opens after its own short wait.
   await expect(page.getByRole("tooltip")).toBeVisible();
 
@@ -403,6 +430,161 @@ test("a popped poster opens its film on a click and pans on a drag", async ({ pa
   await expect(page.getByRole("dialog")).toBeVisible();
 });
 
+/**
+ * How a background poster looks, by film id: its opacity, depth (its own `translateZ` and `--f`), the blur of its soft image and
+ * how far the focus field has brought it into focus. The fixture's own films have votes by index (`OWN_FILM_VOTES`): 1000 has 12,000
+ * (the best-known of the page: obscurity 0), 1005 has 300, 1010 has 9 and 1014 has none (the most obscure: 1).
+ */
+const lookOf = (page: Page, id: number) =>
+  scene(page).evaluate((scroller, filmId) => {
+    const li = scroller.querySelector<HTMLElement>(`[data-poster="${filmId}"]`)!;
+    // The soft image is the first one in a background poster (the sharp one is over it).
+    const soft = li.querySelector<HTMLElement>("img")!;
+    return {
+      opacity: Number(getComputedStyle(li).opacity),
+      restOpacity: Number(li.style.getPropertyValue("--rest-opacity")),
+      f: Number(li.style.getPropertyValue("--f")),
+      transform: li.style.transform,
+      blur: Number.parseFloat(getComputedStyle(soft).filter.replace(/^blur\(/, "")),
+      focus: Number(li.style.getPropertyValue("--focus")),
+    };
+  }, id);
+
+/** Scrolls so that poster `id` is level with the middle of the screen (where the pointer or a phone's focus band is) and returns its centre on screen. */
+const scrollToCentre = async (page: Page, id: number) => {
+  await scene(page).evaluate((scroller, filmId) => {
+    const li = scroller.querySelector<HTMLElement>(`[data-poster="${filmId}"]`)!;
+    scroller.scrollTop = Number.parseFloat(li.style.top) + li.offsetHeight / 2 - scroller.clientHeight / 2;
+  }, id);
+  // The poster is at the scene's middle line, whatever its depth, and the focus loop has had a frame.
+  await page.waitForTimeout(100);
+  return posterBox(page, String(id));
+};
+
+test("background posters rest at 0.8 for the best-known film and fade, blur and recede as the film gets more obscure", async ({ page }) => {
+  await openDepth(page);
+  const [famous, middling, obscure, nothing] = await Promise.all([1000, 1005, 1010, 1014].map((id) => lookOf(page, id)));
+
+  // The best-known background film of the page: 0.8 at rest, about 1px of blur, on its layer's plane (320px back, factor 1000/1320).
+  expect(famous.opacity).toBeCloseTo(0.8, 2);
+  expect(famous.blur).toBeCloseTo(1, 2);
+  expect(famous.transform).toBe("translateZ(0px)");
+  expect(famous.f).toBeCloseTo(1000 / 1320, 4);
+  // The film with no votes: faintest (0.45), softest (3px) and furthest back (the layer's plane plus the whole spread, 320px).
+  expect(nothing.opacity).toBeCloseTo(0.45, 2);
+  expect(nothing.blur).toBeCloseTo(3, 2);
+  expect(nothing.transform).toBe("translateZ(-320px)");
+  expect(nothing.f).toBeCloseTo(1000 / 1640, 4);
+  // And monotonic in between, on every cue.
+  for (const [nearer, further] of [[famous, middling], [middling, obscure], [obscure, nothing]]) {
+    expect(further.opacity).toBeLessThan(nearer.opacity);
+    expect(further.blur).toBeGreaterThan(nearer.blur);
+    expect(further.f).toBeLessThan(nearer.f);
+  }
+  // Out of focus: nothing has been sharpened.
+  expect([famous, nothing].map((look) => look.focus)).toEqual([0, 0]);
+  // The films made together are not touched: opaque, sharp (no soft image), in front.
+  await expect(scene(page).locator('[data-poster="100"]')).toHaveCSS("opacity", "1");
+});
+
+test("a poster is drawn where its own depth puts it: its size and place follow its own factor, not its layer's", async ({ page }) => {
+  await openDepth(page);
+  const geometry = (id: number) =>
+    scene(page).evaluate((scroller, filmId) => {
+      const li = scroller.querySelector<HTMLElement>(`[data-poster="${filmId}"]`)!;
+      const box = li.querySelector("button")!.getBoundingClientRect();
+      const f = Number.parseFloat(li.style.getPropertyValue("--f"));
+      const docY = Number.parseFloat(li.style.top) + li.offsetHeight / 2;
+      const H = scroller.clientHeight;
+      return { width: box.width, height: box.height, centreY: box.top + box.height / 2, expectedWidth: li.offsetWidth * f, expectedHeight: li.offsetHeight * f, expectedY: (docY - scroller.scrollTop) * f + (H / 2) * (1 - f) };
+    }, id);
+  // At the opening position and scrolled elsewhere: the parallax (the screen y as the scroll changes) is each poster's own.
+  for (const scrollTop of [null, 1500, 2600]) {
+    if (scrollTop !== null) await scene(page).evaluate((scroller, top) => { scroller.scrollTop = top; }, scrollTop);
+    const [near, far] = await Promise.all([geometry(1000), geometry(1014)]);
+    // Not the layer's factor for both: the obscure one is drawn smaller than the best-known of the same layer, as `--f` says.
+    expect(far.width).toBeLessThan(near.width - 5);
+    for (const g of [near, far]) {
+      expect(g.width).toBeCloseTo(g.expectedWidth, 0);
+      expect(g.height).toBeCloseTo(g.expectedHeight, 0);
+      expect(Math.abs(g.centreY - g.expectedY)).toBeLessThan(1.5);
+    }
+  }
+  // They drift apart as the scene scrolls (a poster further back moves slower): the two posters' screen gap is not the same at two scroll positions.
+  const gap = async (top: number) => {
+    await scene(page).evaluate((scroller, y) => { scroller.scrollTop = y; }, top);
+    const [near, far] = await Promise.all([geometry(1000), geometry(1014)]);
+    return far.centreY - near.centreY;
+  };
+  const [a, b] = [await gap(1200), await gap(2400)];
+  expect(Math.abs(a - b)).toBeGreaterThan(20);
+});
+
+/** A point `distance` px from (x, y) with no poster under it (so hovering there pops nothing), on the screen: the first of the directions that is free. */
+const freeSpot = (page: Page, x: number, y: number, distance: number) =>
+  page.evaluate(
+    ([cx, cy, d]) => {
+      for (const angle of [0, 180, 90, 270, 45, 135, 225, 315]) {
+        const px = cx + d * Math.cos((angle * Math.PI) / 180);
+        const py = cy + d * Math.sin((angle * Math.PI) / 180);
+        if (px < 20 || py < 20 || px > innerWidth - 80 || py > innerHeight - 20) continue;
+        if (!document.elementFromPoint(px, py)?.closest("button")) return { x: px, y: py };
+      }
+      return null;
+    },
+    [x, y, distance],
+  );
+
+test("the pointer near a poster brings it to full opacity and sharpness, whatever its obscurity, and it falls back when the pointer leaves", async ({ page }) => {
+  await openDepth(page);
+  const region = scene(page);
+  const center = await scrollToCentre(page, 1014);
+  expect((await lookOf(page, 1014)).opacity).toBeCloseTo(0.45, 2);
+
+  // Beside it (within the field's sharp inner radius, 77px, but not on it: nothing pops): the most obscure film is at full opacity and sharp.
+  const beside = (await freeSpot(page, center.x, center.y, center.width / 2 + 24))!;
+  expect(beside).not.toBeNull();
+  await page.mouse.move(beside.x, beside.y);
+  await expect.poll(async () => (await lookOf(page, 1014)).focus).toBeGreaterThan(0.99);
+  await expect.poll(async () => (await lookOf(page, 1014)).opacity).toBeCloseTo(1, 2);
+  // (The sharp image fades in over 100ms.)
+  await expect.poll(() => region.locator('[data-poster="1014"] img[data-window="sharp"]').evaluate((image) => Number(getComputedStyle(image).opacity))).toBeCloseTo(1, 2);
+  await expect(page.locator("[data-pop-layer] [data-pop]")).toHaveCount(0);
+
+  // Far from every poster: back to rest, 0.45.
+  await page.mouse.move(20, 80);
+  await expect.poll(async () => (await lookOf(page, 1014)).focus).toBe(0);
+  await expect.poll(async () => (await lookOf(page, 1014)).opacity).toBeCloseTo(0.45, 2);
+
+  // Partway (within the radius, 220px, but outside the inner one): between rest and 1, in step with the focus.
+  const best = await scrollToCentre(page, 1000);
+  const away = (await freeSpot(page, best.x, best.y, 150))!;
+  expect(away).not.toBeNull();
+  await page.mouse.move(away.x, away.y);
+  await expect.poll(async () => (await lookOf(page, 1000)).focus).toBeGreaterThan(0.2);
+  // (Opacity follows the focus over a moment, so it is polled until they agree: rest + (1 - rest) focus.)
+  await expect
+    .poll(async () => {
+      const look = await lookOf(page, 1000);
+      return Math.abs(look.opacity - (look.restOpacity + (1 - look.restOpacity) * look.focus));
+    })
+    .toBeLessThan(0.01);
+  const partway = await lookOf(page, 1000);
+  expect(partway.focus).toBeLessThan(0.9);
+  expect(partway.opacity).toBeGreaterThan(0.8);
+  expect(partway.opacity).toBeLessThan(1);
+  await page.mouse.move(20, 80);
+  await expect.poll(async () => (await lookOf(page, 1000)).opacity).toBeCloseTo(0.8, 2);
+
+  // On it: the poster pops (a copy at full opacity, sharp, over everything), and a move over the copy keeps the field on it.
+  const on = await scrollToCentre(page, 1014);
+  await page.mouse.move(on.x, on.y);
+  await expect(page.locator("[data-pop-layer] [data-pop]")).toHaveCount(1);
+  expect(await copyLook(page)).toEqual({ opacity: "1", focus: "1", sharp: "1" });
+  await page.mouse.move(on.x + 1, on.y + 1);
+  await expect.poll(async () => (await lookOf(page, 1014)).focus).toBeGreaterThan(0.99);
+});
+
 test("keyboard focus pops a background poster too, and reduced motion keeps the stacking without the scale", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await openDepth(page);
@@ -412,6 +594,9 @@ test("keyboard focus pops a background poster too, and reduced motion keeps the 
   await page.keyboard.press("Tab");
   await page.keyboard.press("Shift+Tab");
   await expect(page.locator("[data-pop-layer] [data-pop]")).toHaveCount(1);
+  // Keyboard focus takes the poster itself to full opacity too, whatever its resting one (the first of layer 1 is the best-known: 0.8).
+  await expect(poster.locator("xpath=ancestor::li")).toHaveCSS("opacity", "1");
+  expect(await copyLook(page)).toEqual({ opacity: "1", focus: "1", sharp: "1" });
   // No animation and no growth: the copy is at the poster's own scale, drawn above the scene.
   const base = await poster.evaluate((button) => button.getBoundingClientRect().width / Number.parseFloat((button.closest("[data-poster]") as HTMLElement).style.width));
   expect(await page.evaluate(() => document.querySelector("[data-pop-layer] [data-pop]")!.getAnimations().length)).toBe(0);
@@ -504,5 +689,23 @@ test.describe("on a phone", () => {
     const cardBox = (await card.boundingBox())!;
     expect(cardBox.x).toBeGreaterThanOrEqual(0);
     expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(390);
+  });
+
+  test("posters are as faint and soft as their film is obscure, gently, and the middle of the screen brings one to full opacity", async ({ page }) => {
+    await openDepth(page);
+    const [famous, nothing] = await Promise.all([1000, 1014].map((id) => lookOf(page, id)));
+    // The same opacities as on a desktop, a gentler blur (0.5px to 1.5px: it is what costs on a phone).
+    expect([famous.opacity, nothing.opacity].map((value) => Math.round(value * 100) / 100)).toEqual([0.8, 0.45]);
+    expect(famous.blur).toBeCloseTo(0.5, 2);
+    expect(nothing.blur).toBeCloseTo(1.5, 2);
+    expect(nothing.f).toBeLessThan(famous.f);
+
+    // A finger has no hover: the band through the middle of the screen is the focus. Scrolled to the middle, a poster is fully opaque and sharp;
+    // one that has left the band is at rest again.
+    await scrollToCentre(page, 1014);
+    await expect.poll(async () => (await lookOf(page, 1014)).opacity).toBeCloseTo(1, 2);
+    expect((await lookOf(page, 1014)).focus).toBeGreaterThan(0.99);
+    await scene(page).evaluate((scroller) => { scroller.scrollTop += 700; });
+    await expect.poll(async () => (await lookOf(page, 1014)).opacity).toBeCloseTo(0.45, 2);
   });
 });

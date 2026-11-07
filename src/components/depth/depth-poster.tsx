@@ -1,6 +1,6 @@
 import { memo, type CSSProperties } from "react";
 import { tmdbImage } from "@/lib/images";
-import { blurFor, columnIndex, isBlurred, phoneBlurFor, type DepthFilm } from "@/lib/depth-layout";
+import { blurFor, columnIndex, phoneBlurFor, posterFactor, restOpacityFor, type DepthFilm } from "@/lib/depth-layout";
 import { personColor, personGlow } from "@/lib/person-colors";
 import { cn } from "@/components/timeline/cn";
 
@@ -14,9 +14,7 @@ interface DepthPosterProps {
   upcoming: boolean;
   /** Whether the page has several people: a poster of one person gets a ring in their colour only then. */
   coloured: boolean;
-  /** Whether any film on the page is shared (it decides which layer is sharp, see `blurFor`). */
-  hasShared: boolean;
-  /** Outside the period a link chose: faint and grey. */
+  /** Outside the period a link chose: faint and grey, whatever its obscurity (the dimming wins). */
   outside: boolean;
   selected: boolean;
   /**
@@ -47,11 +45,13 @@ function TitleFace({ title }: { title: string }) {
   );
 }
 
-function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, outside, selected, eager, describedBy, onSelect }: DepthPosterProps) {
-  const { film, shared, slots, layer, y, band, col, jitter, w, h } = item;
+function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selected, eager, describedBy, onSelect }: DepthPosterProps) {
+  const { film, shared, slots, layer, y, band, col, jitter, w, h, obscurity, push, background } = item;
   // Collaborations are the sharp ones in front: a bigger image. The posters of the layers behind are two images, a soft
   // one (small and blurred, drawn once) under a sharp one whose opacity the focus field raises (see `useFocusField`).
-  const soft = isBlurred(layer, hasShared);
+  const soft = background;
+  // Out of the period a link chose, the dimming (the `li`'s `opacity-25`) is the whole opacity: the obscurity's is not stacked under it.
+  const dimmed = outside && !selected;
   // The films several people made, and a page of one person's (up front, big and sharp), get the larger image.
   const src = tmdbImage(film.posterPath, shared || !coloured ? "w342" : "w185");
   const softSrc = soft ? tmdbImage(film.posterPath, "w92") : null;
@@ -72,15 +72,32 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
     // The films several people made are drawn smaller on a small screen (the viewport's `--collab-scale`): about the poster's centre.
     // A page of one person has its posters up front and bigger, and scales them down the same way (`--solo-scale`, 1 on a page of several).
     "--ps": layer === 0 ? "var(--collab-scale)" : "var(--solo-scale)",
-    transform: layer === 0 ? "scale(var(--collab-scale))" : !coloured ? "scale(var(--solo-scale))" : undefined,
+    // A poster of a layer behind is pushed further back, within its layer, by how obscure its film is (the layer's `ol` is `preserve-3d`
+    // for this to take; `--f` is then the poster's own factor, not the layer's, for the `left` rule above).
+    transform:
+      layer === 0
+        ? "scale(var(--collab-scale))"
+        : !coloured
+          ? "scale(var(--solo-scale))"
+          : `translateZ(${-round(push)}px)`,
+    "--f": Math.round(posterFactor(item) * 100_000) / 100_000,
     "--lead": `${round(w / 2)}px`,
     width: w,
     height: h,
     // How much the focus field has sharpened this poster, 0 to 1 (the posters it does not drive are always in focus), and the blur it is behind.
     "--focus": soft ? 0 : 1,
-    "--layer-blur": `${blurFor(layer, hasShared)}px`,
-    // Under `sm` the blur is lighter on the first layer back and gone behind it (`phoneBlurFor`): it is what costs on a phone.
-    "--layer-blur-phone": `${phoneBlurFor(layer, hasShared)}px`,
+    // The more obscure the film, the fainter at rest and the softer (the blur of its soft image): see `restOpacityFor` and `blurFor`.
+    // Under `sm` the blur is gentler (`phoneBlurFor`): it is what costs on a phone.
+    ...(soft
+      ? {
+          "--rest-opacity": round(restOpacityFor(obscurity)),
+          "--layer-blur": `${round(blurFor(obscurity))}px`,
+          "--layer-blur-phone": `${round(phoneBlurFor(obscurity))}px`,
+          // Faint at rest, rising to 1 with the focus (the pointer near, the middle band on a phone, a hover or keyboard focus).
+          // The whole poster fades as one (the card and the shadows hanging from it), so a shadow never shows through a faint poster.
+          opacity: dimmed ? undefined : "calc(var(--rest-opacity) + (1 - var(--rest-opacity)) * var(--focus))",
+        }
+      : null),
   } as CSSProperties;
 
   return (
@@ -88,8 +105,12 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
       data-poster={film.id}
       className={cn(
         "pointer-events-none absolute",
-        "transition-[opacity,filter] duration-150 motion-reduce:transition-none",
-        outside && !selected && "opacity-25 grayscale",
+        // A poster the focus field drives has no opacity transition: the field already eases it (a weight per frame), and a transition
+        // started on every one of those frames, for every poster in view, added about a tenth to a frame's main-thread time (a page of three, 4x CPU throttle). The dimming of a period fades.
+        (!soft || dimmed) && "transition-[opacity,filter] duration-150 motion-reduce:transition-none",
+        dimmed && "opacity-25 grayscale",
+        // Keyboard focus takes a poster to full opacity, as it sharpens it (the inline opacity needs the `!`).
+        soft && !dimmed && "has-[button:focus-visible]:opacity-100!",
       )}
       style={style}
     >

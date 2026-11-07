@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEPTH, depthPush, layerFactor, posterFactor } from "@/lib/depth-layout";
 import { focusDistance, focusWeight, inWindow, jsLayerTranslate, projectX, projectY, visibleDocRange } from "@/lib/depth-projection";
 
 // The first is a layer in front of the screen plane (100px forward), the rest are behind it.
@@ -132,5 +133,50 @@ describe("inWindow", () => {
     const docY = 3000 + (500 - 450 * (1 - f)) / f;
     expect(inWindow(docY, 3000, 900, f, 0)).toBe(true);
     expect(inWindow(3000 + 1000, 3000, 900, f, 0)).toBe(false);
+  });
+});
+
+describe("per-poster factors", () => {
+  // Posters of one layer (the first person's, 320px back) pushed back by 0, a quarter, a half and all of the spread.
+  const depths = [0, 0.25, 0.5, 1].map((o) => DEPTH.z[1] + depthPush(o));
+  const fs = depths.map((depth) => posterFactor({ depth }));
+
+  it("gives the posters of one layer a factor each, smaller the further back they are pushed", () => {
+    for (let i = 1; i < fs.length; i++) expect(fs[i]).toBeLessThan(fs[i - 1]);
+    expect(fs[0]).toBeCloseTo(layerFactor(1), 10);
+    expect(fs[fs.length - 1]).toBeCloseTo(1000 / (1000 + DEPTH.z[1] + DEPTH.spread), 10);
+  });
+
+  it("keeps the focus line fixed for every poster: the point at the middle of the viewport stays at the middle", () => {
+    for (const f of fs) expect(projectY(2000 + 450, 2000, 900, f)).toBeCloseTo(450, 9);
+  });
+
+  it("moves a poster pushed back slower than the scroll, so two posters at one document y drift apart and cross over", () => {
+    // Both at document y 2900 with the viewport scrolled to 2000: below the middle, the nearer one is further from the focus line.
+    const [near, far] = [projectY(2900, 2000, 900, fs[0]), projectY(2900, 2000, 900, fs[fs.length - 1])];
+    expect(near - 450).toBeGreaterThan(far - 450);
+    expect(far).toBeGreaterThan(450);
+    // Scroll 100px: each moves by 100 f.
+    for (const f of fs) expect(projectY(2900, 2000, 900, f) - projectY(2900, 2100, 900, f)).toBeCloseTo(100 * f, 9);
+  });
+
+  it("windows each poster by its own factor: a document y inside the window of a deep poster is outside the nearer one's", () => {
+    const [nearest, deepest] = [fs[0], fs[fs.length - 1]];
+    const [scrollTop, height, buffer] = [2000, 900, 300];
+    // 700px below the middle of the screen on the deepest poster: 250px inside a window that ends 750px below the middle.
+    const docY = scrollTop + height / 2 + 700 / deepest;
+    expect(projectY(docY, scrollTop, height, deepest)).toBeCloseTo(height / 2 + 700, 9);
+    expect(inWindow(docY, scrollTop, height, deepest, buffer)).toBe(true);
+    // The same document y on the nearest poster's factor is further from the middle of the screen, past the window's end.
+    expect(projectY(docY, scrollTop, height, nearest)).toBeGreaterThan(height + buffer);
+    expect(inWindow(docY, scrollTop, height, nearest, buffer)).toBe(false);
+  });
+
+  it("lands the focus field's projected position on the browser's: the screen offset of a poster is its own offset times its own factor", () => {
+    const W = 1440;
+    for (const f of fs) {
+      // A poster 400px right of the centre line, in its own plane, is 400 f on screen.
+      expect(projectX(W / 2 + 400, W, f) - W / 2).toBeCloseTo(400 * f, 9);
+    }
   });
 });

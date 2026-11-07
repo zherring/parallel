@@ -2,7 +2,7 @@
 
 import { useEffect, useEffectEvent, type RefObject } from "react";
 import { FINE_POINTER, useMediaQuery } from "@/components/depth/use-media";
-import { docCenterX, isBlurred, layerFactor, tierOf, xSpec, type DepthFilm } from "@/lib/depth-layout";
+import { docCenterX, posterFactor, tierOf, xSpec, type DepthFilm } from "@/lib/depth-layout";
 import { focusDistance, focusWeight, projectX, projectY, visibleDocRange } from "@/lib/depth-projection";
 
 /** Radius (px) of the field of focus: a poster this close to the pointer (or to the middle of a phone's screen) is sharp. */
@@ -22,20 +22,21 @@ interface FieldItem {
   y: number;
   /** Where the poster's centre is across in its layer (see `docCenterX`): it depends on the viewport, so `measure` sets it. */
   x: number;
-  /** Scale of the poster's layer on screen. */
+  /** Scale of the poster on screen: its own factor (`posterFactor`), as obscure films sit further back than their layer. */
   f: number;
 }
 
 /**
  * The field of focus: the pointer (or, with no pointer, a band through the middle of the screen) sharpens the soft
- * posters of the layers behind. Each poster's `--focus` (0 to 1) is the opacity of its sharp image over its blurred one,
- * so it is the only thing that animates; posters of the front layer (and layers the scene draws sharp) are never touched.
+ * posters of the layers behind. Each poster's `--focus` (0 to 1) is the opacity of its sharp image over its blurred one, and
+ * lifts the poster from its resting opacity (fainter the more obscure the film) to 1, so it is the only thing that animates;
+ * posters of the front layer (and a page of one person's) are never touched.
  *
  * Where a poster is on screen is worked out from numbers (`depth-projection.ts`), never read from the DOM: the work
  * per frame is arithmetic over the posters that are in view. The loop runs only while the scene scrolls or the pointer
  * moves, and it writes a property only when its value changed by more than `MIN_STEP`.
  */
-export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, films: readonly DepthFilm[], hasShared: boolean, peopleCount: number): void {
+export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, films: readonly DepthFilm[], peopleCount: number): void {
   const finePointer = useMediaQuery(FINE_POINTER);
   // What the effect reads when it needs it, so it subscribes once and not whenever the query changes.
   const hasFinePointer = useEffectEvent(() => finePointer);
@@ -51,8 +52,8 @@ export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, fil
     const written = new Map<HTMLElement, number>();
     for (const item of films) {
       const el = elements.get(String(item.film.id));
-      if (!el || !isBlurred(item.layer, hasShared)) continue;
-      items.push({ el, film: item, y: item.y, x: 0, f: layerFactor(item.layer, undefined, peopleCount) });
+      if (!el || !item.background) continue;
+      items.push({ el, film: item, y: item.y, x: 0, f: posterFactor(item) });
       written.set(el, Number.parseFloat(el.style.getPropertyValue("--focus")) || 0);
     }
 
@@ -138,5 +139,5 @@ export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, fil
       observer?.disconnect();
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [scrollerRef, films, hasShared, peopleCount]);
+  }, [scrollerRef, films, peopleCount]);
 }

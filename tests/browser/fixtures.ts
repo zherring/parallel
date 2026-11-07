@@ -3,12 +3,12 @@ import type { RawCastCredit, RawPerson } from "../../src/lib/tmdb-types";
 
 export const PEOPLE_PATH = "/p/90000001-scroll-alpha+90000002-scroll-beta";
 
-const movie = (id: number, date: string): RawCastCredit => ({
+const movie = (id: number, date: string, votes = 100): RawCastCredit => ({
   id,
   title: `Scroll Film ${id}`,
   release_date: date,
   poster_path: `/poster-${id}.png`,
-  vote_count: 100,
+  vote_count: votes,
   order: 0,
   character: "Lead",
 });
@@ -22,6 +22,13 @@ const shared = [
   )),
   movie(200, "2020-06-01"),
 ];
+
+/**
+ * Votes of each person's own films by index (a film's id is the person's offset + index, its year 1990 + index): the first is
+ * the best-known of the page (the Depth view's obscurity 0, a poster at rest at 0.8 opacity), the one with none is the most
+ * obscure (obscurity 1, 0.45), and the rest fall in between. Both people's lists are alike, so the page's best-known film is a tie.
+ */
+export const OWN_FILM_VOTES = [12_000, 5200, 2400, 1100, 560, 300, 150, 80, 40, 20, 9, 4, 2, 1, 0, 700];
 
 const people: Record<string, RawPerson> = {
   "90000001": { id: 90000001, name: "Scroll Alpha", profile_path: null, birthday: "1960-01-01", biography: "An actor whose filmography exercises the timeline's scroll transitions." },
@@ -47,7 +54,7 @@ export const test = base.extend({
         return Response.json({
           cast: [
             ...shared,
-            ...Array.from({ length: 16 }, (_, index) => movie(offset + index, `${1990 + index}-06-01`)),
+            ...Array.from({ length: 16 }, (_, index) => movie(offset + index, `${1990 + index}-06-01`, OWN_FILM_VOTES[index])),
           ],
           crew: [],
         });

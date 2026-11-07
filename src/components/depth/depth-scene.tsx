@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useLayoutEffect, useMemo, useRef, type CSSProperties, type FocusEvent, type PointerEvent, type RefObject } from "react";
+import { useCallback, useId, useLayoutEffect, useMemo, useRef, type FocusEvent, type PointerEvent, type RefObject } from "react";
 import { DepthPoster } from "@/components/depth/depth-poster";
 import { useFocusField } from "@/components/depth/use-focus-field";
 import { SOFT_WINDOW, usePosterImages } from "@/components/depth/use-poster-images";
@@ -8,7 +8,7 @@ import { usePosterPop } from "@/components/depth/use-poster-pop";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "@/components/timeline/film-popover";
 import { useDragPan, type DragPanOptions } from "@/components/timeline/use-drag-pan";
 import type { CombinedFilmInfo } from "@/lib/combined-track";
-import { anchorScrollTop, depthSceneCss, layerDepth, layerFactor, type DepthFilm, type DepthLayout } from "@/lib/depth-layout";
+import { anchorScrollTop, depthSceneCss, layerDepth, posterFactor, type DepthFilm, type DepthLayout } from "@/lib/depth-layout";
 import { inWindow } from "@/lib/depth-projection";
 import { filmCardContent } from "@/lib/film-credits";
 import { joinNames } from "@/lib/format";
@@ -84,10 +84,12 @@ function focusIsVisible(element: HTMLElement): boolean {
 /**
  * The scene: a fixed, full-viewport scroller whose only child is a `preserve-3d` element as tall as the whole track.
  * It holds one list per layer, each pushed `translateZ(-Z)` behind the screen plane; every layer lays its posters on the
- * same document axis, so the browser's perspective does the parallax while the page scrolls.
+ * same document axis, so the browser's perspective does the parallax while the page scrolls. A poster of a layer behind is
+ * pushed further back still, by how obscure its film is (its own `translateZ`, see `DepthPoster`), so a layer's list is
+ * `preserve-3d` too: without that it would flatten its posters onto its own plane and the push would do nothing.
  *
  * What perspective needs, and what would silently break it: nothing inside the scroller is `position: fixed` (perspective
- * turns it absolute), and the `preserve-3d` element has no `overflow`, `opacity` or `filter` (any of them flattens it).
+ * turns it absolute), and the `preserve-3d` elements (the track and each layer's list) have no `overflow`, `opacity` or `filter` (any of them flattens it).
  * The scroller is the one that clips; it has no background, so the dust motes behind it (`DustMotes`) show through and are never over a
  * poster. Its own scrollbar is hidden: the year rail, pinned over that edge, is the scrollbar.
  *
@@ -119,8 +121,8 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
     scroller.scrollTop = anchorScrollTop(anchorY, scroller.clientHeight, trackHeight);
   }, [scrollerRef, anchorY, trackHeight]);
 
-  useFocusField(scrollerRef, layout.films, layout.hasShared, people.length);
-  usePosterImages(scrollerRef, layout.films, people.length);
+  useFocusField(scrollerRef, layout.films, people.length);
+  usePosterImages(scrollerRef, layout.films);
 
   // The posters whose images are in the markup (see `DepthPoster`'s `eager`): those within the fetch window of where the
   // scene opens, worked out for a nominal viewport so the server and the browser agree. The rest wait for `usePosterImages`.
@@ -128,10 +130,10 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
     const top = anchorScrollTop(anchorY, NOMINAL_VIEWPORT_H, trackHeight);
     return new Set(
       layout.films
-        .filter((item) => inWindow(item.y, top, NOMINAL_VIEWPORT_H, layerFactor(item.layer, undefined, people.length), SOFT_WINDOW * NOMINAL_VIEWPORT_H))
+        .filter((item) => inWindow(item.y, top, NOMINAL_VIEWPORT_H, posterFactor(item), SOFT_WINDOW * NOMINAL_VIEWPORT_H))
         .map((item) => item.film.id),
     );
-  }, [layout.films, anchorY, trackHeight, people.length]);
+  }, [layout.films, anchorY, trackHeight]);
 
   // ---- hover, focus and the film card ---------------------------------------
   const popoverId = useId();
@@ -244,15 +246,14 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
             <ol
               key={group.layer}
               aria-label={layerLabel(group, people)}
-              className="absolute inset-x-0 top-0 m-0 list-none p-0"
-              // `--f`: how much smaller the layer is on screen, for the posters' x (see `depthSceneCss`).
+              className="absolute inset-x-0 top-0 m-0 list-none p-0 [transform-style:preserve-3d]"
               // Everything but the films several people made is behind the screen plane; they are in front of it (a negative depth).
+              // A poster's `--f` (how much smaller it is on screen, for its x: see `depthSceneCss`) is its own: it can be further back than the layer.
               // The z-index is for a browser that flattens the 3D context: the films several people made still paint last.
               style={{
                 transform: `translateZ(${-layerDepth(group.layer, people.length)}px)`,
                 zIndex: group.layer === 0 ? layers.length : 0,
-                "--f": layerFactor(group.layer, undefined, people.length),
-              } as CSSProperties}
+              }}
             >
               {group.films.map((item) => {
                 const film = item.film;
@@ -265,7 +266,6 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
                     note={about?.note ?? ""}
                     upcoming={!isReleased(film.releaseDate, today)}
                     coloured={coloured}
-                    hasShared={layout.hasShared}
                     outside={outsideIds.has(film.id)}
                     selected={selectedId === film.id}
                     eager={eagerIds.has(film.id)}
