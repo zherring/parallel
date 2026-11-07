@@ -92,6 +92,18 @@ export interface PersonSearchProps {
    * sits at the right end of a row and is narrower than its rows want to be.
    */
   wideMenu?: boolean;
+  /**
+   * Sit inside a bar the caller draws (the Depth view's people pill): no border, box or focus ring of its own, as tall as
+   * the slot it is given, and the dropdown hangs from the nearest positioned ancestor (the bar) at its full width instead
+   * of from the field.
+   */
+  flush?: boolean;
+  /**
+   * Called when Escape is pressed with nothing in the field to dismiss: no text and no dropdown on screen. The key is
+   * then the owner's (it is consumed here, so a document-level Escape listener does not also run); with text or a
+   * dropdown, Escape clears or closes those first, as ever.
+   */
+  onIdleEscape?: () => void;
 }
 
 /** What picking an option needs, whether it is a search result or a suggested collaborator. */
@@ -125,6 +137,8 @@ export function PersonSearch({
   ariaLabel = "Search people",
   suggestFor,
   wideMenu = false,
+  flush = false,
+  onIdleEscape,
 }: PersonSearchProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -289,6 +303,15 @@ export function PersonSearch({
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    // The "popup wanted" flag is set by focus alone, so an empty field that shows nothing still counts as open to
+    // `decideKey` and would swallow this Escape; the owner gets it instead.
+    if (event.key === "Escape" && onIdleEscape && !query && !showPanel) {
+      event.preventDefault();
+      setOpen(false);
+      setActiveIndex(-1);
+      onIdleEscape();
+      return;
+    }
     const action = decideKey(keyContext, {
       key: event.key,
       shiftKey: event.shiftKey,
@@ -371,16 +394,18 @@ export function PersonSearch({
   const overlayPlaceholder = chipsMode && chips.length > 0;
   const iconSize = hero ? "h-5 w-5" : "h-4 w-4";
 
+  const fieldBox = flush
+    ? "h-full items-center rounded-full px-3 text-sm hover:bg-surface/40 focus-within:bg-surface/60"
+    : `items-start rounded-md border border-border bg-surface focus-within:border-accent-green focus-within:ring-2 focus-within:ring-accent-green/50 ${
+        hero
+          ? `min-h-14 py-[7px] text-lg ${chipsMode ? "px-3 sm:px-4" : "px-4"}`
+          : "min-h-9 px-3 py-[3px] text-sm"
+      }`;
+
   return (
-    <div className="relative w-full">
-      <div
-        onMouseDown={chipsMode ? focusFromField : undefined}
-        className={`flex items-start gap-2.5 rounded-md border border-border bg-surface transition-colors focus-within:border-accent-green focus-within:ring-2 focus-within:ring-accent-green/50 ${
-          hero
-            ? `min-h-14 py-[7px] text-lg ${chipsMode ? "px-3 sm:px-4" : "px-4"}`
-            : "min-h-9 px-3 py-[3px] text-sm"
-        }`}
-      >
+    // Flush, it is not positioned: the dropdown's `absolute` then resolves against the bar around it.
+    <div className={flush ? "h-full w-full" : "relative w-full"}>
+      <div onMouseDown={chipsMode ? focusFromField : undefined} className={`flex gap-2.5 transition-colors ${fieldBox}`}>
         {/* On a phone the icon yields its width to the chips once there are any. */}
         <span
           className={`shrink-0 items-center ${rowHeight} ${
@@ -543,9 +568,9 @@ export function PersonSearch({
         <div
           // Keep focus in the input while the pointer interacts with the panel.
           onMouseDown={(event) => event.preventDefault()}
-          className={`absolute inset-x-0 top-full z-50 mt-2 max-h-[min(28rem,55dvh)] overflow-y-auto overscroll-contain rounded-md border border-border bg-surface text-sm shadow-2xl shadow-black/60 ${
-            wideMenu ? "lg:left-auto lg:w-[22rem]" : ""
-          }`}
+          className={`absolute inset-x-0 top-full z-50 mt-2 max-h-[min(28rem,55dvh)] overflow-y-auto overscroll-contain border border-border bg-surface text-sm shadow-2xl shadow-black/60 ${
+            flush ? "rounded-2xl" : "rounded-md"
+          } ${wideMenu ? "lg:left-auto lg:w-[22rem]" : ""}`}
         >
           {full && (
             <p className="border-b border-border px-3 py-2.5 text-body">

@@ -724,6 +724,18 @@ test("with reduced motion the caption just appears and disappears: no travel, no
   await expect.poll(async () => (await captionOf(page, "100"))!.title).toBe(0);
 });
 
+const capsule = (page: Page) => page.locator("[data-pill-capsule]");
+/** The field to add a person: in the capsule, where the heads were. */
+const pillSearch = (page: Page) => capsule(page).getByRole("combobox", { name: "Add a person", exact: true });
+
+/** Answers the page's search requests: Scroll Beta is already on the page, Scroll Gamma is not. */
+async function mockSearch(page: Page, results = [
+  { id: 90000002, name: "Scroll Beta", profilePath: null, knownFor: "Acting", knownForTitles: ["Scroll Film 100"] },
+  { id: 90000003, name: "Scroll Gamma", profilePath: null, knownFor: "Acting", knownForTitles: ["Scroll Film 1000"] },
+]) {
+  await page.route("**/api/search?*", (route) => route.fulfill({ json: { results } }));
+}
+
 test("the people pill opens on a press and closes when the scene scrolls", async ({ page }) => {
   await openDepth(page);
   const button = pill(page);
@@ -731,7 +743,7 @@ test("the people pill opens on a press and closes when the scene scrolls", async
 
   await expect(button).toHaveAttribute("aria-expanded", "false");
   await expect(peopleCard(page)).toHaveCount(0);
-  await expect(button.locator("[data-pill-open]")).toHaveCount(0);
+  await expect(page.locator("[data-pill-open]")).toHaveCount(0);
   // The pill carries no logo or home link, closed or open.
   const bubble = page.locator("[data-people-pill]");
   await expect(bubble).not.toContainText("Parallel");
@@ -741,8 +753,9 @@ test("the people pill opens on a press and closes when the scene scrolls", async
   await expect(button).toHaveAttribute("aria-expanded", "true");
   const card = peopleCard(page);
   await expect(card).toBeVisible();
-  // The capsule says what the card is where the heads were (they have flown into its rows).
-  await expect(button.locator("[data-pill-open]")).toContainText("People");
+  // The capsule holds the field to add a person where the heads were (they have flown into the card's rows), and the close icon.
+  await expect(pillSearch(page)).toBeVisible();
+  await expect(button.locator("[data-pill-open]")).toHaveCount(1);
   await expect(bubble).not.toContainText("Parallel");
   await expect(bubble.locator('a[href="/"]')).toHaveCount(0);
   await expect(card.getByRole("link", { name: "Remove Scroll Alpha", exact: true })).toHaveAttribute("href", /view=depth/);
@@ -752,7 +765,177 @@ test("the people pill opens on a press and closes when the scene scrolls", async
   await region.evaluate((element, to) => { element.scrollTop = to; }, top + 200);
   await expect(button).toHaveAttribute("aria-expanded", "false");
   await expect(card).toBeHidden();
-  await expect(button.locator("[data-pill-open]")).toHaveCount(0);
+  await expect(page.locator("[data-pill-open]")).toHaveCount(0);
+});
+
+test("the search is in the capsule, flush with it, and no search is left in the card", async ({ page }) => {
+  await openDepth(page);
+  await pill(page).click();
+  const card = peopleCard(page);
+  await expect(card).toBeVisible();
+  const search = pillSearch(page);
+  await expect(search).toBeVisible();
+
+  // The card is the people, the key to the green and the way back to the flat timeline: no field.
+  await expect(card.getByRole("combobox")).toHaveCount(0);
+  await expect(card.locator("input")).toHaveCount(0);
+  await expect(page.getByRole("combobox")).toHaveCount(1);
+  await expect(card.getByText("Green: made together", { exact: true })).toBeVisible();
+  await expect(card.getByRole("link", { name: "Flat timeline", exact: true })).toBeVisible();
+  // The "People" label is gone: the field stands in its place.
+  await expect(capsule(page)).not.toContainText("People");
+
+  // The field is inside the capsule's box, above the card, and as tall as the capsule's inside; it has no box of its own.
+  await expect.poll(async () => (await capsule(page).boundingBox())!.width).toBeCloseTo((await card.boundingBox())!.width, 0);
+  const bar = (await capsule(page).boundingBox())!;
+  const field = (await search.locator("xpath=ancestor::div[contains(@class, 'rounded-full')][1]").boundingBox())!;
+  const below = (await card.boundingBox())!;
+  expect(field.x).toBeGreaterThanOrEqual(bar.x);
+  expect(field.x + field.width).toBeLessThanOrEqual(bar.x + bar.width);
+  expect(field.y).toBeGreaterThanOrEqual(bar.y);
+  expect(field.y + field.height).toBeLessThanOrEqual(bar.y + bar.height);
+  // The capsule's height is its border and padding (10px) around the field.
+  expect(Math.abs(bar.height - field.height - 10)).toBeLessThanOrEqual(1);
+  expect(bar.y + bar.height).toBeLessThanOrEqual(below.y);
+  const box = await search.locator("xpath=ancestor::div[contains(@class, 'rounded-full')][1]").evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { border: style.borderTopWidth, ring: style.boxShadow };
+  });
+  expect(box).toEqual({ border: "0px", ring: "none" });
+});
+
+test("opening the pill focuses the search, and typing in it does not close the pill", async ({ page }) => {
+  await mockSearch(page);
+  await openDepth(page);
+  const button = pill(page);
+  await button.click();
+  const search = pillSearch(page);
+  await expect(search).toBeFocused();
+
+  await search.pressSequentially("scroll", { delay: 30 });
+  await expect(page.getByRole("option")).toHaveCount(2);
+  await expect(search).toHaveValue("scroll");
+  await expect(search).toBeFocused();
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+  await expect(peopleCard(page)).toBeVisible();
+
+  // The dropdown hangs below the capsule and draws over the card, not under it.
+  const gamma = page.getByRole("option", { name: /Scroll Gamma/ });
+  const hit = await gamma.evaluate((element) => {
+    const { x, y, width, height } = element.getBoundingClientRect();
+    return document.elementFromPoint(x + width / 2, y + height / 2)?.closest('[role="option"]')?.textContent ?? null;
+  });
+  expect(hit).toContain("Scroll Gamma");
+  const bar = (await capsule(page).boundingBox())!;
+  const firstOption = (await page.getByRole("option").first().boundingBox())!;
+  expect(firstOption.y).toBeGreaterThanOrEqual(bar.y + bar.height);
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+});
+
+test("Escape dismisses what the search holds first, and on an empty field closes the pill", async ({ page }) => {
+  await mockSearch(page);
+  await openDepth(page);
+  const button = pill(page);
+  await button.click();
+  const search = pillSearch(page);
+  await expect(search).toBeFocused();
+
+  await search.pressSequentially("scroll", { delay: 30 });
+  await expect(page.getByRole("option")).toHaveCount(2);
+  // The dropdown first, then the text; the pill stays open and the field keeps focus.
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("option")).toHaveCount(0);
+  await expect(search).toHaveValue("scroll");
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+  await page.keyboard.press("Escape");
+  await expect(search).toHaveValue("");
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+  await expect(search).toBeFocused();
+
+  // Nothing left to dismiss: it closes, and focus goes back to the pill's button.
+  await page.keyboard.press("Escape");
+  await expect(button).toHaveAttribute("aria-expanded", "false");
+  await expect(peopleCard(page)).toBeHidden();
+  await expect(button).toBeFocused();
+});
+
+test("Escape on the empty field closes the pill at once", async ({ page }) => {
+  await openDepth(page);
+  const button = pill(page);
+  await button.click();
+  await expect(pillSearch(page)).toBeFocused();
+
+  await page.keyboard.press("Escape");
+  await expect(button).toHaveAttribute("aria-expanded", "false");
+  await expect(peopleCard(page)).toBeHidden();
+  await expect(button).toBeFocused();
+  await expect(page.locator("[data-pill-open]")).toHaveCount(0);
+
+  // And it opens again, with the field focused again.
+  await button.click();
+  await expect(pillSearch(page)).toBeFocused();
+});
+
+test("a press on the dropdown is not an outside press, and the close icon and an outside press still close the pill", async ({ page }) => {
+  await mockSearch(page, []);
+  await openDepth(page);
+  const button = pill(page);
+  await button.click();
+  const search = pillSearch(page);
+  await search.pressSequentially("zzz", { delay: 30 });
+  const none = page.getByText("No one found for", { exact: false });
+  await expect(none).toBeVisible();
+
+  await none.click();
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+  await expect(search).toBeFocused();
+
+  // The close icon is the pill's own button.
+  await button.locator("[data-pill-open] svg").click();
+  await expect(button).toHaveAttribute("aria-expanded", "false");
+  await expect(peopleCard(page)).toBeHidden();
+
+  // A press on the scene outside the pill closes it too.
+  await button.click();
+  await expect(search).toBeVisible();
+  await page.mouse.click(1000, 30);
+  await expect(button).toHaveAttribute("aria-expanded", "false");
+});
+
+test("picking a person from the capsule's search adds them and stays in the Depth view", async ({ page }) => {
+  await mockSearch(page);
+  await openDepth(page);
+  await pill(page).click();
+  const search = pillSearch(page);
+  await search.fill("scroll");
+  await page.getByRole("option", { name: /Scroll Gamma/ }).click();
+
+  await expect(page).toHaveURL(/\/p\/90000001-scroll-alpha\+90000002-scroll-beta\+90000003-scroll-gamma\?view=depth/);
+  await expect(scene(page)).toBeVisible();
+});
+
+test("a viewport resize (a phone's keyboard opening) does not close the pill, even if the browser moves the scene with it", async ({ page }) => {
+  await openDepth(page);
+  const button = pill(page);
+  const region = scene(page);
+  await button.click();
+  await expect(pillSearch(page)).toBeFocused();
+
+  await page.setViewportSize({ width: 1440, height: 300 });
+  // Browsers re-fit and may scroll the scene while the viewport changes; that is not the visitor scrolling.
+  await region.evaluate((element) => { element.scrollTop += 200; });
+  await page.waitForTimeout(150);
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+  await page.waitForTimeout(700);
+  await page.setViewportSize({ width: 1440, height: 600 });
+  await region.evaluate((element) => { element.scrollTop -= 120; });
+  await page.waitForTimeout(700);
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+  await expect(pillSearch(page)).toBeFocused();
+
+  // A real scroll afterwards still closes it.
+  await region.evaluate((element) => { element.scrollTop += 200; });
+  await expect(button).toHaveAttribute("aria-expanded", "false");
 });
 
 test("the Flat timeline link leaves the Depth view and keeps the period", async ({ page }) => {
@@ -803,13 +986,22 @@ test.describe("on a phone", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toBeHidden();
 
-    // A tap opens the card, and it fits the screen.
+    // A tap opens the card, and it and the capsule (with the search in it) fit the screen.
     await pill(page).tap();
     const card = peopleCard(page);
     await expect(card).toBeVisible();
     const cardBox = (await card.boundingBox())!;
     expect(cardBox.x).toBeGreaterThanOrEqual(0);
     expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(390);
+    await expect(pillSearch(page)).toBeFocused();
+    // The capsule has grown to the card's width (it animates there).
+    await expect.poll(async () => (await capsule(page).boundingBox())!.width).toBeCloseTo(cardBox.width, 0);
+    const barBox = (await capsule(page).boundingBox())!;
+    expect(barBox.x).toBeGreaterThanOrEqual(0);
+    expect(barBox.x + barBox.width).toBeLessThanOrEqual(390);
+    const searchBox = (await pillSearch(page).boundingBox())!;
+    expect(searchBox.x).toBeGreaterThanOrEqual(barBox.x);
+    expect(searchBox.x + searchBox.width).toBeLessThanOrEqual(barBox.x + barBox.width);
   });
 
   test("posters are as faint and soft as their film is obscure, gently, and the middle of the screen brings one to full opacity", async ({ page }) => {

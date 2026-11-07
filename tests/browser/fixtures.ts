@@ -33,6 +33,8 @@ export const OWN_FILM_VOTES = [12_000, 5200, 2400, 1100, 560, 300, 150, 80, 40, 
 const people: Record<string, RawPerson> = {
   "90000001": { id: 90000001, name: "Scroll Alpha", profile_path: null, birthday: "1960-01-01", biography: "An actor whose filmography exercises the timeline's scroll transitions." },
   "90000002": { id: 90000002, name: "Scroll Beta", profile_path: null, birthday: "1962-01-01", biography: "Another actor whose filmography shares a cluster of closely released films." },
+  // Not on the default page: the one a test adds from the people pill's search.
+  "90000003": { id: 90000003, name: "Scroll Gamma", profile_path: null, birthday: "1964-01-01", biography: "A third actor, for the tests that add someone to the page." },
 };
 
 /** A 1x1 PNG: every poster request is answered with it, so the browser tests need no network and still load images. */
@@ -50,7 +52,7 @@ export const test = base.extend({
       const match = url.pathname.match(/^\/3\/person\/(\d+)(\/movie_credits)?$/);
       if (match && people[match[1]]) {
         if (!match[2]) return Response.json(people[match[1]]);
-        const offset = match[1] === "90000001" ? 1000 : 2000;
+        const offset = { "90000001": 1000, "90000002": 2000, "90000003": 3000 }[match[1]]!;
         return Response.json({
           cast: [
             ...shared,

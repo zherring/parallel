@@ -39,6 +39,8 @@ type Phase = "closed" | "open" | "closing";
 
 /** The panel closes once the scene has scrolled this far (px) from where it was when the panel opened. */
 const SCROLL_CLOSE_PX = 24;
+/** A scroll within this long (ms) of a viewport resize is the browser re-fitting the scene, not the visitor scrolling. */
+const RESIZE_SETTLE_MS = 500;
 const OPEN_MS = 360;
 const CLOSE_MS = 260;
 /** Each head leaves a little after the one before it, so they fan out rather than jump. */
@@ -61,14 +63,16 @@ function headRects(root: ParentNode, attribute: string): Map<string, DOMRect> {
 
 /**
  * The people on the page, folded into a pill at the top left: their overlapping heads (in their colours) and names,
- * with no logo. Tapping the heads opens a floating card: each person's row, the key to the green, a
- * field to add someone and the way back to the flat timeline. The heads fly apart into their rows when it opens and fly
- * back together when it closes (a FLIP animation with the hero's spring, on the compositor; none for reduced motion).
- * While it is open the capsule says "People" with a close icon where the heads were, so it never looks emptied out; it
- * is the same button, still toggling the card.
+ * with no logo. Tapping the heads opens a floating card: each person's row, the key to the green and the way back to the
+ * flat timeline. The heads fly apart into their rows when it opens and fly back together when it closes (a FLIP animation
+ * with the hero's spring, on the compositor; none for reduced motion). While it is open the capsule takes the card's width
+ * and holds the field to add someone (focused, in place of the heads) and a close icon; the close icon is the same button,
+ * still toggling the card.
  *
- * It closes on its own once the scene scrolls more than 24px from where it was, on a press anywhere outside it, and
- * on Escape (which also puts focus back on the pill's button). It is closed on the server.
+ * It closes on its own once the scene scrolls more than 24px from where it was (a viewport resize, such as a phone's
+ * keyboard opening, is not the visitor scrolling), on a press anywhere outside it (the field's dropdown is inside it) and
+ * on Escape, which also puts focus back on the pill's button. The field gets Escape first: with text typed or a dropdown
+ * showing it clears or closes that, and only an Escape with nothing to dismiss closes the pill. It is closed on the server.
  *
  * A sibling of the scroller, never inside it: perspective would turn its `fixed` into `absolute`.
  */
@@ -82,10 +86,13 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const capsuleRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<Phase>("closed");
   /** Where each head was in the pill when it was pressed (client rects by person id), for the heads' flight into the rows. */
   const fromRects = useRef<Map<string, DOMRect>>(new Map());
+  /** The capsule's width (px) when the pill was pressed: the width it comes back to. */
+  const closedWidth = useRef(0);
   /** The scroller's scrollTop when the panel opened. */
   const openedAt = useRef(0);
   const running = useRef<Animation[]>([]);
@@ -98,6 +105,7 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
     const root = rootRef.current;
     if (!root) return;
     fromRects.current = headRects(root, "data-pill-head");
+    closedWidth.current = capsuleRef.current?.getBoundingClientRect().width ?? 0;
     openedAt.current = scrollerRef.current?.scrollTop ?? 0;
     setPhase("open");
   };
@@ -138,7 +146,20 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
         opening ? { duration: 300, easing: EASE_OUT, fill: "backwards" } : { duration: CLOSE_MS - 40, easing: EASE_IN_OUT, fill: "forwards" },
       );
     }
-    // The capsule's "People" label and close icon, which stand where the heads were.
+    // The capsule takes the card's width and gives it back: it is the pill's width when closed.
+    const capsule = capsuleRef.current;
+    if (capsule) {
+      const full = capsule.getBoundingClientRect().width;
+      const pill = closedWidth.current;
+      if (pill > 0 && pill !== full) {
+        animate(
+          capsule,
+          opening ? [{ width: `${pill}px` }, { width: `${full}px` }] : [{ width: `${full}px` }, { width: `${pill}px` }],
+          opening ? { duration: 300, easing: EASE_OUT, fill: "backwards" } : { duration: CLOSE_MS, easing: EASE_IN_OUT, fill: "forwards" },
+        );
+      }
+    }
+    // The capsule's field to add a person and its close icon, which stand where the heads were.
     root.querySelectorAll("[data-pill-open]").forEach((el) => {
       animate(
         el,
@@ -183,8 +204,13 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
   });
 
   useLayoutEffect(() => {
-    if (phase === "closed") return;
-    if (phase === "open") panelRef.current?.focus({ preventScroll: true });
+    if (phase === "closed") {
+      // Finished animations that fill forwards would pin the capsule at the width it closed to.
+      for (const animation of running.current) animation.cancel();
+      running.current = [];
+      return;
+    }
+    // Focus goes to the field in the capsule: it takes `autoFocus` when it mounts, which is this render.
     play(phase);
   }, [phase]);
 
@@ -199,23 +225,40 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
   useEffect(() => {
     if (phase !== "open") return;
     const scroller = scrollerRef.current;
+    // The scene is re-fitted when the viewport changes (a phone's keyboard opening for the field, its address bar folding), and
+    // the browser may move the scroller with it: that is not the visitor scrolling, so the distance starts again from there.
+    let settleUntil = 0;
+    const onResize = () => {
+      settleUntil = performance.now() + RESIZE_SETTLE_MS;
+      if (scroller) openedAt.current = scroller.scrollTop;
+    };
     const onScroll = () => {
-      if (scroller && Math.abs(scroller.scrollTop - openedAt.current) > SCROLL_CLOSE_PX) requestClose(false);
+      if (!scroller) return;
+      if (performance.now() < settleUntil) {
+        openedAt.current = scroller.scrollTop;
+        return;
+      }
+      if (Math.abs(scroller.scrollTop - openedAt.current) > SCROLL_CLOSE_PX) requestClose(false);
     };
     const onPointerDown = (event: PointerEvent) => {
+      // The field's dropdown hangs inside the capsule (it is not portalled), so a press on it is a press inside.
       if (event.target instanceof Node && rootRef.current?.contains(event.target)) return;
       requestClose(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      // A key the field in the panel handled (closing its list of results) is not for the panel as well.
+      // A key the field handled (closing its list of results, clearing its text) is not for the pill as well.
       if (event.key !== "Escape" || event.defaultPrevented) return;
       requestClose(true);
     };
     scroller?.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize);
+    window.visualViewport?.addEventListener("resize", onResize);
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("keydown", onKeyDown);
     return () => {
       scroller?.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+      window.visualViewport?.removeEventListener("resize", onResize);
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("keydown", onKeyDown);
     };
@@ -225,7 +268,35 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
 
   return (
     <div ref={rootRef} data-people-pill className="fixed left-3 top-3 z-30 max-w-[calc(100vw-3rem)]">
-      <div className="inline-flex max-w-full items-center rounded-full border border-border bg-canvas/80 p-1 backdrop-blur-md supports-[backdrop-filter]:bg-canvas/70">
+      <div
+        ref={capsuleRef}
+        data-pill-capsule
+        // z-10 lifts the capsule (its backdrop filter makes it a stacking context) over the card below it, so the field's
+        // dropdown, which hangs from the capsule, draws over the card. Open, it is as wide as the card.
+        className={cn(
+          "relative z-10 inline-flex max-w-full items-center rounded-full border border-border bg-canvas/80 p-1 backdrop-blur-md supports-[backdrop-filter]:bg-canvas/70",
+          shown && "w-[min(22rem,calc(100vw-3rem))]",
+        )}
+      >
+        {shown && (
+          // Over the whole capsule, but only the field takes presses: the rest is the button's (the close icon). First in the
+          // DOM so Tab goes field, close icon, card. It is the dropdown's anchor too, so the dropdown is as wide as the capsule.
+          <div data-pill-open inert={phase !== "open"} className="pointer-events-none absolute inset-0 z-10 flex p-1">
+            <div className="pointer-events-auto min-w-0 flex-1">
+              <PersonSearch
+                flush
+                autoFocus
+                peopleInView={peopleInView}
+                size="compact"
+                ariaLabel="Add a person"
+                suggestFor={single ? people[0].id : undefined}
+                onIdleEscape={() => close(true)}
+              />
+            </div>
+            {/* Where the close icon is. */}
+            <div className="w-10 shrink-0 max-sm:w-9" />
+          </div>
+        )}
         <button
           ref={buttonRef}
           type="button"
@@ -233,10 +304,13 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
           aria-controls={shown ? panelId : undefined}
           aria-label={`People on this page: ${names}`}
           onClick={toggle}
-          className="group flex min-w-0 cursor-pointer items-center gap-2 rounded-full py-1 pl-2 pr-2 hover:bg-surface/60 max-sm:pl-1.5"
+          className={cn(
+            "group flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-full py-1 pl-2 pr-2 max-sm:pl-1.5",
+            phase !== "open" && "hover:bg-surface/60",
+          )}
         >
-          {/* One grid cell, two faces: the heads and names (closed) and, while open, a "People" label with a close icon. */}
-          <span className="grid min-w-0 items-center">
+          {/* One grid cell, two faces: the heads and names (closed) and, while open, the close icon (the field stands over the rest). */}
+          <span className="grid min-w-0 flex-1 items-center">
             <span className="col-start-1 row-start-1 flex min-w-0 items-center gap-2">
               <span className="flex shrink-0 items-center -space-x-1 pl-1">
                 {people.map((person) => (
@@ -270,9 +344,10 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
               />
             </span>
             {shown && (
-              <span aria-hidden data-pill-open className="col-start-1 row-start-1 flex items-center justify-between gap-3 pl-1 pr-0.5">
-                <span className="text-sm font-medium text-strong">People</span>
-                <X className="size-4 shrink-0 text-muted group-hover:text-strong" />
+              <span aria-hidden data-pill-open className="col-start-1 row-start-1 flex items-center justify-end">
+                <span className="-mr-1 grid size-8 place-items-center rounded-full group-hover:bg-surface/60 max-sm:size-7">
+                  <X className="size-4 shrink-0 text-muted group-hover:text-strong" />
+                </span>
               </span>
             )}
           </span>
@@ -286,7 +361,7 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
           role="dialog"
           aria-label="People"
           tabIndex={-1}
-          // No overflow clipping: the search's list of results hangs below the card. The card's own box is `data-panel-bg`.
+          // No overflow clipping, so nothing of the capsule's dropdown could be cut off by the card. The card's own box is `data-panel-bg`.
           className="relative mt-2 w-[min(22rem,calc(100vw-3rem))] outline-none"
         >
           <div
@@ -326,9 +401,6 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
                 Green: made together
               </p>
             )}
-            <div data-fade className="px-2">
-              <PersonSearch peopleInView={peopleInView} size="compact" ariaLabel="Add a person" suggestFor={single ? people[0].id : undefined} />
-            </div>
             <div data-fade className="px-2 pb-1 pt-2.5">
               <Link
                 href={flatHref}
