@@ -171,8 +171,8 @@ export function hashUnit(id: number): number {
  */
 export function blurFor(layer: number, hasShared: boolean): number {
   if (layer <= 0) return 0;
-  if (layer === 1) return hasShared ? 2 : 0;
-  return 3;
+  if (layer === 1) return hasShared ? 1 : 0;
+  return 1.5;
 }
 
 /**
@@ -181,7 +181,7 @@ export function blurFor(layer: number, hasShared: boolean): number {
  * soft enough already). Only where `blurFor` blurs the layer at all.
  */
 export function phoneBlurFor(layer: number, hasShared: boolean): number {
-  return layer === 1 && blurFor(layer, hasShared) > 0 ? 1.5 : 0;
+  return layer === 1 && blurFor(layer, hasShared) > 0 ? 0.75 : 0;
 }
 
 /** Whether a layer's posters are drawn soft until the focus field sharpens them (see `blurFor`): the others are always sharp. */

@@ -251,17 +251,17 @@ describe("depthSceneCss", () => {
 
 describe("blurFor", () => {
   it("leaves the front layer sharp and blurs the ones behind it more the further back they are", () => {
-    expect([0, 1, 2, 3, 4].map((layer) => blurFor(layer, true))).toEqual([0, 2, 3, 3, 3]);
+    expect([0, 1, 2, 3, 4].map((layer) => blurFor(layer, true))).toEqual([0, 1, 1.5, 1.5, 1.5]);
   });
 
   it("keeps the first person's layer sharp when nothing is shared, as it is then the front-most", () => {
-    expect([0, 1, 2, 3].map((layer) => blurFor(layer, false))).toEqual([0, 0, 3, 3]);
+    expect([0, 1, 2, 3].map((layer) => blurFor(layer, false))).toEqual([0, 0, 1.5, 1.5]);
   });
 });
 
 describe("phoneBlurFor", () => {
   it("is a light blur on the first person's layer only, and none further back (the cost is on the phone)", () => {
-    expect([0, 1, 2, 3, 4].map((layer) => phoneBlurFor(layer, true))).toEqual([0, 1.5, 0, 0, 0]);
+    expect([0, 1, 2, 3, 4].map((layer) => phoneBlurFor(layer, true))).toEqual([0, 0.75, 0, 0, 0]);
   });
 
   it("is none where the layer is not blurred at all: nothing shared, so the first person's layer is the sharp front", () => {
