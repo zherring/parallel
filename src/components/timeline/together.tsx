@@ -27,8 +27,7 @@ interface TogetherProps {
   note?: ReactNode;
   /** The Timeline tab of the section. */
   timeline: ReactNode;
-  includeMinor: boolean;
-  onIncludeMinorChange: (next: boolean) => void;
+  settingsControl: ReactNode;
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
@@ -45,19 +44,16 @@ export function Together({
   note,
   today,
   timeline,
-  includeMinor,
-  onIncludeMinorChange,
+  settingsControl,
   onSelect,
 }: TogetherProps) {
   const rows = useMemo(() => sharedRows(shared, people), [shared, people]);
   const nameById = new Map(people.map((p) => [p.id, p.name]));
   const names = people.map((p) => p.name);
-  const count = shared.length;
 
   return (
     <FilmsSection
       headingId="together"
-      count={count}
       together
       rows={rows}
       names={names}
@@ -66,8 +62,7 @@ export function Together({
       note={note}
       today={today}
       timeline={timeline}
-      includeMinor={includeMinor}
-      onIncludeMinorChange={onIncludeMinorChange}
+      settingsControl={settingsControl}
       empty={
         <>
           No films together found on TMDB. Try adding a collaborator in a nearby role, such as the cinematographer,

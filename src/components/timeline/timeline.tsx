@@ -13,16 +13,20 @@ import {
   type FocusEvent,
   type KeyboardEvent,
   type PointerEvent,
+  type ReactNode,
   type Ref,
 } from "react";
+import { combineLanes, combinedMinimapFilms, describeCombined } from "@/lib/combined-track";
 import { connectionKey, connectionLegend, slotColor } from "@/lib/connections";
 import { filmCardContent } from "@/lib/film-credits";
 import { joinNames } from "@/lib/format";
 import { outsidePeriodIds, type Period, type YearSpan } from "@/lib/period";
-import { laneFacts, peopleHref, removePersonHref, yearSpan, type PersonRef } from "@/lib/lanes";
+import { laneSummary, peopleHref, removePersonHref, type PersonRef } from "@/lib/lanes";
 import { laneScrollTop, mostVisibleLane } from "@/lib/lane-dock";
+import { separateMinimapFilms } from "@/lib/minimap-films";
+import { personColor, personGlow, personSlots, type PersonTint } from "@/lib/person-colors";
 import { isReleased } from "@/lib/released";
-import { MINOR_TOGGLE_LABEL, roleSummary } from "@/lib/roles";
+import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import { nodeOnlyIds, rovingIndex, tabStopId } from "@/lib/roving";
 import { shortName } from "@/lib/short-name";
 import {
@@ -70,7 +74,7 @@ import { FilmNode } from "./film-node";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "./film-popover";
 import { LaneAvatars } from "./lane-avatars";
 import { LaneHeader } from "./lane-header";
-import { MinimapBar, type MinimapFilm } from "./minimap";
+import { MinimapBar } from "./minimap";
 import { isSenderPeriod } from "./use-period";
 import { scrollBehavior } from "./scroll-behavior";
 import { useDragPan } from "./use-drag-pan";
@@ -79,15 +83,15 @@ export interface LaneData {
   person: PersonSummary;
   /** Films to show, already filtered for the minor toggle. */
   films: Film[];
-  /** Films left out because they are minor (only counted while the toggle is off). */
-  hiddenMinor: number;
+  /** Ids of the films left out because they are minor (empty while the toggle is on). */
+  hiddenMinorIds: readonly number[];
 }
 
 /** What the page can ask of the timeline from outside. */
 export interface TimelineHandle {
   /**
-   * Call right before the lanes change in a way that moves the axis (the minor-credits checkbox,
-   * which lives under the panels): the year in the middle of the view stays in the middle.
+   * Call before the people or credit preferences change the axis: the year in the middle
+   * of the view stays in the middle.
    */
   rememberCenter: () => void;
 }
@@ -100,11 +104,26 @@ interface TimelineProps {
    */
   active: boolean;
   ref?: Ref<TimelineHandle>;
+  /** One lane per person to draw (the visible people). */
   lanes: LaneData[];
-  /** Everyone on the page, in URL order; used for the remove links. */
+  /** Draw the lanes as one track instead of one lane each. */
+  combined?: boolean;
+  /** Shared with both layouts and the table's settings gear: give every film a poster. */
+  showAll: boolean;
+  /** The gear containing the poster-row and minor-credit preferences. */
+  settingsControl: ReactNode;
+  /** The layout toggle, fixed over the track's top-right corner rather than scrolling with the films. */
+  layoutToggle?: ReactNode;
+  /** The people column: floating over the timeline on desktop, above it below md, in both layouts. */
+  sidebar?: ReactNode;
+  /** Dock a fully expanded people panel flush to the timeline instead of floating it with an inset. */
+  sidebarExpanded?: boolean;
+  /**
+   * Everyone on the page, in URL order: the remove links, and their palette slots (see
+   * `personSlots`), which colour the combined track and, in the separate layout, each lane's films
+   * and the minimap. A one-person page has no colours to tell apart.
+   */
   people: PersonRef[];
-  /** Ids of released films shared by every lane (with the current minor setting). */
-  litIds: ReadonlySet<number>;
   includeMinor: boolean;
   /**
    * yyyy-mm-dd (UTC), the one date the page computed on the server: a film released after it is
@@ -139,6 +158,17 @@ const SETTLE_MS = 160;
 const buttonClass =
   "inline-flex size-9 items-center justify-center rounded-md border border-border bg-surface text-strong hover:border-muted disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border";
 
+/** Stands for the one track of the combined timeline where a lane's person goes. */
+const COMBINED_PERSON: PersonSummary = {
+  id: 0,
+  name: "Everyone",
+  profilePath: null,
+  knownFor: null,
+  birthday: null,
+  deathday: null,
+  biography: null,
+};
+
 const LIT_GLOW = { filter: "drop-shadow(0 0 3px var(--lit-glow))" };
 /** Opacity of the connections the legend is not pointing at. */
 const DIMMED = 0.2;
@@ -169,8 +199,13 @@ export function Timeline({
   active,
   ref,
   lanes,
+  combined = false,
+  showAll,
+  settingsControl,
+  layoutToggle,
+  sidebar,
+  sidebarExpanded = false,
   people,
-  litIds,
   includeMinor,
   today,
   selectedId,
@@ -183,8 +218,6 @@ export function Timeline({
   const [pxPerYear, setPxPerYear] = useState(DEFAULT_ZOOM);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [edges, setEdges] = useState({ left: false, right: true });
-  // Lanes (by person id) switched to unlimited rows with "Show all".
-  const [expandedIds, setExpandedIds] = useState<ReadonlySet<number>>(() => new Set());
   // The one card-less node per lane (by lane index) that is a tab stop: the one last focused.
   const [tabStops, setTabStops] = useState<Readonly<Record<number, number>>>({});
   // The kind of connection (a legend chip's key) the lines emphasise: hovered or focused, or pressed to keep.
@@ -222,12 +255,37 @@ export function Timeline({
    */
   const jump = useRef<{ lane: number; settledTop: number | null } | null>(null);
 
+  // Combined: every visible person's films merged into the one lane the track draws; `lanes` stays
+  // the people (the hover card has a row for each of them).
+  const isCombined = combined;
+  const slots = useMemo(() => personSlots(people), [people]);
+  const entries = useMemo(
+    () => (isCombined ? combineLanes(lanes, slots, today) : []),
+    [isCombined, lanes, slots, today],
+  );
+  const trackLanes: LaneData[] = useMemo(
+    () =>
+      isCombined
+        ? [
+            {
+              person: COMBINED_PERSON,
+              films: entries.map((entry) => entry.film),
+              // The same film is hidden once, however many of the people list it.
+              hiddenMinorIds: [...new Set(lanes.flatMap((lane) => lane.hiddenMinorIds))],
+            },
+          ]
+        : lanes,
+    [entries, isCombined, lanes],
+  );
+
   const multi = lanes.length > 1;
+  // Person colours: on a page of several people, whatever number of them is visible.
+  const colored = people.length > 1;
   // Films outside the period the page was opened on or the brush chose: shared or not, their cards, connectors and nodes fade.
   const outsideIds = useMemo(() => outsidePeriodIds(lanes.flatMap((lane) => lane.films), period), [lanes, period]);
 
   const layout = useMemo(() => {
-    const years = lanes.flatMap((lane) => lane.films.map((film) => film.year));
+    const years = trackLanes.flatMap((lane) => lane.films.map((film) => film.year));
     const range = axisRange(years, Number(today.slice(0, 4)));
     const scale = makeScale(range, pxPerYear);
     const base = { pxPerYear, axisStartYear: scale.axisStartYear };
@@ -236,26 +294,36 @@ export function Timeline({
     // A film shown in two or more lanes gets its own poster in each of them, placed first (ahead
     // of the row cap) so it keeps a card, on the lowest row it can have, in every lane that has it.
     // Only released films connect: an announced film both lanes list is an ordinary upcoming poster in each.
-    const priorityIds = sharedAcrossLanes(lanes, today);
+    // On the combined track the films several people made are the ones placed first.
+    const priorityIds = isCombined
+      ? new Set(entries.filter((entry) => entry.shared).map((entry) => entry.film.id))
+      : sharedAcrossLanes(trackLanes, today);
     // While something is connected, the films that are not get a smaller card (and so pack tighter).
+    // Always the people's lanes: the combined track is one lane, and cannot tell what is shared.
     const quietIds = quietFilmIds(lanes, today);
 
     // Connector lines run through the poster rows of the lanes below their first node.
-    const obstacles = laneObstacles(lanes, base, today);
+    const obstacles = laneObstacles(trackLanes, base, today);
     const optionsFor = (index: number) => ({ ...base, priorityIds, quietIds, obstacles: obstacles[index] });
-    const capped = lanes.map((lane, index) => packFilms(lane.films, { ...optionsFor(index), maxRows: DEFAULT_MAX_ROWS }));
+    const capped = trackLanes.map((lane, index) =>
+      packFilms(lane.films, { ...optionsFor(index), maxRows: DEFAULT_MAX_ROWS }),
+    );
     const overflow = capped.map(overflowCount);
-    const items = lanes.map((lane, index) =>
-      expandedIds.has(lane.person.id) && overflow[index] > 0 ? packFilms(lane.films, optionsFor(index)) : capped[index],
+    const items = trackLanes.map((lane, index) =>
+      showAll && overflow[index] > 0 ? packFilms(lane.films, optionsFor(index)) : capped[index],
     );
 
     const stack = stackLanes(items.map(rowCount));
     const connectorLanes = items.map((laneItems, index) => ({ box: stack[index], items: laneItems }));
     const connectors = buildConnectors(connectorLanes, today);
     const membership = filmMembership(connectorLanes, today);
+    // Released films every lane shows. With people hidden that is shared among the visible ones
+    // only, like the green treatment; the page's own all-people set would anchor on a film a
+    // hidden person was part of.
+    const litNow = new Set([...membership].filter(([, shownIn]) => shownIn.length === trackLanes.length).map(([id]) => id));
 
     // The kind of connection, the colour and the screen-reader note of each film shown in more than one lane.
-    const names = lanes.map((lane) => shortName(lane.person.name, lane.person.id));
+    const names = trackLanes.map((lane) => shortName(lane.person.name, lane.person.id));
     const keys = new Map<number, string>();
     const accents = new Map<number, string>();
     const notes = new Map<number, string>();
@@ -272,59 +340,53 @@ export function Timeline({
     return {
       ...common,
       items,
+      priorityIds,
       quietIds,
-      overflow,
+      // Per lane, the films that are only a node while the rows are capped: the ones "Show all films" gives a poster.
+      uncappedIds: capped.map((laneItems) => new Set(laneItems.filter((item) => item.overflow).map((item) => item.film.id))),
       hitWidths: items.map(nodeHitWidths),
       boxes: stack,
       height: totalHeight(stack),
       membership,
       connectors,
-      legend: connectionLegend(connectors, lanes.length),
+      legend: connectionLegend(connectors, trackLanes.length),
       names,
       keys,
       accents,
       notes,
-      anchorX: initialAnchorX(items, litIds),
+      // The combined track starts at the first film several people made, when there is one;
+      // the separate lanes at the first film every visible lane shows.
+      anchorX: isCombined
+        ? (items[0].find((item) => priorityIds.has(item.film.id))?.x ?? null)
+        : initialAnchorX(items, litNow),
     };
-  }, [expandedIds, lanes, litIds, pxPerYear, today]);
+  }, [entries, showAll, isCombined, lanes, pxPerYear, today, trackLanes]);
 
   const { scale, width, boxes } = layout;
 
-  // What the minimap marks: green nodes for films every lane shares, else a muted tick per film.
-  const minimapFilms = useMemo(() => {
-    const toMinimap = (film: Film): MinimapFilm => ({
-      id: film.id,
-      title: film.title,
-      year: film.year,
-      releaseDate: film.releaseDate,
-    });
-    if (multi && litIds.size > 0) {
-      const shared = new Map<number, MinimapFilm>();
-      for (const lane of lanes) {
-        for (const film of lane.films) if (litIds.has(film.id) && !shared.has(film.id)) shared.set(film.id, toMinimap(film));
-      }
-      return { shared: [...shared.values()], ticks: [] };
-    }
-    const all = new Map<number, MinimapFilm>();
-    for (const lane of lanes) for (const film of lane.films) if (!all.has(film.id)) all.set(film.id, toMinimap(film));
-    return { shared: [], ticks: [...all.values()] };
-  }, [lanes, litIds, multi]);
+  // What the combined track tells about each film: the colour of its node, of its card's ring and
+  // dots, and what a screen reader hears (who made it, and what each of them did).
+  const combinedInfo = useMemo(
+    () => (isCombined ? describeCombined(entries, lanes, includeMinor) : null),
+    [entries, includeMinor, isCombined, lanes],
+  );
 
-  const laneInfo = useMemo(
+  // What the minimap marks: green nodes for films every lane shares, and a tick for every other
+  // film, in the colour it has on the track (its person's, or its connection's), or muted when the
+  // page has only one person.
+  const { membership, accents } = layout;
+  const minimapFilms = useMemo(
     () =>
-      lanes.map((lane) => {
-        const credits = lane.films.flatMap((film) => film.credits.filter((c) => includeMinor || !c.minor));
-        const years = lane.films.map((film) => film.year);
-        return {
-          roles: roleSummary(credits),
-          facts: laneFacts(lane.person, years),
-          span: yearSpan(years),
-          rolesByFilm: new Map(
-            lane.films.map((film) => [film.id, roleSummary(film.credits.filter((c) => includeMinor || !c.minor))]),
-          ),
-        };
-      }),
-    [lanes, includeMinor],
+      isCombined
+        ? combinedMinimapFilms(entries)
+        : separateMinimapFilms(lanes, membership, accents, slots, colored),
+    [accents, colored, entries, isCombined, lanes, membership, slots],
+  );
+
+  // The People panel's rows say the same of each person; the combined lane stands for no one, so it has none.
+  const laneInfo = useMemo(
+    () => (isCombined ? [] : trackLanes.map((lane) => laneSummary(lane.films, lane.person, includeMinor))),
+    [isCombined, trackLanes, includeMinor],
   );
 
   // ---- scrolling ----------------------------------------------------------
@@ -409,6 +471,53 @@ export function Timeline({
     updateActiveLane();
   }, [updateActiveLane]);
 
+  // Only the track changes layout: keep the panel mounted and its lowest poster rows in view.
+  // A tall expanded lane starts at its line, not at potentially empty rows far above the matches.
+  const previousCombined = useRef(isCombined);
+  const previousShowAll = useRef(showAll);
+  const previousIncludeMinor = useRef(includeMinor);
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current;
+    const changed = previousCombined.current !== isCombined;
+    const rowsChanged = previousShowAll.current !== showAll;
+    const creditsChanged = previousIncludeMinor.current !== includeMinor;
+    previousCombined.current = isCombined;
+    previousShowAll.current = showAll;
+    previousIncludeMinor.current = includeMinor;
+    if (changed) {
+      hidePopover();
+      hoverElement.current = null;
+      jump.current = null;
+    }
+    if (scroller && rowsChanged && showAll) {
+      // The old icon could appear to do nothing: the posters it adds often sit above the
+      // viewport. Reveal a new poster in the current year window without changing the years.
+      const left = scroller.scrollLeft;
+      const right = left + scroller.clientWidth - (cornerRef.current?.offsetWidth ?? 0);
+      const laneOrder = isCombined ? [0] : [activeLane, ...layout.items.map((_, index) => index).filter((index) => index !== activeLane)];
+      for (const laneIndex of laneOrder) {
+        const box = boxes[laneIndex];
+        const candidates = layout.items[laneIndex]?.filter((item) =>
+          layout.uncappedIds[laneIndex].has(item.film.id) && item.x >= left && item.x <= right,
+        ) ?? [];
+        const revealed = candidates.reduce<PackedFilm<Film> | null>((nearest, item) =>
+          nearest === null || item.row < nearest.row ? item : nearest, null,
+        );
+        if (box && revealed) {
+          scroller.scrollTop = Math.max(0, box.top + cardTopInLane(revealed.row, box.height) - 18);
+          return;
+        }
+      }
+    }
+    if (!isCombined && scroller && (changed || rowsChanged || creditsChanged)) {
+      const box = boxes[changed ? 0 : activeLane] ?? boxes[0];
+      if (box) scroller.scrollTop = Math.max(box.top, box.top + box.height + AXIS_HEIGHT - scroller.clientHeight);
+    }
+    // The combined track's lowest rows are the ones next to its line. Only a change of layout or of
+    // rows puts them back in view: a zoom or a credits toggle leaves the visitor where they scrolled.
+    if (isCombined && scroller && (changed || rowsChanged)) scroller.scrollTop = scroller.scrollHeight;
+  }, [activeLane, boxes, hidePopover, includeMinor, isCombined, layout.items, layout.uncappedIds, showAll]);
+
   const jumpToLane = useCallback(
     (index: number) => {
       const scroller = scrollerRef.current;
@@ -449,6 +558,9 @@ export function Timeline({
     if (!didInitialScroll.current) {
       didInitialScroll.current = true;
       scroller.scrollLeft = initialScrollLeft(anchorX, viewportTrackWidth());
+      // Initial Combined views should stand on their baseline, even when shared posters force
+      // more rows than fit. Keep this one-time placement separate from later manual zooms.
+      if (isCombined) scroller.scrollTop = scroller.scrollHeight;
     } else if (lastSeen.current) {
       if (pendingCenter.current === null) scroller.scrollLeft = lastSeen.current.left;
       scroller.scrollTop = lastSeen.current.top;
@@ -456,7 +568,7 @@ export function Timeline({
     remember();
     updateEdges();
     updateActiveLane();
-  }, [active, anchorX, remember, updateActiveLane, updateEdges]);
+  }, [active, anchorX, isCombined, remember, updateActiveLane, updateEdges]);
 
   // Zoom and the minor toggle can move the axis; keep whatever year was centred in place. While the
   // timeline is hidden the year comes from where it was last seen, and is placed once it is shown.
@@ -508,6 +620,9 @@ export function Timeline({
     if (!active || !pending || !scroller || pending.zoom !== pxPerYear) return;
     pendingStart.current = null;
     scroller.scrollLeft = scrollLeftForYearStart(pending.from, scale);
+    // Fitting a linked period can add rows after the first placement. This is a deliberate
+    // programmatic navigation, not a manual zoom, so finish it at the Combined baseline too.
+    if (isCombined) scroller.scrollTop = scroller.scrollHeight;
     remember();
     updateEdges();
   });
@@ -518,14 +633,6 @@ export function Timeline({
     rememberCenter();
     setPxPerYear(next);
   };
-
-  const toggleExpanded = useCallback((personId: number) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(personId)) next.add(personId);
-      return next;
-    });
-  }, []);
 
   // ---- hover, focus and keyboard ------------------------------------------
   //
@@ -590,10 +697,10 @@ export function Timeline({
       popoverTarget
         ? filmCardContent(popoverTarget.filmId, lanes, {
             includeMinor,
-            firstPersonId: lanes[popoverTarget.laneIndex]?.person.id ?? null,
+            firstPersonId: isCombined ? null : (lanes[popoverTarget.laneIndex]?.person.id ?? null),
           })
         : null,
-    [popoverTarget, lanes, includeMinor],
+    [popoverTarget, lanes, includeMinor, isCombined],
   );
   const describedByFor = (filmId: number, laneIndex: number | null) =>
     popoverTarget && popoverContent && popoverTarget.filmId === filmId && popoverTarget.laneIndex === laneIndex
@@ -614,11 +721,14 @@ export function Timeline({
 
   // ---- render -------------------------------------------------------------
 
-  // Green for a film every lane shows, the colour of its pair for one only some lanes show, grey for the rest.
+  // Green for a film every lane shows, the colour of its pair for one only some lanes show, its
+  // person's colour (through the tint) for one lane only.
+  // On the combined track, green for a film several visible people made and plain for the rest.
   const toneFor = (id: number): CardTone => {
+    if (isCombined) return layout.priorityIds.has(id) ? "lit" : "plain";
     const lanesShowing = layout.membership.get(id)?.length ?? 0;
     if (lanesShowing < 2) return "plain";
-    return lanesShowing === lanes.length ? "lit" : "some";
+    return lanesShowing === trackLanes.length ? "lit" : "some";
   };
 
   // The kind of connection the lines emphasise now; ignored when the toggles left nothing of that kind.
@@ -635,6 +745,16 @@ export function Timeline({
 
   const zoomPercent = Math.round((pxPerYear / DEFAULT_ZOOM) * 100);
 
+  // The colour ring of a "plain" film: its one contributor's colour, on both layouts. On the
+  // combined track that comes from the merged entries; on a separate lane from the lane's person.
+  const tintFor = (filmId: number, laneIndex: number): PersonTint | null => {
+    if (!colored) return null;
+    if (isCombined) return combinedInfo?.get(filmId)?.tint ?? null;
+    if (toneFor(filmId) !== "plain") return null;
+    const slot = slots.get(trackLanes[laneIndex].person.id);
+    return slot === undefined ? null : { color: personColor(slot), glow: personGlow(slot) };
+  };
+
   const cardFor = (
     { film, x }: PackedFilm<Film>,
     laneIndex: number,
@@ -643,6 +763,7 @@ export function Timeline({
   ) => {
     const tone = toneFor(film.id);
     const quiet = layout.quietIds.has(film.id);
+    const tint = tintFor(film.id, laneIndex);
     return (
       <FilmCard
         key={film.id}
@@ -656,7 +777,9 @@ export function Timeline({
         tone={tone}
         quiet={quiet}
         accent={layout.accents.get(film.id) ?? null}
-        note={layout.notes.get(film.id) ?? ""}
+        note={combinedInfo?.get(film.id)?.note ?? layout.notes.get(film.id) ?? ""}
+        tint={tint}
+        dots={combinedInfo?.get(film.id)?.dots}
         laneIndex={laneIndex}
         upcoming={!isReleased(film.releaseDate, today)}
         emphasized={hoveredId === film.id}
@@ -671,28 +794,54 @@ export function Timeline({
 
   return (
     <div ref={rootRef}>
-      <ConnectionLegend
-        entries={layout.legend}
-        names={layout.names}
-        laneCount={lanes.length}
-        activeKey={activeKey}
-        pinnedKey={pinnedKey}
-        onPreview={setPreviewKey}
-        onTogglePin={(key) => setPinnedKey((prev) => (prev === key ? null : key))}
-      />
-
       {/*
-        --chrome: what sits above the scroller (the site header, the title row, the tabs row and the legend), plus the pinned
+        --chrome: what sits above the timeline (the site header, the title row and the tabs row), plus the pinned
         bar below it. The scroller is as tall as what is left of the viewport, so that the year axis at its bottom edge shows
         right above the bar when the page is at the top, instead of under it (but never shorter than 26rem; a phone scrolls
         the page instead).
+
+        On desktop the people column and timeline share a grid cell: the expanded panel docks flush to the
+        edges, while the compact panel floats with an inset. The track's left spacer (--lane-head) is scrollable, not
+        sticky, so the earliest films can be reached clear of the panel and later films pass underneath it.
+        The same inset tells the scroll/zoom and minimap math how much of the viewport is unobstructed.
+        Below md the panel sits above the track. (The contents are not indented further to keep merges small.)
       */}
+      <div className={cn(sidebar ? "flex flex-col gap-3 md:grid md:grid-cols-[minmax(0,1fr)] md:gap-0" : "contents", "[--chrome:15.5rem]")}>
+      {sidebar && (
+        <div className={cn(
+          "min-w-0 md:pointer-events-none md:z-[65] md:col-start-1 md:row-start-1 md:grid md:w-[17rem]",
+          !sidebarExpanded && "md:m-3",
+        )}>
+          {sidebar}
+        </div>
+      )}
       <div
         className={cn(
-          "relative isolate [--lane-head:84px] sm:[--lane-head:224px]",
-          layout.legend.length > 0 ? "[--chrome:18rem]" : "[--chrome:15.5rem]",
+          "relative isolate",
+          sidebar ? "flex w-full min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-canvas [--lane-head:0px] md:col-start-1 md:row-start-1 md:h-[clamp(26rem,calc(100dvh-var(--chrome)),1100px)]" : "[--lane-head:84px] sm:[--lane-head:224px]",
+          sidebar ? (sidebarExpanded ? "md:[--lane-head:17rem]" : "md:[--lane-head:18.5rem]") : undefined,
         )}
       >
+        {(settingsControl || layoutToggle) && (
+          <div role="group" aria-label="Timeline settings" className="absolute right-2 top-2 z-[70] flex items-center gap-1 rounded-md bg-canvas/90">
+            {layoutToggle}
+            {settingsControl}
+          </div>
+        )}
+        {layout.legend.length > 0 && (
+          // The legend belongs to the track, not the People panel's sizing or position.
+          <div className={cn("relative z-[65] shrink-0 pl-3 pr-20 pt-2", sidebar ? "md:pl-[var(--lane-head)]" : undefined)}>
+            <ConnectionLegend
+              entries={layout.legend}
+              names={layout.names}
+              laneCount={trackLanes.length}
+              activeKey={activeKey}
+              pinnedKey={pinnedKey}
+              onPreview={setPreviewKey}
+              onTogglePin={(key) => setPinnedKey((prev) => (prev === key ? null : key))}
+            />
+          </div>
+        )}
         {/*
           The empty surface (lane tracks and the year axis) can be dragged to pan, see useDragPan: `grab` over it, `grabbing` and no
           text selection on everything while a drag runs (data-panning). Films, buttons and links keep their cursor, the lane
@@ -710,9 +859,14 @@ export function Timeline({
           onFocus={handleFocus}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="max-h-[clamp(26rem,calc(100dvh-var(--chrome)),1100px)] cursor-grab overflow-auto overscroll-x-contain rounded-lg border border-border bg-canvas [scroll-padding-left:var(--lane-head)] [scroll-padding-bottom:44px] [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin] data-[panning]:select-none [&[data-panning]_*]:cursor-grabbing! [&_[data-lane-head]]:cursor-auto"
+          className={cn(
+            "max-h-[clamp(26rem,calc(100dvh-var(--chrome)),1100px)] cursor-grab overflow-auto overscroll-x-contain [scroll-padding-left:var(--lane-head)] [scroll-padding-bottom:44px] [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin] data-[panning]:select-none [&[data-panning]_*]:cursor-grabbing! [&_[data-lane-head]]:cursor-auto",
+            sidebar ? "min-h-0 flex-1" : "rounded-lg border border-border bg-canvas",
+          )}
         >
-          <div className="relative min-w-full" style={{ width: `calc(var(--lane-head) + ${width}px)` }}>
+          <div className="relative flex min-h-full min-w-full flex-col" style={{ width: `calc(var(--lane-head) + ${width}px)` }}>
+            {/* Keep the films and their SVG together above the bottom-aligned year axis when the sidebar is taller. */}
+            <div className="relative mt-auto shrink-0">
             {/*
               Lane lines, connectors and nodes: pure geometry from the layout, drawn over the poster
               cards of films that are in one lane only (but under the lane headers and under the
@@ -734,7 +888,7 @@ export function Timeline({
                 const first = items[0]?.x ?? width;
                 const last = items[items.length - 1]?.x ?? width;
                 return (
-                  <g key={lanes[laneIndex].person.id}>
+                  <g key={trackLanes[laneIndex].person.id}>
                     <line x1={0} x2={first} y1={y} y2={y} strokeDasharray="3 5" className="stroke-muted/40" />
                     {items.length > 0 && <line x1={first} x2={last} y1={y} y2={y} className="stroke-muted/70" />}
                     <line x1={last} x2={width} y1={y} y2={y} strokeDasharray="3 5" className="stroke-muted/40" />
@@ -744,7 +898,7 @@ export function Timeline({
               {/* Every halo first, so that no film's halo dims the coloured line of a film released days from it. */}
               {layout.connectors.map((c) => {
                 const key = connectionKey(c.slot);
-                const strokeWidth = hoveredId === c.filmId || activeKey === key ? 3 : 2;
+                const strokeWidth = (c.kind === "all" ? 3 : 2) + (hoveredId === c.filmId || activeKey === key ? 1 : 0);
                 return (
                   <line
                     key={c.filmId}
@@ -760,7 +914,7 @@ export function Timeline({
               })}
               {layout.connectors.map((c) => {
                 const key = connectionKey(c.slot);
-                const strokeWidth = hoveredId === c.filmId || activeKey === key ? 3 : 2;
+                const strokeWidth = (c.kind === "all" ? 3 : 2) + (hoveredId === c.filmId || activeKey === key ? 1 : 0);
                 return (
                   <line
                     key={c.filmId}
@@ -779,22 +933,26 @@ export function Timeline({
               {layout.items.map((items, laneIndex) => {
                 const y = nodeY(boxes[laneIndex]);
                 return (
-                  <g key={lanes[laneIndex].person.id}>
+                  <g key={trackLanes[laneIndex].person.id}>
                     {items.map(({ film, x }) => {
                       const tone = toneFor(film.id);
                       const dimmed = activeKey !== null && tone !== "plain" && layout.keys.get(film.id) !== activeKey;
+                      const tint = tintFor(film.id, laneIndex);
                       return (
                         <circle
                           key={film.id}
                           cx={x}
                           cy={y}
-                          r={NODE_RADIUS[tone]}
+                          r={colored && tone === "plain" ? NODE_RADIUS.some - 0.5 : NODE_RADIUS[tone]}
                           opacity={dimmed || outsideIds.has(film.id) ? DIMMED : 1}
                           stroke={tone === "plain" ? undefined : "var(--bg)"}
                           strokeWidth={tone === "plain" ? undefined : 1.5}
                           style={{
                             ...(tone === "lit" ? LIT_GLOW : undefined),
-                            fill: tone === "lit" ? "var(--lit)" : (layout.accents.get(film.id) ?? "var(--text-muted)"),
+                            fill:
+                              tone === "lit"
+                                ? "var(--lit)"
+                                : (layout.accents.get(film.id) ?? tint?.color ?? "var(--text-muted)"),
                           }}
                         />
                       );
@@ -804,21 +962,24 @@ export function Timeline({
               })}
             </svg>
 
-            {lanes.map((lane, laneIndex) => {
+            {trackLanes.map((lane, laneIndex) => {
               const { person } = lane;
               const items = layout.items[laneIndex];
-              const info = laneInfo[laneIndex];
+              // Undefined on the combined track: its one lane has no person to sum up.
+              const info: (typeof laneInfo)[number] | undefined = laneInfo[laneIndex];
               // A film with a poster card in this lane is reached through the card; the films that
               // are only a node share the lane's one roving tab stop.
               const tabStop = tabStopId(nodeOnlyIds(items), tabStops[laneIndex]);
+              const rolesOf = (filmId: number) =>
+                combinedInfo?.get(filmId)?.roles ?? info?.rolesByFilm.get(filmId) ?? "";
               const nodeFor = (item: PackedFilm<Film>, decorative: boolean) => (
                 <FilmNode
                   key={item.film.id}
                   id={item.film.id}
                   title={item.film.title}
                   year={item.film.year}
-                  roles={info.rolesByFilm.get(item.film.id) ?? ""}
-                  note={layout.notes.get(item.film.id) ?? ""}
+                  roles={rolesOf(item.film.id)}
+                  note={combinedInfo?.get(item.film.id)?.note ?? layout.notes.get(item.film.id) ?? ""}
                   x={item.x}
                   lineY={lineYInLane(boxes[laneIndex].height)}
                   hitWidth={layout.hitWidths[laneIndex].get(item.film.id) ?? DOT_HIT_SIZE}
@@ -834,26 +995,28 @@ export function Timeline({
               return (
                 <Fragment key={person.id}>
                   <section
-                    aria-labelledby={`person-${person.id}`}
+                    // With a people column the panel's row names the lane (both layouts); without one, the lane header does.
+                    aria-labelledby={isCombined ? undefined : `person-${person.id}`}
+                    aria-label={isCombined ? "Films of everyone shown" : undefined}
                     className="flex"
                     style={{ height: boxes[laneIndex].height }}
                   >
-                    <LaneHeader
-                      person={person}
-                      roles={info.roles}
-                      facts={info.facts}
-                      span={info.span}
-                      soloHref={multi ? peopleHref([person]) : null}
-                      removeHref={removePersonHref(people, person.id)}
-                      overflowCount={layout.overflow[laneIndex]}
-                      expanded={expandedIds.has(person.id)}
-                      onToggleExpanded={() => toggleExpanded(person.id)}
-                      divider={laneIndex < lanes.length - 1}
-                    />
+                    {!sidebar && !isCombined && info && (
+                      <LaneHeader
+                        person={person}
+                        roles={info.roles}
+                        facts={info.facts}
+                        span={info.span}
+                        soloHref={multi ? peopleHref([person]) : null}
+                        removeHref={removePersonHref(people, person.id)}
+                        divider={laneIndex < trackLanes.length - 1}
+                      />
+                    )}
+                    {(sidebar || isCombined) && <div aria-hidden className="w-[var(--lane-head)] shrink-0" />}
                     <div
                       className={cn(
                         "relative shrink-0",
-                        laneIndex < lanes.length - 1 && "border-b border-border",
+                        laneIndex < trackLanes.length - 1 && "border-b border-border",
                         // The empty-lane note sits right above the line.
                         items.length === 0 && "flex flex-col justify-end",
                       )}
@@ -865,7 +1028,7 @@ export function Timeline({
                             {items.map((item) =>
                               item.overflow
                                 ? nodeFor(item, false)
-                                : cardFor(item, laneIndex, cardTopInLane(item.row, boxes[laneIndex].height), info.rolesByFilm.get(item.film.id) ?? ""),
+                                : cardFor(item, laneIndex, cardTopInLane(item.row, boxes[laneIndex].height), rolesOf(item.film.id)),
                             )}
                           </ol>
                           {/* Mouse targets on the nodes of films that have a card: not part of the list or the tab order. */}
@@ -873,8 +1036,8 @@ export function Timeline({
                         </>
                       ) : (
                         <p className="sticky left-[var(--lane-head)] w-max max-w-xs px-4 text-sm text-muted pb-9">
-                          {lane.hiddenMinor > 0
-                            ? `No major credits found on TMDB. Turn on "${MINOR_TOGGLE_LABEL}" to see ${lane.hiddenMinor} more.`
+                          {lane.hiddenMinorIds.length > 0
+                            ? `No major credits found on TMDB. Turn on "${MINOR_TOGGLE_LABEL}" to see ${lane.hiddenMinorIds.length} more.`
                             : "No films found on TMDB."}
                         </p>
                       )}
@@ -893,14 +1056,16 @@ export function Timeline({
               />
             )}
 
+            </div>
+
             {/* The year axis closes the lanes and stays at the bottom edge of the scroller while the lanes scroll. */}
             <div
-              className="sticky bottom-0 z-40 flex border-t border-border bg-canvas"
+              className="sticky bottom-0 z-40 flex shrink-0 border-t border-border bg-canvas"
               style={{ height: AXIS_HEIGHT }}
             >
               <div
                 ref={cornerRef}
-                className="sticky left-0 z-50 w-[var(--lane-head)] shrink-0 border-r border-border bg-canvas"
+                className={cn("w-[var(--lane-head)] shrink-0", !sidebar && "sticky left-0 z-50 border-r border-border bg-canvas")}
               />
               <div aria-hidden className="relative shrink-0" style={{ width }}>
                 {layout.ticks.map((tick) => (
@@ -930,7 +1095,8 @@ export function Timeline({
         <div
           aria-hidden
           className={cn(
-            "pointer-events-none absolute inset-y-px left-[calc(var(--lane-head)+1px)] z-[60] w-10 bg-linear-to-r from-canvas to-transparent transition-opacity duration-150 motion-reduce:transition-none",
+            "pointer-events-none absolute inset-y-px z-[60] w-10 bg-linear-to-r from-canvas to-transparent transition-opacity duration-150 motion-reduce:transition-none",
+            sidebar ? "left-px" : "left-[calc(var(--lane-head)+1px)]",
             edges.left ? "opacity-100" : "opacity-0",
           )}
         />
@@ -941,6 +1107,7 @@ export function Timeline({
             edges.right ? "opacity-100" : "opacity-0",
           )}
         />
+      </div>
       </div>
 
       {/* After the timeline, so that the pinned bar follows the lanes in reading and tab order. */}
@@ -953,7 +1120,7 @@ export function Timeline({
         filmTicks={minimapFilms.ticks}
         brush={onPeriodChange ? { span: periodSpan, period, years: periodYears, onChange: onPeriodChange } : undefined}
         leading={
-          multi ? (
+          multi && !isCombined ? (
             <LaneAvatars people={lanes.map((lane) => lane.person)} activeIndex={activeLane} onJump={jumpToLane} />
           ) : null
         }
@@ -994,6 +1161,7 @@ export function Timeline({
           target={popoverTarget}
           content={popoverContent}
           lit={toneFor(popoverTarget.filmId) === "lit"}
+          colorOf={colored ? (personId) => personColor(slots.get(personId) ?? 0) : undefined}
           today={today}
           bottomEdge={barTop}
           onDismiss={hidePopover}

@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { tmdbImage } from "@/lib/images";
+import type { PersonTint } from "@/lib/person-colors";
 import { CARD_HEIGHT, POSTER_HEIGHT, QUIET_POSTER_HEIGHT, QUIET_RESTORE_SCALE, cardWidthOf } from "@/lib/timeline-layout";
 import { cn } from "./cn";
 
@@ -15,6 +16,8 @@ export type CardTone = "lit" | "some" | "plain";
 
 /** Opacity of the poster of a quiet card (see `quiet`); the caption stays opaque, in the muted tone. */
 export const QUIET_OPACITY = 0.55;
+
+export type CardTint = PersonTint;
 
 interface FilmCardProps {
   id: number;
@@ -38,6 +41,13 @@ interface FilmCardProps {
   accent: string | null;
   /** Read after the roles, so the tone is not carried by colour alone: "Made together", "Shared by Fincher and Pitt". */
   note: string;
+  /**
+   * A "plain" card of a film one visible person made gets a ring and a soft glow in that person's colour,
+   * as heavy as the green of a lit one (on the combined track and in the separate lanes). Null otherwise.
+   */
+  tint?: CardTint | null;
+  /** Combined track only: a dot in the colour of each contributor, before the year. Purely visual: the names are in the label. */
+  dots?: readonly string[];
   /** Index of the lane the card is in. Read by the timeline's delegated hover handlers. */
   laneIndex: number;
   upcoming: boolean;
@@ -79,6 +89,8 @@ function FilmCardImpl(props: FilmCardProps) {
     tone,
     quiet,
     accent,
+    tint = null,
+    dots,
     laneIndex,
     upcoming,
     emphasized,
@@ -95,6 +107,13 @@ function FilmCardImpl(props: FilmCardProps) {
   const restored = quiet && (emphasized || selected);
   const faded = quiet && !restored;
   const textSize = quiet ? "text-[10px] leading-[12px]" : "text-[11px] leading-[13px]";
+  const tinted = tone === "plain" && tint !== null && !dimmed;
+  const boxShadow =
+    tinted && !emphasized
+      ? `0 0 0 2px ${tint.color}, 0 0 22px ${tint.glow}`
+      : tone === "some" && accent && !emphasized && !dimmed
+        ? `0 0 0 1.5px ${accent}`
+        : undefined;
 
   return (
     <li
@@ -144,10 +163,7 @@ function FilmCardImpl(props: FilmCardProps) {
               tone !== "lit" && emphasized && "ring-2 ring-strong/80",
               selected && "outline outline-2 outline-offset-2 outline-strong",
             )}
-            style={{
-              height: posterHeight,
-              boxShadow: tone === "some" && accent && !emphasized && !dimmed ? `0 0 0 1.5px ${accent}` : undefined,
-            }}
+            style={{ height: posterHeight, boxShadow }}
           >
             <span
               className="block size-full transition-opacity duration-150 motion-reduce:transition-none"
@@ -203,7 +219,12 @@ function FilmCardImpl(props: FilmCardProps) {
           >
             {title}
           </span>
-          <span className={cn("relative z-[16] block tabular-nums text-muted", textSize, CAPTION_OUTLINE)}>{year}</span>
+          <span className={cn("relative z-[16] flex items-center gap-1 tabular-nums text-muted", textSize, CAPTION_OUTLINE)}>
+            {dots?.map((color, index) => (
+              <span key={index} aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+            ))}
+            {year}
+          </span>
         </span>
       </button>
     </li>

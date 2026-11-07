@@ -41,10 +41,30 @@ The token is only read on the server and is never sent to the browser.
 | `npm run lint`      | ESLint                                |
 | `npm run typecheck` | `tsc --noEmit`                        |
 | `npm test`          | Vitest unit tests (TMDB is mocked)    |
+| `npm run test:browser` | Playwright scroll regressions in Chromium (TMDB is mocked) |
 | `npm run examples:refresh` | Re-check the landing pairings against TMDB (see below) |
 | `npm run people:refresh` | Rebuild the local people search index and the collaborator graph from TMDB (see "People search index" and "Frequent collaborators") |
 | `npm run people:eval` | Measure how well the search finds people for ~50 realistic queries |
 | `npm run awards:refresh` | Rebuild the Oscar / festival awards data from Wikidata (see "Awards data"); `-- --validate` checks the live endpoint |
+
+### Browser regressions
+
+Install Chromium once, then run the browser suite:
+
+```sh
+npx playwright install chromium
+npm run test:browser
+```
+
+The suite starts an isolated Next.js server on `127.0.0.1:3102`, with its own
+`.next-playwright` cache, so it can run alongside the normal dev server. Next's
+test fetch proxy supplies deterministic TMDB fixtures: no real API token or
+external movie data is needed. The proxy is enabled only for this test server.
+
+Tests cover initial Combined baseline placement (including linked periods and
+first opening Timeline from Table), vertical scroll preservation during manual
+zoom with all films shown, and preserving the centred year when a person caret
+undocks the expanded People column.
 
 ## Layout
 

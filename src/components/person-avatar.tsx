@@ -11,6 +11,8 @@ interface Props {
   size?: number;
   imageSize?: ImageSize;
   className?: string;
+  /** A CSS colour for a ring round the photo (a dark gap, then the colour); none by default. */
+  ringColor?: string;
 }
 
 /**
@@ -18,7 +20,7 @@ interface Props {
  * missing or fails to load, the initials show. Decorative (aria-hidden): callers always render
  * the name beside it.
  */
-export function PersonAvatar({ name, profilePath, size = 40, imageSize = "w92", className }: Props) {
+export function PersonAvatar({ name, profilePath, size = 40, imageSize = "w92", className, ringColor }: Props) {
   const src = tmdbImage(profilePath, imageSize);
   // The url that failed, not a flag, so a new photo for the same avatar gets its own chance.
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
@@ -27,7 +29,12 @@ export function PersonAvatar({ name, profilePath, size = 40, imageSize = "w92", 
     <span
       aria-hidden="true"
       className={`relative inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full bg-border font-medium text-muted ${className ?? ""}`}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.36) }}
+      style={{
+        width: size,
+        height: size,
+        fontSize: Math.round(size * 0.36),
+        boxShadow: ringColor ? `0 0 0 2px var(--bg), 0 0 0 4px ${ringColor}` : undefined,
+      }}
     >
       {initials(name)}
       {src && src !== failedSrc && (

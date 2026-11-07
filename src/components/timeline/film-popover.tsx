@@ -111,6 +111,8 @@ interface FilmPopoverProps {
   content: FilmCardContent;
   /** Shared by every lane: the poster gets the green outline and glow of a lit film. */
   lit: boolean;
+  /** A person's colour on the timeline (a CSS colour), drawn as a ring round their avatar in the card; none on a one-person page. */
+  colorOf?: (personId: number) => string | undefined;
   /** yyyy-mm-dd, the page's date: a film released after it shows no box office. */
   today: string;
   /**
@@ -145,7 +147,7 @@ function RoleText({ row }: { row: CreditsRow }) {
  * cannot cover the nodes around its trigger, and it never takes focus. The poster is only
  * fetched while the card is open.
  */
-export function FilmPopover({ id, target, content, lit, today, bottomEdge, onDismiss }: FilmPopoverProps) {
+export function FilmPopover({ id, target, content, lit, colorOf, today, bottomEdge, onDismiss }: FilmPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
   const side = useRef<{ trigger: HTMLElement; placement: Placement["placement"] } | null>(null);
@@ -223,7 +225,13 @@ export function FilmPopover({ id, target, content, lit, today, bottomEdge, onDis
           <ul className="flex flex-col gap-2.5">
             {content.rows.map((row) => (
               <li key={row.personId} className="flex items-start gap-2.5">
-                <PersonAvatar name={row.name} profilePath={row.profilePath} size={28} className="mt-px" />
+                <PersonAvatar
+                  name={row.name}
+                  profilePath={row.profilePath}
+                  size={28}
+                  className="mt-px"
+                  ringColor={colorOf?.(row.personId)}
+                />
                 <p className="min-w-0 pt-1 text-sm leading-snug">
                   <span className="sr-only">{row.name}: </span>
                   <RoleText row={row} />

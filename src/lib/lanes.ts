@@ -1,5 +1,6 @@
+import { roleSummary } from "@/lib/roles";
 import { buildPeopleSlug } from "@/lib/slug";
-import type { PersonSummary } from "@/lib/types";
+import type { Film, PersonSummary } from "@/lib/types";
 
 /** The most people a timeline can show; mirrors the cap in slug.ts. */
 export const MAX_LANES = 4;
@@ -63,4 +64,20 @@ export function yearSpan(filmYears: number[]): string {
   const first = Math.min(...filmYears);
   const latest = Math.max(...filmYears);
   return first === latest ? String(first) : `${first}–${latest}`;
+}
+
+/** What a lane's header or People-panel row says of a person over the films shown. */
+export function laneSummary(
+  films: readonly Film[],
+  person: Pick<PersonSummary, "birthday" | "deathday">,
+  includeMinor: boolean,
+): { roles: string; facts: string; span: string; rolesByFilm: Map<number, string> } {
+  const creditsOf = (film: Film) => film.credits.filter((credit) => includeMinor || !credit.minor);
+  const years = films.map((film) => film.year);
+  return {
+    roles: roleSummary(films.flatMap(creditsOf)),
+    facts: laneFacts(person, years),
+    span: yearSpan(years),
+    rolesByFilm: new Map(films.map((film) => [film.id, roleSummary(creditsOf(film))])),
+  };
 }
