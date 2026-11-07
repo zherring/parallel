@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
@@ -66,6 +66,8 @@ function headRects(root: ParentNode, attribute: string): Map<string, DOMRect> {
  * wordmark, which is the way home. Tapping the heads opens a floating card: each person's row, the key to the green, a
  * field to add someone and the way back to the flat timeline. The heads fly apart into their rows when it opens and fly
  * back together when it closes (a FLIP animation with the hero's spring, on the compositor; none for reduced motion).
+ * While it is open the capsule says "People" with a close icon where the heads were, so it never looks emptied out; it
+ * is the same button, still toggling the card.
  *
  * It closes on its own once the scene scrolls more than 24px from where it was, on a press anywhere outside it, and
  * on Escape (which also puts focus back on the pill's button). It is closed on the server.
@@ -138,6 +140,14 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
         opening ? { duration: 300, easing: EASE_OUT, fill: "backwards" } : { duration: CLOSE_MS - 40, easing: EASE_IN_OUT, fill: "forwards" },
       );
     }
+    // The capsule's "People" label and close icon, which stand where the heads were.
+    root.querySelectorAll("[data-pill-open]").forEach((el) => {
+      animate(
+        el,
+        opening ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 0 }],
+        opening ? { duration: 200, delay: 60, easing: "ease-out", fill: "backwards" } : { duration: 140, easing: "ease-in", fill: "forwards" },
+      );
+    });
     panel.querySelectorAll("[data-fade]").forEach((el) => {
       animate(
         el,
@@ -227,29 +237,47 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
           onClick={toggle}
           className="group flex min-w-0 cursor-pointer items-center gap-2 rounded-full py-1 pl-2 pr-2 hover:bg-surface/60 max-sm:pl-1.5"
         >
-          <span className="flex shrink-0 items-center -space-x-1 pl-1">
-            {people.map((person) => (
-              <span
-                key={person.id}
-                data-pill-head={person.id}
-                // The heads are in the panel's rows while it is open (they fly there); this is where they come back to.
-                className={cn("relative inline-flex rounded-full", shown && "opacity-0")}
-              >
-                <PersonAvatar
-                  name={person.name}
-                  profilePath={person.profilePath}
-                  size={32}
-                  ringColor={personColor(person.slot)}
-                  className="max-sm:size-7!"
-                />
+          {/* One grid cell, two faces: the heads and names (closed) and, while open, a "People" label with a close icon. */}
+          <span className="grid min-w-0 items-center">
+            <span className="col-start-1 row-start-1 flex min-w-0 items-center gap-2">
+              <span className="flex shrink-0 items-center -space-x-1 pl-1">
+                {people.map((person) => (
+                  <span
+                    key={person.id}
+                    data-pill-head={person.id}
+                    // The heads are in the panel's rows while it is open (they fly there); this is where they come back to.
+                    className={cn("relative inline-flex rounded-full", shown && "opacity-0")}
+                  >
+                    <PersonAvatar
+                      name={person.name}
+                      profilePath={person.profilePath}
+                      size={32}
+                      ringColor={personColor(person.slot)}
+                      className="max-sm:size-7!"
+                    />
+                  </span>
+                ))}
               </span>
-            ))}
+              <span
+                className={cn(
+                  "hidden min-w-0 max-w-[18rem] truncate text-sm font-medium text-strong transition-opacity duration-150 motion-reduce:transition-none sm:block",
+                  phase === "open" && "opacity-0",
+                )}
+              >
+                {names}
+              </span>
+              <ChevronDown
+                aria-hidden="true"
+                className={cn("hidden size-4 shrink-0 text-muted transition-opacity duration-150 motion-reduce:transition-none sm:block", phase === "open" && "opacity-0")}
+              />
+            </span>
+            {shown && (
+              <span aria-hidden data-pill-open className="col-start-1 row-start-1 flex items-center justify-between gap-3 pl-1 pr-0.5">
+                <span className="text-sm font-medium text-strong">People</span>
+                <X className="size-4 shrink-0 text-muted group-hover:text-strong" />
+              </span>
+            )}
           </span>
-          <span className="hidden min-w-0 max-w-[18rem] truncate text-sm font-medium text-strong sm:block">{names}</span>
-          <ChevronDown
-            aria-hidden="true"
-            className={cn("hidden size-4 shrink-0 text-muted transition-transform duration-200 motion-reduce:transition-none sm:block", phase === "open" && "rotate-180")}
-          />
         </button>
         <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
         <HomeLink className="shrink-0 rounded-full px-2.5 py-1 no-underline hover:bg-surface/60">
