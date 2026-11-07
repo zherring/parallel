@@ -76,8 +76,8 @@ export function PullQuote({
 }: PullQuoteProps) {
   const [showContext, setShowContext] = useState(false);
   const contextId = useId();
-  // The lines under the name start under it: past the dot, which is where the headshot is not (below md, the headshot leads the caption instead).
-  const indent = avatar ? "md:pl-4" : "pl-4";
+  // The lines under the name start under it: past the headshot below md (36px and the 12px gap), past the dot from md up.
+  const indent = avatar ? "pl-12 md:pl-4" : "pl-4";
 
   return (
     <div
