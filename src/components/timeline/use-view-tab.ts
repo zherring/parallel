@@ -22,15 +22,15 @@ const getServerView = (): View => DEFAULT_VIEW;
 
 /**
  * `[view, setView]`: the selected view of a page's films (Timeline, Table, or Clippings when
- * `hasClippings`), read from the address bar after the page has hydrated (a plain `/p/...` link,
+ * `clippingsTab`, see `hasClippingsTab`), read from the address bar after the page has hydrated (a plain `/p/...` link,
  * and the server's HTML, are the Timeline) and written back with `history.replaceState`, which
  * neither navigates nor re-renders the route. Every component that uses it follows the same
- * address bar. A view the page does not offer (`?view=clippings` on a pair without clippings) is
- * the default view.
+ * address bar. A view the page does not offer (`?view=clippings` on a pair with neither quotes nor
+ * essays) is the default view.
  */
-export function useViewTab(hasClippings: boolean): readonly [View, (view: View) => void] {
+export function useViewTab(clippingsTab: boolean): readonly [View, (view: View) => void] {
   const selected = useSyncExternalStore(subscribe, getView, getServerView);
-  const view = resolveView(selected, availableViews(hasClippings));
+  const view = resolveView(selected, availableViews(clippingsTab));
 
   const setView = useCallback((next: View) => {
     const { pathname, search, hash } = window.location;

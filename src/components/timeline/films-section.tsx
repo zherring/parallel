@@ -2,8 +2,9 @@
 
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import type { VoicedClippings } from "@/lib/clippings";
+import type { Essay } from "@/lib/essays";
 import type { TableRow } from "@/lib/film-rows";
-import { availableViews, isFilmView, showsPeriodNote, type View } from "@/lib/films-view";
+import { availableViews, hasClippingsTab, isFilmView, showsPeriodNote, type View } from "@/lib/films-view";
 import type { ShareInput } from "@/lib/share";
 import { ClippingsPanel } from "./clippings-panel";
 import { FilmsTable } from "./films-table";
@@ -37,6 +38,8 @@ interface FilmsSectionProps {
   onSelect: (id: number, trigger: HTMLElement) => void;
   /** The pair's quotes about each other, which add a Clippings tab; none (the default) for a page without any. */
   clippings?: VoicedClippings | null;
+  /** The essays about the pair's collaboration, which add the Clippings tab too (and "Further reading" to it); none (the default) for a page without any. */
+  essays?: Essay[] | null;
   /** More content under the table, in the Table tab (the "By pair" lists). */
   children?: ReactNode;
 }
@@ -46,7 +49,7 @@ interface FilmsSectionProps {
  * tabs: the tabs and Export and Share on one row (the section's heading is for screen readers; the
  * page headline above carries the film count), then the selected view and the small source note.
  * Preferences live in the timeline's gear or, for Table, beside its tabs. A pair with curated quotes
- * (`clippings`) has a third tab, Clippings; it is not about the films, so while it is selected the
+ * (`clippings`) or essays about their collaboration (`essays`) has a third tab, Clippings; it is not about the films, so while it is selected the
  * period note, Export, the settings control and the source note are left out (Share stays).
  *
  * The panels are always mounted (the server renders them all, the inactive ones `hidden`): the table's
@@ -69,11 +72,13 @@ export function FilmsSection({
   settingsControl,
   onSelect,
   clippings = null,
+  essays = null,
   children,
 }: FilmsSectionProps) {
   const table = useFilmsTable(rows, today);
-  const views = availableViews(clippings !== null);
-  const [view, setView] = useViewTab(clippings !== null);
+  const clippingsTab = hasClippingsTab(clippings, essays);
+  const views = availableViews(clippingsTab);
+  const [view, setView] = useViewTab(clippingsTab);
   const toolbarRef = useRef<HTMLDivElement>(null);
   /** A tab was chosen by the visitor and the page should be brought back to the tabs once it has re-rendered. */
   const reveal = useRef(false);
@@ -137,7 +142,7 @@ export function FilmsSection({
         {children}
       </div>
 
-      {clippings && (
+      {clippingsTab && (
         <div
           role="tabpanel"
           id={viewPanelId(headingId, "clippings")}
@@ -145,7 +150,7 @@ export function FilmsSection({
           hidden={hidden("clippings")}
           className="mt-4"
         >
-          <ClippingsPanel pair={clippings} active={view === "clippings"} />
+          <ClippingsPanel pair={clippings} essays={essays} active={view === "clippings"} />
         </div>
       )}
 

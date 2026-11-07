@@ -15,20 +15,24 @@ import {
   speakerIndex,
   type ClippingsFilter,
 } from "@/lib/clippings-view";
+import type { Essay } from "@/lib/essays";
 import { personColor } from "@/lib/person-colors";
 import { cn } from "./cn";
+import { FurtherReading } from "./further-reading";
 import { QuoteShareButton } from "./quote-share-button";
 import { scrollBehavior } from "./scroll-behavior";
 
 /**
- * The serif of the quotes, and of nothing else. One weight, loaded when the tab is first shown rather
- * than preloaded for every /p/ page (most of them have no Clippings, and the tab is not the default).
- * The card of a quote (`og-quote-render.tsx`) draws the same face from a file of its own.
+ * The serif of the quotes and of the titles under "Further reading", and of nothing else. One weight, with its
+ * italic (the essays' own lines), loaded when the tab is first shown rather than preloaded for every /p/ page
+ * (most of them have no Clippings, and the tab is not the default). The card of a quote (`og-quote-render.tsx`)
+ * draws the same face from a file of its own.
  */
 const newsreader = Newsreader({
   variable: "--font-newsreader",
   subsets: ["latin", "latin-ext"],
   weight: "400",
+  style: ["normal", "italic"],
   display: "swap",
   preload: false,
 });
@@ -50,13 +54,30 @@ const INLINE_AVATAR = 36;
 const COLUMN = "max-w-[44rem]";
 
 interface ClippingsPanelProps {
-  pair: VoicedClippings;
+  /** The pair's quotes about each other; null for a pair that has essays only (the panel is then just "Further reading"). */
+  pair: VoicedClippings | null;
+  /** The essays about the pair's collaboration, best first; null for a pair that has quotes only. */
+  essays: readonly Essay[] | null;
   /** Whether the Clippings tab is the one showing: the panel is always in the page, hidden when it is not. */
   active: boolean;
 }
 
 /**
- * The Clippings tab: what one of the pair has said about the other, set as pull quotes (big serif
+ * The Clippings tab: the pair's quotes (`Quotes`), then "Further reading" (`FurtherReading`), what critics and
+ * scholars have written about the collaboration. A pair may have either alone, and the tab then shows only that.
+ * The serif of both is loaded here.
+ */
+export function ClippingsPanel({ pair, essays, active }: ClippingsPanelProps) {
+  return (
+    <div className={newsreader.variable}>
+      {pair && <Quotes pair={pair} active={active} />}
+      {essays && essays.length > 0 && <FurtherReading essays={essays} afterQuotes={pair !== null} />}
+    </div>
+  );
+}
+
+/**
+ * What one of the pair has said about the other, set as pull quotes (big serif
  * quote between marks in the speaker's colour, the speaker's round headshot in the gutter beside it, small
  * speaker and source under it, space and a hairline between), oldest first, with a small
  * filter for the direction ("All", "A on B", "B on A") when both have something to say. The quotes
@@ -65,7 +86,7 @@ interface ClippingsPanelProps {
  * A link to one quote (`?view=clippings&quote=<id>`) opens the tab on it: it is scrolled to the middle
  * of the screen and highlighted for a moment. An id that is not one of the pair's is ignored.
  */
-export function ClippingsPanel({ pair, active }: ClippingsPanelProps) {
+function Quotes({ pair, active }: { pair: VoicedClippings; active: boolean }) {
   const { people, clippings } = pair;
   const [filter, setFilter] = useState<ClippingsFilter>("all");
   const [changed, setChanged] = useState(false);
@@ -105,7 +126,7 @@ export function ClippingsPanel({ pair, active }: ClippingsPanelProps) {
   }, [active, clippings]);
 
   return (
-    <div className={newsreader.variable}>
+    <>
       {options.length > 0 && (
         <div role="group" aria-label="Show clippings by speaker" className="flex flex-wrap gap-2">
           {options.map((option) => {
@@ -158,7 +179,7 @@ export function ClippingsPanel({ pair, active }: ClippingsPanelProps) {
       </ul>
 
       <p className="mt-6 text-xs text-muted">Quotes link to their original sources.</p>
-    </div>
+    </>
   );
 }
 

@@ -1,6 +1,6 @@
 /**
- * The views of a page's films, "Timeline" and "Table" (and, for a pair with curated quotes,
- * "Clippings"), as tabs of one section: which view a
+ * The views of a page's films, "Timeline" and "Table" (and, for a pair with curated quotes or
+ * further reading, "Clippings"), as tabs of one section: which view a
  * URL selects, how a tab change is written back to the URL, how the view is carried when the
  * visitor adds a person, the film count of the headline and the tab keys. Pure, so the rules are
  * testable and the server and the browser agree on them.
@@ -26,17 +26,25 @@ export const VIEW_LABELS: Record<View, string> = {
   clippings: "Clippings",
 };
 
-/** The views every page has; Clippings is added for a pair that has clippings, see `availableViews`. */
+/** The views every page has; Clippings is added for a pair that has something for it, see `availableViews`. */
 export const BASE_VIEWS: readonly View[] = ["timeline", "table"];
 
-/** The views a page offers as tabs: Clippings only when the page has clippings to show. */
-export function availableViews(hasClippings: boolean): readonly View[] {
-  return hasClippings ? VIEWS : BASE_VIEWS;
+/**
+ * Whether a page has anything for the Clippings tab: the pair's quotes (`clippings`), or its essays (`essays`,
+ * the tab's "Further reading"). Either alone is enough; the tab then shows only the one there is.
+ */
+export function hasClippingsTab(clippings: object | null | undefined, essays: object | null | undefined): boolean {
+  return Boolean(clippings) || Boolean(essays);
+}
+
+/** The views a page offers as tabs: Clippings only when the page has something for it, see `hasClippingsTab`. */
+export function availableViews(clippingsTab: boolean): readonly View[] {
+  return clippingsTab ? VIEWS : BASE_VIEWS;
 }
 
 /**
  * The view to show for what the URL selected: the same, unless the page does not offer it (a
- * `?view=clippings` link to a pair with no clippings), when it is the default.
+ * `?view=clippings` link to a pair with neither quotes nor essays), when it is the default.
  */
 export function resolveView(view: View, available: readonly View[]): View {
   return available.includes(view) ? view : DEFAULT_VIEW;

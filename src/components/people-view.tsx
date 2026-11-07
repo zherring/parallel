@@ -16,7 +16,8 @@ import type { PairClippings } from "@/lib/clippings";
 import { voiceClippings } from "@/lib/clippings-view";
 import { toggleHidden } from "@/lib/combined-track";
 import { personRows } from "@/lib/film-rows";
-import { headlineCount, showingMessage } from "@/lib/films-view";
+import type { Essay } from "@/lib/essays";
+import { hasClippingsTab, headlineCount, showingMessage } from "@/lib/films-view";
 import { laneSummary, removePersonHref } from "@/lib/lanes";
 import { periodLabel, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss } from "@/lib/person-colors";
@@ -39,6 +40,8 @@ interface Props {
   today: string;
   /** The quotes the two people of a pair have about each other; null for one person, 3 or more, or a pair without any. */
   clippings: PairClippings | null;
+  /** What critics and scholars have written about the collaboration of the two people of a pair (the Clippings tab's "Further reading"); null for one person, 3 or more, or a pair without any. */
+  essays: Essay[] | null;
 }
 
 export function PeopleView(props: Props) {
@@ -47,13 +50,13 @@ export function PeopleView(props: Props) {
   return <PeopleViewInner key={key} {...props} />;
 }
 
-function PeopleViewInner({ timelines, shared, pairwise, today, clippings }: Props) {
+function PeopleViewInner({ timelines, shared, pairwise, today, clippings, essays }: Props) {
   const [includeMinor, setIncludeMinor] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const timelineRef = useRef<TimelineHandle>(null);
-  const [view] = useViewTab(clippings !== null);
+  const [view] = useViewTab(hasClippingsTab(clippings, essays));
   const [urlPeriod, setPeriod] = useUrlPeriod();
   // Start with one shared track; separating changes only how the people's films are drawn.
   const [trackMode, setTrackMode] = useState<TrackMode>("combined");
@@ -304,6 +307,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings }: Prop
           settingsControl={settingsControl}
           onSelect={handleSelect}
           clippings={voicedClippings}
+          essays={essays}
         />
       ) : (
         <FilmsSection

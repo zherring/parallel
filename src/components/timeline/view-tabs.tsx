@@ -18,7 +18,7 @@ interface ViewTabsProps {
   /** Prefix for the element ids, so the tabs and their panels are unique on the page. */
   idBase: string;
   view: View;
-  /** The tabs, in order: Timeline and Table, and Clippings when the page has clippings (see `availableViews`). */
+  /** The tabs, in order: Timeline and Table, and Clippings when the page has quotes or essays (see `availableViews`). */
   views: readonly View[];
   onChange: (view: View) => void;
 }

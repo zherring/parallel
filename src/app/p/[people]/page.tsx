@@ -4,6 +4,7 @@ import { PeopleView } from "@/components/people-view";
 import { cardFilms } from "@/lib/card-films";
 import { getPairClippingSet } from "@/lib/clippings";
 import { clippingById, parseQuoteId, quoteLinkSearch } from "@/lib/clippings-view";
+import { getPairEssays } from "@/lib/essays";
 import { loadPeople } from "@/lib/people";
 import { parsePeriodParams, rawPeriodSearch, resolvePeriod, searchWithPeriod, spanOfYears } from "@/lib/period";
 import { todayIso } from "@/lib/released";
@@ -86,6 +87,7 @@ export default async function PeoplePage({ params, searchParams }: Props) {
       pairwise={sharedFilmsPairwise(timelines, opts)}
       today={opts.today}
       clippings={getPairClippingSet(timelines.map((t) => t.person.id))}
+      essays={getPairEssays(timelines.map((t) => t.person.id))}
     />
   );
 }

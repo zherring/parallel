@@ -9,6 +9,7 @@ import {
   VIEW_LABELS,
   availableViews,
   carryView,
+  hasClippingsTab,
   headlineCount,
   isFilmView,
   parseView,
@@ -27,8 +28,24 @@ describe("VIEWS", () => {
   });
 });
 
+describe("hasClippingsTab", () => {
+  const quotes = { clippings: [] };
+  const reading = { essays: [] };
+
+  it("is true for a page with quotes, with essays, or with both", () => {
+    expect(hasClippingsTab(quotes, null)).toBe(true);
+    expect(hasClippingsTab(null, reading)).toBe(true);
+    expect(hasClippingsTab(quotes, reading)).toBe(true);
+  });
+
+  it("is false for a page with neither", () => {
+    expect(hasClippingsTab(null, null)).toBe(false);
+    expect(hasClippingsTab(undefined, undefined)).toBe(false);
+  });
+});
+
 describe("availableViews", () => {
-  it("offers Timeline and Table to every page, and Clippings only to a page that has clippings", () => {
+  it("offers Timeline and Table to every page, and Clippings only to a page that has quotes or essays", () => {
     expect(availableViews(false)).toEqual(["timeline", "table"]);
     expect(availableViews(false)).toBe(BASE_VIEWS);
     expect(availableViews(true)).toEqual(["timeline", "table", "clippings"]);
@@ -41,8 +58,12 @@ describe("resolveView", () => {
     expect(resolveView("clippings", availableViews(true))).toBe("clippings");
   });
 
-  it("falls back to the default view for one it does not offer: ?view=clippings on a page without clippings", () => {
-    expect(resolveView(parseView("?view=clippings"), availableViews(false))).toBe("timeline");
+  it("keeps Clippings for a page that has essays but no quotes", () => {
+    expect(resolveView("clippings", availableViews(hasClippingsTab(null, { essays: [] })))).toBe("clippings");
+  });
+
+  it("falls back to the default view for one it does not offer: ?view=clippings on a page with neither quotes nor essays", () => {
+    expect(resolveView(parseView("?view=clippings"), availableViews(hasClippingsTab(null, null)))).toBe("timeline");
     expect(resolveView(parseView("?view=clippings&sort=rating"), availableViews(false))).toBe("timeline");
   });
 });

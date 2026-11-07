@@ -1,0 +1,242 @@
+{
+  "488+491": {
+    "pair": [
+      "Steven Spielberg",
+      "John Williams"
+    ],
+    "tmdb_ids": [
+      488,
+      491
+    ],
+    "essays": [
+      {
+        "title": "Spielberg-Williams: Symphonic Cinema",
+        "author": "Jack Sullivan",
+        "publication": "A Companion to Steven Spielberg",
+        "date": "2017-01",
+        "url": "https://www.wiley-vch.de/en/areas-interest/art-culture/a-companion-to-steven-spielberg-978-1-118-72691-4",
+        "kind": "book chapter",
+        "pull": null,
+        "summary": "A scholarly chapter in Nigel Morris's edited Spielberg companion, filed under 'Collaborations and Intertexts', that treats the Williams partnership as central to Spielberg's symphonic, old-Hollywood style of filmmaking.",
+        "paywalled": true,
+        "via": null
+      },
+      {
+        "title": "Spielberg-Variationen: Die Filmmusik von John Williams",
+        "author": "Peter Moormann",
+        "publication": "Nomos",
+        "date": "2013",
+        "url": "https://www.inlibra.com/en/document/view/detail/uuid/b9e5405b-9a3c-3c96-88d0-9c23736f2f04",
+        "kind": "academic",
+        "pull": null,
+        "summary": "A German musicology monograph of nearly 800 pages that reads Williams's film music through his scores for Spielberg, treating the director's films as the 'variations' that organise the composer's output.",
+        "paywalled": true,
+        "via": null
+      },
+      {
+        "title": "John Williams and Steven Spielberg: A 40-year collaboration",
+        "author": "Rebecca Keegan",
+        "publication": "Los Angeles Times",
+        "date": "2012-01",
+        "url": "https://www.postandcourier.com/features/john-williams-and-steven-spielberg-a-40-year-collaboration/article_94fefa36-5650-5a50-b4c6-055f0cd75794.html",
+        "kind": "feature",
+        "pull": "That stylistic versatility has been the foundation of their partnership, according to Spielberg.",
+        "summary": "A reported feature on the pair's 40th anniversary that weighs how two men from different Hollywood generations sustained the most prolific director-composer partnership, with historian Jon Burlingame placing it among its predecessors.",
+        "paywalled": false,
+        "via": "The Post and Courier"
+      },
+      {
+        "title": "John Williams and Steven Spielberg, 50 Years of Friendship",
+        "author": "Nicolas Magenham",
+        "publication": "Qobuz Magazine",
+        "date": "2024-02-10",
+        "url": "https://www.qobuz.com/us-en/magazine/story/2018/02/13/the-stories-of-father-williams/",
+        "kind": "essay",
+        "pull": "John Williams tells stories with his music, and Steven Spielberg listens to him in awe.",
+        "summary": "A critical essay that walks through the scores from Sugarland Express onward and argues that Williams's skill is putting film-music clichés to work with craft and taste, in service of Spielberg's storytelling.",
+        "paywalled": false,
+        "via": null
+      },
+      {
+        "title": "Representations of 'Idyllic' Childhood in the Film Music of John Williams",
+        "author": "Jacob Friedman",
+        "publication": "Émergences",
+        "date": "2026-01-30",
+        "url": "https://publications-prairial.fr/emergences/index.php?id=422",
+        "kind": "academic",
+        "pull": "The frequency of this topic's appearance in Williams's oeuvre is likely a result of his collaborations with Spielberg.",
+        "summary": "A peer-reviewed musicology article that traces Williams's musical language for childhood, mostly through E.T., Hook, Jurassic Park, Empire of the Sun and A.I., and links his idealised child-world to the Spielberg partnership.",
+        "paywalled": false,
+        "via": null
+      },
+      {
+        "title": "A Magical Half-Century Partnership",
+        "author": "Brian Lauritzen",
+        "publication": "Classical California",
+        "date": "2023-01-19",
+        "url": "https://www.classicalcalifornia.org/articles/a-magical-half-century-partnership",
+        "kind": "feature",
+        "pull": "The story was so indicative of their relationship, and perhaps their secret to a successful 50-year-friendship.",
+        "summary": "A classical-radio host's account of the pair's 50th-anniversary conversation, using anecdotes such as Williams telling Spielberg he needed 'a better composer' for Schindler's List to show the humility and trust that hold the partnership together.",
+        "paywalled": false,
+        "via": null
+      },
+      {
+        "title": "Music in the movies: John Williams and Steven Spielberg collaborations — part two",
+        "author": "Glen Chapman",
+        "publication": "Den of Geek",
+        "date": "2011-02-01",
+        "url": "https://www.denofgeek.com/movies/music-in-the-movies-john-williams-and-steven-spielberg-collaborations-part-two/",
+        "kind": "essay",
+        "pull": "showing that this is one of the most fruitful parings in cinematic history",
+        "summary": "The second half of a film-by-film critical survey, covering Schindler's List through Crystal Skull, that rates each score and then weighs the partnership as a whole.",
+        "paywalled": false,
+        "via": null
+      },
+      {
+        "title": "Choo A-young's Music Box: Steven Spielberg and John Williams Reunite for Their 30th Film, 〈Disclosure Day〉",
+        "author": "Choo A-young",
+        "publication": "Cineplay",
+        "date": "2026-06-18",
+        "url": "https://www.cineplay.co.kr/en-us/articles/28301",
+        "kind": "essay",
+        "pull": "Williams's scores have always played a central role in moving audiences and heightening emotion in Spielberg's films.",
+        "summary": "A Korean film-music column (English edition) that uses their 30th film to look back across the partnership's key scores and how Williams's music shapes the emotional effect of Spielberg's films.",
+        "paywalled": false,
+        "via": null
+      },
+      {
+        "title": "Soundtrack Mix #31: The Symphonies of Storytelling - Steven Spielberg",
+        "author": "Florence Scott-Anderton",
+        "publication": "MUBI Notebook",
+        "date": "2022-11-21",
+        "url": "https://mubi.com/en/notebook/posts/soundtrack-mix-31-the-symphonies-of-storytelling-steven-spielberg",
+        "kind": "feature",
+        "pull": "It's hard to think about Spielberg without the music of composer John Williams",
+        "summary": "An hour-long curated audio mix with a short essay on Spielberg's use of music; it is built mostly on Williams cues and frames the partnership as the core of the director's sound.",
+        "paywalled": false,
+        "via": null
+      }
+    ]
+  },
+  "1045+2636": {
+    "pair": [
+      "Alfred Hitchcock",
+      "Bernard Herrmann"
+    ],
+    "tmdb_ids": [
+      2636,
+      1045
+    ],
+    "essays": [
+      {
+        "title": "The odd couple",
+        "author": "Neil Sinyard",
+        "publication": "Prospect",
+        "date": "1999-10-19",
+        "url": "https://prospectmagazine.co.uk/culture/55982/the-odd-couple",
+        "kind": "essay",
+        "pull": "My own view is that Hitchcock hoped Herrmann could deliver the goods, but had also come to resent his dependence on him.",
+        "summary": "A film scholar looks at the Torn Curtain break-up and reads it as wounded pride: Hitchcock had come to need Herrmann, and he resented a composer who acted as though he knew better.",
+        "paywalled": false,
+        "via": null
+      },
+      {
+        "title": "Introduction (Partners in Suspense: Critical Essays on Bernard Herrmann and Alfred Hitchcock)",
+        "author": "K. J. Donnelly and Steven Rawle",
+        "publication": "Manchester University Press",
+        "date": "2016",
+        "url": "https://dhjhkxawhe8q4.cloudfront.net/manchester-up-wp/wp-content/uploads/2017/01/18165839/Partners-in-Suspense-Introduction.pdf",
+        "kind": "book chapter",
+        "pull": "Indeed, the history of cinema arguably has not had such a notable pairing of two great authorial figures.",
+        "summary": "The editors' opening to the only scholarly collection devoted to the pair argues that Herrmann was effectively a co-author of Hitchcock's late-1950s peak, and traces the partnership's long afterlife through De Palma and the rejected Torn Curtain score.",
+        "paywalled": false,
+        "via": null
+      },
+      {
+        "title": "Hitchcock and Herrmann: The Friendship and Film Scores that Changed Cinema",
+        "author": "Steven C. Smith",
+        "publication": "Oxford University Press",
+        "date": "2025-08-21",
+        "url": "https://academic.oup.com/book/60783",
+        "kind": "academic",
+        "pull": null,
+        "summary": "A book-length dual history by Herrmann's biographer. It draws on unpublished documents and new interviews to explain why the eleven-year partnership worked, why it ended so bitterly, and how its music spread into later pop culture.",
+        "paywalled": true,
+        "via": null
+      },
+      {
+        "title": "Partners in Suspense",
+        "author": "Mark Glancy",
+        "publication": "Literary Review",
+        "date": "2026-02",
+        "url": "https://literaryreview.co.uk/partners-in-suspense",
+        "kind": "review",
+        "pull": null,
+        "summary": "A film historian reviews Smith's book and uses it to push back on the idea of Hitchcock as sole author. The archival record, he argues, shows how much the films owed to Herrmann.",
+        "paywalled": true,
+        "via": null
+      },
+      {
+        "title": "Bernard Herrmann and Alfred Hitchcock: Partners in Crime",
+        "author": "Nicolas Magenham",
+        "publication": "Qobuz Magazine",
+        "date": "2018-12-17",
+        "url": "https://www.qobuz.com/be-nl/magazine/story/2018/12/17/bernard-herrmann-and-alfred-hitchcock-partners-in-crime/",
+        "kind": "feature",
+        "pull": "Hitchcock and Herrmann also shared a very strong personality and a rather similar outlook on life.",
+        "summary": "A music-magazine feature on the shared temperament and dark outlook that drew the two men together, with Psycho framed as the beginning of the end.",
+        "paywalled": false,
+        "via": null
+      },
+      {
+        "title": "HITCHCOCK & HERRMANN: The Friendship and Film Scores That Changed Cinema",
+        "author": "Roger L. Hall",
+        "publication": "Film Music Review",
+        "date": "2025-10-13",
+        "url": "https://fmrev.com/reviews/book-review/",
+        "kind": "review",
+        "pull": "This book reveals many details about their working relationship, both friendly and combative.",
+        "summary": "A film-music specialist reviews Smith's history, focusing on the push and pull of the working relationship and on the obsessions the two men shared across Vertigo, North by Northwest and Psycho.",
+        "paywalled": false,
+        "via": null
+      },
+      {
+        "title": "Herrmann & Hitchcock: Symphony of Suspense",
+        "author": null,
+        "publication": "Indie Outlook",
+        "date": "2014-06-22",
+        "url": "https://indie-outlook.com/2014/06/22/herrmann-hitchcock-symphony-of-suspense/",
+        "kind": "essay",
+        "pull": "It was the melding of their minds that, over eight pictures, crafted the definitive symphony of suspense.",
+        "summary": "A critic's retrospective that goes through all eight collaborations in turn and argues that Hitchcock's legacy can't be separated from Herrmann's scores.",
+        "paywalled": false,
+        "via": null
+      },
+      {
+        "title": "How Could You Possibly be a Hitchcocko-Herrmannian?: Digitally Re-narrativizing Collaborative Authorship",
+        "author": "Steven Rawle",
+        "publication": "Partners in Suspense",
+        "date": "2016-12",
+        "url": "https://results2021.ref.ac.uk/outputs/93676903-4d53-419b-8418-53b7effe98a4?page=1",
+        "kind": "book chapter",
+        "pull": null,
+        "summary": "A scholarly chapter on how the partnership has been reimagined in the digital era, for example through home-video releases that restore the rejected Torn Curtain cues, and what that means for who counts as an author.",
+        "paywalled": true,
+        "via": null
+      },
+      {
+        "title": "Hitchcock and Herrmann: The Friendship & Film Scores That Changed Cinema",
+        "author": null,
+        "publication": "Kirkus Reviews",
+        "date": "2025",
+        "url": "https://www.kirkusreviews.com/book-reviews/steven-c-smith/hitchcock-and-herrmann/",
+        "kind": "review",
+        "pull": "Theirs was an unlikely union.",
+        "summary": "A short trade review of Smith's book that presents the pairing as an unlikely match and notes the new details it adds about how the scores were made.",
+        "paywalled": false,
+        "via": null
+      }
+    ]
+  }
+}
