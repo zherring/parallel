@@ -14,6 +14,22 @@
  */
 
 import { xForDate, trackWidth, type Scale } from "@/lib/timeline-layout";
+import type { Film } from "@/lib/types";
+
+/** A film as the minimap marks it: a green node when shared, a tick otherwise. */
+export interface MinimapFilm {
+  id: number;
+  title: string;
+  year: number;
+  releaseDate: string;
+  /** CSS colour of the film's tick (the combined timeline colours them by person); muted when omitted. */
+  color?: string;
+}
+
+/** A film as the minimap marks it, in the given tick colour (muted when omitted). */
+export function minimapFilm(film: Film, color?: string): MinimapFilm {
+  return { id: film.id, title: film.title, year: film.year, releaseDate: film.releaseDate, color };
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));

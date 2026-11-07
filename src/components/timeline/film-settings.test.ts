@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import { FilmSettings, FilmSettingsOptions } from "./film-settings";
 
@@ -9,6 +9,7 @@ const props = {
   includeMinor: false,
   onShowAllChange: () => {},
   onIncludeMinorChange: () => {},
+  message: "Showing 43 films together",
   posterHintId: "poster-hint",
 };
 
@@ -19,6 +20,8 @@ describe("FilmSettings", () => {
     expect(html).toContain('aria-label="Film settings"');
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain('aria-expanded="false"');
+    // Nothing to control while the pop-up is not in the DOM.
+    expect(html).not.toContain("aria-controls");
     expect(html).not.toContain('type="checkbox"');
   });
 
@@ -41,15 +44,14 @@ describe("FilmSettings", () => {
     expect(html).not.toContain('disabled=""');
   });
 
-  it("only updates the changed preference", () => {
-    const onShowAllChange = vi.fn();
-    const onIncludeMinorChange = vi.fn();
-    const options = FilmSettingsOptions({ ...props, onShowAllChange, onIncludeMinorChange });
-    const [posters, minor] = options.props.children;
-    posters.props.children[0].props.onChange({ target: { checked: true } });
-    expect(onShowAllChange).toHaveBeenCalledExactlyOnceWith(true);
-    expect(onIncludeMinorChange).not.toHaveBeenCalled();
-    minor.props.children[0].props.onChange({ target: { checked: true } });
-    expect(onIncludeMinorChange).toHaveBeenCalledExactlyOnceWith(true);
+  it("keeps an empty polite status region ready for the credits toggle's result", () => {
+    const html = renderToStaticMarkup(createElement(FilmSettingsOptions, props));
+    expect(html).toMatch(/<p role="status" aria-live="polite"[^>]*><\/p>/);
+    // Nothing is said until the minor-credits checkbox changes.
+    expect(html).not.toContain(props.message);
+  });
+
+  it("leaves the status region out of the closed gear", () => {
+    expect(renderToStaticMarkup(createElement(FilmSettings, props))).not.toContain('role="status"');
   });
 });

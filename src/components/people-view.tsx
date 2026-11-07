@@ -14,11 +14,11 @@ import { Together } from "@/components/timeline/together";
 import { cardFilms } from "@/lib/card-films";
 import { toggleHidden } from "@/lib/combined-track";
 import { personRows } from "@/lib/film-rows";
-import { headlineCount } from "@/lib/films-view";
-import { laneFacts, removePersonHref } from "@/lib/lanes";
+import { headlineCount, showingMessage } from "@/lib/films-view";
+import { laneSummary, removePersonHref } from "@/lib/lanes";
 import { periodLabel, resolvePeriod, spanOfYears } from "@/lib/period";
-import { personColorCss, personSlots } from "@/lib/person-colors";
-import { MINOR_TOGGLE_LABEL, roleSummary } from "@/lib/roles";
+import { personColorCss } from "@/lib/person-colors";
+import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import { pageHeading } from "@/lib/short-name";
 import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms, type PairShared } from "@/lib/shared";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
@@ -91,29 +91,33 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
     () =>
       timelines.map(({ person, films }) => {
         const visible = includeMinor ? films : films.filter((film) => !film.minor);
-        return { person, films: visible, hiddenMinor: films.length - visible.length };
+        return {
+          person,
+          films: visible,
+          hiddenMinorIds: includeMinor ? [] : films.filter((film) => film.minor).map((film) => film.id),
+        };
       }),
     [timelines, includeMinor],
   );
 
   // Combined: the people whose eye is on, and what the people column says of everyone.
-  const slots = useMemo(() => personSlots(people), [people]);
   const visibleLanes = useMemo(() => lanes.filter((lane) => !hiddenIds.has(lane.person.id)), [lanes, hiddenIds]);
+  // A person's palette slot is their lane's position (the URL order, see `personSlots`).
   const panelPeople: PanelPerson[] = useMemo(
     () =>
-      lanes.map(({ person, films }) => ({
-        person,
-        slot: slots.get(person.id) ?? 0,
-        roles: roleSummary(films.flatMap((film) => film.credits.filter((credit) => includeMinor || !credit.minor))),
-        facts: laneFacts(
+      lanes.map(({ person, films }, index) => {
+        const { roles, facts } = laneSummary(films, person, includeMinor);
+        return {
           person,
-          films.map((film) => film.year),
-        ),
-        filmCount: films.length,
-        visible: !hiddenIds.has(person.id),
-        removeHref: removePersonHref(people, person.id),
-      })),
-    [lanes, slots, includeMinor, hiddenIds, people],
+          slot: index,
+          roles,
+          facts,
+          filmCount: films.length,
+          visible: !hiddenIds.has(person.id),
+          removeHref: removePersonHref(people, person.id),
+        };
+      }),
+    [lanes, includeMinor, hiddenIds, people],
   );
 
   // Hiding someone changes the axis (it spans the films shown): keep the year in the middle where it is.
@@ -125,7 +129,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
     [people],
   );
   const handleToggleOpen = useCallback((personId: number) => {
-    timelineRef.current?.rememberCenter();
     setPanelLayout("condense");
     setOpenIds((prev) => {
       const next = new Set(prev);
@@ -202,6 +205,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
       onShowAllChange={setShowAll}
       includeMinor={includeMinor}
       onIncludeMinorChange={handleIncludeMinorChange}
+      message={showingMessage(multi ? sharedNow.length : soloRows.length, multi)}
     />
   );
 
@@ -214,7 +218,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
       showAll={showAll}
       settingsControl={settingsControl}
       layoutToggle={multi ? <TrackModeToggle mode={trackMode} onChange={handleTrackModeChange} /> : undefined}
-      slots={slots}
       sidebarExpanded={panelLayout === "stack"}
       sidebar={
         // The people column belongs to both layouts: the eye and the details stay where they were

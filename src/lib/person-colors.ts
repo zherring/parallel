@@ -20,6 +20,12 @@ export const PERSON_COLORS = [
   { name: "rose", hex: "#c487a6" },
 ] as const;
 
+/** The colour of the one person who made a film (on the combined track or in their own lane): a CSS colour and the same at partial opacity. */
+export interface PersonTint {
+  color: string;
+  glow: string;
+}
+
 /** Opacity of the soft glow around a coloured poster (the green one is 0.45). */
 const GLOW_ALPHA = 0.4;
 
@@ -35,11 +41,6 @@ export function personColor(slot: number): string {
 /** The custom property of a slot's glow, the colour at partial opacity. */
 export function personGlow(slot: number): string {
   return `var(--person-${PERSON_COLORS.indexOf(paletteEntry(slot)) + 1}-glow)`;
-}
-
-/** The name of a slot's colour, for tests and tooltips. */
-export function personColorName(slot: number): string {
-  return paletteEntry(slot).name;
 }
 
 function glowOf(hex: string): string {

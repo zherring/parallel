@@ -58,7 +58,9 @@ export function PersonBio({ person, roles, flow = false, nameTrigger = false }: 
           ref={buttonRef}
           type="button"
           aria-haspopup="dialog"
-          aria-label={`Biography of ${person.name}`}
+          // A title, not an aria-label: the button is the content of its row's heading and of a lane
+          // region's name, and a label would name both "Biography of ...". The title is only a description.
+          title={`Biography of ${person.name}`}
           onClick={() => setOpen(true)}
           className="cursor-pointer rounded text-left hover:underline"
         >

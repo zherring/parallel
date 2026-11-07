@@ -65,6 +65,7 @@ export function PeoplePanel({
   return (
     <aside
       aria-label="People"
+      data-layout={layout}
       className={cn(
         "flex max-h-[min(28rem,70dvh)] w-full min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-canvas md:pointer-events-auto md:backdrop-blur-md md:supports-[backdrop-filter]:bg-canvas/90",
         stacked

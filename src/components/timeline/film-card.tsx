@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { tmdbImage } from "@/lib/images";
+import type { PersonTint } from "@/lib/person-colors";
 import { CARD_HEIGHT, POSTER_HEIGHT, QUIET_POSTER_HEIGHT, QUIET_RESTORE_SCALE, cardWidthOf } from "@/lib/timeline-layout";
 import { cn } from "./cn";
 
@@ -16,11 +17,7 @@ export type CardTone = "lit" | "some" | "plain";
 /** Opacity of the poster of a quiet card (see `quiet`); the caption stays opaque, in the muted tone. */
 export const QUIET_OPACITY = 0.55;
 
-/** The colour of the one person who made a film (on the combined track or in their own lane): a CSS colour and the same at partial opacity. */
-export interface CardTint {
-  color: string;
-  glow: string;
-}
+export type CardTint = PersonTint;
 
 interface FilmCardProps {
   id: number;
@@ -223,8 +220,8 @@ function FilmCardImpl(props: FilmCardProps) {
             {title}
           </span>
           <span className={cn("relative z-[16] flex items-center gap-1 tabular-nums text-muted", textSize, CAPTION_OUTLINE)}>
-            {dots?.map((color) => (
-              <span key={color} aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+            {dots?.map((color, index) => (
+              <span key={index} aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
             ))}
             {year}
           </span>

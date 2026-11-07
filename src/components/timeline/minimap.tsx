@@ -22,6 +22,7 @@ import {
   scrollPercent,
   visibleYears,
   windowRect,
+  type MinimapFilm,
   type ScrollGeometry,
 } from "@/lib/minimap";
 import type { Period, YearSpan } from "@/lib/period";
@@ -57,15 +58,6 @@ const NODE_DRAG_SLOP = 4;
  * does lives behind this flag; set it to true and the minimap is a range selector again, exactly as it was.
  */
 export const MINIMAP_BRUSH_ENABLED = false;
-
-export interface MinimapFilm {
-  id: number;
-  title: string;
-  year: number;
-  releaseDate: string;
-  /** CSS colour of the film's tick (the combined timeline colours them by person); muted when omitted. */
-  color?: string;
-}
 
 /** The period brush: what the bar needs to let a visitor pick the years to share by dragging on it. */
 export interface MinimapBrush {

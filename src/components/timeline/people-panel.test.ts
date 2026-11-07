@@ -13,10 +13,16 @@ const person = (id: number, name: string): PanelPerson => ({
   removeHref: "/",
 });
 
-function markup(layout: "condense" | "stack", openIds = new Set<number>(layout === "stack" ? [1, 2] : [])) {
+const pair = [person(1, "Jack Lemmon"), person(2, "Walter Matthau")];
+
+function markup(
+  layout: "condense" | "stack",
+  openIds = new Set<number>(layout === "stack" ? [1, 2] : []),
+  people: PanelPerson[] = pair,
+) {
   return renderToStaticMarkup(
     createElement(PeoplePanel, {
-      people: [person(1, "Jack Lemmon"), person(2, "Walter Matthau")],
+      people,
       layout,
       onLayoutChange: () => {},
       openIds,
@@ -54,20 +60,28 @@ describe("PeoplePanel", () => {
 
   it("opens the artist's bio from the name without navigating to a solo timeline", () => {
     const html = markup("condense");
-    expect(html).toContain('aria-label="Biography of Jack Lemmon"');
-    expect(html).toContain('aria-label="Biography of Walter Matthau"');
+    // The name is text in the heading (which names the lane region), not a label that renames it.
+    expect(html).not.toContain('aria-label="Biography of');
+    expect(html).toContain('title="Biography of Jack Lemmon"');
+    expect(html).toContain('title="Biography of Walter Matthau"');
+    expect(html).toContain(">Jack Lemmon</button>");
+    expect(html).toContain(">Walter Matthau</button>");
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).not.toContain('href="/p/');
   });
 
   it("keeps the row-wide unfurl target separate from the name and eye", () => {
     const row = markup("condense").split("<li ")[1];
-    expect(row).toContain("inset-y-0 left-0 right-10");
-    expect(row.indexOf("</button>")).toBeLessThan(row.indexOf('aria-label="Biography of Jack Lemmon"'));
-    expect(row).toContain("pointer-events-none flex");
-    expect(row).toContain("pointer-events-auto relative inline-block");
-    expect(row).toContain("inset-y-0 right-0 inline-flex w-10");
-    expect(row).toContain("Show Jack Lemmon&#x27;s films on the timeline");
+    const unfurl = row.indexOf('aria-label="Expand Jack Lemmon"');
+    const bio = row.indexOf('title="Biography of Jack Lemmon"');
+    const eye = row.indexOf("Show Jack Lemmon&#x27;s films on the timeline");
+    // Three controls, in reading order: unfurl, name, eye; none of them inside another.
+    expect(unfurl).toBeGreaterThan(-1);
+    expect(bio).toBeGreaterThan(unfurl);
+    expect(eye).toBeGreaterThan(bio);
+    expect(row.indexOf("</button>")).toBeLessThan(bio);
+    // One eye per person, each a pressed-state toggle (the expand control is a third, with its own name).
+    expect(markup("condense").match(/aria-pressed="true" aria-label="Show /g)).toHaveLength(2);
   });
 
   it("leaves poster-row controls in the timeline rather than the people panel", () => {
@@ -78,28 +92,37 @@ describe("PeoplePanel", () => {
     }
   });
 
-  it("docks the fully expanded panel with a square divider and no floating shadow", () => {
-    const html = markup("stack");
-    expect(html).toContain("md:self-stretch");
-    expect(html).toContain("md:rounded-r-none");
-    expect(html).toContain("md:shadow-none");
-    expect(html).not.toContain("md:self-start");
+  it("docks the fully expanded panel flush, apart from a compact one that floats", () => {
+    expect(markup("stack")).toContain('data-layout="stack"');
+    expect(markup("stack")).not.toContain('data-layout="condense"');
   });
 
-  it("keeps the compact panel content-sized with a timeline-height cap", () => {
-    const html = markup("condense");
-    expect(html).toContain("md:self-start");
-    expect(html).toContain("md:shadow-lg");
-    expect(html).toContain("md:max-h-[calc(clamp(26rem,100dvh-var(--chrome),1100px)-1.5rem)]");
-    expect(html).not.toContain("md:self-stretch");
+  it("keeps the compact panel content-sized", () => {
+    expect(markup("condense")).toContain('data-layout="condense"');
+    expect(markup("condense")).not.toContain('data-layout="stack"');
   });
 
-  it("stays content-sized when every person has been opened individually", () => {
+  it("stays compact when every person has been opened individually", () => {
     const html = markup("condense", new Set([1, 2]));
     expect(html).toContain('aria-label="Collapse Jack Lemmon"');
     expect(html).toContain('aria-label="Collapse Walter Matthau"');
-    expect(html).toContain("md:self-start");
-    expect(html).not.toContain("md:self-stretch");
+    expect(html).toContain('data-layout="condense"');
     expect(html).toContain("lucide-maximize-2");
+  });
+
+  it("explains the green only while two or more people are on the track", () => {
+    expect(markup("condense")).toContain("Green: made together");
+    const oneHidden = [pair[0], { ...pair[1], visible: false }];
+    expect(markup("condense", new Set(), oneHidden)).not.toContain("Green: made together");
+  });
+
+  it("disables the eye of the last person on the track, and only theirs", () => {
+    const oneHidden = [pair[0], { ...pair[1], visible: false }];
+    const html = markup("condense", new Set(), oneHidden);
+    const [, lemmon, matthau] = html.split("<li ");
+    expect(lemmon).toMatch(/aria-label="Show Jack Lemmon&#x27;s films on the timeline"[^>]*disabled=""/);
+    expect(matthau).not.toContain('disabled=""');
+    // With both on the track, either can be hidden.
+    expect(markup("condense")).not.toContain('disabled=""');
   });
 });

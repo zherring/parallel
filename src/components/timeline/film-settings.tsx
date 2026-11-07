@@ -11,12 +11,17 @@ interface FilmSettingsProps {
   onShowAllChange: (checked: boolean) => void;
   includeMinor: boolean;
   onIncludeMinorChange: (checked: boolean) => void;
+  /** The sentence to announce, politely, after the minor-credits checkbox changes (e.g. "Showing 43 films together"). */
+  message: string;
 }
 
 /** Native, independently controlled checkboxes shared by either placement of the gear. */
 export function FilmSettingsOptions({
-  showAll, onShowAllChange, includeMinor, onIncludeMinorChange, posterHintId,
+  showAll, onShowAllChange, includeMinor, onIncludeMinorChange, message, posterHintId,
 }: FilmSettingsProps & { posterHintId: string }) {
+  // The live region is always in the DOM, so that it exists before its text changes; the text
+  // waits for a change to the minor-credits checkbox, whose effect is usually out of sight.
+  const [announced, setAnnounced] = useState(false);
   return (
     <div className="space-y-3">
       <label className="flex cursor-pointer items-start gap-2.5">
@@ -27,15 +32,16 @@ export function FilmSettingsOptions({
         </span>
       </label>
       <label className="flex cursor-pointer items-start gap-2.5">
-        <input type="checkbox" checked={includeMinor} onChange={(event) => onIncludeMinorChange(event.target.checked)} className="mt-0.5 size-4 shrink-0 cursor-pointer accent-accent-green" />
+        <input type="checkbox" checked={includeMinor} onChange={(event) => { setAnnounced(true); onIncludeMinorChange(event.target.checked); }} className="mt-0.5 size-4 shrink-0 cursor-pointer accent-accent-green" />
         <span>{MINOR_TOGGLE_LABEL}</span>
       </label>
+      <p role="status" aria-live="polite" className="min-h-4 text-xs text-muted">{announced ? message : ""}</p>
     </div>
   );
 }
 
 /** Both film-display preferences in a small, non-modal pop-up; checkbox changes keep it open. */
-export function FilmSettings({ showAll, onShowAllChange, includeMinor, onIncludeMinorChange }: FilmSettingsProps) {
+export function FilmSettings({ showAll, onShowAllChange, includeMinor, onIncludeMinorChange, message }: FilmSettingsProps) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<Placement | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -53,6 +59,7 @@ export function FilmSettings({ showAll, onShowAllChange, includeMinor, onInclude
       const anchor = button.getBoundingClientRect();
       const size = panel.getBoundingClientRect();
       const next = placePopover(anchor, size, { width: window.innerWidth, height: window.innerHeight }, { gap: 8 });
+      // placePopover only contributes `top` here: the pop-up is right-aligned to the gear by hand.
       next.left = Math.max(8, Math.min(anchor.right - size.width, window.innerWidth - size.width - 8));
       setPosition((previous) => previous?.left === next.left && previous.top === next.top ? previous : next);
     };
@@ -69,6 +76,8 @@ export function FilmSettings({ showAll, onShowAllChange, includeMinor, onInclude
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
       observer?.disconnect();
+      // Closed: forget where it was, so reopening does not paint one frame at the stale spot.
+      setPosition(null);
     };
   }, [open]);
 
@@ -103,7 +112,7 @@ export function FilmSettings({ showAll, onShowAllChange, includeMinor, onInclude
         aria-label="Film settings"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-controls={panelId}
+        aria-controls={open ? panelId : undefined}
         title="Film settings"
         onClick={() => setOpen((previous) => !previous)}
         className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md bg-canvas text-muted hover:bg-surface hover:text-strong"
@@ -125,6 +134,7 @@ export function FilmSettings({ showAll, onShowAllChange, includeMinor, onInclude
             onShowAllChange={onShowAllChange}
             includeMinor={includeMinor}
             onIncludeMinorChange={onIncludeMinorChange}
+            message={message}
             posterHintId={`${panelId}-posters`}
           />
         </div>,
