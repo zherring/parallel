@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DepthScene } from "@/components/depth/depth-scene";
+import { YearRail } from "@/components/depth/year-rail";
 import { FilmPanel } from "@/components/film-panel/film-panel";
 import { useUrlPeriod } from "@/components/timeline/use-period";
 import { cardFilms } from "@/lib/card-films";
-import { combineLanes, describeCombined } from "@/lib/combined-track";
+import { combineLanes, combinedMinimapFilms, describeCombined } from "@/lib/combined-track";
 import { DEPTH_VIEW, flatSearch } from "@/lib/depth-url";
 import { depthLayout } from "@/lib/depth-layout";
 import { outsidePeriodIds, resolvePeriod, spanOfYears } from "@/lib/period";
@@ -38,6 +39,7 @@ export function DepthView(props: Props) {
 
 function DepthViewInner({ timelines, today }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const scrollerId = useId();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const [urlPeriod] = useUrlPeriod();
@@ -60,6 +62,7 @@ function DepthViewInner({ timelines, today }: Props) {
   const entries = useMemo(() => combineLanes(lanes, slots, today), [lanes, slots, today]);
   const info = useMemo(() => describeCombined(entries, lanes, false), [entries, lanes]);
   const layout = useMemo(() => depthLayout(entries, people.length, today), [entries, people.length, today]);
+  const railFilms = useMemo(() => combinedMinimapFilms(entries), [entries]);
 
   // A link to a period dims the films outside it. It is resolved against the films the page's preview card shows,
   // so the server and the browser agree on it (as `PeopleView` does).
@@ -86,6 +89,7 @@ function DepthViewInner({ timelines, today }: Props) {
       <style>{personColorCss()}</style>
       <DepthScene
         scrollerRef={scrollerRef}
+        scrollerId={scrollerId}
         layout={layout}
         people={people}
         info={info}
@@ -93,6 +97,14 @@ function DepthViewInner({ timelines, today }: Props) {
         selectedId={selectedId}
         today={today}
         onSelect={handleSelect}
+      />
+      <YearRail
+        scrollerRef={scrollerRef}
+        scrollerId={scrollerId}
+        scale={layout.scale}
+        trackHeight={layout.trackHeight}
+        shared={railFilms.shared}
+        ticks={railFilms.ticks}
       />
       <FlatTimelineLink />
       <FilmPanel filmId={selectedId} peopleInView={people} onClose={handleClose} />

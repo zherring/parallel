@@ -11,6 +11,8 @@ import { shortName } from "@/lib/short-name";
 interface DepthSceneProps {
   /** The scroller, for the rail, the people pill and the focus field to read and drive. */
   scrollerRef: RefObject<HTMLDivElement | null>;
+  /** id of the scroller, for the rail's aria-controls. */
+  scrollerId: string;
   layout: DepthLayout;
   people: readonly { id: number; name: string }[];
   /** What the combined track tells of each film (roles, note), by film id. */
@@ -47,9 +49,9 @@ function layerLabel({ layer, films }: Layer, people: DepthSceneProps["people"]):
  *
  * What perspective needs, and what would silently break it: nothing inside the scroller is `position: fixed` (perspective
  * turns it absolute), and the `preserve-3d` element has no `overflow`, `opacity` or `filter` (any of them flattens it).
- * The scroller is the one that clips.
+ * The scroller is the one that clips. Its own scrollbar is hidden: the year rail, pinned over that edge, is the scrollbar.
  */
-export function DepthScene({ scrollerRef, layout, people, info, outsideIds, selectedId, today, onSelect }: DepthSceneProps) {
+export function DepthScene({ scrollerRef, scrollerId, layout, people, info, outsideIds, selectedId, today, onSelect }: DepthSceneProps) {
   const layers = useMemo(() => {
     const byLayer = new Map<number, DepthFilm[]>();
     for (const item of layout.films) {
@@ -75,10 +77,11 @@ export function DepthScene({ scrollerRef, layout, people, info, outsideIds, sele
   return (
     <div
       ref={scrollerRef}
+      id={scrollerId}
       role="region"
       aria-label="Film timeline. Scroll down for later years."
       tabIndex={0}
-      className="fixed inset-0 z-10 overflow-y-auto overflow-x-hidden overscroll-contain bg-canvas [perspective-origin:50%_50%] [perspective:1000px] focus-visible:outline-offset-[-3px]"
+      className="fixed inset-0 z-10 overflow-y-auto overflow-x-hidden overscroll-contain bg-canvas [scrollbar-width:none] [perspective-origin:50%_50%] [perspective:1000px] focus-visible:outline-offset-[-3px]"
     >
       <div className="relative w-full [transform-style:preserve-3d]" style={{ height: trackHeight }}>
         {layers.map((group) => (
