@@ -1,1 +1,557 @@
-{}
+{
+  "488+491": {
+    "pair": [
+      "Steven Spielberg",
+      "John Williams"
+    ],
+    "tmdb_ids": [
+      488,
+      491
+    ],
+    "clippings": [
+      {
+        "speaker": "Steven Spielberg",
+        "about": "John Williams",
+        "quote": "This year marks our 40th year of working together, and I have to say, without question, John Williams has been the single most significant contributor to my success as a filmmaker.",
+        "film": null,
+        "said_year": 2012,
+        "publication": "NPR (Weekend Edition Saturday)",
+        "title": "John Williams' Inevitable Themes",
+        "date": "2012-11-10",
+        "url": "https://www.npr.org/transcripts/164615420",
+        "context": "Spielberg's tribute at the Tanglewood gala for Williams's 80th birthday, summer 2012, as aired by NPR; Williams was then scoring Lincoln.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Steven Spielberg",
+        "about": "John Williams",
+        "quote": "John is much more of a chameleon as a composer. He reinvents himself with every picture. The score to 'Tintin' could not be more dissimilar to his score to 'War Horse.'",
+        "film": "War Horse",
+        "said_year": 2011,
+        "publication": "Los Angeles Times (syndicated via The Post and Courier)",
+        "title": "John Williams and Steven Spielberg: A 40-year collaboration",
+        "date": "2012-01-27",
+        "url": "https://www.postandcourier.com/features/john-williams-and-steven-spielberg-a-40-year-collaboration/article_94fefa36-5650-5a50-b4c6-055f0cd75794.html",
+        "context": "Spielberg by phone from the Lincoln set to Rebecca Keegan, after Tintin and War Horse opened the same week in December 2011.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Steven Spielberg",
+        "about": "John Williams",
+        "quote": "…you looked up at me and you were smiling, and I started laughing because I didn’t know you that well. I thought you were pulling my leg. … God knows the shark never worked, but Johnny did.",
+        "film": "Jaws",
+        "said_year": 2023,
+        "publication": "Variety",
+        "title": "John Williams Startles Steven Spielberg by Telling Him He’s Not Retiring After All",
+        "date": "2023-01-13",
+        "url": "https://variety.com/2023/film/news/john-williams-steven-spielberg-not-retiring-conversation-american-cinematheque-1235489555/",
+        "context": "Spielberg recalling the first piano demo of the two-note Jaws theme, onstage with Williams at an American Cinematheque conversation at the Writers Guild Theater, Jan. 12, 2023.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Steven Spielberg",
+        "about": "John Williams",
+        "quote": "He said, ‘Look, unlike what we usually do, you’re not gonna come over to the office. I’m not gonna try to play this on the piano because, quite frankly, it’s impossible. Just show up at the session.’ And I got to hear it for the first time, cold.",
+        "film": "Catch Me If You Can",
+        "said_year": 2023,
+        "publication": "Variety",
+        "title": "John Williams Startles Steven Spielberg by Telling Him He’s Not Retiring After All",
+        "date": "2023-01-13",
+        "url": "https://variety.com/2023/film/news/john-williams-steven-spielberg-not-retiring-conversation-american-cinematheque-1235489555/",
+        "context": "Spielberg on how Williams broke their usual piano-preview routine for the jazz main title of Catch Me If You Can, at the same 2023 American Cinematheque conversation.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Steven Spielberg",
+        "about": "John Williams",
+        "quote": "When he first saw the picture, he talked about the nobility of these animals. We never called them monsters, we never called them dinosaurs. We called them animals.",
+        "film": "Jurassic Park",
+        "said_year": 2023,
+        "publication": "Classical California (KUSC)",
+        "title": "A Magical Half-Century Partnership",
+        "date": "2023-01-19",
+        "url": "https://www.classicalcalifornia.org/articles/a-magical-half-century-partnership",
+        "context": "Spielberg after a clip of the first dinosaur reveal in Jurassic Park, at the January 2023 American Cinematheque conversation; reported by Classical California hosts who attended.",
+        "secondhand": false
+      },
+      {
+        "speaker": "John Williams",
+        "about": "Steven Spielberg",
+        "quote": "My relationship with Steven is the result of a lot of very compatible dissimilarities. … Steven works with huge groups of people and is an international businessman. … It is a labor-intensive, solitary business.",
+        "film": null,
+        "said_year": 2011,
+        "publication": "Los Angeles Times (syndicated via The Post and Courier)",
+        "title": "John Williams and Steven Spielberg: A 40-year collaboration",
+        "date": "2012-01-27",
+        "url": "https://www.postandcourier.com/features/john-williams-and-steven-spielberg-a-40-year-collaboration/article_94fefa36-5650-5a50-b4c6-055f0cd75794.html",
+        "context": "Williams to the Los Angeles Times in his Universal lot bungalow in late December 2011, contrasting Spielberg's world with his own pencil-and-paper work.",
+        "secondhand": false
+      },
+      {
+        "speaker": "John Williams",
+        "about": "Steven Spielberg",
+        "quote": "It was like going with a teenager who had never ordered wine before and didn't quite know what to do with the silver. He was so young, a little older than my children but not a whole lot. And seemed to know more about my music than I did.",
+        "film": "The Sugarland Express",
+        "said_year": 2011,
+        "publication": "Los Angeles Times (syndicated via The Post and Courier)",
+        "title": "John Williams and Steven Spielberg: A 40-year collaboration",
+        "date": "2012-01-27",
+        "url": "https://www.postandcourier.com/features/john-williams-and-steven-spielberg-a-40-year-collaboration/article_94fefa36-5650-5a50-b4c6-055f0cd75794.html",
+        "context": "Williams recalling the 1972 lunch in Beverly Hills where the 25-year-old Spielberg recruited him for The Sugarland Express.",
+        "secondhand": false
+      },
+      {
+        "speaker": "John Williams",
+        "about": "Steven Spielberg",
+        "quote": "He’s always been a positive collaborator. He’s never anything but appreciative of me. … When we record, he has almost physical pleasure from what the orchestra is playing, all the time.",
+        "film": "Jaws",
+        "said_year": 2013,
+        "publication": "The Phoenix Symphony",
+        "title": "Q&A: John Williams on accompanying Steven Spielberg",
+        "date": "2013-09-20",
+        "url": "https://www.phoenixsymphony.org/qa-john-williams-on-accompanying-steven-spielberg/",
+        "context": "Phone Q&A before a 2013 Phoenix Symphony benefit concert with both men; Williams answering a question about Spielberg thinking the Jaws theme was a joke.",
+        "secondhand": false
+      },
+      {
+        "speaker": "John Williams",
+        "about": "Steven Spielberg",
+        "quote": "The lights went up and the film was over, and I couldn’t breathe. … I said: ‘Steven, this is a great, great film. And you need a better composer than I am to do this score.’ And he said, ‘I know…but they’re all dead!’",
+        "film": "Schindler's List",
+        "said_year": 2023,
+        "publication": "Classical California (KUSC)",
+        "title": "A Magical Half-Century Partnership",
+        "date": "2023-01-19",
+        "url": "https://www.classicalcalifornia.org/articles/a-magical-half-century-partnership",
+        "context": "Williams recounting his first screening of Schindler's List (1993), at the January 2023 American Cinematheque conversation.",
+        "secondhand": false
+      },
+      {
+        "speaker": "John Williams",
+        "about": "Steven Spielberg",
+        "quote": "Why have Steven and I stayed together for 50 years? What held us together was the fact that I loved this man immediately, when he was a baby. … In a way, I was kind of looking in the same direction that Steven was always in our love for fulfillment and our desire to measure up to the shoulders we stood on.",
+        "film": null,
+        "said_year": 2023,
+        "publication": "Variety",
+        "title": "John Williams Startles Steven Spielberg by Telling Him He’s Not Retiring After All",
+        "date": "2023-01-13",
+        "url": "https://variety.com/2023/film/news/john-williams-steven-spielberg-not-retiring-conversation-american-cinematheque-1235489555/",
+        "context": "Williams summing up their 50-year partnership and shared love of Golden Age Hollywood composers (Korngold, Waxman, Steiner) at the 2023 American Cinematheque conversation.",
+        "secondhand": false
+      }
+    ]
+  },
+  "1032+3661": {
+    "pair": [
+      "Martin Scorsese",
+      "Thelma Schoonmaker"
+    ],
+    "tmdb_ids": [
+      1032,
+      3661
+    ],
+    "clippings": [
+      {
+        "speaker": "Martin Scorsese",
+        "about": "Thelma Schoonmaker",
+        "quote": "So Thelma finally decided to put this long tracking shot of Bill up there.",
+        "film": "Gangs of New York",
+        "said_year": 2003,
+        "publication": "CineMontage (Motion Picture Editors Guild)",
+        "title": "Thelma Schoonmaker & Martin Scorsese on 'Gangs of New York'",
+        "date": "2003",
+        "url": "https://cinemontage.org/?p=27741",
+        "context": "Joint Q&A with Norm Hollyn for the Editors Guild magazine; Scorsese explains how Thelma reshaped the opening Five Points sequence.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Martin Scorsese",
+        "about": "Thelma Schoonmaker",
+        "quote": "For me the editing process of a film is my favourite and a lot of it has to do with the time I spend working with Thelma together. We live through every film together and every film is a whole lifetime in and of itself…",
+        "film": null,
+        "said_year": 2019,
+        "publication": "The Irish News (PA)",
+        "title": "Martin Scorsese's editor Thelma Schoonmaker honoured with Bafta Fellowship",
+        "date": "2019-02-10",
+        "url": "https://www.irishnews.com/magazine/entertainment/2019/02/10/news/martin-scorsese-s-editor-thelma-schoonmaker-honoured-with-bafta-fellowship-1548714/",
+        "context": "From Scorsese's video tribute played before Thelma accepted the BAFTA Fellowship at the Royal Albert Hall; reported in a PA wire story.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Thelma Schoonmaker",
+        "about": "Martin Scorsese",
+        "quote": "I want to thank, first of all, Marty Scorsese; he edited this film with me every minute of the time.",
+        "film": "Raging Bull",
+        "said_year": 1981,
+        "publication": "Academy of Motion Picture Arts and Sciences (Acceptance Speech Database)",
+        "title": "Thelma Schoonmaker Academy Awards Acceptance Speech (Film Editing, Raging Bull)",
+        "date": "1981-03-31",
+        "url": "https://aaspeechesdb.oscars.org/link/053-11/",
+        "context": "Official transcript of her first Oscar acceptance speech, at the 53rd Academy Awards.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Thelma Schoonmaker",
+        "about": "Martin Scorsese",
+        "quote": "Money didn’t mean anything to me, but working with people who cared as deeply as someone like Marty did about their films is very seductive — you never want to work any other way.",
+        "film": "The King of Comedy",
+        "said_year": 1982,
+        "publication": "The Village Voice",
+        "title": "His Girl Friday: Thelma Schoonmaker Cuts Things Down to Size",
+        "date": "1982-11-30",
+        "url": "https://villagevoice.com/his-girl-friday-thelma-schoonmaker-cuts-things-down-to-size",
+        "context": "Terrence Rafferty's 1982 profile, written while she and Scorsese were cutting The King of Comedy (republished in the Voice archives, 2018).",
+        "secondhand": false
+      },
+      {
+        "speaker": "Thelma Schoonmaker",
+        "about": "Martin Scorsese",
+        "quote": "This is really as much yours as it is mine, Marty, not only because you helped me edit the movie, but because you think like an editor when you shoot.",
+        "film": "The Aviator",
+        "said_year": 2005,
+        "publication": "Academy of Motion Picture Arts and Sciences (Acceptance Speech Database)",
+        "title": "Thelma Schoonmaker Academy Awards Acceptance Speech (Film Editing, The Aviator)",
+        "date": "2005-02-27",
+        "url": "https://aaspeechesdb.oscars.org/link/077-12/",
+        "context": "Official transcript of her second Oscar acceptance speech, at the 77th Academy Awards; she closes with \"But it's really you, Marty. It's you.\"",
+        "secondhand": false
+      },
+      {
+        "speaker": "Thelma Schoonmaker",
+        "about": "Martin Scorsese",
+        "quote": "We work very compatibly. We're very different. I'm very optimistic and calm and patient, and Marty is emotional and dramatic. We balance each other.",
+        "film": null,
+        "said_year": 2005,
+        "publication": "Fresh Air (NPR / WHYY)",
+        "title": "Thelma Schoonmaker, Scorsese's Favorite Editor",
+        "date": "2005-05-31",
+        "url": "https://freshairarchive.org/segments/thelma-schoonmaker-scorseses-favorite-editor",
+        "context": "Transcript of her 2005 interview with Terry Gross, answering what the give and take is like in the editing room.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Thelma Schoonmaker",
+        "about": "Martin Scorsese",
+        "quote": "Working with Marty is quite something. It's tumultuous, passionate, funny and it's like being in the best film school in the world.",
+        "film": "The Departed",
+        "said_year": 2007,
+        "publication": "Academy of Motion Picture Arts and Sciences (Acceptance Speech Database)",
+        "title": "Thelma Schoonmaker Academy Awards Acceptance Speech (Film Editing, The Departed)",
+        "date": "2007-02-25",
+        "url": "https://aaspeechesdb.oscars.org/link/079-12/",
+        "context": "Official transcript of her third Oscar acceptance speech, at the 79th Academy Awards.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Thelma Schoonmaker",
+        "about": "Martin Scorsese",
+        "quote": "And he's a great editor, Marty. It's his favorite part of filmmaking. So that was very hard,",
+        "film": "Silence",
+        "said_year": 2017,
+        "publication": "Associated Press (via SHOOTonline)",
+        "title": "Thelma Schoonmaker Reflects On \"Silence,\" Editing For Scorsese and Powell",
+        "date": "2017-01-22",
+        "url": "https://shootonline.com/article/thelma-schoonmaker-reflects-silence-editing-scorsese-and-powell",
+        "context": "AP interview by Jake Coyle in the office where they cut Silence; she continues: \"I think he sensed with me that we could collaborate and it wouldn't be an ego fight all the time.\"",
+        "secondhand": false
+      },
+      {
+        "speaker": "Thelma Schoonmaker",
+        "about": "Martin Scorsese",
+        "quote": "Marty introduced me to Michael Powell not expecting we would fall in love and marry, but we did, and this gave me the happiest 10 years of my life.",
+        "film": null,
+        "said_year": 2019,
+        "publication": "The Irish News (PA)",
+        "title": "Martin Scorsese's editor Thelma Schoonmaker honoured with Bafta Fellowship",
+        "date": "2019-02-10",
+        "url": "https://www.irishnews.com/magazine/entertainment/2019/02/10/news/martin-scorsese-s-editor-thelma-schoonmaker-honoured-with-bafta-fellowship-1548714/",
+        "context": "From her BAFTA Fellowship acceptance speech, the same night as Scorsese's video tribute.",
+        "secondhand": false
+      }
+    ]
+  },
+  "1259+4385": {
+    "pair": [
+      "Sergio Leone",
+      "Ennio Morricone"
+    ],
+    "tmdb_ids": [
+      4385,
+      1259
+    ],
+    "clippings": [
+      {
+        "speaker": "Ennio Morricone",
+        "about": "Sergio Leone",
+        "quote": "We went to primary school together but only for a year and I can’t say we were great friends. It was only later on, when he asked me to do the music for Fistful of Dollars, that our friendship developed.",
+        "film": "A Fistful of Dollars",
+        "said_year": 2006,
+        "publication": "Sight and Sound (BFI)",
+        "title": "“If you want to call yourself a composer, you follow every step of the instrumentation:” Ennio Morricone interviewed in 2006",
+        "date": "2023-11-07",
+        "url": "https://www.bfi.org.uk/sight-and-sound/interviews/if-you-want-call-yourself-composer-you-follow-every-step-instrumentation-ennio-morricone-interviewed-2006",
+        "context": "Telephone interview with Guido Bonsaver, first published in Sight and Sound's July 2006 issue and reposted by the BFI in 2023; asked whether he and Leone had known each other since childhood.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Ennio Morricone",
+        "about": "Sergio Leone",
+        "quote": "That was his invention, though I remember I had talked to him about an experiment in Florence where musicians had theorised that any sound or noise taken out of context and totally isolated would acquire a new meaning. His idea of the 20-minute sequence based on the waterdrop was, I think, inspired by that conversation.",
+        "film": "Once Upon a Time in the West",
+        "said_year": 2006,
+        "publication": "Sight and Sound (BFI)",
+        "title": "“If you want to call yourself a composer, you follow every step of the instrumentation:” Ennio Morricone interviewed in 2006",
+        "date": "2023-11-07",
+        "url": "https://www.bfi.org.uk/sight-and-sound/interviews/if-you-want-call-yourself-composer-you-follow-every-step-instrumentation-ennio-morricone-interviewed-2006",
+        "context": "Same 2006 Sight and Sound interview; asked about the music-free opening sequence (water dripping on Woody Strode's hat).",
+        "secondhand": false
+      },
+      {
+        "speaker": "Ennio Morricone",
+        "about": "Sergio Leone",
+        "quote": "Leone's films were made like that because he wanted the music to be an important part of it, and he often kept the scenes longer simply because he didn't want the music to end. That's why the films were so slow - because they were following the pattern of the music.",
+        "film": null,
+        "said_year": 2006,
+        "publication": "The Irish Times",
+        "title": "'A Fistful of Dollars? It's my worst ever score'",
+        "date": "2006-07-22",
+        "url": "https://www.irishtimes.com/news/a-fistful-of-dollars-it-s-my-worst-ever-score-1.1262704",
+        "context": "Interview with Will Hodgkinson, translated through an interpreter; Morricone first snapped \"Who told him not to ask me about Leone?\" before explaining why he wrote some music before the films were shot.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Ennio Morricone",
+        "about": "Sergio Leone",
+        "quote": "Leone allowed lots of space for music, that was his personal style, and it ended up being a very intense collaboration. I would initially play him the music on piano, which didn't give much idea of how it would eventually sound – he was often shocked. But pleasantly shocked I think.",
+        "film": null,
+        "said_year": 2003,
+        "publication": "The Arts Desk",
+        "title": "Ennio Morricone 1928-2020: A lost afternoon in his apartment in Rome",
+        "date": "2020-07-07",
+        "url": "https://theartsdesk.com/node/85477",
+        "context": "Peter Culshaw's 2003 interview in Morricone's Rome apartment, through a translator, republished after his death.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Ennio Morricone",
+        "about": "Sergio Leone",
+        "quote": "There is a lot of talking, of listening to things. Quite frequently, everything is scrapped and we start again from scratch. Often when everything has been accepted Sergio starts to doubt the decision and then more doubts come.",
+        "film": "Once Upon a Time in America",
+        "said_year": 1984,
+        "publication": "Cinema Papers (reprinted by Scraps from the Loft)",
+        "title": "Ennio Morricone: Interview (1984)",
+        "date": "2016-12-11",
+        "url": "https://scrapsfromtheloft.com/movies/morricone-interview-cinema-papers/",
+        "context": "Answer to Sue Adler's question \"What is your working relationship with Sergio Leone?\" in Cinema Papers, December 1984, the year Once Upon a Time in America came out; full interview reprinted online.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Ennio Morricone",
+        "about": "Sergio Leone",
+        "quote": "It stems primarily from Leone’s style, which allowed more time, more space, for music than that of other directors. It wasn’t because of our friendship; it was strictly his particular style.",
+        "film": null,
+        "said_year": 1994,
+        "publication": "Cineaste (reprinted by Scraps from the Loft)",
+        "title": "An Interview with Ennio Morricone (1994)",
+        "date": "2020-07-07",
+        "url": "https://scrapsfromtheloft.com/movies/an-interview-with-ennio-morricone-1994/",
+        "context": "1994 interview with Jon Burlingame and Gary Crowdus with simultaneous translation, published in Cineaste Vol. 21 No. 1/2 (1995) and reprinted online; asked whether European directors give music more room.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Ennio Morricone",
+        "about": "Sergio Leone",
+        "quote": "I missed a great opportunity and I am really sorry. When Clint called me, I said no out of respect to Sergio Leone, not because I did not like the movies that he did.",
+        "film": null,
+        "said_year": 2014,
+        "publication": "/Film",
+        "title": "Why A Western Icon Regretted Turning Down The Opportunity To Work With Clint Eastwood",
+        "date": "2024-11-26",
+        "url": "https://slashfilm.com/1711630/western-composer-ennio-morricone-regretted-turning-down-clint-eastwood",
+        "context": "Morricone telling the BBC in 2014 why he turned down Clint Eastwood's films after Leone and Eastwood fell out; quoted by /Film because the BBC original could not be fetched.",
+        "secondhand": true
+      },
+      {
+        "speaker": "Sergio Leone",
+        "about": "Ennio Morricone",
+        "quote": "I’ve always felt that music is more expressive than dialogue. I’ve always said that my best dialogue and screenwriter is Ennio Morricone. Because, many times, it is more important a note or an orchestration than a line said.",
+        "film": null,
+        "said_year": 1987,
+        "publication": "American Suburb X",
+        "title": "An Interview with Sergio Leone (1987)",
+        "date": "2012-12-28",
+        "url": "https://www.americansuburbx.com/2012/12/interview-interview-with-sergio-leone-1987.html",
+        "context": "Marlaine Glicksman's interview at Leone's home outside Rome in September 1987, translated live by actor Brian Freilino; first published online in 2012 by ASX with the interviewer's rights.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Sergio Leone",
+        "about": "Ennio Morricone",
+        "quote": "From Ennio I ask for themes that clothe my characters easily. He’s never read a script of mine to compose the music, because many times he’s composed the music before the script is ever written.",
+        "film": null,
+        "said_year": 1987,
+        "publication": "American Suburb X",
+        "title": "An Interview with Sergio Leone (1987)",
+        "date": "2012-12-28",
+        "url": "https://www.americansuburbx.com/2012/12/interview-interview-with-sergio-leone-1987.html",
+        "context": "Same 1987 Glicksman interview, translated live; answer to \"Ennio Morricone writes the music to your films before you shoot them.\"",
+        "secondhand": false
+      },
+      {
+        "speaker": "Sergio Leone",
+        "about": "Ennio Morricone",
+        "quote": "“Well, sorry, it’s just that this music seems crap to me – just as it did four months ago. You told me that everything would be different with the arrangement but nothing has changed!” … Immediately I ask him: “Have you seen Walt Disney’s Lady and the Tramp?” “Yes,” he replies, “but what has that got to do with Cheyenne?”",
+        "film": "Once Upon a Time in the West",
+        "said_year": null,
+        "publication": "Scraps from the Loft (excerpt of Christopher Frayling, Sergio Leone: Something to Do with Death)",
+        "title": "Ennio Morricone and the Scoring of “Once Upon a Time in the West”",
+        "date": "2020-07-06",
+        "url": "https://scrapsfromtheloft.com/movies/ennio-morricone-scoring-once-upon-a-time-in-the-west/",
+        "context": "Leone recalling how the Cheyenne theme was saved at the recording session, as quoted in Frayling's 2000 biography (translated) and reposted online; the original interview isn't named.",
+        "secondhand": true
+      }
+    ]
+  },
+  "525+947": {
+    "pair": [
+      "Christopher Nolan",
+      "Hans Zimmer"
+    ],
+    "tmdb_ids": [
+      525,
+      947
+    ],
+    "clippings": [
+      {
+        "speaker": "Christopher Nolan",
+        "about": "Hans Zimmer",
+        "quote": "I wrote out a page of what I considered to be the heart of the story—the relationships, the idea of a father having to leave his children … I gave it to Hans and said, ‘Work on that for a day and give me what you’ve got at the end of the day, and that’ll be the seed from which we can grow the score.’",
+        "film": "Interstellar",
+        "said_year": null,
+        "publication": "The AU Review",
+        "title": "The Iris Interview: Christopher Nolan, Jonathan Nolan and Emma Thomas talk about working on Interstellar",
+        "date": "2015-04-08",
+        "url": "https://www.theaureview.com/watch/the-iris-interview-christopher-nolan-jonathan-nolan-and-emma-thomas-talk-about-working-on-interstellar/",
+        "context": "Nolan's own account of the one-page letter he gave Zimmer before writing the script, in a Q&A with Jonathan Nolan and Emma Thomas.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Hans Zimmer",
+        "about": "Christopher Nolan",
+        "quote": "I played him this thing, and it’s tiny, a musical love letter to my son. And I said to him, “What do you think?” And he paused for a second, and said, “I’d better make the movie now.”",
+        "film": "Interstellar",
+        "said_year": 2014,
+        "publication": "TheWrap",
+        "title": "OscarWrap: Christopher Nolan and ‘Interstellar’ Dream Team Talk Sound, Edit, Design",
+        "date": "2014-12-30",
+        "url": "https://www.thewrap.com/oscarwrap-christopher-nolan-and-interstellar-dream-team-talk-sound-edit-design",
+        "context": "Zimmer, interviewed by Steve Pond for TheWrap's awards issue, describes playing Nolan the piece he wrote in a day from the one-page letter.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Hans Zimmer",
+        "about": "Christopher Nolan",
+        "quote": "Well it’s really simple. The answer is Chris Nolan and the way we work together. We get breathless with throwing ideas at each other and we cross all the lines. It’s like Chris will be talking about music and I’ll be talking about story.",
+        "film": "Interstellar",
+        "said_year": 2014,
+        "publication": "Den of Geek",
+        "title": "Hans Zimmer Talks About Scoring Interstellar, and Why Batman Needs a New Theme",
+        "date": "2014-11-21",
+        "url": "https://www.denofgeek.com/us/movies/hans-zimmer/241533/hans-zimmer-talks-about-scoring-interstellar-and-why-batman-needs-a-new-theme",
+        "context": "Interview with Don Kaye; Zimmer answering why he writes such good scores for Nolan, right after describing Nolan as 'part of the band' in his studio.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Christopher Nolan",
+        "about": "Hans Zimmer",
+        "quote": "What I decided to do was give it to Hans and let him run with it and see if in some way it might inform elements of the score",
+        "film": "Inception",
+        "said_year": 2010,
+        "publication": "Collider",
+        "title": "INCEPTION Interview Leonardo DiCaprio, Joseph Gordon-Levitt, Ellen Page, Marion Cotillard, Tom Hardy, Ken Watanabe, Christopher Nolan, Hans Zimmer",
+        "date": "2010-07-12",
+        "url": "https://collider.com/inception-interview-leonardo-dicaprio-joseph-gordon-levitt-ellen-page-marion-cotillard-tom-hardy-cillian-murphy-ken-watanabe-director-christopher-nolan-composer-hans-zimmer-and-producer/",
+        "context": "Inception press conference transcript; Nolan on handing Zimmer the Edith Piaf song from the script so it could shape the score.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Hans Zimmer",
+        "about": "Christopher Nolan",
+        "quote": "In a funny way, what I think we did do was a sort of shared dreaming thing, and we did prove it’s possible, because when I finally saw the film, and when Chris had laid in all my music, I was actually surprised how well these two worlds existed together.",
+        "film": "Inception",
+        "said_year": 2010,
+        "publication": "Collider",
+        "title": "INCEPTION Interview Leonardo DiCaprio, Joseph Gordon-Levitt, Ellen Page, Marion Cotillard, Tom Hardy, Ken Watanabe, Christopher Nolan, Hans Zimmer",
+        "date": "2010-07-12",
+        "url": "https://collider.com/inception-interview-leonardo-dicaprio-joseph-gordon-levitt-ellen-page-marion-cotillard-tom-hardy-cillian-murphy-ken-watanabe-director-christopher-nolan-composer-hans-zimmer-and-producer/",
+        "context": "Same press conference; Zimmer explains that Nolan would not show him footage until he had written the music.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Christopher Nolan",
+        "about": "Hans Zimmer",
+        "quote": "I asked Hans not to write any emotional music. What I said to him was I wanted objectivity — the way I wanted to make the film was, it’s all about suspense and tension and not at all about emotion.",
+        "film": "Dunkirk",
+        "said_year": 2017,
+        "publication": "Gulf News (New York Times News Service)",
+        "title": "‘Dunkirk’ soundtrack: How it all came together",
+        "date": "2018-09-15",
+        "url": "https://gulfnews.com/entertainment/dunkirk-soundtrack-how-it-all-came-together-1.2066116",
+        "context": "Melena Ryzik's New York Times piece on the Dunkirk score (July 2017), syndicated openly by Gulf News; Nolan spoke separately from Vietnam during the press tour.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Christopher Nolan",
+        "about": "Hans Zimmer",
+        "quote": "I didn’t really say this to Hans, but it played at my father’s funeral a few years ago. I just find it unbearably moving.",
+        "film": "Dunkirk",
+        "said_year": 2017,
+        "publication": "Gulf News (New York Times News Service)",
+        "title": "‘Dunkirk’ soundtrack: How it all came together",
+        "date": "2018-09-15",
+        "url": "https://gulfnews.com/entertainment/dunkirk-soundtrack-how-it-all-came-together-1.2066116",
+        "context": "Nolan on why he suggested Elgar's 'Nimrod' for the Dunkirk score, which Zimmer then slowed and reworked.",
+        "secondhand": false
+      },
+      {
+        "speaker": "Hans Zimmer",
+        "about": "Christopher Nolan",
+        "quote": "This was the closest collaboration that I ever had with a director where even though he would never ever play a note, he somehow played every note that was in that score.",
+        "film": "Dunkirk",
+        "said_year": 2017,
+        "publication": "Gulf News (New York Times News Service)",
+        "title": "‘Dunkirk’ soundtrack: How it all came together",
+        "date": "2018-09-15",
+        "url": "https://gulfnews.com/entertainment/dunkirk-soundtrack-how-it-all-came-together-1.2066116",
+        "context": "Zimmer to the New York Times on Dunkirk; in the same piece he adds, 'Can I say something rude? This score is Chris Nolan’s score.'",
+        "secondhand": false
+      },
+      {
+        "speaker": "Hans Zimmer",
+        "about": "Christopher Nolan",
+        "quote": "Chris [Nolan] understands I have to do it. He’s going to be just fine. Ludwig and I are friends. Forget the friend part, he’s really good.",
+        "film": "Tenet",
+        "said_year": 2019,
+        "publication": "Yahoo Movies UK",
+        "title": "Here’s why Hans Zimmer isn’t working on Christopher Nolan’s next film",
+        "date": "2019-07-18",
+        "url": "https://uk.movies.yahoo.com/heres-why-hans-zimmer-isnt-working-on-christopher-nolans-next-film-115848136.html",
+        "context": "Zimmer explaining why he chose Dune over Tenet, which went to Ludwig Göransson; originally said on The Playlist's podcast, which Yahoo does not credit by name.",
+        "secondhand": true
+      },
+      {
+        "speaker": "Hans Zimmer",
+        "about": "Christopher Nolan",
+        "quote": "Not great. … So Chris realized that, and he realized that that’s where my focus was at that moment.",
+        "film": "Tenet",
+        "said_year": 2021,
+        "publication": "Screen Rant",
+        "title": "How Christopher Nolan Reacted to Hans Zimmer Choosing Dune Over Tenet",
+        "date": "2021-11-29",
+        "url": "https://screenrant.com/dune-score-hans-zimmer-christopher-nolan-tenet-reaction/",
+        "context": "Zimmer on CinemaBlend's ReelBlend podcast, asked how Nolan took the news; the elided middle explains that touring had pulled his focus toward Dune.",
+        "secondhand": true
+      }
+    ]
+  }
+}
