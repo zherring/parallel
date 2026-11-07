@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { PeopleView } from "@/components/people-view";
 import { cardFilms } from "@/lib/card-films";
+import { getPairClippingSet } from "@/lib/clippings";
 import { loadPeople } from "@/lib/people";
 import { parsePeriodParams, rawPeriodSearch, resolvePeriod, searchWithPeriod, spanOfYears } from "@/lib/period";
 import { todayIso } from "@/lib/released";
@@ -58,6 +59,7 @@ export default async function PeoplePage({ params, searchParams }: Props) {
       shared={sharedFilms(timelines, opts)}
       pairwise={sharedFilmsPairwise(timelines, opts)}
       today={opts.today}
+      clippings={getPairClippingSet(timelines.map((t) => t.person.id))}
     />
   );
 }

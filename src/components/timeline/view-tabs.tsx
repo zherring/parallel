@@ -1,13 +1,14 @@
 "use client";
 
-import { ChartNoAxesGantt, Table2 } from "lucide-react";
+import { ChartNoAxesGantt, Quote, Table2 } from "lucide-react";
 import { useRef, type KeyboardEvent, type ReactNode } from "react";
-import { VIEWS, VIEW_LABELS, viewForKey, type View } from "@/lib/films-view";
+import { VIEW_LABELS, viewForKey, type View } from "@/lib/films-view";
 import { cn } from "./cn";
 
 const ICONS: Record<View, ReactNode> = {
   timeline: <ChartNoAxesGantt aria-hidden="true" className="size-4 shrink-0" />,
   table: <Table2 aria-hidden="true" className="size-4 shrink-0" />,
+  clippings: <Quote aria-hidden="true" className="size-4 shrink-0" />,
 };
 
 export const viewTabId = (idBase: string, view: View) => `${idBase}-tab-${view}`;
@@ -17,21 +18,23 @@ interface ViewTabsProps {
   /** Prefix for the element ids, so the tabs and their panels are unique on the page. */
   idBase: string;
   view: View;
+  /** The tabs, in order: Timeline and Table, and Clippings when the page has clippings (see `availableViews`). */
+  views: readonly View[];
   onChange: (view: View) => void;
 }
 
 /**
- * The Timeline / Table switch of a films section: a small segmented control that follows the
+ * The Timeline / Table (/ Clippings) switch of a films section: a small segmented control that follows the
  * WAI-ARIA tabs pattern with automatic activation (arrow keys move and select, Left and Right
  * wrap, Home and End jump to the ends; only the selected tab is in the Tab order). The panels
  * live in the section (both are in the markup, the inactive one hidden), see `FilmsSection`.
  */
-export function ViewTabs({ idBase, view, onChange }: ViewTabsProps) {
-  const tabRefs = useRef<Record<View, HTMLButtonElement | null>>({ timeline: null, table: null });
+export function ViewTabs({ idBase, view, views, onChange }: ViewTabsProps) {
+  const tabRefs = useRef<Record<View, HTMLButtonElement | null>>({ timeline: null, table: null, clippings: null });
 
   function onKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
-    const next = viewForKey(event.key, view);
+    const next = viewForKey(event.key, view, views);
     if (next === null) return;
     event.preventDefault();
     onChange(next);
@@ -44,7 +47,7 @@ export function ViewTabs({ idBase, view, onChange }: ViewTabsProps) {
       aria-label="Films view"
       className="inline-flex shrink-0 rounded-md border border-border bg-canvas p-0.5"
     >
-      {VIEWS.map((id) => {
+      {views.map((id) => {
         const selected = id === view;
         return (
           <button

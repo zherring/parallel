@@ -18,6 +18,8 @@ interface ShareActionsProps {
   names: string[];
   /** What the Share menu posts about: the people and their film count as the page shows it by default. */
   share: ShareInput;
+  /** Whether Export is offered: it is the table's films, so not while the Clippings are shown. */
+  showExport?: boolean;
 }
 
 // Share (the green primary button) lives in share-menu.tsx; Export is the secondary one.
@@ -29,7 +31,7 @@ const secondaryClass =
  * and the Share menu report) that floats under them for a few seconds, so that it never moves
  * the content. The status is a live region that is always in the page, so it is announced.
  */
-export function ShareActions({ films, today, names, share }: ShareActionsProps) {
+export function ShareActions({ films, today, names, share, showExport = true }: ShareActionsProps) {
   const [status, setStatus] = useState("");
   const [exporting, setExporting] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -90,22 +92,24 @@ export function ShareActions({ films, today, names, share }: ShareActionsProps) 
 
   return (
     <div className="relative flex items-center gap-3 max-sm:w-full sm:ml-auto">
-      <button
-        type="button"
-        className={`${secondaryClass} max-sm:grow`}
-        onClick={exportCsv}
-        disabled={films.length === 0 || exporting}
-        aria-busy={exporting || undefined}
-        aria-label="Export List as CSV"
-        title="Export List as CSV"
-      >
-        {exporting ? (
-          <LoaderCircle aria-hidden="true" className="size-4 shrink-0 motion-safe:animate-spin" />
-        ) : (
-          <Download aria-hidden="true" className="size-4 shrink-0" />
-        )}
-        Export
-      </button>
+      {showExport && (
+        <button
+          type="button"
+          className={`${secondaryClass} max-sm:grow`}
+          onClick={exportCsv}
+          disabled={films.length === 0 || exporting}
+          aria-busy={exporting || undefined}
+          aria-label="Export List as CSV"
+          title="Export List as CSV"
+        >
+          {exporting ? (
+            <LoaderCircle aria-hidden="true" className="size-4 shrink-0 motion-safe:animate-spin" />
+          ) : (
+            <Download aria-hidden="true" className="size-4 shrink-0" />
+          )}
+          Export
+        </button>
+      )}
       <ShareMenu input={share} onStatus={announce} className="max-sm:grow" />
       <p
         role="status"

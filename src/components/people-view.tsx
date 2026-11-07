@@ -9,6 +9,7 @@ import { useViewTab } from "@/components/timeline/use-view-tab";
 import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
 import { Together } from "@/components/timeline/together";
 import { cardFilms } from "@/lib/card-films";
+import type { PairClippings } from "@/lib/clippings";
 import { personRows } from "@/lib/film-rows";
 import { headlineCount } from "@/lib/films-view";
 import { periodLabel, resolvePeriod, spanOfYears } from "@/lib/period";
@@ -29,6 +30,8 @@ interface Props {
    * server and the browser lay the timeline out identically.
    */
   today: string;
+  /** The quotes the two people of a pair have about each other; null for one person, 3 or more, or a pair without any. */
+  clippings: PairClippings | null;
 }
 
 export function PeopleView(props: Props) {
@@ -37,12 +40,12 @@ export function PeopleView(props: Props) {
   return <PeopleViewInner key={key} {...props} />;
 }
 
-function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
+function PeopleViewInner({ timelines, shared, pairwise, today, clippings }: Props) {
   const [includeMinor, setIncludeMinor] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const timelineRef = useRef<TimelineHandle>(null);
-  const [view] = useViewTab();
+  const [view] = useViewTab(clippings !== null);
   const [urlPeriod, setPeriod] = useUrlPeriod();
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
@@ -195,6 +198,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
           includeMinor={includeMinor}
           onIncludeMinorChange={handleIncludeMinorChange}
           onSelect={handleSelect}
+          clippings={clippings}
         />
       ) : (
         <FilmsSection

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
+import type { PairClippings } from "@/lib/clippings";
 import { sharedRows } from "@/lib/film-rows";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import type { PairShared } from "@/lib/shared";
@@ -30,6 +31,8 @@ interface TogetherProps {
   includeMinor: boolean;
   onIncludeMinorChange: (next: boolean) => void;
   onSelect: (id: number, trigger: HTMLElement) => void;
+  /** The quotes the two people of the page have about each other, when it has any (see `FilmsSection`). */
+  clippings?: PairClippings | null;
 }
 
 const joinNames = (names: string[]) => new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(names);
@@ -48,6 +51,7 @@ export function Together({
   includeMinor,
   onIncludeMinorChange,
   onSelect,
+  clippings,
 }: TogetherProps) {
   const rows = useMemo(() => sharedRows(shared, people), [shared, people]);
   const nameById = new Map(people.map((p) => [p.id, p.name]));
@@ -78,6 +82,7 @@ export function Together({
         </>
       }
       onSelect={onSelect}
+      clippings={clippings}
     >
       {pairwise.length > 0 && (
         <details className="mt-6 rounded-lg border border-border bg-surface">

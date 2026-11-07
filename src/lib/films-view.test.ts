@@ -3,12 +3,16 @@ import { personRows, sharedRows } from "@/lib/film-rows";
 import { sharedFilms } from "@/lib/shared";
 import type { Credit, Film, PersonTimeline } from "@/lib/types";
 import {
+  BASE_VIEWS,
   DEFAULT_VIEW,
   VIEWS,
   VIEW_LABELS,
+  availableViews,
   carryView,
   headlineCount,
+  isFilmView,
   parseView,
+  resolveView,
   searchWithView,
   showingMessage,
   showsPeriodNote,
@@ -17,9 +21,48 @@ import {
 
 describe("VIEWS", () => {
   it("lists the timeline first and defaults to it", () => {
-    expect(VIEWS).toEqual(["timeline", "table"]);
+    expect(VIEWS).toEqual(["timeline", "table", "clippings"]);
     expect(DEFAULT_VIEW).toBe("timeline");
-    expect(VIEW_LABELS).toEqual({ timeline: "Timeline", table: "Table" });
+    expect(VIEW_LABELS).toEqual({ timeline: "Timeline", table: "Table", clippings: "Clippings" });
+  });
+});
+
+describe("availableViews", () => {
+  it("offers Timeline and Table to every page, and Clippings only to a page that has clippings", () => {
+    expect(availableViews(false)).toEqual(["timeline", "table"]);
+    expect(availableViews(false)).toBe(BASE_VIEWS);
+    expect(availableViews(true)).toEqual(["timeline", "table", "clippings"]);
+  });
+});
+
+describe("resolveView", () => {
+  it("keeps a view the page offers", () => {
+    expect(resolveView("table", availableViews(false))).toBe("table");
+    expect(resolveView("clippings", availableViews(true))).toBe("clippings");
+  });
+
+  it("falls back to the default view for one it does not offer: ?view=clippings on a page without clippings", () => {
+    expect(resolveView(parseView("?view=clippings"), availableViews(false))).toBe("timeline");
+    expect(resolveView(parseView("?view=clippings&sort=rating"), availableViews(false))).toBe("timeline");
+  });
+});
+
+describe("the clippings view in the URL", () => {
+  it("is selected by ?view=clippings and written back the same way", () => {
+    expect(parseView("?view=clippings")).toBe("clippings");
+    expect(searchWithView("", "clippings")).toBe("?view=clippings");
+    expect(searchWithView("?view=clippings", "timeline")).toBe("");
+    expect(searchWithView("?foo=1&view=clippings", "table")).toBe("?foo=1&view=table");
+  });
+
+  it("is not carried to the page of another set of people, which has no clippings of the same pair", () => {
+    expect(carryView("/p/1-a+2-b+3-c", "?view=clippings")).toBe("/p/1-a+2-b+3-c");
+  });
+});
+
+describe("isFilmView", () => {
+  it("is true for the views of the films and false for the clippings", () => {
+    expect(VIEWS.filter(isFilmView)).toEqual(["timeline", "table"]);
   });
 });
 
@@ -140,6 +183,28 @@ describe("viewForKey", () => {
     for (const key of ["Enter", " ", "Tab", "ArrowDown", "ArrowUp", "a", "Escape"]) {
       expect(viewForKey(key, "timeline")).toBeNull();
     }
+  });
+
+  describe("with the Clippings tab", () => {
+    const three = availableViews(true);
+
+    it("moves across all three tabs, wrapping", () => {
+      expect(viewForKey("ArrowRight", "timeline", three)).toBe("table");
+      expect(viewForKey("ArrowRight", "table", three)).toBe("clippings");
+      expect(viewForKey("ArrowRight", "clippings", three)).toBe("timeline");
+      expect(viewForKey("ArrowLeft", "timeline", three)).toBe("clippings");
+      expect(viewForKey("ArrowLeft", "clippings", three)).toBe("table");
+    });
+
+    it("jumps to the ends, Clippings being the last", () => {
+      expect(viewForKey("End", "timeline", three)).toBe("clippings");
+      expect(viewForKey("Home", "clippings", three)).toBe("timeline");
+    });
+
+    it("never reaches Clippings on a page without it", () => {
+      expect(viewForKey("ArrowRight", "table")).toBe("timeline");
+      expect(viewForKey("End", "timeline", availableViews(false))).toBe("table");
+    });
   });
 });
 

@@ -1,5 +1,6 @@
 /**
- * The two views of a page's films, "Timeline" and "Table", as tabs of one section: which view a
+ * The views of a page's films, "Timeline" and "Table" (and, for a pair with curated quotes,
+ * "Clippings"), as tabs of one section: which view a
  * URL selects, how a tab change is written back to the URL, how the view is carried when the
  * visitor adds a person, the film count of the headline and the tab keys. Pure, so the rules are
  * testable and the server and the browser agree on them.
@@ -14,7 +15,7 @@ import { filmCountLabel } from "@/lib/format";
 import { nextTabIndex } from "@/lib/tabs";
 
 /** The views, in tab order. The first one is the default (and what the server always renders). */
-export const VIEWS = ["timeline", "table"] as const;
+export const VIEWS = ["timeline", "table", "clippings"] as const;
 export type View = (typeof VIEWS)[number];
 
 export const DEFAULT_VIEW: View = "timeline";
@@ -22,7 +23,24 @@ export const DEFAULT_VIEW: View = "timeline";
 export const VIEW_LABELS: Record<View, string> = {
   timeline: "Timeline",
   table: "Table",
+  clippings: "Clippings",
 };
+
+/** The views every page has; Clippings is added for a pair that has clippings, see `availableViews`. */
+export const BASE_VIEWS: readonly View[] = ["timeline", "table"];
+
+/** The views a page offers as tabs: Clippings only when the page has clippings to show. */
+export function availableViews(hasClippings: boolean): readonly View[] {
+  return hasClippings ? VIEWS : BASE_VIEWS;
+}
+
+/**
+ * The view to show for what the URL selected: the same, unless the page does not offer it (a
+ * `?view=clippings` link to a pair with no clippings), when it is the default.
+ */
+export function resolveView(view: View, available: readonly View[]): View {
+  return available.includes(view) ? view : DEFAULT_VIEW;
+}
 
 export const VIEW_PARAM = "view";
 
@@ -74,11 +92,20 @@ export function carryView(href: string, currentSearch: string): string {
 
 /**
  * The view to move to for a key pressed on a tab: ArrowLeft and ArrowRight wrap around, Home and
- * End jump to the first and last. null for any other key.
+ * End jump to the first and last. null for any other key. `available` is the tabs on offer, in order.
  */
-export function viewForKey(key: string, current: View): View | null {
-  const index = nextTabIndex(key, VIEWS.indexOf(current), VIEWS.length);
-  return index === null ? null : VIEWS[index];
+export function viewForKey(key: string, current: View, available: readonly View[] = BASE_VIEWS): View | null {
+  const index = nextTabIndex(key, available.indexOf(current), available.length);
+  return index === null ? null : available[index];
+}
+
+/**
+ * Whether the view is about the page's films (Timeline, Table) rather than the clippings. The films'
+ * own controls go with it: Export (the CSV is the table), the minor-credits checkbox, the note on
+ * where the numbers come from and the empty-state message. Share stays on every view, since it links to the page.
+ */
+export function isFilmView(view: View): boolean {
+  return view !== "clippings";
 }
 
 /**

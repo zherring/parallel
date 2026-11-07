@@ -1,9 +1,11 @@
 "use client";
 
 import { useLayoutEffect, useRef, type ReactNode } from "react";
+import type { PairClippings } from "@/lib/clippings";
 import type { TableRow } from "@/lib/film-rows";
-import { showingMessage, showsPeriodNote, type View } from "@/lib/films-view";
+import { availableViews, isFilmView, showingMessage, showsPeriodNote, type View } from "@/lib/films-view";
 import type { ShareInput } from "@/lib/share";
+import { ClippingsPanel } from "./clippings-panel";
 import { FilmsTable } from "./films-table";
 import { MinorToggle } from "./minor-toggle";
 import { ShareActions } from "./share-actions";
@@ -37,6 +39,8 @@ interface FilmsSectionProps {
   includeMinor: boolean;
   onIncludeMinorChange: (next: boolean) => void;
   onSelect: (id: number, trigger: HTMLElement) => void;
+  /** The pair's quotes about each other, which add a Clippings tab; none (the default) for a page without any. */
+  clippings?: PairClippings | null;
   /** More content under the table, in the Table tab (the "By pair" lists). */
   children?: ReactNode;
 }
@@ -45,9 +49,11 @@ interface FilmsSectionProps {
  * The films of a page as one section with two views, Timeline and Table, shown one at a time as
  * tabs: the tabs and Export and Share on one row (the section's heading is for screen readers; the
  * page headline above carries the film count), then the selected view, the minor-credits checkbox
- * and the small note about where the numbers come from.
+ * and the small note about where the numbers come from. A pair with curated quotes (`clippings`)
+ * has a third tab, Clippings; it is not about the films, so while it is selected the period note,
+ * Export, the checkbox and the note are left out (Share stays).
  *
- * Both panels are always mounted (the server renders both, the inactive one `hidden`): the table's
+ * The panels are always mounted (the server renders them all, the inactive ones `hidden`): the table's
  * film titles and credits are in the HTML whichever tab is selected, and the timeline keeps its
  * zoom, scroll position and expanded lanes while the table is shown. The server and the first
  * client render show the Timeline; the address bar (`?view=`) is read after hydration, see
@@ -68,10 +74,12 @@ export function FilmsSection({
   includeMinor,
   onIncludeMinorChange,
   onSelect,
+  clippings = null,
   children,
 }: FilmsSectionProps) {
   const table = useFilmsTable(rows, today);
-  const [view, setView] = useViewTab();
+  const views = availableViews(clippings !== null);
+  const [view, setView] = useViewTab(clippings !== null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   /** A tab was chosen by the visitor and the page should be brought back to the tabs once it has re-rendered. */
   const reveal = useRef(false);
@@ -99,7 +107,7 @@ export function FilmsSection({
         {together ? "Films together" : "Films"}
       </h2>
       <div ref={toolbarRef} className="flex flex-wrap items-center gap-x-4 gap-y-3">
-        <ViewTabs idBase={headingId} view={view} onChange={select} />
+        <ViewTabs idBase={headingId} view={view} views={views} onChange={select} />
         {note && showsPeriodNote(view) && <div className="min-w-0 text-sm text-body">{note}</div>}
         <ShareActions
           // The export follows the table: the films in the order they are sorted in right now.
@@ -107,10 +115,11 @@ export function FilmsSection({
           today={today}
           names={names}
           share={share}
+          showExport={isFilmView(view)}
         />
       </div>
 
-      {rows.length === 0 && <p className="mt-4 max-w-xl text-body">{empty}</p>}
+      {rows.length === 0 && isFilmView(view) && <p className="mt-4 max-w-xl text-body">{empty}</p>}
 
       <div
         role="tabpanel"
@@ -133,7 +142,19 @@ export function FilmsSection({
         {children}
       </div>
 
-      <div className="mt-5">
+      {clippings && (
+        <div
+          role="tabpanel"
+          id={viewPanelId(headingId, "clippings")}
+          aria-labelledby={viewTabId(headingId, "clippings")}
+          hidden={hidden("clippings")}
+          className="mt-4"
+        >
+          <ClippingsPanel pair={clippings} />
+        </div>
+      )}
+
+      <div hidden={!isFilmView(view)} className="mt-5">
         <MinorToggle
           checked={includeMinor}
           onChange={onIncludeMinorChange}
