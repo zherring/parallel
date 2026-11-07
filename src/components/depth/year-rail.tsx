@@ -156,7 +156,7 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
   useLayoutEffect(() => {
     const track = trackRef.current;
     if (!track) return;
-    const measure = () => setRailHeight(Math.round(track.getBoundingClientRect().height));
+    const measure = () => setRailHeight(track.clientHeight);
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
@@ -165,7 +165,7 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
   }, []);
 
   const marks = useMemo(
-    () => minimapTicks(scale, { barWidth: railHeight, minLabelGap: 28, labelHalfWidth: 7 }),
+    () => minimapTicks(scale, { barWidth: railHeight, minLabelGap: 26, labelHalfWidth: 6 }),
     [scale, railHeight],
   );
   const dots = useMemo(
@@ -277,7 +277,8 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
       ref={rootRef}
       data-depth-rail
       data-scrubbing={scrubbing ? "" : undefined}
-      className="group/rail fixed inset-y-0 right-0 z-20 w-14 max-sm:w-7"
+      // Only the track takes pointer events: the gaps above, below and beside it are the scene's.
+      className="group/rail pointer-events-none fixed inset-y-0 right-0 z-20 w-[3.75rem] max-sm:w-7"
     >
       <div
         ref={trackRef}
@@ -290,18 +291,19 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
         onLostPointerCapture={(event) => {
           if (event.target === event.currentTarget) endDrag(event);
         }}
-        className="relative size-full cursor-pointer touch-none select-none border-l border-border bg-canvas/80"
+        // The bottom minimap's bar turned on its side: a rounded surface with a border, the years along it.
+        className="pointer-events-auto absolute inset-y-2 left-0 right-1 cursor-pointer touch-none select-none rounded-md border border-border bg-surface"
       >
         <div aria-hidden className="pointer-events-none absolute inset-0">
           {marks.map((mark) => (
             <span key={mark.year}>
               {mark.decade && (
-                <span className="absolute right-0 h-px w-3 bg-muted/60" style={{ top: `${mark.fraction * 100}%` }} />
+                <span className="absolute left-0 h-px w-1.5 bg-muted/60" style={{ top: `${mark.fraction * 100}%` }} />
               )}
               {mark.label && (
                 <span
                   className={cn(
-                    "absolute left-1.5 -translate-y-1/2 text-[10px] leading-none tabular-nums text-muted",
+                    "absolute left-2 -translate-y-1/2 text-[9px] leading-none tabular-nums text-muted",
                     // Too wide for the thin rail: out beside it, and only while a finger is dragging it.
                     "max-sm:left-auto max-sm:right-full max-sm:mr-1.5 max-sm:hidden max-sm:rounded max-sm:bg-canvas/90 max-sm:px-1 max-sm:py-0.5 max-sm:group-data-[scrubbing]/rail:block",
                   )}
@@ -312,18 +314,28 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
               )}
             </span>
           ))}
-          {/* Beside the green dots only the coloured marks stay (a film of one person). */}
-          {tickMarks.map(({ fraction, color }, index) =>
-            color ? (
-              <span
-                key={index}
-                className="absolute right-0.5 h-0.5 w-2 -translate-y-1/2 rounded-full"
-                style={{ top: `${fraction * 100}%`, backgroundColor: color }}
-              />
-            ) : !showDots ? (
-              <span key={index} className="absolute right-0.5 h-px w-2 bg-muted/70" style={{ top: `${fraction * 100}%` }} />
-            ) : null,
-          )}
+          {/*
+            The one line everything is centred on, near the rail's right edge (the bottom bar's near its top): the coloured
+            marks of a film of one person (2 x 8, as in the bar) and, over them, the green nodes of the films several people
+            made (4 x 14). Beside the green nodes only the coloured marks stay; with no nodes the rest are muted marks.
+          */}
+          <div data-rail-line className="absolute inset-y-0 right-[10.5px] w-0">
+            {tickMarks.map(({ fraction, color }, index) =>
+              color ? (
+                <span
+                  key={index}
+                  className="absolute left-0 h-0.5 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                  style={{ top: `${fraction * 100}%`, backgroundColor: color }}
+                />
+              ) : !showDots ? (
+                <span
+                  key={index}
+                  className="absolute left-0 h-px w-2 -translate-x-1/2 -translate-y-1/2 bg-muted/70"
+                  style={{ top: `${fraction * 100}%` }}
+                />
+              ) : null,
+            )}
+          </div>
         </div>
 
         <div
@@ -352,25 +364,28 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
           </span>
         </div>
 
-        {dots.map(({ film, fraction }) => (
-          <button
-            key={film.id}
-            type="button"
-            data-rail-dot
-            data-film={film.id}
-            tabIndex={-1}
-            aria-label={`Center the timeline on ${film.title} (${film.year})`}
-            title={`${film.title} (${film.year})`}
-            onClick={() => {
-              if (suppressClick.current) suppressClick.current = false;
-              else jumpToFilm(film);
-            }}
-            className="group absolute right-0 z-10 flex h-4 w-9 -translate-y-1/2 cursor-pointer items-center justify-center max-sm:w-7"
-            style={{ top: `${fraction * 100}%` }}
-          >
-            <span className="h-1 w-3.5 rounded-full bg-lit shadow-[0_0_8px_var(--lit-glow)] group-hover:w-4" />
-          </button>
-        ))}
+        {/* The nodes sit on the same line as the marks, above the window, and can be pressed to jump to the film. */}
+        <div className="pointer-events-none absolute inset-y-0 right-[10.5px] z-10 w-0">
+          {dots.map(({ film, fraction }) => (
+            <button
+              key={film.id}
+              type="button"
+              data-rail-dot
+              data-film={film.id}
+              tabIndex={-1}
+              aria-label={`Center the timeline on ${film.title} (${film.year})`}
+              title={`${film.title} (${film.year})`}
+              onClick={() => {
+                if (suppressClick.current) suppressClick.current = false;
+                else jumpToFilm(film);
+              }}
+              className="group pointer-events-auto absolute left-0 flex h-4 w-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center max-sm:w-5"
+              style={{ top: `${fraction * 100}%` }}
+            >
+              <span className="h-1 w-3.5 rounded-full bg-lit shadow-[0_0_8px_var(--lit-glow)] group-hover:w-4" />
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

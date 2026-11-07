@@ -112,6 +112,45 @@ test("the posters near the screen have their images, whichever layer they are on
   expect(await region.locator("[data-poster] img").count()).toBeGreaterThan(20);
 });
 
+test("the rail is the bottom minimap turned on its side: nodes and ticks all centred on one line, and a node jumps to its film", async ({ page }) => {
+  await openDepth(page);
+  const track = page.locator("[data-depth-rail] > div");
+
+  // The green nodes and the coloured ticks share one centre line, a hair under 11px from the track's right edge.
+  const centres = await track.evaluate((element) => {
+    const edge = element.getBoundingClientRect().right;
+    const centre = (node: Element) => {
+      const box = node.getBoundingClientRect();
+      return Math.round((edge - (box.left + box.width / 2)) * 10) / 10;
+    };
+    return {
+      nodes: [...new Set(Array.from(element.querySelectorAll("[data-rail-dot] > span"), centre))],
+      ticks: [...new Set(Array.from(element.querySelectorAll("[data-rail-line] > span"), centre))],
+    };
+  });
+  expect(centres.nodes).toHaveLength(1);
+  expect(centres.ticks).toHaveLength(1);
+  expect(centres.nodes[0]).toBe(centres.ticks[0]);
+
+  // The same sizes as the bar: a node is 4 x 14, a tick 2 x 8.
+  const node = (await page.locator("[data-rail-dot] > span").first().boundingBox())!;
+  expect([Math.round(node.width), Math.round(node.height)]).toEqual([14, 4]);
+  const tick = (await page.locator("[data-rail-line] > span").first().boundingBox())!;
+  expect([Math.round(tick.width), Math.round(tick.height)]).toEqual([8, 2]);
+
+  // Pressing a node centres its film in the middle of the screen (the layer being in front of the screen plane changes nothing).
+  const dot = page.locator("[data-rail-dot]").nth(4);
+  const filmId = await dot.getAttribute("data-film");
+  // (The fixture's films are three months apart, closer than the nodes are tall on a short screen, so one is pressed by event.)
+  await dot.dispatchEvent("click");
+  const poster = scene(page).locator(`button[data-film="${filmId}"]`);
+  const viewport = page.viewportSize()!;
+  await expect.poll(async () => {
+    const box = (await poster.boundingBox())!;
+    return Math.abs(box.y + box.height / 2 - viewport.height / 2);
+  }).toBeLessThan(2);
+});
+
 test("a linked period dims the posters outside it", async ({ page }) => {
   await openDepth(page, "&from=2000&to=2001");
   const region = scene(page);
