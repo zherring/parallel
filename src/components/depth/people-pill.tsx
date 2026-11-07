@@ -321,7 +321,8 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
             </ul>
             {people.length > 1 && (
               <p data-fade className="flex items-center gap-1.5 px-2 pb-2 pt-1 text-xs text-muted">
-                <span aria-hidden className="size-2.5 shrink-0 rounded-full bg-lit shadow-[0_0_6px_var(--lit-glow)]" />
+                {/* A small poster in the ring the films made together have in the scene: a crisp green edge, no glow. */}
+                <span aria-hidden className="h-3.5 w-2.5 shrink-0 rounded-[2px] border-2 border-lit" />
                 Green: made together
               </p>
             )}

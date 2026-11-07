@@ -53,7 +53,22 @@ test("the films made together float in front: larger, with their own shadow, and
   expect(box.height).toBeGreaterThan(218);
   await expect(region.locator("ol").first()).toHaveCSS("transform", /matrix3d/);
   expect(await region.locator("ol").first().evaluate((list) => list.style.transform)).toBe("translateZ(100px)");
-  await expect(poster.locator("span").nth(1)).toHaveCSS("box-shadow", /rgba?\(0, 0, 0/);
+  // The shadows hang from the card's ::before: no green glow, but a dark outline outside the ring and layers of near-black
+  // (contact, mid, a large ambient one thrown down, a soft halo all round), the heaviest in the scene. Green is only the crisp 2px ring on the poster.
+  const shadow = (selector: string) =>
+    region.locator(selector).first().evaluate((card) => getComputedStyle(card, "::before").boxShadow);
+  const collabShadow = await shadow("[data-poster-card][data-collab]");
+  expect(collabShadow).not.toContain("224, 84");
+  expect(collabShadow.match(/rgba\(0, 0, 0/g)).toHaveLength(5);
+  expect(collabShadow).toContain("0px 30px 60px -10px");
+  await expect(poster.locator("[data-poster-card] > span").first()).toHaveCSS("box-shadow", "rgb(0, 224, 84) 0px 0px 0px 2px");
+  // Every poster behind has the layered drop shadow too: a tight contact shadow and a soft ambient one.
+  const behindShadow = await shadow("[data-poster-card]:not([data-collab])");
+  expect(behindShadow).toContain("0px 1px 2px");
+  expect(behindShadow).toMatch(/0px 8px 24px|0px 5px 14px/);
+  // And a light edge inside, so a dark poster has an outline against a dark one.
+  const edge = await region.locator('button[data-layer="1"]').first().locator("[aria-hidden]").last().evaluate((overlay) => getComputedStyle(overlay).boxShadow);
+  expect(edge).toContain("inset");
 
   // A background poster dragged under it does not show through: what is on top at a point of overlap is the film made together.
   const covered = await region.evaluate((scroller) => {
@@ -292,6 +307,117 @@ test("a mouse drag scrolls the scene, posters included, and the click that ends 
   await expect(page.getByRole("dialog")).toBeVisible();
 });
 
+/**
+ * The fixture's last film made together (200, 2020) has no neighbour: scrolled to (the end of the axis), a poster of
+ * `layer` (the first one, wherever it is) is slid under it so that half of it, the right half, is covered by a poster of a
+ * nearer layer. Returns the id of the poster that was slid.
+ */
+async function slideBackgroundPosterUnderCollab(page: Page, layer: number) {
+  await page.locator('[data-rail-dot][data-film="200"]').dispatchEvent("click");
+  // The last film is too near the end of the axis to be centred: the scene scrolls to its end, and the film is on screen.
+  await expect.poll(() => scene(page).evaluate((scroller) => scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop)).toBeLessThan(2);
+  return scene(page).evaluate((scroller, layerNumber) => {
+    const frontButton = scroller.querySelector<HTMLElement>('button[data-film="200"]')!;
+    const behind = scroller.querySelector<HTMLElement>(`button[data-layer="${layerNumber}"]`)!;
+    const f = 1000 / (1000 + [-100, 320, 640, 900, 1100][layerNumber]);
+    const a = frontButton.getBoundingClientRect();
+    const b = behind.getBoundingClientRect();
+    // Its centre on the front poster's right edge: the left half is under it, the right half is exposed.
+    behind.closest<HTMLElement>("[data-poster]")!.style.transform =
+      `translate(${(a.left + a.width * 0.9 - (b.left + b.width / 2)) / f}px, ${(a.top + a.height / 2 - (b.top + b.height / 2)) / f}px)`;
+    return behind.dataset.film!;
+  }, layer);
+}
+
+/** The poster's box on screen, and where it can be hovered without a nearer poster in the way (its right edge). */
+const posterBox = (page: Page, id: string) =>
+  scene(page).evaluate((scroller, filmId) => {
+    const box = scroller.querySelector(`button[data-film="${filmId}"]`)!.getBoundingClientRect();
+    return { x: box.left + box.width / 2, y: box.top + box.height / 2, width: box.width, right: box.right };
+  }, id);
+
+/** What `elementFromPoint` finds there: its film, and whether it is the hover copy. */
+const hitAt = (page: Page, x: number, y: number) =>
+  page.evaluate(([px, py]) => {
+    const button = document.elementFromPoint(px, py)?.closest<HTMLElement>("button");
+    return { film: button?.dataset.film ?? null, inCopy: !!button?.closest("[data-pop-layer]") };
+  }, [x, y]);
+
+/** The copy's scale on screen (the `a` of its matrix), or null without one. */
+const copyScale = (page: Page) =>
+  page.evaluate(() => {
+    const copy = document.querySelector("[data-pop-layer] [data-pop]");
+    if (!copy) return null;
+    return Number.parseFloat(getComputedStyle(copy).transform.replace("matrix(", "").split(",")[0]);
+  });
+
+test("a hovered background poster pops forward over the poster of a nearer layer that covers it", async ({ page }) => {
+  await openDepth(page);
+  const id = await slideBackgroundPosterUnderCollab(page, 2);
+  await page.waitForTimeout(200);
+  const box = await posterBox(page, id);
+  // Not hovered: the film made together is what is at the poster's centre.
+  expect((await hitAt(page, box.x, box.y)).film).not.toBe(id);
+
+  const base = box.width / (await scene(page).evaluate((scroller, filmId) => Number.parseFloat((scroller.querySelector(`[data-poster="${filmId}"]`) as HTMLElement).style.width), id));
+  await page.mouse.move(box.right - 4, box.y);
+  const copy = page.locator("[data-pop-layer] [data-pop]");
+  await expect(copy).toHaveCount(1);
+  // It grows (about 1.1) and, settled, is on top: the hit at its centre is its own button, in the copy.
+  await expect.poll(() => copyScale(page)).toBeGreaterThan(base * 1.07);
+  await expect.poll(async () => (await hitAt(page, box.x, box.y)).inCopy).toBe(true);
+  expect((await hitAt(page, box.x, box.y)).film).toBe(id);
+  // The hover card still opens after its own short wait.
+  await expect(page.getByRole("tooltip")).toBeVisible();
+
+  // And settles back when the pointer leaves.
+  await page.mouse.move(box.x - 300, box.y + 200);
+  await expect(copy).toHaveCount(0);
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+});
+
+test("a popped poster opens its film on a click and pans on a drag", async ({ page }) => {
+  await openDepth(page);
+  const id = await slideBackgroundPosterUnderCollab(page, 1);
+  await page.waitForTimeout(200);
+  const box = await posterBox(page, id);
+  await page.mouse.move(box.right - 4, box.y);
+  await expect(page.locator("[data-pop-layer] [data-pop]")).toHaveCount(1);
+  await expect.poll(async () => (await hitAt(page, box.x, box.y)).inCopy).toBe(true);
+
+  // A drag that starts on the copy scrolls the scene and opens nothing.
+  const before = await scene(page).evaluate((scroller) => scroller.scrollTop);
+  await page.mouse.down();
+  // (Down: the scene is at the end of the axis, so it can only scroll back.)
+  await page.mouse.move(box.right - 4, box.y + 120, { steps: 8 });
+  await page.mouse.up();
+  expect(await scene(page).evaluate((scroller) => scroller.scrollTop)).toBeLessThan(before - 100);
+  await page.waitForTimeout(250);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  // A click on it opens the film.
+  const again = await posterBox(page, id);
+  await page.mouse.move(again.right - 4, again.y);
+  await expect(page.locator("[data-pop-layer] [data-pop]")).toHaveCount(1);
+  await page.mouse.click(again.x, again.y);
+  await expect(page.getByRole("dialog")).toBeVisible();
+});
+
+test("keyboard focus pops a background poster too, and reduced motion keeps the stacking without the scale", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openDepth(page);
+  const poster = scene(page).locator('button[data-layer="1"]').first();
+  await poster.focus();
+  // Only keyboard focus shows (a script's focus counts as one when nothing was clicked before it).
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Shift+Tab");
+  await expect(page.locator("[data-pop-layer] [data-pop]")).toHaveCount(1);
+  // No animation and no growth: the copy is at the poster's own scale, drawn above the scene.
+  const base = await poster.evaluate((button) => button.getBoundingClientRect().width / Number.parseFloat((button.closest("[data-poster]") as HTMLElement).style.width));
+  expect(await page.evaluate(() => document.querySelector("[data-pop-layer] [data-pop]")!.getAnimations().length)).toBe(0);
+  expect(await copyScale(page)).toBeCloseTo(base, 3);
+});
+
 test("the people pill opens on a press and closes when the scene scrolls", async ({ page }) => {
   await openDepth(page);
   const button = pill(page);
@@ -361,6 +487,15 @@ test.describe("on a phone", () => {
       x: window.scrollX,
     }));
     expect(overflow).toEqual({ page: 0, x: 0 });
+
+    // A tap on a poster opens its film and makes no hover copy (a finger has no hover).
+    const poster = scene(page).locator("button[data-film]").first();
+    await poster.scrollIntoViewIfNeeded();
+    await poster.tap();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.locator("[data-pop-layer] > *")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toBeHidden();
 
     // A tap opens the card, and it fits the screen.
     await pill(page).tap();

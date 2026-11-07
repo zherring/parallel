@@ -133,7 +133,7 @@ export interface DepthFilm {
 }
 
 export interface DepthLayout {
-  /** Every film, layer by layer (the tab order), each layer top to bottom. */
+  /** Every film, layer by layer (the tab order and, within a layer, the paint order: later lies over earlier), each layer top to bottom. */
   films: DepthFilm[];
   scale: Scale;
   /** Height (px) of the scroll area: it follows every film, never layer 0 alone, so a page with nothing shared still scrolls. */
@@ -403,7 +403,9 @@ export function depthLayout(
       });
     }
   }
-  films.sort((a, b) => a.layer - b.layer || a.y - b.y || a.film.id - b.film.id);
+  // Within a layer, later in time lies on top of earlier (the list's order is the paint order), and on a tie the higher column
+  // does: overlapping posters read as stacked cards in a stable order, whatever the viewport.
+  films.sort((a, b) => a.layer - b.layer || a.y - b.y || a.col - b.col || a.film.id - b.film.id);
 
   return {
     films,

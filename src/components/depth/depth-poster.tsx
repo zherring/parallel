@@ -38,19 +38,6 @@ function accessibleName(title: string, year: number, roles: string, note: string
 
 const round = (value: number) => Math.round(value * 100) / 100;
 
-/**
- * A film several people made floats above the scene: a green ring and a strong glow, a tight contact shadow, a nearer soft
- * one and a wide ambient one thrown down and away, in near-black (the posters it covers go darker under it). The layers
- * are drawn in front of everything else, so the shadow lands on whatever poster is behind.
- */
-const COLLAB_SHADOW = [
-  "0 0 0 2px var(--lit)",
-  "0 0 34px 8px rgb(0 224 84 / 0.55)",
-  "0 2px 3px rgb(0 0 0 / 0.8)",
-  "0 12px 24px -4px rgb(0 0 0 / 0.65)",
-  "0 44px 72px -12px rgb(0 0 0 / 0.6)",
-].join(",");
-
 /** The title in a box, for a film TMDB has no poster of. */
 function TitleFace({ title }: { title: string }) {
   return (
@@ -118,17 +105,19 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
         // The focus ring is drawn on the poster inside; the global :focus-visible outline is unlayered CSS and would beat a plain utility.
         className="group pointer-events-auto relative block size-full cursor-pointer text-left focus-visible:outline-none!"
       >
-        {/* The poster rises a little as it comes into focus (not for reduced motion). */}
+        {/* The poster rises a little as it comes into focus (not for reduced motion). It is the card the layered shadows hang from (globals.css). */}
         <span
+          data-poster-card
+          data-collab={shared ? "" : undefined}
           className={cn(
-            "block size-full",
+            "relative block size-full",
             soft && "transition-transform duration-100 [transform:translateY(calc(var(--focus)_*_-6px))] motion-reduce:transform-none motion-reduce:transition-none",
           )}
         >
           {ring !== null && ringColor !== null && (
             <span
               aria-hidden
-              className="absolute rounded-[6px]"
+              className="absolute rounded-[5px]"
               style={{
                 inset: 0,
                 boxShadow: `0 0 18px 2px ${personGlow(ring)}`,
@@ -138,11 +127,12 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
           )}
           <span
             className={cn(
-              "relative block size-full overflow-hidden rounded-[4px] bg-surface",
+              "relative block size-full overflow-hidden rounded-[5px] bg-surface",
               selected && "outline outline-2 outline-offset-2 outline-strong",
               "group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-focus",
             )}
-            style={shared ? { boxShadow: COLLAB_SHADOW } : ringColor !== null ? { boxShadow: `0 0 0 1.5px ${ringColor}` } : undefined}
+            // The ring only: the glow and the shadows are under the card (globals.css), so a ring and a shadow never paint over each other.
+            style={shared ? { boxShadow: "0 0 0 2px var(--lit)" } : ringColor !== null ? { boxShadow: `0 0 0 1.5px ${ringColor}` } : undefined}
           >
             {soft &&
               (softSrc ? (
@@ -189,7 +179,14 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
             )}
             <span
               aria-hidden
-              className={cn("pointer-events-none absolute inset-0 rounded-[4px] border", upcoming ? "border-dashed border-muted" : "border-strong/20")}
+              // A light edge inside the poster, so a dark poster has an outline against the dark scene and another dark poster
+              // (dashed for a film that is not out yet).
+              className={cn(
+                "pointer-events-none absolute inset-0 rounded-[5px]",
+                upcoming
+                  ? "border border-dashed border-muted"
+                  : "[box-shadow:inset_0_0_0_1px_rgb(255_255_255/0.14),inset_0_1px_0_rgb(255_255_255/0.12)]",
+              )}
             />
             {upcoming && (
               <span
