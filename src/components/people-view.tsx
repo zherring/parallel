@@ -85,7 +85,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
   const soloRows = useMemo(() => (multi ? [] : personRows(timelines[0], includeMinor)), [multi, timelines, includeMinor]);
   // Films whose every credit is minor: what the toggle would add to an otherwise empty list.
   const soloMinorExtra = !multi && !includeMinor && soloRows.length === 0 ? timelines[0].films.length : 0;
-  const litIds = useMemo(() => new Set(sharedNow.map((film) => film.id)), [sharedNow]);
 
   const lanes: LaneData[] = useMemo(
     () =>
@@ -236,7 +235,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
           : undefined
       }
       people={people}
-      litIds={litIds}
       includeMinor={includeMinor}
       today={today}
       selectedId={selectedId}

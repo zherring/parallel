@@ -124,8 +124,6 @@ interface TimelineProps {
    * and the minimap. A one-person page has no colours to tell apart.
    */
   people: PersonRef[];
-  /** Ids of released films shared by every lane (with the current minor setting). */
-  litIds: ReadonlySet<number>;
   includeMinor: boolean;
   /**
    * yyyy-mm-dd (UTC), the one date the page computed on the server: a film released after it is
@@ -208,7 +206,6 @@ export function Timeline({
   sidebar,
   sidebarExpanded = false,
   people,
-  litIds,
   includeMinor,
   today,
   selectedId,
@@ -320,6 +317,10 @@ export function Timeline({
     const connectorLanes = items.map((laneItems, index) => ({ box: stack[index], items: laneItems }));
     const connectors = buildConnectors(connectorLanes, today);
     const membership = filmMembership(connectorLanes, today);
+    // Released films every lane shows. With people hidden that is shared among the visible ones
+    // only, like the green treatment; the page's own all-people set would anchor on a film a
+    // hidden person was part of.
+    const litNow = new Set([...membership].filter(([, shownIn]) => shownIn.length === trackLanes.length).map(([id]) => id));
 
     // The kind of connection, the colour and the screen-reader note of each film shown in more than one lane.
     const names = trackLanes.map((lane) => shortName(lane.person.name, lane.person.id));
@@ -353,12 +354,13 @@ export function Timeline({
       keys,
       accents,
       notes,
-      // The combined track starts at the first film several people made, when there is one.
+      // The combined track starts at the first film several people made, when there is one;
+      // the separate lanes at the first film every visible lane shows.
       anchorX: isCombined
         ? (items[0].find((item) => priorityIds.has(item.film.id))?.x ?? null)
-        : initialAnchorX(items, litIds),
+        : initialAnchorX(items, litNow),
     };
-  }, [entries, showAll, isCombined, lanes, litIds, pxPerYear, today, trackLanes]);
+  }, [entries, showAll, isCombined, lanes, pxPerYear, today, trackLanes]);
 
   const { scale, width, boxes } = layout;
 
