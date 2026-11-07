@@ -60,7 +60,7 @@ export function roleForJob(job: string): RoleKey {
  * videos and featurettes (anything under 40 minutes or flagged as a video), cameos,
  * uncredited and archive appearances, and non-key crew jobs.
  */
-export const MINOR_TOGGLE_LABEL = "Include shorts, music videos, cameos & uncredited";
+export const MINOR_TOGGLE_LABEL = "Show shorts, music videos, cameos and uncredited";
 
 /** Cast credits whose character text marks a walk-on, archive clip or self appearance. */
 export const MINOR_CHARACTER_PATTERN =

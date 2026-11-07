@@ -3,11 +3,10 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import type { PairClippings } from "@/lib/clippings";
 import type { TableRow } from "@/lib/film-rows";
-import { availableViews, isFilmView, showingMessage, showsPeriodNote, type View } from "@/lib/films-view";
+import { availableViews, isFilmView, showsPeriodNote, type View } from "@/lib/films-view";
 import type { ShareInput } from "@/lib/share";
 import { ClippingsPanel } from "./clippings-panel";
 import { FilmsTable } from "./films-table";
-import { MinorToggle } from "./minor-toggle";
 import { ShareActions } from "./share-actions";
 import { useFilmsTable } from "./use-films-table";
 import { useViewTab } from "./use-view-tab";
@@ -16,9 +15,7 @@ import { ViewTabs, viewPanelId, viewTabId } from "./view-tabs";
 interface FilmsSectionProps {
   /** The id of the section's (visually hidden) heading, which names it for assistive technology; also the prefix of the tab ids. */
   headingId: string;
-  /** How many films the table lists, for the checkbox's message (the page headline carries the same number). */
-  count: number;
-  /** The films are the ones several people made together: it words the section's heading and the checkbox's message. */
+  /** The films are the ones several people made together: it words the section's heading. */
   together: boolean;
   rows: TableRow[];
   /** Names in lane order, for the CSV file name. */
@@ -35,9 +32,8 @@ interface FilmsSectionProps {
   empty: ReactNode;
   /** The Timeline tab: the legend, the lanes and the pinned bottom bar. */
   timeline: ReactNode;
-  /** The minor-credits checkbox under the panels; it filters the lanes and the table alike. */
-  includeMinor: boolean;
-  onIncludeMinorChange: (next: boolean) => void;
+  /** The same film preferences as the timeline, accessible from the Table toolbar too. */
+  settingsControl: ReactNode;
   onSelect: (id: number, trigger: HTMLElement) => void;
   /** The pair's quotes about each other, which add a Clippings tab; none (the default) for a page without any. */
   clippings?: PairClippings | null;
@@ -48,10 +44,10 @@ interface FilmsSectionProps {
 /**
  * The films of a page as one section with two views, Timeline and Table, shown one at a time as
  * tabs: the tabs and Export and Share on one row (the section's heading is for screen readers; the
- * page headline above carries the film count), then the selected view, the minor-credits checkbox
- * and the small note about where the numbers come from. A pair with curated quotes (`clippings`)
- * has a third tab, Clippings; it is not about the films, so while it is selected the period note,
- * Export, the checkbox and the note are left out (Share stays).
+ * page headline above carries the film count), then the selected view and the small source note.
+ * Preferences live in the timeline's gear or, for Table, beside its tabs. A pair with curated quotes
+ * (`clippings`) has a third tab, Clippings; it is not about the films, so while it is selected the
+ * period note, Export, the settings control and the source note are left out (Share stays).
  *
  * The panels are always mounted (the server renders them all, the inactive ones `hidden`): the table's
  * film titles and credits are in the HTML whichever tab is selected, and the timeline keeps its
@@ -61,7 +57,6 @@ interface FilmsSectionProps {
  */
 export function FilmsSection({
   headingId,
-  count,
   together,
   rows,
   names,
@@ -71,8 +66,7 @@ export function FilmsSection({
   today,
   empty,
   timeline,
-  includeMinor,
-  onIncludeMinorChange,
+  settingsControl,
   onSelect,
   clippings = null,
   children,
@@ -117,6 +111,7 @@ export function FilmsSection({
           share={share}
           showExport={isFilmView(view)}
         />
+        {view === "table" && <div className="ml-auto sm:ml-0">{settingsControl}</div>}
       </div>
 
       {rows.length === 0 && isFilmView(view) && <p className="mt-4 max-w-xl text-body">{empty}</p>}
@@ -155,13 +150,8 @@ export function FilmsSection({
       )}
 
       <div hidden={!isFilmView(view)} className="mt-5">
-        <MinorToggle
-          checked={includeMinor}
-          onChange={onIncludeMinorChange}
-          message={showingMessage(count, together)}
-        />
         {rows.length > 0 && (
-          <p className="mt-3 text-xs text-muted">
+          <p className="text-xs text-muted">
             Rating and box office from TMDB: the audience score, and the worldwide gross with how many times it covered
             the budget. Awards are Oscars and major festival prizes.
           </p>

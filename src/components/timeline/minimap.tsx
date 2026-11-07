@@ -22,6 +22,7 @@ import {
   scrollPercent,
   visibleYears,
   windowRect,
+  type MinimapFilm,
   type ScrollGeometry,
 } from "@/lib/minimap";
 import type { Period, YearSpan } from "@/lib/period";
@@ -58,13 +59,6 @@ const NODE_DRAG_SLOP = 4;
  */
 export const MINIMAP_BRUSH_ENABLED = false;
 
-export interface MinimapFilm {
-  id: number;
-  title: string;
-  year: number;
-  releaseDate: string;
-}
-
 /** The period brush: what the bar needs to let a visitor pick the years to share by dragging on it. */
 export interface MinimapBrush {
   /** First and last year of the films a period is cut from; the brush stays inside it. Null without films: no brush. */
@@ -93,14 +87,14 @@ const toExtent = (band: { left: number; right: number }, width: number): Extent 
 interface MinimapBarProps {
   /** The timeline's scrolling container; the minimap reads and writes its scrollLeft. */
   scrollerRef: RefObject<HTMLDivElement | null>;
-  /** The sticky lane-header corner, whose width is hidden under the header and not part of the track. */
+  /** The axis's left spacer: the sticky lane header or room reserved for the floating People panel. */
   cornerRef: RefObject<HTMLDivElement | null>;
   /** id of the scroller, for aria-controls. */
   scrollerId: string;
   scale: Scale;
   /** Films shared by every lane: green nodes you can click (2+ lanes). */
   sharedFilms: MinimapFilm[];
-  /** Muted ticks, one per film; shown when there are no shared films so the bar is never empty. */
+  /** Ticks, one per film (muted unless a film has a colour); shown when there are no shared films so the bar is never empty. */
   filmTicks: MinimapFilm[];
   /** The period brush; without it the bar is only a scrollbar. */
   brush?: MinimapBrush;
@@ -276,7 +270,10 @@ export function MinimapBar({
     () => sharedFilms.map((film) => ({ film, fraction: dateFraction(scale, film.releaseDate) })).sort((a, b) => a.fraction - b.fraction),
     [sharedFilms, scale],
   );
-  const tickMarks = useMemo(() => filmTicks.map((film) => dateFraction(scale, film.releaseDate)), [filmTicks, scale]);
+  const tickMarks = useMemo(
+    () => filmTicks.map((film) => ({ fraction: dateFraction(scale, film.releaseDate), color: film.color })),
+    [filmTicks, scale],
+  );
 
   const setScrollLeft = (value: number) => {
     const scroller = scrollerRef.current;
@@ -591,14 +588,22 @@ export function MinimapBar({
                   )}
                 </span>
               ))}
-              {!showNodes &&
-                tickMarks.map((fraction, index) => (
+              {/* Beside the green nodes only the coloured ticks stay (the combined timeline's films of one person). */}
+              {tickMarks.map(({ fraction, color }, index) =>
+                color ? (
+                  <span
+                    key={index}
+                    className="absolute top-1.5 h-2 w-0.5 -translate-x-1/2 rounded-full"
+                    style={{ left: `${fraction * 100}%`, backgroundColor: color }}
+                  />
+                ) : !showNodes ? (
                   <span
                     key={index}
                     className="absolute top-1.5 h-2 w-px bg-muted/70"
                     style={{ left: `${fraction * 100}%` }}
                   />
-                ))}
+                ) : null,
+              )}
             </div>
 
             <div
@@ -631,7 +636,7 @@ export function MinimapBar({
                   className="group absolute top-0 z-10 flex h-[62%] w-4 -translate-x-1/2 cursor-pointer items-center justify-center"
                   style={{ left: `${fraction * 100}%` }}
                 >
-                  <span className="size-2 rounded-full bg-lit shadow-[0_0_6px_var(--lit-glow)] ring-1 ring-canvas group-hover:scale-125" />
+                  <span className="h-3.5 w-1 rounded-full bg-lit shadow-[0_0_8px_var(--lit-glow)] group-hover:h-4" />
                 </button>
               ))}
 
