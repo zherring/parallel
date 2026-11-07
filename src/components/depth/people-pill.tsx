@@ -4,13 +4,11 @@ import { ChevronDown, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { HomeLink } from "@/components/home-link";
 import { REDUCED_MOTION, useMediaQuery } from "@/components/depth/use-media";
 import { springEasing } from "@/components/landing/hero-motion";
 import { PersonAvatar } from "@/components/person-avatar";
 import { PersonSearch } from "@/components/person-search/person-search";
 import { cn } from "@/components/timeline/cn";
-import { Wordmark } from "@/components/wordmark";
 import { flatSearch } from "@/lib/depth-url";
 import { filmCountLabel, joinNames } from "@/lib/format";
 import { personColor } from "@/lib/person-colors";
@@ -62,8 +60,8 @@ function headRects(root: ParentNode, attribute: string): Map<string, DOMRect> {
 }
 
 /**
- * The people on the page, folded into a pill at the top left: their overlapping heads (in their colours) with the
- * wordmark, which is the way home. Tapping the heads opens a floating card: each person's row, the key to the green, a
+ * The people on the page, folded into a pill at the top left: their overlapping heads (in their colours) and names,
+ * with no logo. Tapping the heads opens a floating card: each person's row, the key to the green, a
  * field to add someone and the way back to the flat timeline. The heads fly apart into their rows when it opens and fly
  * back together when it closes (a FLIP animation with the hero's spring, on the compositor; none for reduced motion).
  * While it is open the capsule says "People" with a close icon where the heads were, so it never looks emptied out; it
@@ -226,7 +224,7 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
   const shown = phase !== "closed";
 
   return (
-    <div ref={rootRef} className="fixed left-3 top-3 z-30 max-w-[calc(100vw-3rem)]">
+    <div ref={rootRef} data-people-pill className="fixed left-3 top-3 z-30 max-w-[calc(100vw-3rem)]">
       <div className="inline-flex max-w-full items-center rounded-full border border-border bg-canvas/80 p-1 backdrop-blur-md supports-[backdrop-filter]:bg-canvas/70">
         <button
           ref={buttonRef}
@@ -279,10 +277,6 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
             )}
           </span>
         </button>
-        <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
-        <HomeLink className="shrink-0 rounded-full px-2.5 py-1 no-underline hover:bg-surface/60">
-          <Wordmark className="text-lg" />
-        </HomeLink>
       </div>
 
       {shown && (

@@ -73,6 +73,10 @@ test("the people pill opens on a press and closes when the scene scrolls", async
   await expect(button).toHaveAttribute("aria-expanded", "false");
   await expect(peopleCard(page)).toHaveCount(0);
   await expect(button.locator("[data-pill-open]")).toHaveCount(0);
+  // The pill carries no logo or home link, closed or open.
+  const bubble = page.locator("[data-people-pill]");
+  await expect(bubble).not.toContainText("Parallel");
+  await expect(bubble.locator('a[href="/"]')).toHaveCount(0);
 
   await button.click();
   await expect(button).toHaveAttribute("aria-expanded", "true");
@@ -80,6 +84,8 @@ test("the people pill opens on a press and closes when the scene scrolls", async
   await expect(card).toBeVisible();
   // The capsule says what the card is where the heads were (they have flown into its rows).
   await expect(button.locator("[data-pill-open]")).toContainText("People");
+  await expect(bubble).not.toContainText("Parallel");
+  await expect(bubble.locator('a[href="/"]')).toHaveCount(0);
   await expect(card.getByRole("link", { name: "Remove Scroll Alpha", exact: true })).toHaveAttribute("href", /view=depth/);
   await expect(card.getByRole("link", { name: "Flat timeline", exact: true })).not.toHaveAttribute("href", /view=/);
 
