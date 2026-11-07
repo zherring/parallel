@@ -95,13 +95,13 @@ body {
  * The films several people made are the heaviest: no glow (green is only a crisp 2px ring on the poster itself), but a dark
  * outline outside that ring and a deep, layered shadow (contact, tight, mid, a large one thrown down and a wide dark pool all round,
  * reaching 80px and more) that clearly darkens every poster within 40 to 60px of a collaboration, so the films several people made
- * stand apart from a dense cluster of posters behind them. While a poster pops forward on hover (`usePosterPop` marks its copy `data-pop`; a film made
- * together deepens while its button is hovered or focused) a larger, softer shadow on the ::after fades in: opacity is the only
- * thing that animates, and the shadows themselves are painted once. A phone gets shorter blurs (they are what costs there).
+ * stand apart from a dense cluster of posters behind them. A film made together deepens while its button is hovered or focused: a larger,
+ * softer shadow on the ::after fades in (opacity is the only thing that animates, and the shadows themselves are painted once). The posters
+ * behind keep their resting shadow when hovered: they brighten (see `data-pinned` below), they do not come forward. A phone gets shorter
+ * blurs (they are what costs there).
  */
 :root {
   --depth-shadow-rest: 0 1px 2px rgb(0 0 0 / 0.6), 0 8px 24px rgb(0 0 0 / 0.55);
-  --depth-shadow-lift: 0 2px 4px rgb(0 0 0 / 0.5), 0 22px 48px rgb(0 0 0 / 0.6);
   --depth-shadow-collab: 0 0 0 3px rgb(0 0 0 / 0.6), 0 4px 8px rgb(0 0 0 / 0.8), 0 18px 36px rgb(0 0 0 / 0.75),
     0 40px 80px -8px rgb(0 0 0 / 0.85), 0 0 80px 32px rgb(0 0 0 / 0.72);
   --depth-shadow-collab-lift: 0 0 0 3px rgb(0 0 0 / 0.65), 0 6px 12px rgb(0 0 0 / 0.85), 0 24px 48px rgb(0 0 0 / 0.8),
@@ -110,7 +110,6 @@ body {
 @media (max-width: 639px) {
   :root {
     --depth-shadow-rest: 0 1px 2px rgb(0 0 0 / 0.6), 0 5px 14px rgb(0 0 0 / 0.55);
-    --depth-shadow-lift: 0 2px 4px rgb(0 0 0 / 0.5), 0 14px 28px rgb(0 0 0 / 0.6);
     --depth-shadow-collab: 0 0 0 3px rgb(0 0 0 / 0.6), 0 3px 6px rgb(0 0 0 / 0.8), 0 12px 24px rgb(0 0 0 / 0.75),
       0 26px 52px -5px rgb(0 0 0 / 0.85), 0 0 52px 21px rgb(0 0 0 / 0.72);
     --depth-shadow-collab-lift: 0 0 0 3px rgb(0 0 0 / 0.65), 0 4px 8px rgb(0 0 0 / 0.85), 0 16px 32px rgb(0 0 0 / 0.8),
@@ -121,7 +120,7 @@ body {
   isolation: isolate;
 }
 [data-poster-card]::before,
-[data-poster-card]::after {
+[data-poster-card][data-collab]::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -135,25 +134,33 @@ body {
 [data-poster-card][data-collab]::before {
   box-shadow: var(--depth-shadow-collab);
 }
-[data-poster-card]::after {
-  box-shadow: var(--depth-shadow-lift);
+[data-poster-card][data-collab]::after {
+  box-shadow: var(--depth-shadow-collab-lift);
   opacity: 0;
   transition: opacity 240ms ease-out;
 }
-[data-poster-card][data-collab]::after {
-  box-shadow: var(--depth-shadow-collab-lift);
-}
-[data-pop] [data-poster-card]::after,
 button:hover > [data-poster-card][data-collab]::after,
 button:focus-visible > [data-poster-card][data-collab]::after {
   opacity: 1;
 }
-/* A copy that has popped is lifted by its own animation (usePosterPop): not twice, by the rise a soft poster has as it comes into focus. */
-[data-pop] [data-poster-card] {
-  transform: none;
+@media (prefers-reduced-motion: reduce) {
+  [data-poster-card][data-collab]::after {
+    transition: none;
+  }
+}
+
+/*
+ * A background poster the pointer is on, or that has keyboard focus (`DepthScene` marks its `li` `data-pinned`), is at full opacity and fully
+ * sharp: its `--focus` is pinned to 1 over whatever the focus field wrote on it (an `!important` custom property beats the inline one the field sets
+ * every frame, so the field and the pin never fight). The opacity eases in over 150ms (only while pinned: the field's own per-frame
+ * writes must not each start a transition); the sharp image fades on its own transition. It does not move, grow or leave its place in the stack.
+ */
+[data-poster][data-pinned] {
+  --focus: 1 !important;
+  transition: opacity 150ms ease-out;
 }
 @media (prefers-reduced-motion: reduce) {
-  [data-poster-card]::after {
+  [data-poster][data-pinned] {
     transition: none;
   }
 }

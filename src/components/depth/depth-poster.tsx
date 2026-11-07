@@ -109,7 +109,8 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
         // started on every one of those frames, for every poster in view, added about a tenth to a frame's main-thread time (a page of three, 4x CPU throttle). The dimming of a period fades.
         (!soft || dimmed) && "transition-[opacity,filter] duration-150 motion-reduce:transition-none",
         dimmed && "opacity-25 grayscale",
-        // Keyboard focus takes a poster to full opacity, as it sharpens it (the inline opacity needs the `!`).
+        // Keyboard focus takes a poster to full opacity, as it sharpens it (the inline opacity needs the `!`). A hover or keyboard focus also
+        // marks the `li` `data-pinned` (see `DepthScene`), which pins `--focus` to 1 over the focus field's (globals.css).
         soft && !dimmed && "has-[button:focus-visible]:opacity-100!",
       )}
       style={style}
@@ -126,15 +127,8 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
         // The focus ring is drawn on the poster inside; the global :focus-visible outline is unlayered CSS and would beat a plain utility.
         className="group pointer-events-auto relative block size-full cursor-pointer text-left focus-visible:outline-none!"
       >
-        {/* The poster rises a little as it comes into focus (not for reduced motion). It is the card the layered shadows hang from (globals.css). */}
-        <span
-          data-poster-card
-          data-collab={shared ? "" : undefined}
-          className={cn(
-            "relative block size-full",
-            soft && "transition-transform duration-100 [transform:translateY(calc(var(--focus)_*_-6px))] motion-reduce:transform-none motion-reduce:transition-none",
-          )}
-        >
+        {/* The card the layered shadows hang from (globals.css). It stays where it is as it comes into focus: sharper and brighter, not lifted. */}
+        <span data-poster-card data-collab={shared ? "" : undefined} className="relative block size-full">
           {ring !== null && ringColor !== null && (
             <span
               aria-hidden

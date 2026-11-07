@@ -353,66 +353,93 @@ const posterBox = (page: Page, id: string) =>
     return { x: box.left + box.width / 2, y: box.top + box.height / 2, width: box.width, right: box.right };
   }, id);
 
-/** What `elementFromPoint` finds there: its film, and whether it is the hover copy. */
+/** The film of the button `elementFromPoint` finds there (null if none). */
 const hitAt = (page: Page, x: number, y: number) =>
-  page.evaluate(([px, py]) => {
-    const button = document.elementFromPoint(px, py)?.closest<HTMLElement>("button");
-    return { film: button?.dataset.film ?? null, inCopy: !!button?.closest("[data-pop-layer]") };
-  }, [x, y]);
+  page.evaluate(([px, py]) => document.elementFromPoint(px, py)?.closest<HTMLElement>("button")?.dataset.film ?? null, [x, y]);
 
-/** How the hover copy looks: its opacity, its `--focus` and the opacity of its sharp image over the soft one. */
-const copyLook = (page: Page) =>
-  page.evaluate(() => {
-    const copy = document.querySelector<HTMLElement>("[data-pop-layer] [data-pop]")!;
-    const sharp = copy.querySelector<HTMLElement>('img[data-window="sharp"]')!;
-    return { opacity: getComputedStyle(copy).opacity, focus: copy.style.getPropertyValue("--focus"), sharp: getComputedStyle(sharp).opacity };
-  });
+/** How a poster is drawn: its `li`'s computed `--focus` and opacity, the sharp image's opacity, the card's transform and the poster's box on screen. */
+const drawnAs = (page: Page, id: string) =>
+  scene(page).evaluate((scroller, filmId) => {
+    const li = scroller.querySelector<HTMLElement>(`[data-poster="${filmId}"]`)!;
+    const sharp = li.querySelector<HTMLElement>('img[data-window="sharp"]')!;
+    const card = li.querySelector<HTMLElement>("[data-poster-card]")!;
+    const box = li.querySelector("button")!.getBoundingClientRect();
+    return {
+      pinned: li.hasAttribute("data-pinned"),
+      focus: Number(getComputedStyle(li).getPropertyValue("--focus")),
+      opacity: Number(getComputedStyle(li).opacity),
+      sharp: Number(getComputedStyle(sharp).opacity),
+      cardTransform: getComputedStyle(card).transform,
+      liTransform: li.style.transform,
+      box: [box.left, box.top, box.width, box.height].map((value) => Math.round(value * 100) / 100),
+    };
+  }, id);
 
-/** The copy's scale on screen (the `a` of its matrix), or null without one. */
-const copyScale = (page: Page) =>
-  page.evaluate(() => {
-    const copy = document.querySelector("[data-pop-layer] [data-pop]");
-    if (!copy) return null;
-    return Number.parseFloat(getComputedStyle(copy).transform.replace("matrix(", "").split(",")[0]);
-  });
+test("hovering a background poster brings it to full opacity and sharpness where it is: no growth, no lift, no copy, and its card opens", async ({ page }) => {
+  await openDepth(page);
+  // The most obscure film of the page: 0.45 at rest and soft, on its layer's plane 320px further back.
+  const centre = await scrollToCentre(page, 1014);
+  const rest = await drawnAs(page, "1014");
+  expect(rest).toMatchObject({ pinned: false, focus: 0 });
+  expect(rest.opacity).toBeCloseTo(0.45, 2);
+  expect(rest.liTransform).toBe("translateZ(-320px)");
 
-test("a hovered background poster pops forward over the poster of a nearer layer that covers it", async ({ page }) => {
+  await page.mouse.move(centre.x, centre.y);
+  await expect.poll(async () => (await drawnAs(page, "1014")).opacity).toBeCloseTo(1, 2);
+  // (The sharp image fades in over 100ms.)
+  await expect.poll(async () => (await drawnAs(page, "1014")).sharp).toBeCloseTo(1, 2);
+  const hovered = await drawnAs(page, "1014");
+  expect(hovered).toMatchObject({ pinned: true, focus: 1 });
+  // Where it is: the same box, depth and card transform (none: it is not scaled or lifted), and there is no copy of it over the scene.
+  expect(hovered.box).toEqual(rest.box);
+  expect(hovered.liTransform).toBe(rest.liTransform);
+  expect(hovered.cardTransform).toBe("none");
+  await expect(page.locator("[data-pop-layer]")).toHaveCount(0);
+
+  // The hover card still opens after its own short wait, next to the poster.
+  const card = page.getByRole("tooltip");
+  await expect(card).toBeVisible();
+  const cardBox = (await card.boundingBox())!;
+  expect(Math.abs(cardBox.x + cardBox.width / 2 - (rest.box[0] + rest.box[2] / 2))).toBeLessThan(2);
+
+  // Leaving it lets it fall back to rest, and the card goes.
+  await page.mouse.move(20, 80);
+  await expect.poll(async () => (await drawnAs(page, "1014")).opacity).toBeCloseTo(0.45, 2);
+  expect((await drawnAs(page, "1014")).pinned).toBe(false);
+  await expect(card).toHaveCount(0);
+});
+
+test("a film made together that covers a hovered background poster still wins the overlap: the poster stays behind it", async ({ page }) => {
   await openDepth(page);
   const id = await slideBackgroundPosterUnderCollab(page, 2);
   await page.waitForTimeout(200);
   const box = await posterBox(page, id);
-  // Not hovered: the film made together is what is at the poster's centre.
-  expect((await hitAt(page, box.x, box.y)).film).not.toBe(id);
+  // Under the film made together (200): its centre is covered, whatever is hovered.
+  expect(await hitAt(page, box.x, box.y)).toBe("200");
+  const rest = await drawnAs(page, id);
 
-  const base = box.width / (await scene(page).evaluate((scroller, filmId) => Number.parseFloat((scroller.querySelector(`[data-poster="${filmId}"]`) as HTMLElement).style.width), id));
+  // Hovered where it shows (its right edge): bright and sharp, but not forward and not bigger.
   await page.mouse.move(box.right - 4, box.y);
-  const copy = page.locator("[data-pop-layer] [data-pop]");
-  await expect(copy).toHaveCount(1);
-  // It grows (about 1.1) and, settled, is on top: the hit at its centre is its own button, in the copy.
-  await expect.poll(() => copyScale(page)).toBeGreaterThan(base * 1.07);
-  await expect.poll(async () => (await hitAt(page, box.x, box.y)).inCopy).toBe(true);
-  expect((await hitAt(page, box.x, box.y)).film).toBe(id);
-  // The copy is at full opacity and fully sharp, whatever the film's obscurity.
-  expect(await copyLook(page)).toEqual({ opacity: "1", focus: "1", sharp: "1" });
-  // The hover card still opens after its own short wait.
+  await expect.poll(async () => (await drawnAs(page, id)).opacity).toBeCloseTo(1, 2);
+  const hovered = await drawnAs(page, id);
+  expect(hovered).toMatchObject({ pinned: true, focus: 1, cardTransform: "none", liTransform: rest.liTransform });
+  expect(hovered.box).toEqual(rest.box);
+  await expect(page.locator("[data-pop-layer]")).toHaveCount(0);
+  // The film made together still wins `elementFromPoint` in the overlap area, hovered or not.
+  expect(await hitAt(page, box.x, box.y)).toBe("200");
+  expect(await hitAt(page, box.right - 4, box.y)).toBe(id);
   await expect(page.getByRole("tooltip")).toBeVisible();
-
-  // And settles back when the pointer leaves.
-  await page.mouse.move(box.x - 300, box.y + 200);
-  await expect(copy).toHaveCount(0);
-  await expect(page.getByRole("tooltip")).toHaveCount(0);
 });
 
-test("a popped poster opens its film on a click and pans on a drag", async ({ page }) => {
+test("a background poster opens its film on a click, and a drag that starts on it pans", async ({ page }) => {
   await openDepth(page);
   const id = await slideBackgroundPosterUnderCollab(page, 1);
   await page.waitForTimeout(200);
   const box = await posterBox(page, id);
   await page.mouse.move(box.right - 4, box.y);
-  await expect(page.locator("[data-pop-layer] [data-pop]")).toHaveCount(1);
-  await expect.poll(async () => (await hitAt(page, box.x, box.y)).inCopy).toBe(true);
+  await expect.poll(async () => (await drawnAs(page, id)).pinned).toBe(true);
 
-  // A drag that starts on the copy scrolls the scene and opens nothing.
+  // A drag that starts on it scrolls the scene and opens nothing; the poster is not left bright after the drag started.
   const before = await scene(page).evaluate((scroller) => scroller.scrollTop);
   await page.mouse.down();
   // (Down: the scene is at the end of the axis, so it can only scroll back.)
@@ -422,11 +449,9 @@ test("a popped poster opens its film on a click and pans on a drag", async ({ pa
   await page.waitForTimeout(250);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  // A click on it opens the film.
+  // A click on its visible part opens the film.
   const again = await posterBox(page, id);
-  await page.mouse.move(again.right - 4, again.y);
-  await expect(page.locator("[data-pop-layer] [data-pop]")).toHaveCount(1);
-  await page.mouse.click(again.x, again.y);
+  await page.mouse.click(again.right - 4, again.y);
   await expect(page.getByRole("dialog")).toBeVisible();
 });
 
@@ -520,7 +545,7 @@ test("a poster is drawn where its own depth puts it: its size and place follow i
   expect(Math.abs(a - b)).toBeGreaterThan(20);
 });
 
-/** A point `distance` px from (x, y) with no poster under it (so hovering there pops nothing), on the screen: the first of the directions that is free. */
+/** A point `distance` px from (x, y) with no poster under it (so hovering there brightens nothing), on the screen: the first of the directions that is free. */
 const freeSpot = (page: Page, x: number, y: number, distance: number) =>
   page.evaluate(
     ([cx, cy, d]) => {
@@ -541,7 +566,7 @@ test("the pointer near a poster brings it to full opacity and sharpness, whateve
   const center = await scrollToCentre(page, 1014);
   expect((await lookOf(page, 1014)).opacity).toBeCloseTo(0.45, 2);
 
-  // Beside it (within the field's sharp inner radius, 77px, but not on it: nothing pops): the most obscure film is at full opacity and sharp.
+  // Beside it (within the field's sharp inner radius, 77px, but not on it: it is not hovered): the most obscure film is at full opacity and sharp.
   const beside = (await freeSpot(page, center.x, center.y, center.width / 2 + 24))!;
   expect(beside).not.toBeNull();
   await page.mouse.move(beside.x, beside.y);
@@ -549,7 +574,7 @@ test("the pointer near a poster brings it to full opacity and sharpness, whateve
   await expect.poll(async () => (await lookOf(page, 1014)).opacity).toBeCloseTo(1, 2);
   // (The sharp image fades in over 100ms.)
   await expect.poll(() => region.locator('[data-poster="1014"] img[data-window="sharp"]').evaluate((image) => Number(getComputedStyle(image).opacity))).toBeCloseTo(1, 2);
-  await expect(page.locator("[data-pop-layer] [data-pop]")).toHaveCount(0);
+  await expect(scene(page).locator("[data-pinned]")).toHaveCount(0);
 
   // Far from every poster: back to rest, 0.45.
   await page.mouse.move(20, 80);
@@ -576,16 +601,16 @@ test("the pointer near a poster brings it to full opacity and sharpness, whateve
   await page.mouse.move(20, 80);
   await expect.poll(async () => (await lookOf(page, 1000)).opacity).toBeCloseTo(0.8, 2);
 
-  // On it: the poster pops (a copy at full opacity, sharp, over everything), and a move over the copy keeps the field on it.
+  // On it: the poster is pinned bright (the field's own writes do not undo it), and a move on it keeps it so.
   const on = await scrollToCentre(page, 1014);
   await page.mouse.move(on.x, on.y);
-  await expect(page.locator("[data-pop-layer] [data-pop]")).toHaveCount(1);
-  expect(await copyLook(page)).toEqual({ opacity: "1", focus: "1", sharp: "1" });
+  await expect.poll(async () => (await drawnAs(page, "1014")).focus).toBe(1);
   await page.mouse.move(on.x + 1, on.y + 1);
   await expect.poll(async () => (await lookOf(page, 1014)).focus).toBeGreaterThan(0.99);
+  expect((await drawnAs(page, "1014")).pinned).toBe(true);
 });
 
-test("keyboard focus pops a background poster too, and reduced motion keeps the stacking without the scale", async ({ page }) => {
+test("keyboard focus brightens a background poster too, and reduced motion applies it at once and keeps it where it is", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await openDepth(page);
   const poster = scene(page).locator('button[data-layer="1"]').first();
@@ -593,14 +618,16 @@ test("keyboard focus pops a background poster too, and reduced motion keeps the 
   // Only keyboard focus shows (a script's focus counts as one when nothing was clicked before it).
   await page.keyboard.press("Tab");
   await page.keyboard.press("Shift+Tab");
-  await expect(page.locator("[data-pop-layer] [data-pop]")).toHaveCount(1);
-  // Keyboard focus takes the poster itself to full opacity too, whatever its resting one (the first of layer 1 is the best-known: 0.8).
-  await expect(poster.locator("xpath=ancestor::li")).toHaveCSS("opacity", "1");
-  expect(await copyLook(page)).toEqual({ opacity: "1", focus: "1", sharp: "1" });
-  // No animation and no growth: the copy is at the poster's own scale, drawn above the scene.
-  const base = await poster.evaluate((button) => button.getBoundingClientRect().width / Number.parseFloat((button.closest("[data-poster]") as HTMLElement).style.width));
-  expect(await page.evaluate(() => document.querySelector("[data-pop-layer] [data-pop]")!.getAnimations().length)).toBe(0);
-  expect(await copyScale(page)).toBeCloseTo(base, 3);
+  const li = poster.locator("xpath=ancestor::li");
+  await expect(li).toHaveAttribute("data-pinned", "");
+  // Keyboard focus takes the poster to full opacity and fully sharp, whatever its resting one (the first of layer 1 is the best-known: 0.8).
+  await expect(li).toHaveCSS("opacity", "1");
+  const id = (await poster.getAttribute("data-film"))!;
+  expect(await drawnAs(page, id)).toMatchObject({ pinned: true, focus: 1, opacity: 1, sharp: 1, cardTransform: "none" });
+  // No copy of it, and nothing eased: the opacity and the sharp image change at once.
+  await expect(page.locator("[data-pop-layer]")).toHaveCount(0);
+  await expect(li).toHaveCSS("transition-duration", "0s");
+  await expect(li.locator('img[data-window="sharp"]')).toHaveCSS("transition-property", "none");
 });
 
 test("the people pill opens on a press and closes when the scene scrolls", async ({ page }) => {
@@ -673,12 +700,12 @@ test.describe("on a phone", () => {
     }));
     expect(overflow).toEqual({ page: 0, x: 0 });
 
-    // A tap on a poster opens its film and makes no hover copy (a finger has no hover).
+    // A tap on a poster opens its film and makes no hover (a finger has none).
     const poster = scene(page).locator("button[data-film]").first();
     await poster.scrollIntoViewIfNeeded();
     await poster.tap();
     await expect(page.getByRole("dialog")).toBeVisible();
-    await expect(page.locator("[data-pop-layer] > *")).toHaveCount(0);
+    await expect(scene(page).locator("[data-pinned]")).toHaveCount(0);
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toBeHidden();
 

@@ -4,7 +4,6 @@ import { useCallback, useId, useLayoutEffect, useMemo, useRef, type FocusEvent, 
 import { DepthPoster } from "@/components/depth/depth-poster";
 import { useFocusField } from "@/components/depth/use-focus-field";
 import { SOFT_WINDOW, usePosterImages } from "@/components/depth/use-poster-images";
-import { usePosterPop } from "@/components/depth/use-poster-pop";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "@/components/timeline/film-popover";
 import { useDragPan, type DragPanOptions } from "@/components/timeline/use-drag-pan";
 import type { CombinedFilmInfo } from "@/lib/combined-track";
@@ -139,26 +138,20 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
   const popoverId = useId();
   const { target: popoverTarget, show: showPopover, hide: hidePopover } = useFilmPopover();
   const hoverElement = useRef<HTMLElement | null>(null);
-  // A background poster pops forward over everything when the pointer is on it or it has keyboard focus (see `usePosterPop`).
-  // If the pointer leaves the copy it is drawn as, the hover card goes with it.
-  const pop = usePosterPop(
-    scrollerRef,
-    useCallback(
-      (trigger: HTMLElement) => {
-        if (hoverElement.current === trigger) hoverElement.current = null;
-        hidePopover(trigger);
-      },
-      [hidePopover],
-    ),
-  );
+  // A background poster brightens in place while the pointer is on it or it has keyboard focus: full opacity and fully sharp (`data-pinned`
+  // on its `li` pins its `--focus` to 1, globals.css, whatever the focus field says). It does not move, grow or come forward: it stays at its own
+  // depth, behind any film made together that covers it, and so is only hoverable where it shows.
+  const pinned = useCallback((element: HTMLElement, on: boolean) => {
+    element.closest("[data-poster]")?.toggleAttribute("data-pinned", on);
+  }, []);
   // A mouse drag scrolls the scene (touch keeps its native scrolling); the hover card closes when one starts and none opens under it.
   const { isPanning } = useDragPan(
     scrollerRef,
     useCallback(() => {
       hoverElement.current = null;
       hidePopover();
-      pop.cancel();
-    }, [hidePopover, pop]),
+      scrollerRef.current?.querySelectorAll("[data-pinned]").forEach((poster) => poster.removeAttribute("data-pinned"));
+    }, [hidePopover, scrollerRef]),
     PAN,
   );
 
@@ -167,8 +160,7 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
     if (event.pointerType === "touch" || isPanning()) return;
     const element = filmElement(event.target);
     if (!element) return;
-    // At once, and again when the pointer comes back to the poster from its own copy (it cancels the copy's leaving).
-    pop.pop(element);
+    pinned(element, true);
     if (element === hoverElement.current) return;
     hoverElement.current = element;
     showPopover(popoverTargetOf(element), "hover");
@@ -178,17 +170,16 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
     const element = filmElement(event.target);
     if (!element || element !== hoverElement.current) return;
     if (event.relatedTarget instanceof Node && element.contains(event.relatedTarget)) return;
-    // Onto the poster's own copy (it covers the poster once popped): still hovering it.
-    if (pop.owns(event.relatedTarget)) return;
     hoverElement.current = null;
     hidePopover(element);
-    pop.unpop(element);
+    // Keyboard focus keeps it bright: it was focused before, or still is.
+    if (document.activeElement !== element || !focusIsVisible(element)) pinned(element, false);
   };
 
   const handleFocus = (event: FocusEvent<HTMLElement>) => {
     const element = filmElement(event.target);
     if (element && focusIsVisible(element)) {
-      pop.pop(element);
+      pinned(element, true);
       showPopover(popoverTargetOf(element), "focus");
     }
   };
@@ -197,17 +188,17 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
     const element = filmElement(event.target);
     if (!element) return;
     hidePopover(element);
-    pop.unpop(element, 0);
+    // The pointer may still be on it.
+    if (hoverElement.current !== element) pinned(element, false);
   };
 
   // Opening the film panel closes the hover card, whether it was a click or Enter.
   const handleSelect = useCallback(
     (id: number, trigger: HTMLElement) => {
       hidePopover();
-      pop.cancel();
       onSelect(id, trigger);
     },
-    [hidePopover, pop, onSelect],
+    [hidePopover, onSelect],
   );
 
   const popoverContent = useMemo(
