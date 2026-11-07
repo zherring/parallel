@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useId, useLayoutEffect, useMemo, useRef, type FocusEvent, type PointerEvent, type RefObject } from "react";
+import { useCallback, useId, useLayoutEffect, useMemo, useRef, type CSSProperties, type FocusEvent, type PointerEvent, type RefObject } from "react";
 import { DepthPoster } from "@/components/depth/depth-poster";
 import { useFocusField } from "@/components/depth/use-focus-field";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "@/components/timeline/film-popover";
 import type { CombinedFilmInfo } from "@/lib/combined-track";
-import { anchorScrollTop, layerDepth, type DepthFilm, type DepthLayout } from "@/lib/depth-layout";
+import { anchorScrollTop, depthSceneCss, layerDepth, layerFactor, type DepthFilm, type DepthLayout } from "@/lib/depth-layout";
 import { filmCardContent } from "@/lib/film-credits";
 import { joinNames } from "@/lib/format";
 import { personColor } from "@/lib/person-colors";
@@ -78,7 +78,8 @@ function focusIsVisible(element: HTMLElement): boolean {
  *
  * What perspective needs, and what would silently break it: nothing inside the scroller is `position: fixed` (perspective
  * turns it absolute), and the `preserve-3d` element has no `overflow`, `opacity` or `filter` (any of them flattens it).
- * The scroller is the one that clips. Its own scrollbar is hidden: the year rail, pinned over that edge, is the scrollbar.
+ * The scroller is the one that clips; it has no background, so the dust motes behind it (`DustMotes`) show through and are never over a
+ * poster. Its own scrollbar is hidden: the year rail, pinned over that edge, is the scrollbar.
  *
  * The 3D element takes no pointer events: it sits at the screen plane, in front of every layer behind it, and as a hit
  * target it would shadow their posters (a poster's button turns them back on).
@@ -108,7 +109,7 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
     scroller.scrollTop = anchorScrollTop(anchorY, scroller.clientHeight, trackHeight);
   }, [scrollerRef, anchorY, trackHeight]);
 
-  useFocusField(scrollerRef, layout.films, layout.hasShared);
+  useFocusField(scrollerRef, layout.films, layout.hasShared, people.length);
 
   // ---- hover, focus and the film card ---------------------------------------
   const popoverId = useId();
@@ -163,11 +164,16 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
     [coloured, slots],
   );
 
+  // The horizontal spacing of every viewport, as CSS (see `depthSceneCss`): one markup for all of them.
+  const sceneCss = useMemo(() => depthSceneCss(people.length), [people.length]);
+
   return (
     <>
+      <style>{sceneCss}</style>
       <div
         ref={scrollerRef}
         id={scrollerId}
+        data-depth-scene
         role="region"
         aria-label="Film timeline. Scroll down for later years."
         tabIndex={0}
@@ -175,7 +181,7 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
         onPointerOut={handlePointerOut}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        className="fixed inset-0 z-10 overflow-y-auto overflow-x-hidden overscroll-contain bg-canvas [scrollbar-width:none] [perspective-origin:50%_50%] [perspective:1000px] focus-visible:outline-offset-[-3px]"
+        className="fixed inset-0 z-10 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none] [perspective-origin:50%_50%] [perspective:1000px] focus-visible:outline-offset-[-3px]"
       >
         <div className="pointer-events-none relative w-full [transform-style:preserve-3d]" style={{ height: trackHeight }}>
           {layers.map((group) => (
@@ -183,7 +189,8 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
               key={group.layer}
               aria-label={layerLabel(group, people)}
               className="absolute inset-x-0 top-0 m-0 list-none p-0"
-              style={{ transform: `translateZ(${-layerDepth(group.layer)}px)` }}
+              // `--f`: how much smaller the layer is on screen, for the posters' x (see `depthSceneCss`).
+              style={{ transform: `translateZ(${-layerDepth(group.layer)}px)`, "--f": layerFactor(group.layer) } as CSSProperties}
             >
               {group.films.map((item) => {
                 const film = item.film;

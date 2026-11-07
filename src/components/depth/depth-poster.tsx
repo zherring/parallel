@@ -1,6 +1,6 @@
 import { memo, type CSSProperties } from "react";
 import { tmdbImage } from "@/lib/images";
-import { blurFor, isBlurred, type DepthFilm } from "@/lib/depth-layout";
+import { blurFor, columnIndex, isBlurred, phoneBlurFor, type DepthFilm } from "@/lib/depth-layout";
 import { personColor, personGlow } from "@/lib/person-colors";
 import { cn } from "@/components/timeline/cn";
 
@@ -50,7 +50,7 @@ function TitleFace({ title }: { title: string }) {
 }
 
 function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, outside, selected, describedBy, onSelect }: DepthPosterProps) {
-  const { film, shared, slots, layer, y, xFrac, dx, w, h } = item;
+  const { film, shared, slots, layer, y, band, col, jitter, w, h } = item;
   // Collaborations are the sharp ones in front: a bigger image. The posters of the layers behind are two images, a soft
   // one (small and blurred, drawn once) under a sharp one whose opacity the focus field raises (see `useFocusField`).
   const soft = isBlurred(layer, hasShared);
@@ -62,14 +62,23 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
 
   const style = {
     top: round(y - h / 2 - GLOW_ROOM),
-    // The x of a poster is a fraction of the width and a pixel offset, so the server and every viewport agree on it.
-    left: `calc(${round(xFrac * 100)}% + ${round(dx - w / 2 - GLOW_ROOM)}px)`,
+    // Where a poster is across is the same markup for every viewport: its band (a fraction of the stage), its column in steps
+    // from the band and its jitter, which the scene's CSS (`depthSceneCss`) turns into `left` with the viewport's spacing and
+    // its layer's `--f`. The films several people made sit on the centre line.
+    "--q": band === null ? "0.5" : `var(--band-${band})`,
+    "--col": columnIndex(col),
+    "--jit": round(jitter),
+    "--step": layer === 0 ? "var(--step-collab)" : "var(--step-solo)",
+    "--w": `${w}px`,
+    "--lead": `${round(w / 2 + GLOW_ROOM)}px`,
     width: w + GLOW_ROOM * 2,
     height: h + GLOW_ROOM * 2,
     padding: GLOW_ROOM,
     // How much the focus field has sharpened this poster, 0 to 1 (the posters it does not drive are always in focus), and the blur it is behind.
     "--focus": soft ? 0 : 1,
     "--layer-blur": `${blurFor(layer, hasShared)}px`,
+    // Under `sm` the blur is lighter on the first layer back and gone behind it (`phoneBlurFor`): it is what costs on a phone.
+    "--layer-blur-phone": `${phoneBlurFor(layer, hasShared)}px`,
   } as CSSProperties;
 
   return (
@@ -131,12 +140,12 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
                   loading="lazy"
                   decoding="async"
                   draggable={false}
-                  // Blurred once and left alone; scaled up so the blur's soft edge falls outside the clip. Phones skip the blur
-                  // (it is what costs there): the small image blown up is soft enough.
-                  className="absolute inset-0 size-full scale-105 object-cover [filter:blur(var(--layer-blur))] max-sm:[filter:none]"
+                  // Blurred once and left alone; scaled up so the blur's soft edge falls outside the clip. A phone blurs the first
+                  // layer back lightly and the rest not at all (it is what costs there): the small image blown up is soft enough.
+                  className="absolute inset-0 size-full scale-105 object-cover [filter:blur(var(--layer-blur))] max-sm:[filter:blur(var(--layer-blur-phone))]"
                 />
               ) : (
-                <span className="absolute inset-0 scale-105 [filter:blur(var(--layer-blur))] max-sm:[filter:none]">
+                <span className="absolute inset-0 scale-105 [filter:blur(var(--layer-blur))] max-sm:[filter:blur(var(--layer-blur-phone))]">
                   <TitleFace title={film.title} />
                 </span>
               ))}

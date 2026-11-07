@@ -7,9 +7,16 @@
  *
  * It reuses the flat timeline's pure helpers (`makeScale`, `xForDate`, `packFilms`, `trackWidth`) with x read as y and
  * the sub-row as a column: a poster's column is the sub-row `packFilms` gave it, laid out left and right of the layer's
- * centre line (`columnOffset`). Nothing here touches the DOM or reads the clock, and there is one geometry for every
- * viewport, so the server and the browser render the same markup: a poster's x is a fraction of the width plus a
- * pixel offset (`xFrac`, `dx`), and the only thing that needs the viewport is the initial scroll (`anchorScrollTop`).
+ * centre line (`columnOffset`). Nothing here touches the DOM or reads the clock, and the layout is one for every
+ * viewport, so the server and the browser render the same markup. What differs between a phone and a desktop is only
+ * the horizontal spacing (`xSpec`: bands, column step), which CSS custom properties per breakpoint carry (`depthSceneCss`)
+ * and which the focus field mirrors in numbers (`docCenterX`); the only other thing that needs the viewport is the
+ * initial scroll (`anchorScrollTop`).
+ *
+ * A poster's x is worked out in the space the visitor sees, then pushed back through the layer's perspective: the band
+ * where a person's films are centred is a fraction of the visible stage (the width less the year rail), and a layer
+ * `f` times smaller on screen has its offset from the centre divided by `f`, so a far layer's band lands where it was
+ * asked to instead of collapsing towards the middle. The posters are never allowed under the rail or past the left edge.
  */
 
 import type { CombinedFilm } from "@/lib/combined-track";
@@ -36,11 +43,56 @@ export const DEPTH = {
   solo: { w: 80, h: 120 },
   /** Vertical gap (px) between posters of a column. */
   rowGap: 14,
-  /** Horizontal gap (px) between columns. */
-  colGap: 12,
-  /** Where each person's films are centred, as a fraction of the width, by palette slot (0.5 for a page of one person). */
-  bands: [0.3, 0.7, 0.18, 0.82],
 } as const;
+
+/** Viewport widths (px) from which the `tablet` and `desktop` spacings apply: Tailwind's `sm` and `lg`. */
+export const TIER_MIN_WIDTH = { tablet: 640, desktop: 1024 } as const;
+
+export type DepthTier = "phone" | "tablet" | "desktop";
+
+/**
+ * The spacing of the scene's x axis for a viewport (see `xSpec`). Lengths are px on the visitor's screen, which is what is
+ * being designed: a layer further back is `f` times smaller there, so its posters are placed `length / f` apart in the
+ * layer's own space and every layer's columns are as far apart on screen as the first one's.
+ */
+export interface XSpec {
+  /** Width (px) the year rail covers at the right edge: the stage is the rest. */
+  rail: number;
+  /** Least air (px, on screen) between a poster and the left edge or the rail. */
+  gutter: number;
+  /** Distance (px on screen) between two columns of the posters of films several people made. */
+  stepCollab: number;
+  /** Distance (px on screen) between two columns of a person's own films. */
+  stepSolo: number;
+  /** Width (px on screen) the jitter of a solo poster is spread over. */
+  jitterSpan: number;
+  /** Where each person's films are centred, as a fraction of the stage (what is visible, left of the rail), by palette slot. */
+  bands: readonly number[];
+}
+
+/**
+ * The spacing by viewport. A solo layer has three columns (`SOLO_COLUMNS`) that posters scatter over, `step` apart, and
+ * the step must clear a poster's width plus the jitter (`jitterSpan`) on the first layer back, the one that is least
+ * shrunk, so no two posters of a layer overlap. A larger step spreads a person's columns across more of the screen, which
+ * is what lets a desktop use its width while a phone keeps three columns inside 362px.
+ */
+const TIERS: Record<DepthTier, Omit<XSpec, "bands"> & { stepSoloOne: number; spread: number }> = {
+  phone: { rail: 28, gutter: 4, stepCollab: 120, stepSolo: 70, stepSoloOne: 96, jitterSpan: 8, spread: 0.8 },
+  tablet: { rail: 56, gutter: 8, stepCollab: 132, stepSolo: 100, stepSoloOne: 190, jitterSpan: 20, spread: 0.9 },
+  desktop: { rail: 56, gutter: 8, stepCollab: 150, stepSolo: 120, stepSoloOne: 300, jitterSpan: 36, spread: 1 },
+};
+
+/** Columns a person's own films scatter over (the centre line and one to each side); a crowd of films takes more. */
+export const SOLO_COLUMNS = 3;
+
+/** Band centres (fraction of the stage on a desktop) by number of people, indexed by palette slot. */
+const BANDS: readonly (readonly number[])[] = [
+  [0.5],
+  [0.5],
+  [0.24, 0.76],
+  [0.2, 0.8, 0.5],
+  [0.15, 0.85, 0.35, 0.65],
+];
 
 export interface DepthFilm {
   film: Film;
@@ -52,12 +104,12 @@ export interface DepthFilm {
   layer: number;
   /** Centre of the poster on the document's vertical axis (px from the top of the track). */
   y: number;
-  /** Centre of the poster's band, as a fraction of the width. */
-  xFrac: number;
-  /** Offset (px) from `xFrac`: the column's offset plus a small deterministic jitter. */
-  dx: number;
-  /** Column in the poster's layer (0 is the centre line): the sub-row `packFilms` gave it. */
+  /** The palette slot whose band the poster is centred on (see `xSpec`), or null for the films several people made: they sit on the centre line. */
+  band: number | null;
+  /** Column in the poster's layer (0 is the centre line; `columnIndex` says how many steps from the band it is): the sub-row `packFilms` gave a collaboration, the column a solo film scattered into. */
   col: number;
+  /** A small deterministic offset, -0.5 to 0.5 of the viewport's `jitterSpan`: posters of the same column do not line up like a grid. 0 for the films several people made. */
+  jitter: number;
   w: number;
   h: number;
 }
@@ -89,11 +141,16 @@ export function layerDepth(layer: number): number {
   return DEPTH.z[Math.min(Math.max(0, Math.trunc(layer)), DEPTH.z.length - 1)];
 }
 
+/** How many steps from its layer's centre line a column is: 0, +1, -1, +2, -2, ... for columns 0, 1, 2, 3, 4, ... */
+export function columnIndex(col: number): number {
+  if (col <= 0) return 0;
+  const distance = Math.ceil(col / 2);
+  return col % 2 === 1 ? distance : -distance;
+}
+
 /** Offset of a column from its layer's centre line, `step` apart: 0, +step, -step, +2 step, -2 step, ... */
 export function columnOffset(col: number, step: number): number {
-  if (col <= 0) return 0;
-  const distance = Math.ceil(col / 2) * step;
-  return col % 2 === 1 ? distance : -distance;
+  return columnIndex(col) * step;
 }
 
 /**
@@ -118,15 +175,125 @@ export function blurFor(layer: number, hasShared: boolean): number {
   return 3;
 }
 
+/**
+ * The blur (px) of a layer's soft posters on a phone: a light one on the first person's layer, the one nearest the
+ * screen, and none further back (a blur is what costs on a phone, and the small image of those layers, blown up, is
+ * soft enough already). Only where `blurFor` blurs the layer at all.
+ */
+export function phoneBlurFor(layer: number, hasShared: boolean): number {
+  return layer === 1 && blurFor(layer, hasShared) > 0 ? 1.5 : 0;
+}
+
 /** Whether a layer's posters are drawn soft until the focus field sharpens them (see `blurFor`): the others are always sharp. */
 export function isBlurred(layer: number, hasShared: boolean): boolean {
   return blurFor(layer, hasShared) > 0;
 }
 
-/** Where a person's films are centred (fraction of the width): the middle for a page of one person, else the slot's band. */
-export function bandFor(slot: number, peopleCount: number): number {
-  if (peopleCount <= 1) return 0.5;
-  return DEPTH.bands[((Math.trunc(slot) % DEPTH.bands.length) + DEPTH.bands.length) % DEPTH.bands.length];
+/** Which spacing a viewport `width` px wide gets. */
+export function tierOf(width: number): DepthTier {
+  return width >= TIER_MIN_WIDTH.desktop ? "desktop" : width >= TIER_MIN_WIDTH.tablet ? "tablet" : "phone";
+}
+
+/**
+ * Where a person's films are centred, as a fraction of the stage (the width less the rail): the middle for a page of one
+ * person, else the slot's band, drawn in towards the middle on a smaller viewport.
+ */
+export function bandFor(slot: number, peopleCount: number, tier: DepthTier = "desktop"): number {
+  const row = BANDS[Math.min(Math.max(1, Math.trunc(peopleCount)), BANDS.length - 1)];
+  const q = row[Math.min(Math.max(0, Math.trunc(slot)), row.length - 1)];
+  return Math.round((0.5 + (q - 0.5) * TIERS[tier].spread) * 10_000) / 10_000;
+}
+
+/** The spacing of the x axis for a viewport and a page of `peopleCount` people. */
+export function xSpec(tier: DepthTier, peopleCount: number): XSpec {
+  const { rail, gutter, stepCollab, stepSolo, stepSoloOne, jitterSpan } = TIERS[tier];
+  const people = Math.min(Math.max(1, Math.trunc(peopleCount)), BANDS.length - 1);
+  return {
+    rail,
+    gutter,
+    stepCollab,
+    // A page of one person has the whole width to itself: its columns are spread further apart.
+    stepSolo: people === 1 ? stepSoloOne : stepSolo,
+    jitterSpan,
+    bands: Array.from({ length: people }, (_, slot) => bandFor(slot, people, tier)),
+  };
+}
+
+/**
+ * Where a poster's centre is in its layer's own space (px from the left edge of the scroll area) on a viewport `width`
+ * px wide: the number the CSS rule in `depthSceneCss` works out, for the focus field to project without reading the DOM.
+ * What is chosen is where the poster is on screen: the stage fraction of its band, plus its column's steps and its jitter,
+ * all in screen px; the layer's perspective (`f`) maps the layer's x to the screen's as `(x - width / 2) f + width / 2`,
+ * so the offset from the centre is divided by `f`. The posters are kept inside the stage: the bounds are that mapping
+ * undone for the least and greatest x a poster clear of the edge and the rail can be at.
+ */
+export function docCenterX(film: Pick<DepthFilm, "layer" | "band" | "col" | "jitter" | "w">, width: number, spec: XSpec): number {
+  const f = layerFactor(film.layer);
+  const q = film.band === null ? 0.5 : (spec.bands[Math.min(film.band, spec.bands.length - 1)] ?? 0.5);
+  const step = film.layer === 0 ? spec.stepCollab : spec.stepSolo;
+  const x = width / 2 + ((width - spec.rail) * q - width / 2 + columnIndex(film.col) * step + film.jitter * spec.jitterSpan) / f;
+  const least = width / 2 + (spec.gutter - width / 2) / f + film.w / 2;
+  const greatest = width / 2 + (width / 2 - spec.rail - spec.gutter) / f - film.w / 2;
+  return Math.max(least, Math.min(x, greatest));
+}
+
+/** The custom properties of one viewport's spacing, set on the scene. */
+function specDeclarations(spec: XSpec): string {
+  const round = (value: number) => Math.round(value * 1000) / 1000;
+  return [
+    `--rail:${spec.rail}px`,
+    `--gutter:${spec.gutter}px`,
+    `--step-collab:${spec.stepCollab}px`,
+    `--step-solo:${spec.stepSolo}px`,
+    `--jit-span:${spec.jitterSpan}px`,
+    ...spec.bands.map((band, slot) => `--band-${slot}:${round(band)}`),
+  ].join(";");
+}
+
+/**
+ * The scene's horizontal spacing as CSS: the custom properties of each viewport (`xSpec`) on `[data-depth-scene]`, and the
+ * one rule that turns them and a poster's own (`--q` band, `--col` steps from it, `--jit`, `--step`, `--w`, `--lead`, with
+ * its layer's `--f`) into `left`, the same sum as `docCenterX`. It is generated from the same numbers the JS uses, so the
+ * two cannot drift apart, and it is the same markup for every viewport: the browser picks the spacing.
+ */
+export function depthSceneCss(peopleCount: number): string {
+  const rule = (tier: DepthTier) => `[data-depth-scene]{${specDeclarations(xSpec(tier, peopleCount))}}`;
+  const x = "calc(50% + ((100% - var(--rail)) * var(--q) - 50% + var(--col) * var(--step) + var(--jit) * var(--jit-span)) / var(--f))";
+  const least = "calc(50% + (var(--gutter) - 50%) / var(--f) + var(--w) / 2)";
+  const greatest = "calc(50% + (50% - var(--rail) - var(--gutter)) / var(--f) - var(--w) / 2)";
+  return [
+    rule("phone"),
+    `@media (min-width:${TIER_MIN_WIDTH.tablet}px){${rule("tablet")}}`,
+    `@media (min-width:${TIER_MIN_WIDTH.desktop}px){${rule("desktop")}}`,
+    `[data-depth-scene] [data-poster]{left:calc(clamp(${least},${x},${greatest}) - var(--lead))}`,
+  ].join("");
+}
+
+/**
+ * Gives a person's films a column each so that no two in a column are closer than `room` down the axis, and so that
+ * they are spread over the columns instead of piled in the middle one: a film takes the column its id prefers (a hash,
+ * so the server and the browser agree), or the next free one, and only a crowd of films closer together than the columns
+ * can hold opens more. Each column is as free as the last film in it says.
+ */
+function scatterColumns(films: readonly Film[], scale: Scale, room: number): Map<number, { y: number; col: number }> {
+  const placed = films
+    .map((film) => ({ film, y: xForDate(scale, film.releaseDate) }))
+    .sort((a, b) => a.y - b.y || a.film.id - b.film.id);
+  const lastY: number[] = Array.from({ length: SOLO_COLUMNS }, () => Number.NEGATIVE_INFINITY);
+  const result = new Map<number, { y: number; col: number }>();
+  for (const { film, y } of placed) {
+    const preferred = Math.floor(hashUnit(film.id * 13 + 5) * SOLO_COLUMNS);
+    let col = -1;
+    for (let tried = 0; col === -1; tried++) {
+      // The preferred column, then the other columns in turn, then new ones.
+      const candidate = tried < SOLO_COLUMNS ? (preferred + tried) % SOLO_COLUMNS : tried;
+      if (candidate >= lastY.length) lastY.push(Number.NEGATIVE_INFINITY);
+      if (y - lastY[candidate] >= room - 1e-9) col = candidate;
+    }
+    lastY[col] = y;
+    result.set(film.id, { y, col });
+  }
+  return result;
 }
 
 /** The layer an entry is drawn on: 0 when several (released) made it, else its first person's slot + 1. */
@@ -136,7 +303,7 @@ function layerOf(entry: CombinedFilm): number {
 
 /**
  * Lays the combined films (see `combineLanes`) out down the axis. `peopleCount` is the number of people on the page
- * (it decides whether their bands are apart or all in the middle) and `today` (`yyyy-mm-dd`) only anchors the axis
+ * (it decides where the view opens, and how many layers there are) and `today` (`yyyy-mm-dd`) only anchors the axis
  * when there are no films.
  */
 export function depthLayout(
@@ -167,18 +334,25 @@ export function depthLayout(
   for (const layer of [...byLayer.keys()].sort((a, b) => a - b)) {
     const group = byLayer.get(layer) ?? [];
     const size = layer === 0 ? DEPTH.collab : DEPTH.solo;
-    const entryOf = new Map(group.map((entry) => [entry.film.id, entry]));
-    // Packed along the vertical axis: a poster is `h` tall, `packFilms` reads x as y and the sub-row as the column.
-    const packed = packFilms(
-      group.map((entry) => entry.film),
-      { pxPerYear, axisStartYear: scale.axisStartYear, pad: scale.pad, cardWidth: size.h, gap: DEPTH.rowGap },
-    );
-    const step = size.w + DEPTH.colGap;
-    for (const { film, x: y, row: col } of packed) {
-      const entry = entryOf.get(film.id) as CombinedFilm;
-      const spine = layer === 0;
-      // Jitter stays within half the gap on each side, so two posters that were `rowGap` apart still do not touch.
-      const dx = columnOffset(col, step) + (spine ? 0 : (hashUnit(film.id) - 0.5) * DEPTH.colGap);
+    const spine = layer === 0;
+    // Down the axis (a poster is `h` tall, so `packFilms` reads x as y), each film has a column: the films several people
+    // made take the lowest free one, so they stay on the centre line unless they crowd; a person's own films scatter.
+    const columns = spine
+      ? new Map(
+          packFilms(
+            group.map((entry) => entry.film),
+            { pxPerYear, axisStartYear: scale.axisStartYear, pad: scale.pad, cardWidth: size.h, gap: DEPTH.rowGap },
+          ).map(({ film, x: y, row }) => [film.id, { y, col: row }]),
+        )
+      : scatterColumns(
+          group.map((entry) => entry.film),
+          scale,
+          size.h + DEPTH.rowGap,
+        );
+    for (const entry of group) {
+      const film = entry.film;
+      const { y, col } = columns.get(film.id) as { y: number; col: number };
+      // The vertical jitter stays within half the gap on each side, so two posters that were `rowGap` apart still do not touch.
       const dy = spine ? 0 : (hashUnit(film.id * 7 + 1) - 0.5) * DEPTH.rowGap;
       films.push({
         film,
@@ -186,9 +360,10 @@ export function depthLayout(
         slots: entry.slots,
         layer,
         y: y + dy,
-        xFrac: spine ? 0.5 : bandFor(entry.slots[0] ?? 0, peopleCount),
-        dx,
+        band: spine ? null : (entry.slots[0] ?? 0),
         col,
+        // Spread over less than the room between two columns on every viewport (`TIERS`).
+        jitter: spine ? 0 : hashUnit(film.id) - 0.5,
         w: size.w,
         h: size.h,
       });

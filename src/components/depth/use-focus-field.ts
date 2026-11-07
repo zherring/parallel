@@ -2,7 +2,7 @@
 
 import { useEffect, useEffectEvent, type RefObject } from "react";
 import { FINE_POINTER, useMediaQuery } from "@/components/depth/use-media";
-import { isBlurred, layerFactor, type DepthFilm } from "@/lib/depth-layout";
+import { docCenterX, isBlurred, layerFactor, tierOf, xSpec, type DepthFilm } from "@/lib/depth-layout";
 import { focusDistance, focusWeight, projectX, projectY, visibleDocRange } from "@/lib/depth-projection";
 
 /** Radius (px) of the field of focus: a poster this close to the pointer (or to the middle of a phone's screen) is sharp. */
@@ -18,9 +18,10 @@ const MIN_STEP = 0.01;
 
 interface FieldItem {
   el: HTMLElement;
+  film: DepthFilm;
   y: number;
-  xFrac: number;
-  dx: number;
+  /** Where the poster's centre is across in its layer (see `docCenterX`): it depends on the viewport, so `measure` sets it. */
+  x: number;
   /** Scale of the poster's layer on screen. */
   f: number;
 }
@@ -34,7 +35,7 @@ interface FieldItem {
  * per frame is arithmetic over the posters that are in view. The loop runs only while the scene scrolls or the pointer
  * moves, and it writes a property only when its value changed by more than `MIN_STEP`.
  */
-export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, films: readonly DepthFilm[], hasShared: boolean): void {
+export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, films: readonly DepthFilm[], hasShared: boolean, peopleCount: number): void {
   const finePointer = useMediaQuery(FINE_POINTER);
   // What the effect reads when it needs it, so it subscribes once and not whenever the query changes.
   const hasFinePointer = useEffectEvent(() => finePointer);
@@ -51,7 +52,7 @@ export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, fil
     for (const item of films) {
       const el = elements.get(String(item.film.id));
       if (!el || !isBlurred(item.layer, hasShared)) continue;
-      items.push({ el, y: item.y, xFrac: item.xFrac, dx: item.dx, f: layerFactor(item.layer) });
+      items.push({ el, film: item, y: item.y, x: 0, f: layerFactor(item.layer) });
       written.set(el, Number.parseFloat(el.style.getPropertyValue("--focus")) || 0);
     }
 
@@ -65,6 +66,9 @@ export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, fil
       height = scroller.clientHeight;
       left = rect.left;
       top = rect.top;
+      // The spacing the scene's CSS has for this width (same numbers, same sum): where each poster is across.
+      const spec = xSpec(tierOf(window.innerWidth), peopleCount);
+      for (const item of items) item.x = docCenterX(item.film, width, spec);
     };
     measure();
 
@@ -85,7 +89,7 @@ export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, fil
         if (item.y < from || item.y > to) continue;
         let weight = 0;
         if (focus || !usePointer) {
-          const x = projectX(item.xFrac * width + item.dx, width, item.f);
+          const x = projectX(item.x, width, item.f);
           const y = projectY(item.y, scrollTop, height, item.f);
           weight = focusWeight(focusDistance(x, y, height, focus), radius);
         }
@@ -134,5 +138,5 @@ export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, fil
       observer?.disconnect();
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [scrollerRef, films, hasShared]);
+  }, [scrollerRef, films, hasShared, peopleCount]);
 }

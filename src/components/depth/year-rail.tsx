@@ -30,6 +30,8 @@ import { centerYear, xForDate, type Scale } from "@/lib/timeline-layout";
 
 /** Pointer travel (px) after which a press on a film dot counts as a drag instead of a click. */
 const DOT_DRAG_SLOP = 4;
+/** On a phone the year readout stays this long (ms) after the scene last moved, then fades. */
+const READOUT_HOLD_MS = 800;
 
 interface YearRailProps {
   /** The scene's scroller; the rail reads and writes its scrollTop. */
@@ -49,15 +51,18 @@ interface YearRailProps {
  * The year rail: the minimap turned on its side, pinned to the right edge of the screen. It stands for the whole time
  * axis (oldest at the top); the highlighted window is the part of the document in view, and dragging it (or pressing the
  * rail, or using the keyboard on its handle) scrolls the scene. The year under the scene's focus line, the middle of the
- * screen, is read out in the centre of the rail, which is also where a layer-0 poster sits when it is in the middle.
+ * screen, is read out beside the window, on the scene's side of the rail and level with the window's centre, so it rides
+ * with the window and never lands on the rail's own year labels. On a phone it shows only while the scene moves.
  *
  * The geometry is `src/lib/minimap.ts`'s, unchanged: its helpers are one-dimensional and their "left", "width" and
- * "scrollLeft" are this rail's top, height and scrollTop. Scrolling never re-renders React: the window, the readout and
- * the ARIA values are written straight to the DOM from a requestAnimationFrame-throttled scroll listener.
+ * "scrollLeft" are this rail's top, height and scrollTop. Scrolling never re-renders React: the window (the readout rides
+ * in it), the readout's text and the ARIA values are written straight to the DOM from a requestAnimationFrame-throttled
+ * scroll listener.
  *
  * It is a sibling of the scroller, never inside it: perspective would turn its `fixed` into `absolute`.
  */
 export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, ticks }: YearRailProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const windowRef = useRef<HTMLDivElement>(null);
   const readoutRef = useRef<HTMLSpanElement>(null);
@@ -67,6 +72,9 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
   const pendingDot = useRef<{ pointerId: number; startY: number } | null>(null);
   /** Set when a press on a dot became a drag, so the click that follows does not also jump. */
   const suppressClick = useRef(false);
+  /** The scrollTop the last sync saw, and the timer that ends the phone readout's time on screen after the scene stops. */
+  const lastTop = useRef<number | null>(null);
+  const holdTimer = useRef<number | undefined>(undefined);
 
   const [railHeight, setRailHeight] = useState(0);
   /** A drag is in progress: on a phone the year labels, which are too wide for the thin rail, show while it lasts. */
@@ -92,6 +100,14 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
     const years = visibleYears(geometry, scaleRef.current);
     box.setAttribute("aria-valuetext", years.from === years.to ? String(years.from) : `${years.from} to ${years.to}`);
     box.setAttribute("data-ready", "");
+    // The scene moved: on a phone the readout is shown (`data-active`) until it has been still for a moment.
+    const root = rootRef.current;
+    if (root && lastTop.current !== null && lastTop.current !== geometry.scrollLeft) {
+      root.setAttribute("data-active", "");
+      window.clearTimeout(holdTimer.current);
+      holdTimer.current = window.setTimeout(() => root.removeAttribute("data-active"), READOUT_HOLD_MS);
+    }
+    lastTop.current = geometry.scrollLeft;
     const readout = readoutRef.current;
     if (readout) {
       // The calendar year the focus line is in: a film of September 1985 in the middle reads 1985, not 1986.
@@ -105,6 +121,8 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
     trackHeightRef.current = trackHeight;
     sync();
   }, [scale, trackHeight, sync]);
+
+  useEffect(() => () => window.clearTimeout(holdTimer.current), []);
 
   useEffect(() => {
     const scroller = scrollerRef.current;
@@ -256,6 +274,7 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
 
   return (
     <div
+      ref={rootRef}
       data-depth-rail
       data-scrubbing={scrubbing ? "" : undefined}
       className="group/rail fixed inset-y-0 right-0 z-20 w-14 max-sm:w-7"
@@ -319,7 +338,19 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
           aria-valuenow={0}
           onKeyDown={onKeyDown}
           className="absolute inset-x-0 top-0 h-full min-h-3 cursor-grab rounded-[5px] border border-strong/70 bg-strong/15 opacity-0 data-[ready]:opacity-100 active:cursor-grabbing"
-        />
+        >
+          {/* The year at the focus line, level with the window's centre and on the scene's side of the rail (clear of its labels). */}
+          <span
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute right-full top-1/2 mr-1.5 -translate-y-1/2 rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-medium leading-none tabular-nums text-strong shadow-md shadow-black/30",
+              // On a phone: only while the scene moves or the rail is being dragged, fading after.
+              "max-sm:px-1 max-sm:text-[10px] max-sm:opacity-0 max-sm:transition-opacity max-sm:duration-300 max-sm:group-data-[active]/rail:opacity-100 max-sm:group-data-[scrubbing]/rail:opacity-100 motion-reduce:transition-none",
+            )}
+          >
+            <span ref={readoutRef} data-rail-readout />
+          </span>
+        </div>
 
         {dots.map(({ film, fraction }) => (
           <button
@@ -340,15 +371,6 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
             <span className="h-1 w-3.5 rounded-full bg-lit shadow-[0_0_8px_var(--lit-glow)] group-hover:w-4" />
           </button>
         ))}
-
-        {/* The focus line: the middle of the screen, where the year read out here is. */}
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-1/2 z-20 h-px bg-strong/30" />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 rounded border border-border bg-surface px-1 py-px text-[11px] font-medium leading-none tabular-nums text-strong max-sm:px-0.5 max-sm:text-[9px]"
-        >
-          <span ref={readoutRef} data-rail-readout />
-        </div>
       </div>
     </div>
   );

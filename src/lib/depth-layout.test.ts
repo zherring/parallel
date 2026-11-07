@@ -2,17 +2,27 @@ import { describe, expect, it } from "vitest";
 import { combineLanes } from "@/lib/combined-track";
 import {
   DEPTH,
+  SOLO_COLUMNS,
+  TIER_MIN_WIDTH,
   anchorScrollTop,
   bandFor,
   blurFor,
+  columnIndex,
   columnOffset,
   depthLayout,
+  depthSceneCss,
+  docCenterX,
   hashUnit,
   isBlurred,
+  phoneBlurFor,
   layerDepth,
   layerFactor,
+  tierOf,
+  xSpec,
   type DepthFilm,
+  type DepthTier,
 } from "@/lib/depth-layout";
+import { projectX } from "@/lib/depth-projection";
 import { personSlots } from "@/lib/person-colors";
 import { xForDate } from "@/lib/timeline-layout";
 import type { Film } from "@/lib/types";
@@ -60,6 +70,13 @@ describe("layerFactor", () => {
   });
 });
 
+describe("columnIndex", () => {
+  it("counts steps from the centre line: 0, +1, -1, +2, -2", () => {
+    expect([0, 1, 2, 3, 4, 5].map(columnIndex)).toEqual([0, 1, -1, 2, -2, 3]);
+    expect(columnIndex(-3)).toBe(0);
+  });
+});
+
 describe("columnOffset", () => {
   it("alternates around the centre line: 0, +s, -s, +2s, -2s", () => {
     expect([0, 1, 2, 3, 4, 5].map((col) => columnOffset(col, 100))).toEqual([0, 100, -100, 200, -200, 300]);
@@ -89,13 +106,146 @@ describe("hashUnit", () => {
   });
 });
 
+describe("tierOf", () => {
+  it("is the spacing of Tailwind's sm and lg breakpoints", () => {
+    expect([390, 639].map(tierOf)).toEqual(["phone", "phone"]);
+    expect([TIER_MIN_WIDTH.tablet, 800, 1023].map(tierOf)).toEqual(["tablet", "tablet", "tablet"]);
+    expect([TIER_MIN_WIDTH.desktop, 1440, 2560].map(tierOf)).toEqual(["desktop", "desktop", "desktop"]);
+  });
+});
+
 describe("bandFor", () => {
-  it("is the middle for one person and the slot's band for several", () => {
+  it("is the middle for one person and the slot's band, a fraction of the stage, for several", () => {
     expect(bandFor(0, 1)).toBe(0.5);
-    expect(bandFor(0, 2)).toBe(0.3);
-    expect(bandFor(1, 2)).toBe(0.7);
-    expect(bandFor(2, 3)).toBe(0.18);
-    expect(bandFor(3, 4)).toBe(0.82);
+    expect(bandFor(0, 2)).toBe(0.24);
+    expect(bandFor(1, 2)).toBe(0.76);
+    expect([0, 1, 2].map((slot) => bandFor(slot, 3))).toEqual([0.2, 0.8, 0.5]);
+    expect([0, 1, 2, 3].map((slot) => bandFor(slot, 4))).toEqual([0.15, 0.85, 0.35, 0.65]);
+  });
+
+  it("draws the bands in towards the middle on a smaller viewport, symmetrically", () => {
+    for (const people of [2, 3, 4]) {
+      const wide = bandFor(0, people, "desktop");
+      const narrow = bandFor(0, people, "phone");
+      expect(narrow).toBeGreaterThan(wide);
+      expect(narrow).toBeLessThan(0.5);
+      expect(bandFor(1, people, "phone") - 0.5).toBeCloseTo(0.5 - narrow, 10);
+    }
+  });
+});
+
+describe("xSpec", () => {
+  const tiers: DepthTier[] = ["phone", "tablet", "desktop"];
+
+  it("gives one band per person, and a wider column step to a page of one person", () => {
+    for (const tier of tiers) {
+      expect(xSpec(tier, 3).bands).toHaveLength(3);
+      expect(xSpec(tier, 1).bands).toEqual([0.5]);
+      expect(xSpec(tier, 1).stepSolo).toBeGreaterThan(xSpec(tier, 2).stepSolo);
+    }
+  });
+
+  it("widens the columns and the bands with the viewport", () => {
+    expect(xSpec("desktop", 2).stepSolo).toBeGreaterThan(xSpec("phone", 2).stepSolo);
+    expect(xSpec("desktop", 2).stepCollab).toBeGreaterThan(xSpec("phone", 2).stepCollab);
+    expect(xSpec("desktop", 2).bands[0]).toBeLessThan(xSpec("phone", 2).bands[0]);
+  });
+
+  it("keeps the columns of a layer further apart than a poster and the jitter, so none overlap, even on the first layer back (the least shrunk)", () => {
+    for (const tier of tiers) {
+      for (const people of [1, 2, 3, 4]) {
+        const spec = xSpec(tier, people);
+        expect((spec.stepSolo - spec.jitterSpan) / layerFactor(1)).toBeGreaterThanOrEqual(DEPTH.solo.w);
+        expect(spec.stepCollab).toBeGreaterThanOrEqual(DEPTH.collab.w);
+      }
+    }
+  });
+
+  it("leaves a phone room for the year rail's 28px and a desktop its 56px", () => {
+    expect(xSpec("phone", 2).rail).toBe(28);
+    expect(xSpec("tablet", 2).rail).toBe(56);
+    expect(xSpec("desktop", 2).rail).toBe(56);
+  });
+});
+
+describe("docCenterX", () => {
+  const film = (layer: number, band: number | null, col = 0, jitter = 0) => ({ layer, band, col, jitter, w: layer === 0 ? DEPTH.collab.w : DEPTH.solo.w });
+  /** Where on screen the poster's centre is. */
+  const onScreen = (item: ReturnType<typeof film>, width: number, spec: ReturnType<typeof xSpec>) => projectX(docCenterX(item, width, spec), width, layerFactor(item.layer));
+
+  it("puts a band where it was asked for, on screen, whatever the depth of its layer", () => {
+    const width = 1440;
+    const spec = xSpec("desktop", 2);
+    const stage = width - spec.rail;
+    expect(onScreen(film(1, 0), width, spec)).toBeCloseTo(stage * 0.24, 6);
+    expect(onScreen(film(2, 1), width, spec)).toBeCloseTo(stage * 0.76, 6);
+    // The same band on a layer further back lands in the same place: that is what undoing the perspective is for.
+    expect(onScreen(film(4, 0), width, spec)).toBeCloseTo(stage * 0.24, 6);
+  });
+
+  it("centres the films several people made in the stage, left of the rail", () => {
+    for (const [width, tier] of [[1440, "desktop"], [820, "tablet"], [390, "phone"]] as const) {
+      const spec = xSpec(tier, 2);
+      expect(onScreen(film(0, null), width, spec)).toBeCloseTo((width - spec.rail) / 2, 6);
+    }
+  });
+
+  it("spreads columns by the step and the jitter by its span, as they are on screen, whatever the layer", () => {
+    const width = 1440;
+    const spec = xSpec("desktop", 2);
+    for (const layer of [1, 2, 3]) {
+      const centre = onScreen(film(layer, 0), width, spec);
+      expect(onScreen(film(layer, 0, 1), width, spec) - centre).toBeCloseTo(spec.stepSolo, 6);
+      expect(onScreen(film(layer, 0, 2), width, spec) - centre).toBeCloseTo(-spec.stepSolo, 6);
+      expect(onScreen(film(layer, 0, 0, 0.25), width, spec) - centre).toBeCloseTo(0.25 * spec.jitterSpan, 6);
+    }
+    expect(onScreen(film(0, null, 1), width, spec) - onScreen(film(0, null), width, spec)).toBeCloseTo(spec.stepCollab, 6);
+  });
+
+  it("never lets a poster sit under the rail or past the left edge, however deep its column", () => {
+    for (const [width, tier] of [[1440, "desktop"], [1024, "desktop"], [820, "tablet"], [640, "tablet"], [414, "phone"], [390, "phone"], [320, "phone"]] as const) {
+      for (const people of [1, 2, 3, 4]) {
+        const spec = xSpec(tier, people);
+        for (let layer = 0; layer <= people; layer++) {
+          const half = (layer === 0 ? DEPTH.collab.w : DEPTH.solo.w) / 2;
+          for (let slot = 0; slot < people; slot++) {
+            for (let col = 0; col < 10; col++) {
+              const item = film(layer, layer === 0 ? null : slot, col, 0.5);
+              const x = onScreen(item, width, spec);
+              const f = layerFactor(layer);
+              expect(x - half * f).toBeGreaterThanOrEqual(spec.gutter - 1e-6);
+              expect(x + half * f).toBeLessThanOrEqual(width - spec.rail - spec.gutter + 1e-6);
+            }
+          }
+        }
+      }
+    }
+  });
+});
+
+describe("depthSceneCss", () => {
+  it("declares the spacing of each viewport, from the numbers the JS uses", () => {
+    const css = depthSceneCss(2);
+    for (const tier of ["phone", "tablet", "desktop"] as const) {
+      const spec = xSpec(tier, 2);
+      expect(css).toContain(`--rail:${spec.rail}px`);
+      expect(css).toContain(`--step-solo:${spec.stepSolo}px`);
+      expect(css).toContain(`--step-collab:${spec.stepCollab}px`);
+      expect(css).toContain(`--band-0:${spec.bands[0]}`);
+      expect(css).toContain(`--band-1:${spec.bands[1]}`);
+    }
+    expect(css).toContain(`@media (min-width:${TIER_MIN_WIDTH.tablet}px)`);
+    expect(css).toContain(`@media (min-width:${TIER_MIN_WIDTH.desktop}px)`);
+  });
+
+  it("declares one band per person and places posters with one rule", () => {
+    expect(depthSceneCss(3)).toContain("--band-2:");
+    expect(depthSceneCss(2)).not.toContain("--band-2:");
+    expect(depthSceneCss(2).match(/\[data-poster\]\{left:/g)).toHaveLength(1);
+  });
+
+  it("is the same every time, for the server and the browser to agree", () => {
+    expect(depthSceneCss(4)).toBe(depthSceneCss(4));
   });
 });
 
@@ -106,6 +256,16 @@ describe("blurFor", () => {
 
   it("keeps the first person's layer sharp when nothing is shared, as it is then the front-most", () => {
     expect([0, 1, 2, 3].map((layer) => blurFor(layer, false))).toEqual([0, 0, 3, 3]);
+  });
+});
+
+describe("phoneBlurFor", () => {
+  it("is a light blur on the first person's layer only, and none further back (the cost is on the phone)", () => {
+    expect([0, 1, 2, 3, 4].map((layer) => phoneBlurFor(layer, true))).toEqual([0, 1.5, 0, 0, 0]);
+  });
+
+  it("is none where the layer is not blurred at all: nothing shared, so the first person's layer is the sharp front", () => {
+    expect([0, 1, 2, 3].map((layer) => phoneBlurFor(layer, false))).toEqual([0, 0, 0, 0]);
   });
 });
 
@@ -126,21 +286,22 @@ describe("depthLayout", () => {
   it("puts the films several people made on layer 0, at the centre of the width", () => {
     const l = layout(pair);
     for (const id of [2, 5]) {
-      expect(byId(l, id)).toMatchObject({ layer: 0, shared: true, xFrac: 0.5, dx: 0, w: DEPTH.collab.w, h: DEPTH.collab.h, slots: [0, 1] });
+      expect(byId(l, id)).toMatchObject({ layer: 0, shared: true, band: null, col: 0, jitter: 0, w: DEPTH.collab.w, h: DEPTH.collab.h, slots: [0, 1] });
     }
     expect(l.hasShared).toBe(true);
   });
 
-  it("puts each person's own films on their layer, at their band, jittered by less than half a gap", () => {
+  it("puts each person's own films on their layer, on their band, jittered by less than half the span", () => {
     const l = layout(pair);
-    expect(byId(l, 1)).toMatchObject({ layer: 1, shared: false, xFrac: 0.3, w: DEPTH.solo.w, h: DEPTH.solo.h });
-    expect(byId(l, 3)).toMatchObject({ layer: 2, xFrac: 0.7 });
-    expect(byId(l, 4)).toMatchObject({ layer: 2, xFrac: 0.7 });
+    expect(byId(l, 1)).toMatchObject({ layer: 1, shared: false, band: 0, w: DEPTH.solo.w, h: DEPTH.solo.h });
+    expect(byId(l, 3)).toMatchObject({ layer: 2, band: 1 });
+    expect(byId(l, 4)).toMatchObject({ layer: 2, band: 1 });
     for (const id of [1, 3, 4]) {
       const f = byId(l, id);
-      expect(Math.abs(f.dx - columnOffset(f.col, DEPTH.solo.w + DEPTH.colGap))).toBeLessThanOrEqual(DEPTH.colGap / 2);
+      expect(Math.abs(f.jitter)).toBeLessThanOrEqual(0.5);
       expect(Math.abs(f.y - xForDate(l.scale, f.film.releaseDate))).toBeLessThanOrEqual(DEPTH.rowGap / 2);
     }
+    expect(new Set([1, 3, 4].map((id) => byId(l, id).jitter)).size).toBe(3);
   });
 
   it("lays every film at its release date on one scale, oldest at the top", () => {
@@ -171,23 +332,24 @@ describe("depthLayout", () => {
   it("shows a film that only some of three people made on layer 0 when it is released, in the colours of those people", () => {
     const l = layout([[[1, "2000-01-01"]], [[1, "2000-01-01"], [2, "1995-01-01"]], [[3, "1990-01-01"]]]);
     expect(byId(l, 1)).toMatchObject({ layer: 0, shared: true, slots: [0, 1] });
-    expect(byId(l, 2)).toMatchObject({ layer: 2, xFrac: 0.7 });
-    expect(byId(l, 3)).toMatchObject({ layer: 3, xFrac: 0.18 });
+    expect(byId(l, 2)).toMatchObject({ layer: 2, band: 1 });
+    expect(byId(l, 3)).toMatchObject({ layer: 3, band: 2 });
     expect(l.layerCount).toBe(4);
   });
 
   it("puts an upcoming film several people are making on its first person's layer, at the size of a solo poster", () => {
     const l = layout([[[1, "2030-01-01"]], [[1, "2030-01-01"], [2, "2000-01-01"]]]);
-    expect(byId(l, 1)).toMatchObject({ layer: 1, shared: false, slots: [0, 1], w: DEPTH.solo.w, h: DEPTH.solo.h, xFrac: 0.3 });
+    expect(byId(l, 1)).toMatchObject({ layer: 1, shared: false, slots: [0, 1], w: DEPTH.solo.w, h: DEPTH.solo.h, band: 0 });
     expect(l.hasShared).toBe(false);
   });
 
-  it("keeps one person in the middle of the width, all on the first person's layer", () => {
+  it("keeps one person on one band, all on the first person's layer", () => {
     const l = layout([[[1, "1990-01-01"], [2, "2000-01-01"]]]);
-    expect(l.films.map((f) => [f.layer, f.xFrac])).toEqual([
-      [1, 0.5],
-      [1, 0.5],
+    expect(l.films.map((f) => [f.layer, f.band])).toEqual([
+      [1, 0],
+      [1, 0],
     ]);
+    expect(xSpec("desktop", 1).bands).toEqual([0.5]);
     expect(l.hasShared).toBe(false);
     expect(l.layerCount).toBe(2);
   });
@@ -221,30 +383,51 @@ describe("depthLayout", () => {
       return layer === "shared" ? layout([dates, dates]) : layout([dates, [[1, "1990-01-01"]]]);
     };
 
-    it("lets no two posters of a layer overlap, jitter included", () => {
+    it("lets no two posters of a layer overlap, jitter included, on any viewport", () => {
       for (const l of [crowded("shared"), crowded("solo"), layout([[[1, "2000-01-01"], [2, "2000-02-01"], [3, "2000-03-01"], [4, "2000-04-01"]]])]) {
-        for (const a of l.films) {
-          for (const b of l.films) {
-            if (a === b || a.layer !== b.layer || a.xFrac !== b.xFrac) continue;
-            const apartX = Math.abs(a.dx - b.dx) >= (a.w + b.w) / 2 - 1e-9;
-            const apartY = Math.abs(a.y - b.y) >= (a.h + b.h) / 2 - 1e-9;
-            expect(apartX || apartY).toBe(true);
+        for (const tier of ["phone", "tablet", "desktop"] as const) {
+          const spec = xSpec(tier, 2);
+          // Across in the layer's own space: what is chosen on screen, undone by the layer's scale.
+          const xOf = (f: DepthFilm) => (columnOffset(f.col, f.layer === 0 ? spec.stepCollab : spec.stepSolo) + f.jitter * spec.jitterSpan) / layerFactor(f.layer);
+          for (const a of l.films) {
+            for (const b of l.films) {
+              if (a === b || a.layer !== b.layer || a.band !== b.band) continue;
+              const apartX = Math.abs(xOf(a) - xOf(b)) >= (a.w + b.w) / 2 - 1e-9;
+              const apartY = Math.abs(a.y - b.y) >= (a.h + b.h) / 2 - 1e-9;
+              expect(apartX || apartY).toBe(true);
+            }
           }
         }
       }
     });
 
-    it("uses more than the centre column when films crowd, and only the centre when they do not", () => {
+    it("keeps the films several people made on the centre line unless they crowd", () => {
       expect(Math.max(...crowded("shared").films.map((f) => f.col))).toBeGreaterThan(0);
       const sparse = layout([[[1, "1990-01-01"], [2, "2000-01-01"], [3, "2010-01-01"]], [[1, "1990-01-01"], [2, "2000-01-01"], [3, "2010-01-01"]]]);
-      expect(sparse.films.every((f) => f.col === 0 && f.dx === 0)).toBe(true);
+      expect(sparse.films.every((f) => f.col === 0 && f.jitter === 0)).toBe(true);
     });
 
     it("spreads the collaboration columns left and right of the centre", () => {
       const l = crowded("shared");
-      const offsets = new Set(l.films.map((f) => f.dx));
-      expect(offsets.has(0)).toBe(true);
-      expect(offsets.has(DEPTH.collab.w + DEPTH.colGap)).toBe(true);
+      const steps = new Set(l.films.map((f) => columnIndex(f.col)));
+      expect(steps.has(0)).toBe(true);
+      expect(steps.has(1)).toBe(true);
+    });
+
+    it("scatters a person's own films over the columns even when nothing crowds them, and opens more only for a crowd", () => {
+      // 40 films, one every 3 years: far enough apart for one column to hold them all.
+      const dates = Array.from({ length: 40 }, (_, i): [number, string] => [200 + i, `${1900 + i * 3}-06-01`]);
+      const sparse = layout([dates, [[1, "1890-01-01"]]]);
+      const cols = new Set(sparse.films.filter((f) => f.layer === 1).map((f) => f.col));
+      expect([...cols].sort()).toEqual(Array.from({ length: SOLO_COLUMNS }, (_, i) => i));
+      // A dozen films in a year need more than three columns at 120 + 14 px each.
+      const dense = layout([Array.from({ length: 12 }, (_, i): [number, string] => [300 + i, `2000-0${1 + (i % 9)}-15`]), [[1, "1990-01-01"]]]);
+      expect(Math.max(...dense.films.filter((f) => f.layer === 1).map((f) => f.col))).toBeGreaterThanOrEqual(SOLO_COLUMNS);
+    });
+
+    it("scatters the same way every time", () => {
+      const dates = Array.from({ length: 40 }, (_, i): [number, string] => [200 + i, `${1900 + i * 3}-06-01`]);
+      expect(layout([dates, [[1, "1890-01-01"]]]).films.map((f) => f.col)).toEqual(layout([dates, [[1, "1890-01-01"]]]).films.map((f) => f.col));
     });
   });
 

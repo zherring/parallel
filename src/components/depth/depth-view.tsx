@@ -2,6 +2,7 @@
 
 import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DepthScene } from "@/components/depth/depth-scene";
+import { DustMotes } from "@/components/depth/dust-motes";
 import { PeoplePill, type PillPerson } from "@/components/depth/people-pill";
 import { YearRail } from "@/components/depth/year-rail";
 import { FilmPanel } from "@/components/film-panel/film-panel";
@@ -106,6 +107,8 @@ function DepthViewInner({ timelines, today }: Props) {
       <style>{personColorCss()}</style>
       {/* First in the tab order, as the site's header was; fixed chrome is a sibling of the scroller, never inside it. */}
       <PeoplePill people={pillPeople} scrollerRef={scrollerRef} />
+      {/* Beneath the scroller, which is transparent: a mote is never drawn over a poster. */}
+      <DustMotes scrollerRef={scrollerRef} />
       <DepthScene
         scrollerRef={scrollerRef}
         scrollerId={scrollerId}
