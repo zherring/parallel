@@ -1,16 +1,16 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DepthScene } from "@/components/depth/depth-scene";
+import { PeoplePill, type PillPerson } from "@/components/depth/people-pill";
 import { YearRail } from "@/components/depth/year-rail";
 import { FilmPanel } from "@/components/film-panel/film-panel";
 import { useUrlPeriod } from "@/components/timeline/use-period";
 import { cardFilms } from "@/lib/card-films";
 import { combineLanes, combinedMinimapFilms, describeCombined } from "@/lib/combined-track";
-import { DEPTH_VIEW, flatSearch } from "@/lib/depth-url";
 import { depthLayout } from "@/lib/depth-layout";
+import { DEPTH_VIEW, withDepth } from "@/lib/depth-url";
+import { laneSummary, removePersonHref } from "@/lib/lanes";
 import { outsidePeriodIds, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss, personSlots } from "@/lib/person-colors";
 import type { PairShared } from "@/lib/shared";
@@ -62,6 +62,23 @@ function DepthViewInner({ timelines, today }: Props) {
   const entries = useMemo(() => combineLanes(lanes, slots, today), [lanes, slots, today]);
   const info = useMemo(() => describeCombined(entries, lanes, false), [entries, lanes]);
   const layout = useMemo(() => depthLayout(entries, people.length, today), [entries, people.length, today]);
+  // The people pill's rows. Removing someone stays in the Depth view, unless it was the last person (that goes home).
+  const pillPeople = useMemo(
+    () =>
+      lanes.map(({ person, films }): PillPerson => {
+        const removeHref = removePersonHref(people, person.id);
+        return {
+          id: person.id,
+          name: person.name,
+          profilePath: person.profilePath,
+          slot: slots.get(person.id) ?? 0,
+          roles: laneSummary(films, person, false).roles,
+          filmCount: films.length,
+          removeHref: people.length > 1 ? withDepth(removeHref) : removeHref,
+        };
+      }),
+    [lanes, people, slots],
+  );
   const railFilms = useMemo(() => combinedMinimapFilms(entries), [entries]);
 
   // A link to a period dims the films outside it. It is resolved against the films the page's preview card shows,
@@ -87,6 +104,8 @@ function DepthViewInner({ timelines, today }: Props) {
     <>
       {/* The palette as custom properties (src/lib/person-colors.ts): the hover card and the panel are in portals. */}
       <style>{personColorCss()}</style>
+      {/* First in the tab order, as the site's header was; fixed chrome is a sibling of the scroller, never inside it. */}
+      <PeoplePill people={pillPeople} scrollerRef={scrollerRef} />
       <DepthScene
         scrollerRef={scrollerRef}
         scrollerId={scrollerId}
@@ -108,26 +127,7 @@ function DepthViewInner({ timelines, today }: Props) {
         shared={railFilms.shared}
         ticks={railFilms.ticks}
       />
-      <FlatTimelineLink />
       <FilmPanel filmId={selectedId} peopleInView={people} onClose={handleClose} />
     </>
-  );
-}
-
-/**
- * A way back to the flat timeline, until the people pill (which carries it) exists: the same page without
- * `view=depth`, keeping the period. It is outside the scroller: perspective would turn `fixed` into `absolute`.
- */
-function FlatTimelineLink() {
-  const pathname = usePathname();
-  const search = useSearchParams().toString();
-  return (
-    <Link
-      href={`${pathname}${flatSearch(search)}`}
-      prefetch={false}
-      className="fixed left-3 top-3 z-30 rounded-md border border-border bg-surface/90 px-3 py-1.5 text-sm font-medium text-strong backdrop-blur hover:bg-surface"
-    >
-      Flat timeline
-    </Link>
   );
 }

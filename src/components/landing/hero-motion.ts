@@ -26,7 +26,8 @@ const SPRING_FALLBACK = "cubic-bezier(0.34, 1.5, 0.64, 1)";
 const EASE_IN_OUT = "cubic-bezier(0.4, 0, 0.2, 1)";
 const EASE_OUT = "cubic-bezier(0.22, 1, 0.36, 1)";
 
-const spring = (): string =>
+/** The spring as a CSS `easing` value, for any Web Animations call (the people pill's heads use it too). */
+export const springEasing = (): string =>
   typeof CSS !== "undefined" && CSS.supports("animation-timing-function", "linear(0, 1)")
     ? SPRING
     : SPRING_FALLBACK;
@@ -70,7 +71,7 @@ export function arrive(el: HTMLElement, kind: CardKind, { reduced, delay = 0, di
     el.animate([{ transform: from }, { transform: "translate3d(0, 0, 0) rotate(0deg) scale(1)" }], {
       duration,
       delay,
-      easing: spring(),
+      easing: springEasing(),
       fill: "backwards",
     }),
     el.animate([{ opacity: 0 }, { opacity: 1 }], {
