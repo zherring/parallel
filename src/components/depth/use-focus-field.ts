@@ -52,7 +52,7 @@ export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, fil
     for (const item of films) {
       const el = elements.get(String(item.film.id));
       if (!el || !isBlurred(item.layer, hasShared)) continue;
-      items.push({ el, film: item, y: item.y, x: 0, f: layerFactor(item.layer) });
+      items.push({ el, film: item, y: item.y, x: 0, f: layerFactor(item.layer, undefined, peopleCount) });
       written.set(el, Number.parseFloat(el.style.getPropertyValue("--focus")) || 0);
     }
 

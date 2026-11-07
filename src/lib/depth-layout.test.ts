@@ -76,6 +76,26 @@ describe("layerFactor", () => {
   });
 });
 
+describe("a page of one person", () => {
+  it("has its person's layer at the screen plane, not 320px back: a factor of 1, level with the rail", () => {
+    expect(layerDepth(1, 1)).toBe(DEPTH.singleZ);
+    expect(DEPTH.singleZ).toBeGreaterThanOrEqual(-100);
+    expect(DEPTH.singleZ).toBeLessThanOrEqual(0);
+    expect(layerFactor(1, undefined, 1)).toBe(1);
+    // A page of several people is as it was.
+    expect(layerDepth(1, 2)).toBe(DEPTH.z[1]);
+    expect(layerDepth(1)).toBe(DEPTH.z[1]);
+    expect(layerFactor(1, undefined, 3)).toBeCloseTo(1000 / 1320, 10);
+  });
+
+  it("is never blurred, so it has no soft image and no focus crossfade", () => {
+    // Nothing can be shared on a page of one person, so the first person's layer is the sharp front.
+    expect(blurFor(1, false)).toBe(0);
+    expect(phoneBlurFor(1, false)).toBe(0);
+    expect(isBlurred(1, false)).toBe(false);
+  });
+});
+
 describe("columnIndex", () => {
   it("counts steps from the centre line: 0, +1, -1, +2, -2", () => {
     expect([0, 1, 2, 3, 4, 5].map(columnIndex)).toEqual([0, 1, -1, 2, -2, 3]);
@@ -161,7 +181,9 @@ describe("xSpec", () => {
     for (const tier of tiers) {
       for (const people of [1, 2, 3, 4]) {
         const spec = xSpec(tier, people);
-        expect((spec.stepSolo - spec.jitterSpan) / layerFactor(1)).toBeGreaterThanOrEqual(DEPTH.solo.w);
+        // A page of one person has its own layer at the front (factor 1) and bigger posters, scaled down on a small screen.
+        const drawn = people === 1 ? DEPTH.single.w * spec.soloScale : DEPTH.solo.w;
+        expect((spec.stepSolo - spec.jitterSpan) / layerFactor(1, undefined, people)).toBeGreaterThanOrEqual(drawn);
         // The posters several people made, as drawn (scaled for the viewport), one step apart in the layer's own space.
         expect(spec.stepCollab / layerFactor(0)).toBeGreaterThanOrEqual(DEPTH.collab.w * spec.collabScale);
       }
@@ -183,17 +205,42 @@ describe("xSpec", () => {
     expect(3 * drawn("phone").w + 2 * spec.gutter).toBeLessThanOrEqual(390 - spec.rail);
   });
 
-  it("leaves a phone room for the year rail's 28px and a desktop its 56px", () => {
+  it("draws a page of one person's posters bigger than a page of several's, and fits three columns of them on a 390px phone", () => {
+    for (const tier of ["phone", "tablet", "desktop"] as const) {
+      expect(DEPTH.single.w * xSpec(tier, 1).soloScale).toBeGreaterThan(DEPTH.solo.w * layerFactor(1));
+      // The layer is at the screen plane, so its factor is 1; pages of several keep their own size.
+      expect(xSpec(tier, 2).soloScale).toBe(1);
+      expect(xSpec(tier, 1).people).toBe(1);
+    }
+    expect(DEPTH.single.w * xSpec("desktop", 1).soloScale).toBe(120);
+    expect(DEPTH.single.h * xSpec("desktop", 1).soloScale).toBe(180);
+    const phone = xSpec("phone", 1);
+    const w = DEPTH.single.w * phone.soloScale;
+    expect(3 * w + 2 * phone.gutter).toBeLessThanOrEqual(390 - phone.rail);
+    // Columns one step apart, jitter included, stay clear of each other and inside the stage.
+    expect(phone.stepSolo - phone.jitterSpan).toBeGreaterThanOrEqual(w);
+    const stage = 390 - phone.rail;
+    expect(stage / 2 + phone.stepSolo + w / 2 + phone.jitterSpan / 2).toBeLessThanOrEqual(stage - phone.gutter);
+  });
+
+  it("leaves a phone room for the year rail's 28px and a desktop its 60px", () => {
     expect(xSpec("phone", 2).rail).toBe(28);
-    expect(xSpec("tablet", 2).rail).toBe(56);
-    expect(xSpec("desktop", 2).rail).toBe(56);
+    expect(xSpec("tablet", 2).rail).toBe(60);
+    expect(xSpec("desktop", 2).rail).toBe(60);
   });
 });
 
 describe("docCenterX", () => {
-  const film = (layer: number, band: number | null, col = 0, jitter = 0) => ({ layer, band, col, jitter, w: layer === 0 ? DEPTH.collab.w : DEPTH.solo.w });
+  const film = (layer: number, band: number | null, col = 0, jitter = 0, people = 2) => ({
+    layer,
+    band,
+    col,
+    jitter,
+    w: layer === 0 ? DEPTH.collab.w : people === 1 ? DEPTH.single.w : DEPTH.solo.w,
+  });
   /** Where on screen the poster's centre is. */
-  const onScreen = (item: ReturnType<typeof film>, width: number, spec: ReturnType<typeof xSpec>) => projectX(docCenterX(item, width, spec), width, layerFactor(item.layer));
+  const onScreen = (item: ReturnType<typeof film>, width: number, spec: ReturnType<typeof xSpec>) =>
+    projectX(docCenterX(item, width, spec), width, layerFactor(item.layer, undefined, spec.people));
 
   it("puts a band where it was asked for, on screen, whatever the depth of its layer", () => {
     const width = 1440;
@@ -229,12 +276,12 @@ describe("docCenterX", () => {
       for (const people of [1, 2, 3, 4]) {
         const spec = xSpec(tier, people);
         for (let layer = 0; layer <= people; layer++) {
-          const half = (layer === 0 ? DEPTH.collab.w * spec.collabScale : DEPTH.solo.w) / 2;
+          const half = (layer === 0 ? DEPTH.collab.w * spec.collabScale : (people === 1 ? DEPTH.single.w : DEPTH.solo.w) * spec.soloScale) / 2;
           for (let slot = 0; slot < people; slot++) {
             for (let col = 0; col < 10; col++) {
-              const item = film(layer, layer === 0 ? null : slot, col, 0.5);
+              const item = film(layer, layer === 0 ? null : slot, col, 0.5, people);
               const x = onScreen(item, width, spec);
-              const f = layerFactor(layer);
+              const f = layerFactor(layer, undefined, people);
               expect(x - half * f).toBeGreaterThanOrEqual(spec.gutter - 1e-6);
               expect(x + half * f).toBeLessThanOrEqual(width - spec.rail - spec.gutter + 1e-6);
             }
@@ -409,14 +456,15 @@ describe("depthLayout", () => {
     it("lets no two posters of a layer overlap, jitter included, on any viewport", () => {
       for (const l of [crowded("shared"), crowded("solo"), layout([[[1, "2000-01-01"], [2, "2000-02-01"], [3, "2000-03-01"], [4, "2000-04-01"]]])]) {
         for (const tier of ["phone", "tablet", "desktop"] as const) {
-          const spec = xSpec(tier, 2);
+          const people = l.layerCount - 1;
+          const spec = xSpec(tier, people);
           // Across in the layer's own space: what is chosen on screen, undone by the layer's scale.
-          const xOf = (f: DepthFilm) => (columnOffset(f.col, f.layer === 0 ? spec.stepCollab : spec.stepSolo) + f.jitter * spec.jitterSpan) / layerFactor(f.layer);
+          const xOf = (f: DepthFilm) => (columnOffset(f.col, f.layer === 0 ? spec.stepCollab : spec.stepSolo) + f.jitter * spec.jitterSpan) / layerFactor(f.layer, undefined, people);
           for (const a of l.films) {
             for (const b of l.films) {
               if (a === b || a.layer !== b.layer || a.band !== b.band) continue;
               // As drawn: the films several people made are scaled down on a small screen.
-              const drawnW = (f: DepthFilm) => (f.layer === 0 ? f.w * spec.collabScale : f.w);
+              const drawnW = (f: DepthFilm) => f.w * (f.layer === 0 ? spec.collabScale : spec.soloScale);
               const apartX = Math.abs(xOf(a) - xOf(b)) >= (drawnW(a) + drawnW(b)) / 2 - 1e-9;
               const apartY = Math.abs(a.y - b.y) >= (a.h + b.h) / 2 - 1e-9;
               expect(apartX || apartY).toBe(true);

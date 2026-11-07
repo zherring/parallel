@@ -115,7 +115,7 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
   }, [scrollerRef, anchorY, trackHeight]);
 
   useFocusField(scrollerRef, layout.films, layout.hasShared, people.length);
-  usePosterImages(scrollerRef, layout.films);
+  usePosterImages(scrollerRef, layout.films, people.length);
 
   // The posters whose images are in the markup (see `DepthPoster`'s `eager`): those within the fetch window of where the
   // scene opens, worked out for a nominal viewport so the server and the browser agree. The rest wait for `usePosterImages`.
@@ -123,10 +123,10 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
     const top = anchorScrollTop(anchorY, NOMINAL_VIEWPORT_H, trackHeight);
     return new Set(
       layout.films
-        .filter((item) => inWindow(item.y, top, NOMINAL_VIEWPORT_H, layerFactor(item.layer), SOFT_WINDOW * NOMINAL_VIEWPORT_H))
+        .filter((item) => inWindow(item.y, top, NOMINAL_VIEWPORT_H, layerFactor(item.layer, undefined, people.length), SOFT_WINDOW * NOMINAL_VIEWPORT_H))
         .map((item) => item.film.id),
     );
-  }, [layout.films, anchorY, trackHeight]);
+  }, [layout.films, anchorY, trackHeight, people.length]);
 
   // ---- hover, focus and the film card ---------------------------------------
   const popoverId = useId();
@@ -209,7 +209,11 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
               // `--f`: how much smaller the layer is on screen, for the posters' x (see `depthSceneCss`).
               // Everything but the films several people made is behind the screen plane; they are in front of it (a negative depth).
               // The z-index is for a browser that flattens the 3D context: the films several people made still paint last.
-              style={{ transform: `translateZ(${-layerDepth(group.layer)}px)`, zIndex: group.layer === 0 ? layers.length : 0, "--f": layerFactor(group.layer) } as CSSProperties}
+              style={{
+                transform: `translateZ(${-layerDepth(group.layer, people.length)}px)`,
+                zIndex: group.layer === 0 ? layers.length : 0,
+                "--f": layerFactor(group.layer, undefined, people.length),
+              } as CSSProperties}
             >
               {group.films.map((item) => {
                 const film = item.film;

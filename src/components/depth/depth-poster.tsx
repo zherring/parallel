@@ -65,7 +65,8 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
   // Collaborations are the sharp ones in front: a bigger image. The posters of the layers behind are two images, a soft
   // one (small and blurred, drawn once) under a sharp one whose opacity the focus field raises (see `useFocusField`).
   const soft = isBlurred(layer, hasShared);
-  const src = tmdbImage(film.posterPath, shared ? "w342" : "w185");
+  // The films several people made, and a page of one person's (up front, big and sharp), get the larger image.
+  const src = tmdbImage(film.posterPath, shared || !coloured ? "w342" : "w185");
   const softSrc = soft ? tmdbImage(film.posterPath, "w92") : null;
   // One person made it: their colour rings the poster. Several people making a film that is not out yet: neutral.
   const ring = coloured && !shared && slots.length === 1 ? slots[0] : null;
@@ -82,8 +83,9 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, hasShared, out
     "--step": layer === 0 ? "var(--step-collab)" : "var(--step-solo)",
     "--w": `${w}px`,
     // The films several people made are drawn smaller on a small screen (the viewport's `--collab-scale`): about the poster's centre.
-    "--ps": layer === 0 ? "var(--collab-scale)" : 1,
-    ...(layer === 0 ? { transform: "scale(var(--collab-scale))" } : null),
+    // A page of one person has its posters up front and bigger, and scales them down the same way (`--solo-scale`, 1 on a page of several).
+    "--ps": layer === 0 ? "var(--collab-scale)" : "var(--solo-scale)",
+    transform: layer === 0 ? "scale(var(--collab-scale))" : !coloured ? "scale(var(--solo-scale))" : undefined,
     "--lead": `${round(w / 2)}px`,
     width: w,
     height: h,

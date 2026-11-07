@@ -46,6 +46,13 @@ export const DEPTH = {
   /** Laid out at this size; the layer's factor (1.11) draws it about 151 x 227 px on a desktop (see `TIERS`' `collabScale` for smaller screens). */
   collab: { w: 136, h: 204 },
   solo: { w: 80, h: 120 },
+  /**
+   * A page of one person has nothing made together to put in front, so their own films take the front: this big (the
+   * films several people made are 136 x 204) and at `singleZ`, with no blur (see `blurFor`). Scaled down on a smaller screen.
+   */
+  single: { w: 120, h: 180 },
+  /** Depth (px behind the screen plane) of the layer of a page of one person: at the screen plane, so every poster is at full size and level with the rail. */
+  singleZ: 0,
   /** Vertical gap (px) between posters of a column. */
   rowGap: 14,
 } as const;
@@ -69,6 +76,10 @@ export interface XSpec {
   stepCollab: number;
   /** How much the posters of films several people made are scaled down about their centres (1 on a desktop): a phone's stage is narrower. */
   collabScale: number;
+  /** The same for the posters of a page of one person (`DEPTH.single`); 1 on a page of several, whose own films keep their size. */
+  soloScale: number;
+  /** People on the page (1 to 4): a page of one has its films at the front (`layerDepth`). */
+  people: number;
   /** Distance (px on screen) between two columns of a person's own films. */
   stepSolo: number;
   /** Width (px on screen) the jitter of a solo poster is spread over. */
@@ -83,10 +94,10 @@ export interface XSpec {
  * shrunk, so no two posters of a layer overlap. A larger step spreads a person's columns across more of the screen, which
  * is what lets a desktop use its width while a phone keeps three columns inside 362px.
  */
-const TIERS: Record<DepthTier, Omit<XSpec, "bands"> & { stepSoloOne: number; spread: number }> = {
-  phone: { rail: 28, gutter: 4, stepCollab: 128, collabScale: 0.76, stepSolo: 70, stepSoloOne: 96, jitterSpan: 8, spread: 0.8 },
-  tablet: { rail: 56, gutter: 8, stepCollab: 146, collabScale: 0.9, stepSolo: 100, stepSoloOne: 190, jitterSpan: 20, spread: 0.9 },
-  desktop: { rail: 56, gutter: 8, stepCollab: 166, collabScale: 1, stepSolo: 120, stepSoloOne: 300, jitterSpan: 36, spread: 1 },
+const TIERS: Record<DepthTier, Omit<XSpec, "bands" | "soloScale" | "people"> & { stepSoloOne: number; singleScale: number; spread: number }> = {
+  phone: { rail: 28, gutter: 4, stepCollab: 128, collabScale: 0.76, stepSolo: 70, stepSoloOne: 108, singleScale: 0.8, jitterSpan: 8, spread: 0.8 },
+  tablet: { rail: 60, gutter: 8, stepCollab: 146, collabScale: 0.9, stepSolo: 100, stepSoloOne: 190, singleScale: 0.9, jitterSpan: 20, spread: 0.9 },
+  desktop: { rail: 60, gutter: 8, stepCollab: 166, collabScale: 1, stepSolo: 120, stepSoloOne: 300, singleScale: 1, jitterSpan: 36, spread: 1 },
 };
 
 /** Columns a person's own films scatter over (the centre line and one to each side); a crowd of films takes more. */
@@ -138,13 +149,21 @@ export interface DepthOptions {
   pxPerYear?: number;
 }
 
-/** Scale of a layer on screen, `p / (p + z)`: 1 at the screen plane, smaller the further back. */
-export function layerFactor(layer: number, perspective: number = DEPTH.perspective): number {
-  return perspective / (perspective + layerDepth(layer));
+/**
+ * Scale of a layer on screen, `p / (p + z)`: 1 at the screen plane, above 1 in front of it, smaller the further back.
+ * `peopleCount` is the people on the page (a page of one has its films at the front, see `layerDepth`).
+ */
+export function layerFactor(layer: number, perspective: number = DEPTH.perspective, peopleCount: number = 2): number {
+  return perspective / (perspective + layerDepth(layer, peopleCount));
 }
 
-/** Distance behind the screen plane (px) of a layer; layers past the table share the last one's. */
-export function layerDepth(layer: number): number {
+/**
+ * Distance behind the screen plane (px) of a layer (negative in front of it); layers past the table share the last
+ * one's. On a page of one person there are no films made together, and the person's own layer is not 320px back but at
+ * `DEPTH.singleZ`, the front.
+ */
+export function layerDepth(layer: number, peopleCount: number = 2): number {
+  if (peopleCount === 1 && layer >= 1) return DEPTH.singleZ;
   return DEPTH.z[Math.min(Math.max(0, Math.trunc(layer)), DEPTH.z.length - 1)];
 }
 
@@ -174,7 +193,8 @@ export function hashUnit(id: number): number {
 
 /**
  * Blur (px) of a layer's posters while they are out of focus: none in front, a soft one on the first person's layer and
- * a stronger one further back. With nothing shared the first person's layer is the front-most one, so it stays sharp.
+ * a stronger one further back. With nothing shared the first person's layer is the front-most one, so it stays sharp
+ * (which is every page of one person: nothing can be shared, so its posters are sharp images with no soft copy under them).
  */
 export function blurFor(layer: number, hasShared: boolean): number {
   if (layer <= 0) return 0;
@@ -213,13 +233,15 @@ export function bandFor(slot: number, peopleCount: number, tier: DepthTier = "de
 
 /** The spacing of the x axis for a viewport and a page of `peopleCount` people. */
 export function xSpec(tier: DepthTier, peopleCount: number): XSpec {
-  const { rail, gutter, stepCollab, collabScale, stepSolo, stepSoloOne, jitterSpan } = TIERS[tier];
+  const { rail, gutter, stepCollab, collabScale, stepSolo, stepSoloOne, singleScale, jitterSpan } = TIERS[tier];
   const people = Math.min(Math.max(1, Math.trunc(peopleCount)), BANDS.length - 1);
   return {
     rail,
     gutter,
     stepCollab,
     collabScale,
+    soloScale: people === 1 ? singleScale : 1,
+    people,
     // A page of one person has the whole width to itself: its columns are spread further apart.
     stepSolo: people === 1 ? stepSoloOne : stepSolo,
     jitterSpan,
@@ -236,9 +258,9 @@ export function xSpec(tier: DepthTier, peopleCount: number): XSpec {
  * undone for the least and greatest x a poster clear of the edge and the rail can be at.
  */
 export function docCenterX(film: Pick<DepthFilm, "layer" | "band" | "col" | "jitter" | "w">, width: number, spec: XSpec): number {
-  const f = layerFactor(film.layer);
-  // What is kept inside the stage is the poster as drawn: the films several people made are scaled down on a small screen.
-  const w = film.layer === 0 ? film.w * spec.collabScale : film.w;
+  const f = layerFactor(film.layer, DEPTH.perspective, spec.people);
+  // What is kept inside the stage is the poster as drawn: the films several people made (and a page of one person's) are scaled down on a small screen.
+  const w = film.w * (film.layer === 0 ? spec.collabScale : spec.soloScale);
   const q = film.band === null ? 0.5 : (spec.bands[Math.min(film.band, spec.bands.length - 1)] ?? 0.5);
   const step = film.layer === 0 ? spec.stepCollab : spec.stepSolo;
   const x = width / 2 + ((width - spec.rail) * q - width / 2 + columnIndex(film.col) * step + film.jitter * spec.jitterSpan) / f;
@@ -255,6 +277,7 @@ function specDeclarations(spec: XSpec): string {
     `--gutter:${spec.gutter}px`,
     `--step-collab:${spec.stepCollab}px`,
     `--collab-scale:${round(spec.collabScale)}`,
+    `--solo-scale:${round(spec.soloScale)}`,
     `--step-solo:${spec.stepSolo}px`,
     `--jit-span:${spec.jitterSpan}px`,
     ...spec.bands.map((band, slot) => `--band-${slot}:${round(band)}`),
@@ -344,7 +367,7 @@ export function depthLayout(
   const films: DepthFilm[] = [];
   for (const layer of [...byLayer.keys()].sort((a, b) => a - b)) {
     const group = byLayer.get(layer) ?? [];
-    const size = layer === 0 ? DEPTH.collab : DEPTH.solo;
+    const size = layer === 0 ? DEPTH.collab : peopleCount === 1 ? DEPTH.single : DEPTH.solo;
     const spine = layer === 0;
     // Down the axis (a poster is `h` tall, so `packFilms` reads x as y), each film has a column: the films several people
     // made take the lowest free one, so they stay on the centre line unless they crowd; a person's own films scatter.

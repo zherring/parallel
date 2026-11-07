@@ -35,7 +35,7 @@ interface PosterImages {
  * It runs on scroll and on resize (a frame at most): once every image has its `src` it does no work. A request that fails
  * is repeated twice.
  */
-export function usePosterImages(scrollerRef: RefObject<HTMLDivElement | null>, films: readonly DepthFilm[]): void {
+export function usePosterImages(scrollerRef: RefObject<HTMLDivElement | null>, films: readonly DepthFilm[], peopleCount: number): void {
   useEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
@@ -51,7 +51,7 @@ export function usePosterImages(scrollerRef: RefObject<HTMLDivElement | null>, f
         if (img.hasAttribute("src")) return;
         pending.push({ img, window: img.dataset.window === "sharp" ? SHARP_WINDOW : SOFT_WINDOW });
       });
-      if (pending.length > 0) posters.push({ y: item.y, f: layerFactor(item.layer), pending });
+      if (pending.length > 0) posters.push({ y: item.y, f: layerFactor(item.layer, undefined, peopleCount), pending });
     }
 
     let remaining = posters.length;
@@ -122,5 +122,5 @@ export function usePosterImages(scrollerRef: RefObject<HTMLDivElement | null>, f
       if (frame) cancelAnimationFrame(frame);
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [scrollerRef, films]);
+  }, [scrollerRef, films, peopleCount]);
 }

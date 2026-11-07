@@ -151,6 +151,32 @@ test("the rail is the bottom minimap turned on its side: nodes and ticks all cen
   }).toBeLessThan(2);
 });
 
+test("a page of one person has its posters at the front, big and sharp", async ({ page }) => {
+  await page.goto("/p/90000001-scroll-alpha?view=depth");
+  const region = scene(page);
+  await expect(region).toBeVisible();
+
+  // One layer, at the screen plane, with no soft copy of any poster and nothing blurred.
+  await expect(region.locator("ol")).toHaveCount(1);
+  expect(await region.locator("ol").evaluate((list) => list.style.transform)).toBe("translateZ(0px)");
+  const posters = region.locator("[data-poster]");
+  const count = await posters.count();
+  expect(count).toBeGreaterThan(20);
+  await expect(region.locator("[data-poster] img")).toHaveCount(count);
+  const images = await region.locator("[data-poster] img").evaluateAll((all) =>
+    all.map((image) => ({ source: image.getAttribute("data-src"), filter: getComputedStyle(image).filter, opacity: getComputedStyle(image).opacity })),
+  );
+  expect(images.every((image) => image.source?.includes("/w342/") && image.filter === "none" && image.opacity === "1")).toBe(true);
+
+  // Big: 120 x 180 on a desktop, and, being at the screen plane, exactly where the layout puts it (level with the rail).
+  const first = posters.first();
+  const box = (await first.locator("button").boundingBox())!;
+  expect([Math.round(box.width), Math.round(box.height)]).toEqual([120, 180]);
+  const docY = await first.evaluate((poster) => parseFloat((poster as HTMLElement).style.top) + (poster as HTMLElement).offsetHeight / 2);
+  const scrollTop = await region.evaluate((scroller) => scroller.scrollTop);
+  expect(Math.abs(box.y + box.height / 2 - (docY - scrollTop))).toBeLessThan(1);
+});
+
 test("a linked period dims the posters outside it", async ({ page }) => {
   await openDepth(page, "&from=2000&to=2001");
   const region = scene(page);
