@@ -701,19 +701,19 @@ describe("depthLayout", () => {
           }
         }
       }
-      // The labels: 6px of air, the year chip (a 15px line and 6px of padding), 6px clear between the chips, the next one's title chip (two 16px
+      // The labels: 6px of air, the year chip (a 15px line and 6px of padding), 6px clear between the chips, the next one's title chip (three 16px
       // lines at most and 6px of padding) and 6px of air to its poster.
       const air = 6;
       const yearChip = 15 + 6;
-      const titleChip = 2 * 16 + 6;
+      const titleChip = 3 * 16 + 6;
       expect(DEPTH.collabGap).toBeGreaterThanOrEqual(air + yearChip + 6 + titleChip + air);
       // A person's own films have no labels and keep the tighter gap.
       expect(DEPTH.rowGap).toBeLessThan(DEPTH.collabGap);
     });
 
     it("leaves room above the first film made together, in the track, for its title chip", () => {
-      // The chip hangs over the poster's top edge by 6px of air, two 16px lines and 6px of padding (44px) at most; the layer is drawn `layerFactor(0)` larger.
-      const hang = (DEPTH.collab.h / 2 + 6 + (2 * 16 + 6)) * layerFactor(0);
+      // The chip hangs over the poster's top edge by 6px of air, three 16px lines and 6px of padding (60px) at most; the layer is drawn `layerFactor(0)` larger.
+      const hang = (DEPTH.collab.h / 2 + 6 + (3 * 16 + 6)) * layerFactor(0);
       expect(DEPTH.pad).toBeGreaterThanOrEqual(hang);
     });
 

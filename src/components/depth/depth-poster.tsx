@@ -223,7 +223,7 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
         {shared && (
           <>
             {/* The labels of a film made together, out of the poster's box (the layout and the packing know their room, `DEPTH.collabGap`, but
-                they are absolutely positioned and add nothing to the poster's size): the title just above the poster's top edge, two lines at most,
+                they are absolutely positioned and add nothing to the poster's size): the title just above the poster's top edge, three lines at most (a long title is never cut short),
                 and the year just below its bottom edge, 6px of air each, each on a near-black chip. Always there; a hover or keyboard focus brightens the title
                 from 90% to full (a pointer that can hover only: Tailwind's `hover:` variant) and nothing moves. The button's label already says all of it. */}
             <span aria-hidden data-poster-caption="title" className="pointer-events-none absolute inset-x-0 bottom-full mb-1.5 flex justify-center">
@@ -231,7 +231,7 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
                 <span
                   data-caption-line
                   className={cn(
-                    "line-clamp-2 break-words text-center text-[13px] leading-4 text-strong/90 max-sm:text-[14px]",
+                    "line-clamp-3 break-words text-center text-[13px] leading-4 text-strong/90 max-sm:text-[14px]",
                     "transition-colors duration-150 group-hover:text-strong group-focus-visible:text-strong motion-reduce:transition-none",
                   )}
                 >
