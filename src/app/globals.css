@@ -79,3 +79,12 @@ body {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+
+/*
+ * The Depth view (?view=depth) is a full-viewport scene with its own controls: the site's header and footer leave
+ * the page, and the tab order, once it mounts (src/components/depth/depth-view.tsx sets the attribute).
+ */
+:root[data-view="depth"] body > header,
+:root[data-view="depth"] body > footer {
+  display: none;
+}

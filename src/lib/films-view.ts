@@ -26,6 +26,13 @@ export const VIEW_LABELS: Record<View, string> = {
 
 export const VIEW_PARAM = "view";
 
+/**
+ * The Depth view (`?view=depth`): the same films in a vertical, perspective scene (see `lib/depth-layout`). It is not one of
+ * the `VIEWS`: those are the Timeline and Table tabs, and `parseView` keeps reading a `view=depth` query as the default.
+ * The view is only carried from page to page (see `carryView`); the Depth page has no tabs.
+ */
+export const DEPTH_VIEW = "depth";
+
 /** Whether the query names a sort: the table's own `?sort=` and `&dir=`. */
 function hasSortParams(params: URLSearchParams): boolean {
   return params.has(SORT_PARAM) || params.has(DIR_PARAM);
@@ -61,15 +68,16 @@ export function searchWithView(search: string, view: View): string {
 /**
  * `href` for a navigation to another page of people (a person added from a search, a chip or a
  * film's cast), carrying the view the visitor is on: `currentSearch` is the query of the page they
- * leave. Only the Table needs carrying (Timeline is what a page without `view` opens), and the
- * sort does not travel, since the films it ordered are not the films of the new page.
+ * leave. Only the Table and the Depth view need carrying (Timeline is what a page without `view`
+ * opens), and the sort does not travel, since the films it ordered are not the films of the new page.
  */
 export function carryView(href: string, currentSearch: string): string {
-  if (parseView(currentSearch) !== "table") return href;
+  const carried = new URLSearchParams(currentSearch).get(VIEW_PARAM) === DEPTH_VIEW ? DEPTH_VIEW : parseView(currentSearch);
+  if (carried === DEFAULT_VIEW) return href;
   const hash = href.indexOf("#");
   const path = hash === -1 ? href : href.slice(0, hash);
   const rest = hash === -1 ? "" : href.slice(hash);
-  return `${path}${path.includes("?") ? "&" : "?"}${VIEW_PARAM}=table${rest}`;
+  return `${path}${path.includes("?") ? "&" : "?"}${VIEW_PARAM}=${carried}${rest}`;
 }
 
 /**

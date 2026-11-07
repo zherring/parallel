@@ -4,6 +4,7 @@ import { sharedFilms } from "@/lib/shared";
 import type { Credit, Film, PersonTimeline } from "@/lib/types";
 import {
   DEFAULT_VIEW,
+  DEPTH_VIEW,
   VIEWS,
   VIEW_LABELS,
   carryView,
@@ -20,6 +21,11 @@ describe("VIEWS", () => {
     expect(VIEWS).toEqual(["timeline", "table"]);
     expect(DEFAULT_VIEW).toBe("timeline");
     expect(VIEW_LABELS).toEqual({ timeline: "Timeline", table: "Table" });
+  });
+
+  it("does not list the Depth view, which is no tab: a link to it reads as the default view", () => {
+    expect(VIEWS).not.toContain(DEPTH_VIEW);
+    expect(parseView("?view=depth")).toBe(DEFAULT_VIEW);
   });
 });
 
@@ -107,6 +113,13 @@ describe("carryView", () => {
   it("carries the table of a sorted link, without the sort", () => {
     expect(carryView(href, "?sort=box-office&dir=desc")).toBe(`${href}?view=table`);
     expect(carryView(href, "?view=table&sort=rating&dir=desc")).toBe(`${href}?view=table`);
+  });
+
+  it("adds view=depth when the page being left is the Depth view, without the sort", () => {
+    expect(carryView(href, "?view=depth")).toBe(`${href}?view=depth`);
+    expect(carryView(href, "?view=depth&from=1990&to=2000")).toBe(`${href}?view=depth`);
+    expect(carryView(href, "?view=depth&sort=rating&dir=desc")).toBe(`${href}?view=depth`);
+    expect(carryView(`${href}#x`, "?view=depth")).toBe(`${href}?view=depth#x`);
   });
 
   it("leaves the href alone for the timeline, which is what a page without a view opens", () => {

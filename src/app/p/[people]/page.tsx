@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { DepthView } from "@/components/depth/depth-view";
 import { PeopleView } from "@/components/people-view";
 import { cardFilms } from "@/lib/card-films";
+import { isDepthView, redirectSearch } from "@/lib/depth-url";
 import { loadPeople } from "@/lib/people";
-import { parsePeriodParams, rawPeriodSearch, resolvePeriod, searchWithPeriod, spanOfYears } from "@/lib/period";
+import { parsePeriodParams, resolvePeriod, searchWithPeriod, spanOfYears } from "@/lib/period";
 import { todayIso } from "@/lib/released";
 import { peopleDescription, peopleSocial, peopleTitle, periodImagePath, periodTitle } from "@/lib/seo";
 import { sharedFilms, sharedFilmsPairwise } from "@/lib/shared";
@@ -44,20 +46,20 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 }
 
 export default async function PeoplePage({ params, searchParams }: Props) {
-  const { people } = await params;
+  const [{ people }, query] = await Promise.all([params, searchParams]);
   const { timelines, canonical, isCanonical } = await loadPeople(people);
-  // A link typed with a shorthand slug still opens on its period.
-  if (!isCanonical) redirect(`/p/${canonical}${rawPeriodSearch(parsePeriodParams(await searchParams))}`);
+  // A link typed with a shorthand slug still opens on its period (and on the Depth view, if it asked for it).
+  if (!isCanonical) redirect(`/p/${canonical}${redirectSearch(query)}`);
 
   // Computed once, here, and handed to the client: only released films count as shared or connected,
   // and the browser must draw the same timeline the server did, so it never reads the clock itself.
   const opts = { includeMinor: false, today: todayIso() };
-  return (
-    <PeopleView
-      timelines={timelines}
-      shared={sharedFilms(timelines, opts)}
-      pairwise={sharedFilmsPairwise(timelines, opts)}
-      today={opts.today}
-    />
-  );
+  const view = {
+    timelines,
+    shared: sharedFilms(timelines, opts),
+    pairwise: sharedFilmsPairwise(timelines, opts),
+    today: opts.today,
+  };
+  // `?view=depth` draws the same people and films as the vertical perspective scene instead of the Timeline and Table.
+  return isDepthView(query.view) ? <DepthView {...view} /> : <PeopleView {...view} />;
 }

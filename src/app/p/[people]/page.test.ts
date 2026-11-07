@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PeoplePage, { generateMetadata } from "@/app/p/[people]/page";
+import { DepthView } from "@/components/depth/depth-view";
+import { PeopleView } from "@/components/people-view";
 import { PAIR_SLUG } from "@/lib/test-people";
 
 vi.mock("@/lib/people", async () => {
@@ -9,6 +11,7 @@ vi.mock("@/lib/people", async () => {
 
 // The page hands the people to a client component; it is not what these tests are about.
 vi.mock("@/components/people-view", () => ({ PeopleView: function PeopleView() {} }));
+vi.mock("@/components/depth/depth-view", () => ({ DepthView: function DepthView() {} }));
 
 const REDIRECTED = "TEST_REDIRECT:";
 vi.mock("next/navigation", async (importOriginal) => ({
@@ -109,5 +112,45 @@ describe("the page", () => {
 
   it("takes the first of a repeated parameter", async () => {
     expect(await redirectsTo("3151+6837", { from: ["1970", "1975"], to: "1980" })).toBe(`/p/${PAIR_SLUG}?from=1970&to=1980`);
+  });
+
+  it("carries view=depth through that redirect, after the period", async () => {
+    expect(await redirectsTo("3151+6837", { view: "depth" })).toBe(`/p/${PAIR_SLUG}?view=depth`);
+    expect(await redirectsTo("3151+6837", { view: "depth", from: "1970", to: "1980" })).toBe(
+      `/p/${PAIR_SLUG}?from=1970&to=1980&view=depth`,
+    );
+    expect(await redirectsTo("3151+6837", { view: ["depth", "table"] })).toBe(`/p/${PAIR_SLUG}?view=depth`);
+  });
+
+  it("still drops view=table and any view it does not know", async () => {
+    expect(await redirectsTo("3151+6837", { view: "table" })).toBe(`/p/${PAIR_SLUG}`);
+    expect(await redirectsTo("3151+6837", { view: "grid", from: "1970" })).toBe(`/p/${PAIR_SLUG}?from=1970`);
+  });
+
+  describe("which view it renders", () => {
+    const rendered = async (query: Query) => {
+      const element = (await PeoplePage(props(PAIR_SLUG, query))) as { type: unknown; props: Record<string, unknown> };
+      return element;
+    };
+
+    it("is the Depth view for ?view=depth, with the people's films", async () => {
+      const element = await rendered({ view: "depth" });
+      expect(element.type).toBe(DepthView);
+      expect(element.props).toMatchObject({ today: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
+      expect(element.props.timelines).toHaveLength(2);
+    });
+
+    it("is the Depth view with a period in the link, which the client reads", async () => {
+      expect((await rendered({ view: "depth", from: "1970", to: "1980" })).type).toBe(DepthView);
+    });
+
+    it.each([
+      ["no query", {}],
+      ["the table", { view: "table" }],
+      ["the timeline", { view: "timeline" }],
+      ["a view it does not know", { view: "grid" }],
+    ])("is the usual page for %s", async (_name, query) => {
+      expect((await rendered(query)).type).toBe(PeopleView);
+    });
   });
 });
