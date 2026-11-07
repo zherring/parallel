@@ -44,12 +44,24 @@ interface Press {
   dragging: boolean;
 }
 
-function describeTarget(scroller: HTMLElement, event: PointerEvent): PanTarget {
+/** What a scroller's pan is told apart from a click by, and along which axes it moves. The flat timeline uses the defaults. */
+export interface DragPanOptions {
+  /**
+   * Elements with a job of their own, which a press never pans from (a CSS selector). The default is `INTERACTIVE`: the
+   * timeline's cards and nodes, buttons, links and inputs. `null` for none: the Depth scene lets a press on a poster pan too,
+   * and a poster only opens its film when the press was a click (the click that ends a drag is swallowed).
+   */
+  interactive?: string | null;
+  /** "both" (the default) pans sideways and down; "y" leaves a scroller's horizontal position alone (the Depth scene scrolls vertically). */
+  axis?: "both" | "y";
+}
+
+function describeTarget(scroller: HTMLElement, event: PointerEvent, interactive: string | null): PanTarget {
   const target = event.target instanceof Element ? event.target : null;
   const inside = (element: Element | null | undefined) => !!element && element !== scroller && scroller.contains(element);
   const box = scroller.getBoundingClientRect();
   return {
-    interactive: inside(target?.closest(INTERACTIVE)),
+    interactive: interactive !== null && inside(target?.closest(interactive)),
     inHeader: inside(target?.closest(HEADER)),
     onScrollbar: pressOnScrollbar(event.clientX, event.clientY, {
       left: box.left,
@@ -77,11 +89,13 @@ function describeTarget(scroller: HTMLElement, event: PointerEvent): PanTarget {
  * Native listeners on the scroller, not React props: React events bubble through portals (the biography
  * dialog), and a drag fires them far more often than anything else on the page.
  */
-export function useDragPan(scrollerRef: RefObject<HTMLElement | null>, onPanStart?: () => void) {
+export function useDragPan(scrollerRef: RefObject<HTMLElement | null>, onPanStart?: () => void, options?: DragPanOptions) {
   const panning = useRef(false);
   const onPanStartRef = useRef(onPanStart);
+  const optionsRef = useRef(options);
   useEffect(() => {
     onPanStartRef.current = onPanStart;
+    optionsRef.current = options;
   });
 
   /** For the hover handlers: no film is hovered under a pointer that is dragging the timeline. */
@@ -127,7 +141,12 @@ export function useDragPan(scrollerRef: RefObject<HTMLElement | null>, onPanStar
         if (!movedPastThreshold(dx, dy)) return;
         begin(current);
       }
-      const next = nextPanScroll({ left: current.startLeft, top: current.startTop }, dx, dy, scrollBounds(scroller));
+      const next = nextPanScroll(
+        { left: current.startLeft, top: current.startTop },
+        optionsRef.current?.axis === "y" ? 0 : dx,
+        dy,
+        scrollBounds(scroller),
+      );
       // "instant", so that CSS `scroll-behavior: smooth` can never make the content lag behind the pointer.
       scroller.scrollTo({ left: next.left, top: next.top, behavior: "instant" });
     }
@@ -188,7 +207,7 @@ export function useDragPan(scrollerRef: RefObject<HTMLElement | null>, onPanStar
         ctrlKey: event.ctrlKey,
         metaKey: event.metaKey,
         altKey: event.altKey,
-        target: describeTarget(scroller, event),
+        target: describeTarget(scroller, event, optionsRef.current?.interactive === undefined ? INTERACTIVE : optionsRef.current.interactive),
       });
       if (!allowed) return;
       press = {

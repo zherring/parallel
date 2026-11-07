@@ -5,6 +5,7 @@ import { DepthPoster } from "@/components/depth/depth-poster";
 import { useFocusField } from "@/components/depth/use-focus-field";
 import { SOFT_WINDOW, usePosterImages } from "@/components/depth/use-poster-images";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "@/components/timeline/film-popover";
+import { useDragPan, type DragPanOptions } from "@/components/timeline/use-drag-pan";
 import type { CombinedFilmInfo } from "@/lib/combined-track";
 import { anchorScrollTop, depthSceneCss, layerDepth, layerFactor, type DepthFilm, type DepthLayout } from "@/lib/depth-layout";
 import { inWindow } from "@/lib/depth-projection";
@@ -37,6 +38,9 @@ interface DepthSceneProps {
   today: string;
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
+
+/** The scene pans by mouse like the flat timeline, but only up and down, and from posters too (a click still opens one; a drag does not). */
+const PAN: DragPanOptions = { interactive: null, axis: "y" };
 
 /** The viewport height (px) the posters that are fetched up front are chosen for: the server does not know the real one. */
 const NOMINAL_VIEWPORT_H = 900;
@@ -132,10 +136,19 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
   const popoverId = useId();
   const { target: popoverTarget, show: showPopover, hide: hidePopover } = useFilmPopover();
   const hoverElement = useRef<HTMLElement | null>(null);
+  // A mouse drag scrolls the scene (touch keeps its native scrolling); the hover card closes when one starts and none opens under it.
+  const { isPanning } = useDragPan(
+    scrollerRef,
+    useCallback(() => {
+      hoverElement.current = null;
+      hidePopover();
+    }, [hidePopover]),
+    PAN,
+  );
 
   const handlePointerOver = (event: PointerEvent<HTMLElement>) => {
     // A finger has no hover: a tap opens the panel.
-    if (event.pointerType === "touch") return;
+    if (event.pointerType === "touch" || isPanning()) return;
     const element = filmElement(event.target);
     if (!element || element === hoverElement.current) return;
     hoverElement.current = element;
@@ -198,7 +211,7 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
         onPointerOut={handlePointerOut}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        className="fixed inset-0 z-10 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none] [perspective-origin:50%_50%] [perspective:1000px] focus-visible:outline-offset-[-3px]"
+        className="fixed inset-0 z-10 cursor-grab overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none] [perspective-origin:50%_50%] [perspective:1000px] focus-visible:outline-offset-[-3px] data-[panning]:select-none [&[data-panning]_*]:cursor-grabbing!"
       >
         <div className="pointer-events-none relative w-full [transform-style:preserve-3d]" style={{ height: trackHeight }}>
           {layers.map((group) => (

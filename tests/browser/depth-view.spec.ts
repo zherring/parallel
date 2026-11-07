@@ -245,6 +245,53 @@ test.describe("closing the film panel slides it out", () => {
   }
 });
 
+test("a mouse drag scrolls the scene, posters included, and the click that ends it does not open the film", async ({ page }) => {
+  await openDepth(page);
+  const region = scene(page);
+  const poster = region.getByRole("button", { name: FIRST_SHARED });
+  const box = (await poster.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  const state = () => region.evaluate((element) => ({ top: element.scrollTop, left: element.scrollLeft }));
+  const before = await state();
+
+  // Press on a poster and drag up 220px, drifting 80px sideways: the scene follows the pointer (grab semantics), downward only.
+  await page.mouse.move(x, y);
+  await expect(page.getByRole("tooltip")).toBeVisible();
+  await page.mouse.down();
+  await page.mouse.move(x + 80, y - 220, { steps: 12 });
+  await expect(region).toHaveAttribute("data-panning", "");
+  // The hover card is gone for as long as it lasts, and none opens under the pointer.
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await expect(poster).toHaveCSS("cursor", "grabbing");
+  await page.mouse.up();
+  await expect(region).not.toHaveAttribute("data-panning", /.*/);
+
+  const after = await state();
+  expect(after.top - before.top).toBeGreaterThan(210);
+  expect(after.top - before.top).toBeLessThan(230);
+  expect(after.left).toBe(before.left);
+  // Released over a poster or not, a drag is not a click: no dialog.
+  await page.waitForTimeout(250);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  // A drag that ends over a poster does not open it either (up 220 more, so one of the posters is under the pointer at the end).
+  const target = region.locator("button[data-film]").first();
+  const targetBox = (await target.boundingBox())!;
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height + 40);
+  await page.mouse.down();
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 10 });
+  await page.mouse.up();
+  await page.waitForTimeout(250);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  // A plain click still opens it.
+  const first = region.locator("button[data-film]").first();
+  await first.scrollIntoViewIfNeeded();
+  await first.click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+});
+
 test("the people pill opens on a press and closes when the scene scrolls", async ({ page }) => {
   await openDepth(page);
   const button = pill(page);
