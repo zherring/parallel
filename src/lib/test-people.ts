@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Clipping, ClippingsData } from "@/lib/clippings";
 import { buildPeopleSlug, parsePeopleSlug } from "@/lib/slug";
 import type { Film, PersonTimeline } from "@/lib/types";
 
@@ -44,3 +45,32 @@ export async function stubLoadPeople(slug: string) {
   const canonical = buildPeopleSlug(timelines.map((t) => t.person));
   return { timelines, canonical, isCanonical: decodeURIComponent(slug) === canonical };
 }
+
+const quote = (overrides: Partial<Clipping>): Clipping => ({
+  id: "placeholder",
+  speaker: "Jack Lemmon",
+  about: "Walter Matthau",
+  quote: "Placeholder.",
+  film: null,
+  said_year: null,
+  publication: "Example Times",
+  title: "Placeholder headline",
+  date: "1990-05",
+  url: "https://example.com/a",
+  via: null,
+  context: "Placeholder context.",
+  secondhand: false,
+  ...overrides,
+});
+
+/** The pair's clippings, for the tests of the quote card route and of the page's metadata (which mock `getPairClippingSet` with these). */
+export const QUOTE_DATA: ClippingsData = {
+  "3151+6837": {
+    pair: ["Jack Lemmon", "Walter Matthau"],
+    tmdb_ids: [3151, 6837],
+    clippings: [
+      quote({ id: "short-one", quote: "Walter could make a telephone book funny.", said_year: 1998, date: "2001-03" }),
+      quote({ id: "long-one", speaker: "Walter Matthau", about: "Jack Lemmon", quote: "Jack never stopped working. ".repeat(20), said_year: null, date: "1975" }),
+    ],
+  },
+};

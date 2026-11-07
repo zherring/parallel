@@ -150,7 +150,7 @@ export function FilmsSection({
           hidden={hidden("clippings")}
           className="mt-4"
         >
-          <ClippingsPanel pair={clippings} />
+          <ClippingsPanel pair={clippings} active={view === "clippings"} />
         </div>
       )}
 

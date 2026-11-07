@@ -1,48 +1,105 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
-import { Fragment, useState, type ReactNode } from "react";
+import { ExternalLink, Info } from "lucide-react";
+import { Newsreader } from "next/font/google";
+import { useEffect, useId, useState } from "react";
 import type { Clipping, PairClippings } from "@/lib/clippings";
 import {
+  clippingById,
+  clippingYear,
   clippingsCountMessage,
   filterClippings,
   filterOptions,
-  formatClippingDate,
+  parseQuoteId,
   speakerIndex,
   type ClippingsFilter,
 } from "@/lib/clippings-view";
 import { cn } from "./cn";
+import { QuoteShareButton } from "./quote-share-button";
+import { scrollBehavior } from "./scroll-behavior";
+
+/**
+ * The serif of the quotes, and of nothing else. One weight, loaded when the tab is first shown rather
+ * than preloaded for every /p/ page (most of them have no Clippings, and the tab is not the default).
+ * The card of a quote (`og-quote-render.tsx`) draws the same face from a file of its own.
+ */
+const newsreader = Newsreader({
+  variable: "--font-newsreader",
+  subsets: ["latin", "latin-ext"],
+  weight: "400",
+  display: "swap",
+  preload: false,
+});
+
+/** How long a quote that a link opened on stays highlighted. */
+const HIGHLIGHT_MS = 2800;
+
+/** One voice per colour: the first of the pair is green, the second orange, as the accents elsewhere on the page. */
+const DOT_CLASS = ["bg-accent-green", "bg-accent-orange"] as const;
+const MARK_CLASS = ["text-accent-green", "text-accent-orange"] as const;
+
+/** The column all of a quote's lines share: the measure of a pull quote, not of the page. */
+const COLUMN = "max-w-[44rem]";
 
 interface ClippingsPanelProps {
   pair: PairClippings;
+  /** Whether the Clippings tab is the one showing: the panel is always in the page, hidden when it is not. */
+  active: boolean;
 }
 
-/** The left edge of a card says who spoke: one accent for the first of the pair, another for the second. */
-const SIDE_CLASS = ["border-l-accent-green/70", "border-l-accent-orange/70"] as const;
-
 /**
- * The Clippings tab: what one of the pair has said about the other, a card to a quote with its
- * source linked, oldest first, and a small filter for the direction ("All", "A on B", "B on A") when
- * both have something to say. The quotes are hand-curated (`clippings.json`), see `clippings.ts`.
+ * The Clippings tab: what one of the pair has said about the other, set as pull quotes (big serif
+ * quote, small speaker and source under it, space and a hairline between), oldest first, with a small
+ * filter for the direction ("All", "A on B", "B on A") when both have something to say. The quotes
+ * are hand-curated (`clippings.json`), see `clippings.ts`.
+ *
+ * A link to one quote (`?view=clippings&quote=<id>`) opens the tab on it: it is scrolled to the middle
+ * of the screen and highlighted for a moment. An id that is not one of the pair's is ignored.
  */
-export function ClippingsPanel({ pair }: ClippingsPanelProps) {
+export function ClippingsPanel({ pair, active }: ClippingsPanelProps) {
   const { people, clippings } = pair;
   const [filter, setFilter] = useState<ClippingsFilter>("all");
   const [changed, setChanged] = useState(false);
+  const [highlighted, setHighlighted] = useState<string | null>(null);
 
   const options = filterOptions(clippings, people);
   const shown = filterClippings(clippings, people, filter);
 
+  // The address bar is read once the tab is showing (the server's HTML and the first client render are the Timeline,
+  // see `useViewTab`), so a link that names a quote lands here with the tab already un-hidden and its quote on the page.
+  useEffect(() => {
+    if (!active) return;
+    const target = clippingById(clippings, parseQuoteId(window.location.search));
+    if (!target) return;
+
+    const reveal = (behavior: ScrollBehavior) =>
+      document.getElementById(quoteElementId(target.id))?.scrollIntoView({ block: "center", behavior });
+    reveal(scrollBehavior());
+    // Newsreader loads on first use, and the quotes above this one reflow when it arrives: centre it again.
+    let cancelled = false;
+    document.fonts?.load(`28px ${newsreader.style.fontFamily}`).then(
+      () => !cancelled && reveal("auto"),
+      () => {},
+    );
+    // Not a render's own work, but the page's reaction to a link it was opened with.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHighlighted(target.id);
+    const timer = setTimeout(() => setHighlighted(null), HIGHLIGHT_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      // Leaving the tab ends the highlight, so that coming back to it does not find a quote still lit.
+      setHighlighted(null);
+    };
+  }, [active, clippings]);
+
   return (
-    <div>
+    <div className={newsreader.variable}>
       {options.length > 0 && (
-        <div
-          role="group"
-          aria-label="Show clippings by speaker"
-          className="inline-flex max-w-full flex-wrap rounded-md border border-border bg-canvas p-0.5"
-        >
+        <div role="group" aria-label="Show clippings by speaker" className="flex flex-wrap gap-2">
           {options.map((option) => {
             const selected = option.id === filter;
+            const side = option.id === "first" ? 0 : option.id === "second" ? 1 : null;
             return (
               <button
                 key={option.id}
@@ -54,10 +111,13 @@ export function ClippingsPanel({ pair }: ClippingsPanelProps) {
                   setChanged(true);
                 }}
                 className={cn(
-                  "inline-flex h-8 cursor-pointer items-center rounded px-3 text-sm font-medium transition-colors motion-reduce:transition-none",
-                  selected ? "bg-border text-strong" : "text-muted hover:bg-surface hover:text-strong",
+                  "inline-flex h-8 cursor-pointer items-center gap-2 rounded-full border px-3.5 text-sm font-medium transition-colors motion-reduce:transition-none",
+                  selected
+                    ? "border-muted/60 bg-border text-strong"
+                    : "border-border text-muted hover:border-muted hover:text-strong",
                 )}
               >
+                {side !== null && <span aria-hidden="true" className={cn("size-2 rounded-full", DOT_CLASS[side])} />}
                 {option.label}
               </button>
             );
@@ -68,10 +128,14 @@ export function ClippingsPanel({ pair }: ClippingsPanelProps) {
         {changed ? clippingsCountMessage(shown.length) : ""}
       </p>
 
-      <ul className={cn("space-y-4", options.length > 0 && "mt-4")}>
+      <ul className={cn("divide-y divide-border/70", options.length > 0 && "mt-3")}>
         {shown.map((clipping) => (
-          <li key={`${clipping.url}#${clipping.quote}`}>
-            <ClippingCard clipping={clipping} side={speakerIndex(clipping, people)} />
+          <li key={clipping.id} id={quoteElementId(clipping.id)} className="group/quote">
+            <ClippingQuote
+              clipping={clipping}
+              side={speakerIndex(clipping, people)}
+              highlighted={clipping.id === highlighted}
+            />
           </li>
         ))}
       </ul>
@@ -81,57 +145,130 @@ export function ClippingsPanel({ pair }: ClippingsPanelProps) {
   );
 }
 
-function ClippingCard({ clipping, side }: { clipping: Clipping; side: 0 | 1 | null }) {
-  const { speaker, about, quote, film, said_year, publication, title, date, url, context, secondhand } = clipping;
+/** The `id` of a quote's list item, which the page scrolls to when a link names the quote. */
+const quoteElementId = (id: string) => `quote-${id}`;
 
-  // The line under the attribution: the film, when it was said, whether it is reported, and the source.
-  const meta: ReactNode[] = [];
-  if (film) meta.push(<i key="film">{film}</i>);
-  if (said_year !== null) meta.push(<span key="said">said in {said_year}</span>);
-  if (secondhand) meta.push(<span key="second">secondhand</span>);
-  meta.push(
-    <a
-      key="source"
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      title={title}
-      className="inline-flex items-center gap-1 rounded text-accent-blue underline-offset-2 hover:underline"
-    >
-      {publication}, {formatClippingDate(date)}
-      <ExternalLink aria-hidden="true" className="size-3 shrink-0" />
-      <span className="sr-only">(opens in a new tab)</span>
-    </a>,
-  );
+function ClippingQuote({
+  clipping,
+  side,
+  highlighted,
+}: {
+  clipping: Clipping;
+  side: 0 | 1 | null;
+  highlighted: boolean;
+}) {
+  const { speaker, about, quote, film, publication, title, url, via, context, secondhand } = clipping;
+  const [showContext, setShowContext] = useState(false);
+  const contextId = useId();
+  const year = clippingYear(clipping);
+
+  // Where and why it was said; a quote that is reported rather than spoken says so here too, not as a tag on the quote.
+  const background = [
+    context,
+    secondhand ? `Secondhand: ${speaker} is reported by someone else here, not quoted in their own words.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <figure
+    <div
       className={cn(
-        "rounded-lg border border-l-4 border-border bg-surface px-4 py-4 sm:px-5",
-        side === null ? "border-l-muted/50" : SIDE_CLASS[side],
+        "-mx-3 rounded-2xl px-3 py-9 transition-colors duration-700 sm:-mx-5 sm:px-5 sm:py-12 motion-reduce:transition-none",
+        highlighted && "bg-surface",
       )}
     >
-      <blockquote cite={url} className="text-base leading-relaxed text-strong sm:text-lg">
-        <p>&ldquo;{quote}&rdquo;</p>
-      </blockquote>
-      <figcaption className="mt-3 text-sm">
-        <p className="text-body">
-          &mdash; <span className="font-semibold text-strong">{speaker}</span>, on {about}
-        </p>
-        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-muted">
-          {meta.map((item, index) => (
-            <Fragment key={index}>
-              {index > 0 && (
-                <span aria-hidden="true" className="text-muted">
-                  &middot;
-                </span>
+      <figure className="relative md:pl-12">
+        {/* From md up the opening mark hangs in the margin, large; below that it is the quote's own first character. */}
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute left-0 top-[-0.2rem] hidden font-serif text-[80px] leading-none md:block",
+            side === null ? "text-muted" : MARK_CLASS[side],
+          )}
+        >
+          &ldquo;
+        </span>
+        <blockquote
+          cite={url}
+          className={cn(
+            COLUMN,
+            "font-serif text-[21px] leading-[1.42] text-strong text-pretty sm:text-[25px] sm:leading-[1.4] md:text-[28px] md:leading-[1.38]",
+          )}
+        >
+          <p className="-indent-[0.42em] md:indent-0">
+            <span aria-hidden="true" className={cn("md:hidden", side === null ? "text-muted" : MARK_CLASS[side])}>
+              &ldquo;
+            </span>
+            {quote}&rdquo;
+          </p>
+        </blockquote>
+
+        <figcaption className={cn("mt-5", COLUMN)}>
+          <div className="flex items-start justify-between gap-3">
+            <p className="min-w-0 text-[15px] leading-6">
+              <span
+                aria-hidden="true"
+                className={cn("mr-2 inline-block size-2 rounded-full align-middle", side === null ? "bg-muted" : DOT_CLASS[side])}
+              />
+              <span className="font-medium text-strong">{speaker}</span> <span className="text-muted">on {about}</span>
+            </p>
+            {/* Taller than the line they sit beside (touch targets), so they hang out of the row rather than make it taller. */}
+            <div className="-my-1.5 flex shrink-0 items-center">
+              {background && (
+                <button
+                  type="button"
+                  aria-expanded={showContext}
+                  aria-controls={contextId}
+                  aria-label="Context"
+                  title="Context"
+                  onClick={() => setShowContext((open) => !open)}
+                  className={cn(
+                    "inline-flex size-9 cursor-pointer items-center justify-center rounded-full transition-colors hover:text-strong motion-reduce:transition-none",
+                    showContext ? "text-strong" : "text-muted",
+                  )}
+                >
+                  <Info aria-hidden="true" className="size-4" />
+                </button>
               )}
-              {item}
-            </Fragment>
-          ))}
-        </p>
-        <p className="mt-2 text-xs text-muted">{context}</p>
-      </figcaption>
-    </figure>
+              <QuoteShareButton clipping={clipping} />
+            </div>
+          </div>
+          {/* One line where it fits: the film, the source as the link, and the site a reprint came from; wrapping between them if not (on a phone, the longest). */}
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 pl-4 text-[13px] leading-6 text-muted">
+            {film && (
+              <>
+                <i>{film}</i>
+                <span aria-hidden="true">&middot;</span>
+              </>
+            )}
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={title}
+              className="rounded underline decoration-border underline-offset-4 transition-colors hover:text-accent-blue hover:decoration-accent-blue motion-reduce:transition-none"
+            >
+              {publication}
+              {/* The year and the icon stay with the last word of the name, so that neither starts a line. */}
+              <span className="whitespace-nowrap">
+                {year !== null && <> &middot; {year}</>}
+                <ExternalLink aria-hidden="true" className="ml-1 inline size-3 align-[-0.1em]" />
+                <span className="sr-only">(opens in a new tab)</span>
+              </span>
+            </a>
+            {via && (
+              <span className="whitespace-nowrap">
+                <span aria-hidden="true">&middot;</span> via {via}
+              </span>
+            )}
+          </p>
+          {background && (
+            <p id={contextId} hidden={!showContext} className="mt-3 pl-4 text-sm leading-6 text-body">
+              {background}
+            </p>
+          )}
+        </figcaption>
+      </figure>
+    </div>
   );
 }

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  clippingYear,
   getPairClippings,
   getPairClippingSet,
   pairClippingsFrom,
@@ -10,6 +9,7 @@ import {
 } from "@/lib/clippings";
 
 const clipping = (overrides: Partial<Clipping> = {}): Clipping => ({
+  id: "placeholder-quote",
   speaker: "Person One",
   about: "Person Two",
   quote: "Placeholder quote.",
@@ -19,6 +19,7 @@ const clipping = (overrides: Partial<Clipping> = {}): Clipping => ({
   title: "Placeholder headline",
   date: "2000-01-01",
   url: "https://example.com/a",
+  via: null,
   context: "Placeholder context.",
   secondhand: false,
   ...overrides,
@@ -30,7 +31,7 @@ const FIXTURE: ClippingsData = {
     tmdb_ids: [10, 20],
     clippings: [
       clipping({ quote: "undated", said_year: null, date: "2010-05-01" }),
-      clipping({ quote: "newest", said_year: 2015 }),
+      clipping({ quote: "newest", said_year: 2015, date: "2015-03" }),
       clipping({ quote: "oldest", said_year: 1990, date: "2012-01-01" }),
     ],
   },
@@ -38,26 +39,10 @@ const FIXTURE: ClippingsData = {
   "50+60": { pair: ["Only One Name"], tmdb_ids: [50, 60], clippings: [clipping()] },
 };
 
-describe("clippingYear", () => {
-  it("is the year it was said", () => {
-    expect(clippingYear({ said_year: 1977, date: "2012-05-01" })).toBe(1977);
-  });
-
-  it("falls back to the year of the article, written in full or as a year", () => {
-    expect(clippingYear({ said_year: null, date: "2012-05-01" })).toBe(2012);
-    expect(clippingYear({ said_year: null, date: "2012" })).toBe(2012);
-  });
-
-  it("is null when neither is a year", () => {
-    expect(clippingYear({ said_year: null, date: "" })).toBeNull();
-    expect(clippingYear({ said_year: null, date: "n.d." })).toBeNull();
-  });
-});
-
 describe("sortClippings", () => {
-  it("puts the oldest first, by the year said and else the year of the article", () => {
+  it("puts the oldest first, by the older of the year said and the year of the original", () => {
     const sorted = sortClippings(FIXTURE["10+20"].clippings);
-    // 1990 (said), 2010 (article, no said_year), 2015 (said)
+    // 1990 (said), 2010 (original, no said_year), 2015 (said; the original, from 2000, is older)
     expect(sorted.map((c) => c.quote)).toEqual(["oldest", "undated", "newest"]);
   });
 
@@ -69,13 +54,23 @@ describe("sortClippings", () => {
     expect(sorted.map((c) => c.quote)).toEqual(["year", "none"]);
   });
 
-  it("breaks a tie by the date of the article, then keeps the order given", () => {
+  it("sorts by the older of the two years: a remark reprinted years later goes under the earlier", () => {
+    const sorted = sortClippings([
+      clipping({ quote: "said-1990-printed-2020", said_year: 1990, date: "2020-01-01" }),
+      clipping({ quote: "said-2010-printed-2005", said_year: 2010, date: "2005-01-01" }),
+      clipping({ quote: "printed-1999", said_year: null, date: "1999" }),
+    ]);
+    expect(sorted.map((c) => c.quote)).toEqual(["said-1990-printed-2020", "printed-1999", "said-2010-printed-2005"]);
+  });
+
+  it("breaks a tie by the date of the original, a month or a year before a day in it, then keeps the order given", () => {
     const sorted = sortClippings([
       clipping({ quote: "late", said_year: 2000, date: "2005-06-01" }),
       clipping({ quote: "early", said_year: 2000, date: "2001-06-01" }),
       clipping({ quote: "same-1", said_year: 2000, date: "2005-06-01" }),
+      clipping({ quote: "month", said_year: 2000, date: "2005-06" }),
     ]);
-    expect(sorted.map((c) => c.quote)).toEqual(["early", "late", "same-1"]);
+    expect(sorted.map((c) => c.quote)).toEqual(["early", "month", "late", "same-1"]);
   });
 
   it("returns a copy", () => {

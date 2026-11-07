@@ -3,10 +3,20 @@ import { redirect } from "next/navigation";
 import { PeopleView } from "@/components/people-view";
 import { cardFilms } from "@/lib/card-films";
 import { getPairClippingSet } from "@/lib/clippings";
+import { clippingById, parseQuoteId, quoteLinkSearch } from "@/lib/clippings-view";
 import { loadPeople } from "@/lib/people";
 import { parsePeriodParams, rawPeriodSearch, resolvePeriod, searchWithPeriod, spanOfYears } from "@/lib/period";
 import { todayIso } from "@/lib/released";
-import { peopleDescription, peopleSocial, peopleTitle, periodImagePath, periodTitle } from "@/lib/seo";
+import {
+  peopleDescription,
+  peopleSocial,
+  peopleTitle,
+  periodImagePath,
+  periodTitle,
+  quoteDescription,
+  quoteImagePath,
+  quoteTitle,
+} from "@/lib/seo";
 import { sharedFilms, sharedFilmsPairwise } from "@/lib/shared";
 
 type Props = {
@@ -22,6 +32,22 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const baseTitle = peopleTitle(timelines.map((t) => t.person.name));
   const shared = sharedFilms(timelines, { includeMinor: false, today });
   const url = `/p/${canonical}`;
+
+  // A link to one quote of the Clippings (`?view=clippings&quote=<id>`) gets the quote's card and words. An id the
+  // pair does not have is ignored, as it is on the page; a quote wins over a period, since a link names one or the other.
+  const clipping = clippingById(getPairClippingSet(timelines.map((t) => t.person.id))?.clippings ?? [], parseQuoteId(query));
+  if (clipping) {
+    const title = quoteTitle(clipping);
+    const description = quoteDescription(clipping);
+    const image = { path: quoteImagePath(canonical, clipping.id), alt: title };
+    return {
+      title,
+      description,
+      // The quote is a view of the page, not another page: search engines are pointed at the whole one.
+      alternates: { canonical: url },
+      ...peopleSocial(title, description, `${url}${quoteLinkSearch(clipping.id)}`, image),
+    };
+  }
 
   // A link to a stretch of years (`?from=1978&to=1993`) gets a card and words of its own. The
   // period is resolved against the films the card shows, so it reads the same here and in `/og`.

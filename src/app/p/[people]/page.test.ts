@@ -7,6 +7,13 @@ vi.mock("@/lib/people", async () => {
   return { loadPeople: stubLoadPeople };
 });
 
+// The pair of the stub has quotes of its own (see `QUOTE_DATA`), as four real pairs have in clippings.json.
+vi.mock("@/lib/clippings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/clippings")>();
+  const { QUOTE_DATA: data } = await import("@/lib/test-people");
+  return { ...actual, getPairClippingSet: (ids: readonly number[]) => actual.pairClippingsFrom(data, ids) };
+});
+
 // The page hands the people to a client component; it is not what these tests are about.
 vi.mock("@/components/people-view", () => ({ PeopleView: function PeopleView() {} }));
 
@@ -79,6 +86,73 @@ describe("generateMetadata", () => {
       expect(meta.openGraph?.url).toBe(`/p/${PAIR_SLUG}`);
       expect(meta.alternates?.canonical).toBe(`/p/${PAIR_SLUG}`);
     });
+  });
+});
+
+describe("generateMetadata with a quote in the link", () => {
+  const SHORT = { view: "clippings", quote: "short-one" };
+  const QUOTE_IMAGE = (id: string) => ({ url: `/p/${PAIR_SLUG}/og?quote=${id}`, width: 1200, height: 630 });
+
+  it("points og:image and twitter:image at the quote's card", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, SHORT));
+    expect(meta.openGraph?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("short-one"))]);
+    expect(meta.twitter?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("short-one"))]);
+  });
+
+  it("titles the link with the quote and who said it, and describes who said it about whom and where", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, SHORT));
+    expect(meta.title).toBe("\u201cWalter could make a telephone book funny.\u201d \u2014 Jack Lemmon");
+    expect(meta.openGraph?.title).toBe(meta.title);
+    expect(meta.twitter?.title).toBe(meta.title);
+    // said in 1998, in an article of 2001: the older year
+    expect(meta.description).toBe("Jack Lemmon on Walter Matthau \u00b7 Example Times, 1998");
+    expect(meta.openGraph?.description).toBe(meta.description);
+  });
+
+  it("cuts a long quote in the title, and says the year of the original when no year was said", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, { quote: "long-one" }));
+    const title = String(meta.title);
+    expect(title.startsWith("\u201cJack never stopped working.")).toBe(true);
+    expect(title.endsWith("\u2026\u201d \u2014 Walter Matthau")).toBe(true);
+    expect(Array.from(title).length).toBeLessThan(120);
+    expect(meta.description).toBe("Walter Matthau on Jack Lemmon \u00b7 Example Times, 1975");
+  });
+
+  it("keeps the plain page as canonical, and the link as the page's own url", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, SHORT));
+    expect(meta.openGraph?.url).toBe(`/p/${PAIR_SLUG}?view=clippings&quote=short-one`);
+    expect(meta.alternates?.canonical).toBe(`/p/${PAIR_SLUG}`);
+  });
+
+  it("does not need the clippings view in the link, and takes the first of a repeated parameter", async () => {
+    const bare = await generateMetadata(props(PAIR_SLUG, { quote: "short-one" }));
+    expect(bare.openGraph?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("short-one"))]);
+    const twice = await generateMetadata(props(PAIR_SLUG, { quote: ["long-one", "short-one"] }));
+    expect(twice.openGraph?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("long-one"))]);
+  });
+
+  it("wins over a period in the same link", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, { ...SHORT, from: "1970", to: "1980" }));
+    expect(meta.openGraph?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("short-one"))]);
+    expect(meta.openGraph?.url).toBe(`/p/${PAIR_SLUG}?view=clippings&quote=short-one`);
+  });
+
+  it.each([
+    ["an id the pair does not have", { quote: "nope" }],
+    ["an empty id", { quote: "" }],
+    ["an id of another case", { quote: "SHORT-ONE" }],
+    ["no id", { view: "clippings" }],
+  ])("is the plain page's metadata, with no image of its own, for %s", async (_name, query) => {
+    const meta = await generateMetadata(props(PAIR_SLUG, query));
+    expect(meta.title).toBe("Jack Lemmon & Walter Matthau: films made together");
+    expect(meta.openGraph).not.toHaveProperty("images");
+    expect(meta.twitter).not.toHaveProperty("images");
+    expect(meta.openGraph?.url).toBe(`/p/${PAIR_SLUG}`);
+  });
+
+  it("reads a period when the id is not a quote of the pair", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, { quote: "nope", from: "1970", to: "1980" }));
+    expect(meta.openGraph?.images).toEqual([expect.objectContaining({ url: `/p/${PAIR_SLUG}/og?from=1970&to=1980` })]);
   });
 });
 

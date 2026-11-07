@@ -121,6 +121,13 @@ describe("searchWithView", () => {
     expect(searchWithView("?foo=1&view=table", "timeline")).toBe("?foo=1");
   });
 
+  it("keeps a quote on the Clippings and drops it from any other view, which has no quote on screen", () => {
+    expect(searchWithView("?view=clippings&quote=a-quote", "clippings")).toBe("?view=clippings&quote=a-quote");
+    expect(searchWithView("?view=clippings&quote=a-quote", "timeline")).toBe("");
+    expect(searchWithView("?view=clippings&quote=a-quote", "table")).toBe("?view=table");
+    expect(searchWithView("?foo=1&quote=a-quote&view=clippings", "timeline")).toBe("?foo=1");
+  });
+
   it("keeps the table's sort when the view changes", () => {
     expect(searchWithView("?sort=rating&dir=desc", "table")).toBe("?sort=rating&dir=desc&view=table");
     expect(searchWithView("?view=table&sort=rating&dir=desc", "table")).toBe("?view=table&sort=rating&dir=desc");

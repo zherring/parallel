@@ -44,6 +44,9 @@ export function resolveView(view: View, available: readonly View[]): View {
 
 export const VIEW_PARAM = "view";
 
+/** The quote a link to the Clippings opens on (`?view=clippings&quote=<id>`, see `quoteLinkSearch`). It belongs to that view alone. */
+export const QUOTE_PARAM = "quote";
+
 /** Whether the query names a sort: the table's own `?sort=` and `&dir=`. */
 function hasSortParams(params: URLSearchParams): boolean {
   return params.has(SORT_PARAM) || params.has(DIR_PARAM);
@@ -66,9 +69,12 @@ export function parseView(search: string): View {
  * The query string (with its "?", or "" when it is empty) after switching to `view`: every other
  * parameter is kept. Table writes `view=table`; Timeline writes nothing, unless a sort is in the
  * query, where it writes `view=timeline` so the sort does not pull the visitor back to the table.
+ * A quote (`quote=<id>`) belongs to the Clippings alone, so any other view drops it: the address bar
+ * then no longer names a quote that is not on screen (and a copied link does not unfurl as one).
  */
 export function searchWithView(search: string, view: View): string {
   const params = new URLSearchParams(search);
+  if (view !== "clippings") params.delete(QUOTE_PARAM);
   if (view !== DEFAULT_VIEW) params.set(VIEW_PARAM, view);
   else if (hasSortParams(params)) params.set(VIEW_PARAM, view);
   else params.delete(VIEW_PARAM);

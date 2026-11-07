@@ -1,3 +1,4 @@
+import { clippingYear } from "@/lib/clippings-view";
 import { pairingKey } from "@/lib/examples";
 import raw from "@/lib/clippings.json";
 
@@ -11,6 +12,11 @@ import raw from "@/lib/clippings.json";
  */
 
 export interface Clipping {
+  /**
+   * A stable slug, unique within its pair (never across pairs): what a link to this one quote carries
+   * (`?quote=<id>`), so it must not change once the quote has been shared.
+   */
+  id: string;
   /** Who said it, as `pair` writes the name. */
   speaker: string;
   /** Who it is about, the other one of the pair. */
@@ -21,12 +27,15 @@ export interface Clipping {
   film: string | null;
   /** The year it was said, when the article says. */
   said_year: number | null;
+  /** The short name of the ORIGINAL source ("Los Angeles Times", "Academy Awards"), even when `url` is a reprint of it. */
   publication: string;
   /** The article's headline. */
   title: string;
-  /** "YYYY-MM-DD" or "YYYY": when the article was published. */
+  /** "YYYY-MM-DD", "YYYY-MM" or "YYYY": when the original was published. */
   date: string;
   url: string;
+  /** The site `url` is on when it is a reprint of `publication` ("The Post and Courier"); null when the link is the original. */
+  via: string | null;
   /** One short sentence on where and why it was said. */
   context: string;
   /** The speaker is reported by someone else, not quoted from their own words. */
@@ -54,14 +63,10 @@ export interface PairClippings {
   clippings: Clipping[];
 }
 
-/** The year a clipping goes under: when it was said, else when the article ran; null when neither is a year. */
-export function clippingYear(clipping: Pick<Clipping, "said_year" | "date">): number | null {
-  if (clipping.said_year !== null && Number.isFinite(clipping.said_year)) return clipping.said_year;
-  const year = Number.parseInt(clipping.date.slice(0, 4), 10);
-  return Number.isFinite(year) ? year : null;
-}
-
-/** Oldest first by `clippingYear` (then by article date), clippings with no year last; a copy, ties keep their order. */
+/**
+ * Oldest first by `clippingYear` (then by the original's date, a month or a year sorting before a day of it), clippings
+ * with no year last; a copy, ties keep their order.
+ */
 export function sortClippings(clippings: readonly Clipping[]): Clipping[] {
   return [...clippings].sort((a, b) => {
     const ya = clippingYear(a);

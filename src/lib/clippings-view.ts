@@ -1,10 +1,12 @@
 /**
  * What the Clippings tab does with a pair's clippings: which of the two people said each one, the
- * direction filter ("All", "A on B", "B on A") and the way an article's date is written. Pure, and
- * free of the JSON itself (see `clippings.ts`), so that client components can import it.
+ * direction filter ("All", "A on B", "B on A"), the year a quote goes under, and the link to a single
+ * quote (`?view=clippings&quote=<id>`). Pure, and free of the JSON itself (see `clippings.ts`), so
+ * that client components can import it.
  */
 
 import type { Clipping, ClippingsPerson } from "@/lib/clippings";
+import { QUOTE_PARAM, VIEW_PARAM } from "@/lib/films-view";
 import { headingNames } from "@/lib/short-name";
 
 /** "all", or the clippings the first / the second person of the pair said about the other. */
@@ -82,33 +84,68 @@ export function clippingsCountMessage(count: number): string {
   return `Showing ${count} ${count === 1 ? "clipping" : "clippings"}`;
 }
 
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
+/** The year of a "YYYY", "YYYY-MM" or "YYYY-MM-DD" date; null for anything else (or a month or day that is not two digits). */
+export function dateYear(date: string): number | null {
+  const match = /^(\d{4})(?:-\d{2}(?:-\d{2})?)?$/.exec(date.trim());
+  return match ? Number(match[1]) : null;
+}
 
 /**
- * An article's date as the link to it reads: "2012-05-01" is "May 1, 2012", "2012-05" is "May 2012",
- * "2012" stays "2012". Anything else (or a month or day out of range) is cut back to what is valid,
- * and a string that is not a date at all is returned as it is.
+ * The year a clipping goes under: the OLDEST of the year it was said and the year of the original's
+ * date, since the earlier of the two is when the remark first existed. null when neither is a year.
  */
-export function formatClippingDate(date: string): string {
-  const match = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/.exec(date.trim());
-  if (!match) return date;
-  const [, year, month, day] = match;
-  const m = month ? Number(month) : 0;
-  if (m < 1 || m > 12) return year;
-  const d = day ? Number(day) : 0;
-  if (d < 1 || d > 31) return `${MONTHS[m - 1]} ${year}`;
-  return `${MONTHS[m - 1]} ${d}, ${year}`;
+export function clippingYear(clipping: Pick<Clipping, "said_year" | "date">): number | null {
+  const years: number[] = [];
+  if (clipping.said_year !== null && Number.isFinite(clipping.said_year)) years.push(clipping.said_year);
+  const published = dateYear(clipping.date);
+  if (published !== null) years.push(published);
+  return years.length > 0 ? Math.min(...years) : null;
+}
+
+type ParamValue = string | string[] | undefined;
+
+/**
+ * The quote id a link names (`?quote=<id>`): the first of a repeated parameter, trimmed; null when it is
+ * absent or empty. Whether the id is one of the pair's quotes is for `clippingById` to say.
+ */
+export function parseQuoteId(source: string | URLSearchParams | Record<string, ParamValue>): string | null {
+  let value: ParamValue;
+  if (typeof source === "string" || source instanceof URLSearchParams) {
+    value = (typeof source === "string" ? new URLSearchParams(source) : source).get(QUOTE_PARAM) ?? undefined;
+  } else {
+    value = source[QUOTE_PARAM];
+  }
+  const first = (Array.isArray(value) ? value[0] : value)?.trim();
+  return first ? first : null;
+}
+
+/** The clipping with this id among a pair's clippings (ids are unique within a pair), or null: no id, or one the pair does not have. */
+export function clippingById(clippings: readonly Clipping[], id: string | null | undefined): Clipping | null {
+  if (!id) return null;
+  return clippings.find((clipping) => clipping.id === id) ?? null;
+}
+
+/** The query string (with its "?") of a link to one quote: it opens the Clippings tab on it. */
+export function quoteLinkSearch(id: string): string {
+  const params = new URLSearchParams({ [VIEW_PARAM]: "clippings", [QUOTE_PARAM]: id });
+  return `?${params.toString()}`;
+}
+
+/** The query string (with its "?") of the quote's preview card, `/p/<people>/og?quote=<id>`: the one spelling it answers at. */
+export function quoteCardSearch(id: string): string {
+  return `?${new URLSearchParams({ [QUOTE_PARAM]: id }).toString()}`;
+}
+
+/**
+ * `text` cut to at most `max` characters, ending in "…" when it was cut: at the last word that fits
+ * (unless that would lose more than a third), with the punctuation the cut left dangling taken off.
+ * Whitespace runs are folded, so a quote reads the same on a card and in a title.
+ */
+export function truncateQuote(text: string, max: number): string {
+  const chars = Array.from(text.trim().replace(/\s+/g, " "));
+  if (chars.length <= max) return chars.join("");
+  let cut = chars.slice(0, Math.max(1, max - 1)).join("");
+  const space = cut.lastIndexOf(" ");
+  if (space > cut.length * 0.66) cut = cut.slice(0, space);
+  return `${cut.replace(/[\s,;:.\u2013\u2014-]+$/u, "")}\u2026`;
 }

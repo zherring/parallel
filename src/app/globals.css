@@ -67,6 +67,8 @@
   --color-lit: var(--lit);
   --shadow-lit: 0 0 0 2px var(--lit), 0 0 24px var(--lit-glow);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* The quotes of the Clippings tab; --font-newsreader is set by the panel that loads it. */
+  --font-serif: var(--font-newsreader), ui-serif, Georgia, "Times New Roman", serif;
 }
 
 body {

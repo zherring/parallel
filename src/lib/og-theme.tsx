@@ -14,6 +14,7 @@ export const OG = {
   body: "#99aabb",
   muted: "#8899aa",
   green: "#00e054",
+  orange: "#ff8000",
   greenGlow: "rgba(0, 224, 84, 0.45)",
 } as const;
 
@@ -49,4 +50,19 @@ export function ogWordmark(fontSize: number) {
       <span>el</span>
     </div>
   );
+}
+
+/**
+ * Newsreader Regular (SIL Open Font License, see src/assets/fonts/OFL-Newsreader.txt): the serif of the Clippings
+ * tab, here for a quote's card. Like Inter above, Latin and Latin Extended files, falling back from the first to the second.
+ */
+let quoteFonts: Promise<{ name: string; data: Buffer; weight: 400; style: "normal" }[]> | undefined;
+
+/** The fonts of a quote's card: Newsreader for the quote, Inter for everything small. Read once per server process. */
+export async function ogQuoteFonts() {
+  quoteFonts ??= Promise.all([
+    readFile(join(process.cwd(), "src/assets/fonts/newsreader-latin-400-normal.woff")),
+    readFile(join(process.cwd(), "src/assets/fonts/newsreader-latin-ext-400-normal.woff")),
+  ]).then((files) => files.map((data) => ({ name: "Newsreader", data, weight: 400 as const, style: "normal" as const })));
+  return [...(await ogFonts()), ...(await quoteFonts)];
 }

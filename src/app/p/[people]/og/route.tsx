@@ -1,5 +1,8 @@
 import type { NextRequest } from "next/server";
 import { cardFilms } from "@/lib/card-films";
+import { getPairClippingSet } from "@/lib/clippings";
+import { clippingById, parseQuoteId, quoteCardSearch } from "@/lib/clippings-view";
+import { renderQuoteOgImage } from "@/lib/og-quote-render";
 import { renderPairOgImage } from "@/lib/og-render";
 import { loadPeople } from "@/lib/people";
 import { parsePeriodParams, resolvePeriod, searchWithPeriod, spanOfYears } from "@/lib/period";
@@ -14,9 +17,10 @@ function redirectTo(path: string): Response {
 }
 
 /**
- * The preview card of a /p/ page for a shared period: `/p/<people>/og?from=1978&to=1993`. The
- * colocated `opengraph-image` cannot do this, it is only handed `params`. The page's metadata
- * points here when the link carries a period (see `generateMetadata`).
+ * The preview card of a /p/ page for a shared period, `/p/<people>/og?from=1978&to=1993`, or for one
+ * quote of the Clippings, `/p/<people>/og?quote=<id>`. The colocated `opengraph-image` cannot do
+ * this, it is only handed `params`. The page's metadata points here when the link carries a period
+ * or a quote (see `generateMetadata`).
  *
  * The URL is whatever a visitor typed, so a card has exactly one address here, and every other
  * spelling of it redirects (307, with a relative `Location`) to that address instead of being drawn:
@@ -32,6 +36,11 @@ function redirectTo(path: string): Response {
  *    query string is compared with it exactly, so an extra parameter, a different order or an end the
  *    period was clamped to redirects to the canonical query.
  *
+ * A quote card follows the same rules, with its own canonical query: `?quote=<id>` and nothing else. The id
+ * must be one of the pair's clippings (`clippings.json`); any other id is no quote, and the request is then
+ * read as a period, if it carries one, and otherwise sent to the page's own card. A quote wins over a period
+ * in the same query, since a card shows one or the other.
+ *
  * Only the canonical address answers 200 with the image, and it never redirects (the target of every
  * redirect is itself canonical). The image carries the same `Cache-Control` as the page's own card.
  *
@@ -45,14 +54,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // Bad slugs and unknown people end in notFound(), so they answer 404 rather than 500.
   const { timelines, canonical, isCanonical } = await loadPeople(people);
   const base = `/p/${canonical}`;
+  // The request's own query string, compared as it is (see above for what Next has already done to it).
+  const rawSearch = new URL(request.url).search;
+
+  const set = getPairClippingSet(timelines.map((t) => t.person.id));
+  const clipping = clippingById(set?.clippings ?? [], parseQuoteId(request.nextUrl.searchParams));
+  if (set && clipping) {
+    const quoteSearch = quoteCardSearch(clipping.id);
+    if (!isCanonical || rawSearch !== quoteSearch) return redirectTo(`${base}/og${quoteSearch}`);
+    return renderQuoteOgImage({ timelines, set, clipping });
+  }
 
   const span = spanOfYears(cardFilms(timelines, todayIso()).films.map((film) => film.year));
   const period = resolvePeriod(parsePeriodParams(request.nextUrl.searchParams), span);
   if (!period) return redirectTo(`${base}/opengraph-image`);
 
   const canonicalSearch = searchWithPeriod("", period);
-  // The request's own query string, compared as it is (see above for what Next has already done to it).
-  const rawSearch = new URL(request.url).search;
   if (!isCanonical || rawSearch !== canonicalSearch) return redirectTo(`${base}/og${canonicalSearch}`);
 
   return renderPairOgImage({ timelines, period });
