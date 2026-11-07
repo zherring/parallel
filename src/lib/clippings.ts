@@ -64,6 +64,22 @@ export interface PairClippings {
 }
 
 /**
+ * One of the pair as the Clippings tab and a quote's card draw them: the headshot, and the colour the
+ * Timeline gives them (`slot`, see `person-colors.ts`). Still in the order `clippings.json` writes the pair.
+ */
+export interface ClippingsVoice extends ClippingsPerson {
+  profilePath: string | null;
+  /** Palette slot: the person's position in the page's own people order (the URL), not in `pair`. */
+  slot: number;
+}
+
+/** `PairClippings` with each person a voice: what the page hands the tab once it knows who is who on the page. */
+export interface VoicedClippings {
+  people: readonly [ClippingsVoice, ClippingsVoice];
+  clippings: Clipping[];
+}
+
+/**
  * Oldest first by `clippingYear` (then by the original's date, a month or a year sorting before a day of it), clippings
  * with no year last; a copy, ties keep their order.
  */

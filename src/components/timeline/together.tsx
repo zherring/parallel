@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
-import type { PairClippings } from "@/lib/clippings";
+import type { VoicedClippings } from "@/lib/clippings";
 import { sharedRows } from "@/lib/film-rows";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import type { PairShared } from "@/lib/shared";
@@ -31,7 +31,7 @@ interface TogetherProps {
   settingsControl: ReactNode;
   onSelect: (id: number, trigger: HTMLElement) => void;
   /** The quotes the two people of the page have about each other, when it has any (see `FilmsSection`). */
-  clippings?: PairClippings | null;
+  clippings?: VoicedClippings | null;
 }
 
 const joinNames = (names: string[]) => new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(names);

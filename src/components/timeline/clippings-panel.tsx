@@ -3,7 +3,8 @@
 import { ExternalLink, Info } from "lucide-react";
 import { Newsreader } from "next/font/google";
 import { useEffect, useId, useState } from "react";
-import type { Clipping, PairClippings } from "@/lib/clippings";
+import { PersonAvatar } from "@/components/person-avatar";
+import type { Clipping, ClippingsVoice, VoicedClippings } from "@/lib/clippings";
 import {
   clippingById,
   clippingYear,
@@ -14,6 +15,7 @@ import {
   speakerIndex,
   type ClippingsFilter,
 } from "@/lib/clippings-view";
+import { personColor } from "@/lib/person-colors";
 import { cn } from "./cn";
 import { QuoteShareButton } from "./quote-share-button";
 import { scrollBehavior } from "./scroll-behavior";
@@ -34,22 +36,29 @@ const newsreader = Newsreader({
 /** How long a quote that a link opened on stays highlighted. */
 const HIGHLIGHT_MS = 2800;
 
-/** One voice per colour: the first of the pair is green, the second orange, as the accents elsewhere on the page. */
-const DOT_CLASS = ["bg-accent-green", "bg-accent-orange"] as const;
-const MARK_CLASS = ["text-accent-green", "text-accent-orange"] as const;
+/**
+ * One voice per colour, and the colour is the one the person has on the Timeline (`personColor`, by their position
+ * in the page's own people order, see `clippingVoices`). A quote whose speaker is neither of the pair is muted.
+ */
+const MUTED = "var(--text-muted)";
+
+/** The headshot beside a quote: in the gutter from md up, in the attribution below that. `w185` serves both sizes. */
+const GUTTER_AVATAR = 52;
+const INLINE_AVATAR = 36;
 
 /** The column all of a quote's lines share: the measure of a pull quote, not of the page. */
 const COLUMN = "max-w-[44rem]";
 
 interface ClippingsPanelProps {
-  pair: PairClippings;
+  pair: VoicedClippings;
   /** Whether the Clippings tab is the one showing: the panel is always in the page, hidden when it is not. */
   active: boolean;
 }
 
 /**
  * The Clippings tab: what one of the pair has said about the other, set as pull quotes (big serif
- * quote, small speaker and source under it, space and a hairline between), oldest first, with a small
+ * quote between marks in the speaker's colour, the speaker's round headshot in the gutter beside it, small
+ * speaker and source under it, space and a hairline between), oldest first, with a small
  * filter for the direction ("All", "A on B", "B on A") when both have something to say. The quotes
  * are hand-curated (`clippings.json`), see `clippings.ts`.
  *
@@ -61,6 +70,8 @@ export function ClippingsPanel({ pair, active }: ClippingsPanelProps) {
   const [filter, setFilter] = useState<ClippingsFilter>("all");
   const [changed, setChanged] = useState(false);
   const [highlighted, setHighlighted] = useState<string | null>(null);
+
+  const colorOf = (side: 0 | 1 | null) => (side === null ? MUTED : personColor(people[side].slot));
 
   const options = filterOptions(clippings, people);
   const shown = filterClippings(clippings, people, filter);
@@ -117,7 +128,9 @@ export function ClippingsPanel({ pair, active }: ClippingsPanelProps) {
                     : "border-border text-muted hover:border-muted hover:text-strong",
                 )}
               >
-                {side !== null && <span aria-hidden="true" className={cn("size-2 rounded-full", DOT_CLASS[side])} />}
+                {side !== null && (
+                  <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: colorOf(side) }} />
+                )}
                 {option.label}
               </button>
             );
@@ -129,15 +142,19 @@ export function ClippingsPanel({ pair, active }: ClippingsPanelProps) {
       </p>
 
       <ul className={cn("divide-y divide-border/70", options.length > 0 && "mt-3")}>
-        {shown.map((clipping) => (
-          <li key={clipping.id} id={quoteElementId(clipping.id)} className="group/quote">
-            <ClippingQuote
-              clipping={clipping}
-              side={speakerIndex(clipping, people)}
-              highlighted={clipping.id === highlighted}
-            />
-          </li>
-        ))}
+        {shown.map((clipping) => {
+          const side = speakerIndex(clipping, people);
+          return (
+            <li key={clipping.id} id={quoteElementId(clipping.id)} className="group/quote">
+              <ClippingQuote
+                clipping={clipping}
+                voice={side === null ? null : people[side]}
+                color={colorOf(side)}
+                highlighted={clipping.id === highlighted}
+              />
+            </li>
+          );
+        })}
       </ul>
 
       <p className="mt-6 text-xs text-muted">Quotes link to their original sources.</p>
@@ -150,17 +167,23 @@ const quoteElementId = (id: string) => `quote-${id}`;
 
 function ClippingQuote({
   clipping,
-  side,
+  voice,
+  color,
   highlighted,
 }: {
   clipping: Clipping;
-  side: 0 | 1 | null;
+  /** The one of the pair who said it; null when it is neither (no headshot, a muted mark). */
+  voice: ClippingsVoice | null;
+  /** A CSS colour: the speaker's on the Timeline. */
+  color: string;
   highlighted: boolean;
 }) {
   const { speaker, about, quote, film, publication, title, url, via, context, secondhand } = clipping;
   const [showContext, setShowContext] = useState(false);
   const contextId = useId();
   const year = clippingYear(clipping);
+  // The lines under the name start under it: past the dot, which is where the headshot is not (below md, the headshot leads the caption instead).
+  const indent = voice ? "md:pl-4" : "pl-4";
 
   // Where and why it was said; a quote that is reported rather than spoken says so here too, not as a tag on the quote.
   const background = [
@@ -177,17 +200,19 @@ function ClippingQuote({
         highlighted && "bg-surface",
       )}
     >
-      <figure className="relative md:pl-12">
-        {/* From md up the opening mark hangs in the margin, large; below that it is the quote's own first character. */}
-        <span
-          aria-hidden="true"
-          className={cn(
-            "absolute left-0 top-[-0.2rem] hidden font-serif text-[80px] leading-none md:block",
-            side === null ? "text-muted" : MARK_CLASS[side],
-          )}
-        >
-          &ldquo;
-        </span>
+      <figure className="relative md:pl-[4.75rem]">
+        {/* From md up the speaker's headshot hangs in the gutter, level with the quote's first line; below that it is in the attribution. */}
+        {voice && (
+          <span className="absolute left-1 top-1.5 hidden md:block">
+            <PersonAvatar
+              name={voice.name}
+              profilePath={voice.profilePath}
+              size={GUTTER_AVATAR}
+              imageSize="w185"
+              ringColor={color}
+            />
+          </span>
+        )}
         <blockquote
           cite={url}
           className={cn(
@@ -195,23 +220,43 @@ function ClippingQuote({
             "font-serif text-[21px] leading-[1.42] text-strong text-pretty sm:text-[25px] sm:leading-[1.4] md:text-[28px] md:leading-[1.38]",
           )}
         >
-          <p className="-indent-[0.42em] md:indent-0">
-            <span aria-hidden="true" className={cn("md:hidden", side === null ? "text-muted" : MARK_CLASS[side])}>
+          {/* The marks are the quote's first and last characters, in the speaker's colour, so that none hangs out of the column. */}
+          <p>
+            <span aria-hidden="true" style={{ color }}>
               &ldquo;
             </span>
-            {quote}&rdquo;
+            {quote}
+            <span aria-hidden="true" style={{ color }}>
+              &rdquo;
+            </span>
           </p>
         </blockquote>
 
-        <figcaption className={cn("mt-5", COLUMN)}>
-          <div className="flex items-start justify-between gap-3">
-            <p className="min-w-0 text-[15px] leading-6">
-              <span
-                aria-hidden="true"
-                className={cn("mr-2 inline-block size-2 rounded-full align-middle", side === null ? "bg-muted" : DOT_CLASS[side])}
-              />
-              <span className="font-medium text-strong">{speaker}</span> <span className="text-muted">on {about}</span>
-            </p>
+        <figcaption className={COLUMN}>
+          {/* Below md the headshot leads the name (it is in the gutter from md up), the lines under it running the full width. */}
+          <div className="mt-5 flex items-center justify-between gap-3 md:items-start">
+            <div className="flex min-w-0 items-center gap-3">
+              {voice && (
+                <span className="shrink-0 md:hidden">
+                  <PersonAvatar
+                    name={voice.name}
+                    profilePath={voice.profilePath}
+                    size={INLINE_AVATAR}
+                    imageSize="w185"
+                    ringColor={color}
+                  />
+                </span>
+              )}
+              <p className="min-w-0 text-[15px] leading-6">
+                <span
+                  aria-hidden="true"
+                  className={cn("mr-2 size-2 rounded-full align-middle", voice ? "hidden md:inline-block" : "inline-block")}
+                  style={{ backgroundColor: color }}
+                />
+                <span className="font-medium text-strong">{speaker}</span>{" "}
+                <span className="whitespace-nowrap text-muted">on {about}</span>
+              </p>
+            </div>
             {/* Taller than the line they sit beside (touch targets), so they hang out of the row rather than make it taller. */}
             <div className="-my-1.5 flex shrink-0 items-center">
               {background && (
@@ -234,7 +279,7 @@ function ClippingQuote({
             </div>
           </div>
           {/* One line where it fits: the film, the source as the link, and the site a reprint came from; wrapping between them if not (on a phone, the longest). */}
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 pl-4 text-[13px] leading-6 text-muted">
+          <p className={cn("mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] leading-6 text-muted", indent)}>
             {film && (
               <>
                 <i>{film}</i>
@@ -263,7 +308,7 @@ function ClippingQuote({
             )}
           </p>
           {background && (
-            <p id={contextId} hidden={!showContext} className="mt-3 pl-4 text-sm leading-6 text-body">
+            <p id={contextId} hidden={!showContext} className={cn("mt-3 text-sm leading-6 text-body", indent)}>
               {background}
             </p>
           )}

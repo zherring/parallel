@@ -5,9 +5,11 @@
  * that client components can import it.
  */
 
-import type { Clipping, ClippingsPerson } from "@/lib/clippings";
+import type { Clipping, ClippingsPerson, ClippingsVoice, PairClippings, VoicedClippings } from "@/lib/clippings";
 import { QUOTE_PARAM, VIEW_PARAM } from "@/lib/films-view";
+import { personSlots } from "@/lib/person-colors";
 import { headingNames } from "@/lib/short-name";
+import type { PersonSummary } from "@/lib/types";
 
 /** "all", or the clippings the first / the second person of the pair said about the other. */
 export type ClippingsFilter = "all" | "first" | "second";
@@ -39,6 +41,35 @@ export function speakerIndex(clipping: Pick<Clipping, "speaker">, people: Pair):
   if (speaker === normalized(people[0].name)) return 0;
   if (speaker === normalized(people[1].name)) return 1;
   return null;
+}
+
+/**
+ * The pair as voices: each person of `people` (in the data's order, so that `speakerIndex` and the filter keep
+ * their meaning) with the headshot and the Timeline colour of the same person on the page. `page` is the page's
+ * people in the order of its URL, the order `personSlots` colours them in; the match is by TMDB id, never by
+ * position in `pair`, since `/p/491-john-williams+488-steven-spielberg` and `/p/488-...+491-...` are the same pair in
+ * the other order and must draw each person in the same colour as their Timeline. A person the page does not have
+ * (a pair is only looked up from the page's own ids, so this does not happen) gets the slot of their position in `people`.
+ */
+export function clippingVoices(
+  people: Pair,
+  page: readonly Pick<PersonSummary, "id" | "profilePath">[],
+): readonly [ClippingsVoice, ClippingsVoice] {
+  const slots = personSlots(page);
+  const voice = (person: ClippingsPerson, index: number): ClippingsVoice => ({
+    ...person,
+    profilePath: page.find((p) => p.id === person.id)?.profilePath ?? null,
+    slot: slots.get(person.id) ?? index,
+  });
+  return [voice(people[0], 0), voice(people[1], 1)];
+}
+
+/** `set` with its people as voices (see `clippingVoices`). */
+export function voiceClippings(
+  set: PairClippings,
+  page: readonly Pick<PersonSummary, "id" | "profilePath">[],
+): VoicedClippings {
+  return { ...set, people: clippingVoices(set.people, page) };
 }
 
 /** The clippings a filter shows, in their order. Those whose speaker is neither of the pair show under "all" only. */

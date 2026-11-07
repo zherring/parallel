@@ -1,7 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, type ReactNode } from "react";
-import type { PairClippings } from "@/lib/clippings";
+import type { VoicedClippings } from "@/lib/clippings";
 import type { TableRow } from "@/lib/film-rows";
 import { availableViews, isFilmView, showsPeriodNote, type View } from "@/lib/films-view";
 import type { ShareInput } from "@/lib/share";
@@ -36,7 +36,7 @@ interface FilmsSectionProps {
   settingsControl: ReactNode;
   onSelect: (id: number, trigger: HTMLElement) => void;
   /** The pair's quotes about each other, which add a Clippings tab; none (the default) for a page without any. */
-  clippings?: PairClippings | null;
+  clippings?: VoicedClippings | null;
   /** More content under the table, in the Table tab (the "By pair" lists). */
   children?: ReactNode;
 }

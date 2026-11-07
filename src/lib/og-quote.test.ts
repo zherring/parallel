@@ -10,6 +10,7 @@ import {
   QUOTE_TEXT_WIDTH,
   quoteCardType,
   quoteLineCount,
+  splitQuoteTail,
 } from "@/lib/og-quote";
 
 describe("quoteLineCount", () => {
@@ -78,5 +79,27 @@ describe("quoteCardType", () => {
   it("keeps the text column inside the card, and the smallest size legible", () => {
     expect(QUOTE_FONT_SIZES[QUOTE_FONT_SIZES.length - 1]).toBeGreaterThanOrEqual(36);
     expect(QUOTE_TEXT_WIDTH).toBeLessThanOrEqual(1200 - 2 * 80);
+  });
+});
+
+describe("splitQuoteTail", () => {
+  it("keeps the last two words together, for the closing mark to sit beside", () => {
+    expect(splitQuoteTail("a b c d")).toEqual({ words: ["a", "b"], tail: "c d" });
+  });
+
+  it("is all tail for a quote of one or two words", () => {
+    expect(splitQuoteTail("Solo")).toEqual({ words: [], tail: "Solo" });
+    expect(splitQuoteTail("Two words")).toEqual({ words: [], tail: "Two words" });
+  });
+
+  it("folds whitespace, and loses no word", () => {
+    const quote = "  Steven   would\nbring me  these\tscenes ";
+    const { words, tail } = splitQuoteTail(quote);
+    expect([...words, tail].join(" ")).toBe("Steven would bring me these scenes");
+  });
+
+  it("always keeps at least one word in the tail", () => {
+    expect(splitQuoteTail("a b c", 0).tail).toBe("c");
+    expect(splitQuoteTail("", 2)).toEqual({ words: [], tail: "" });
   });
 });

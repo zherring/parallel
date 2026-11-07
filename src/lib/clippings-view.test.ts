@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { Clipping, ClippingsPerson } from "@/lib/clippings";
+import raw from "@/lib/clippings.json";
+import type { Clipping, ClippingsData, ClippingsPerson } from "@/lib/clippings";
 import {
   clippingById,
+  clippingVoices,
   clippingsCountMessage,
   clippingYear,
   dateYear,
@@ -12,7 +14,9 @@ import {
   quoteLinkSearch,
   speakerIndex,
   truncateQuote,
+  voiceClippings,
 } from "@/lib/clippings-view";
+import { personColor, personHex, personSlots } from "@/lib/person-colors";
 
 const people = [
   { id: 488, name: "Steven Spielberg" },
@@ -241,5 +245,90 @@ describe("truncateQuote", () => {
 
   it("counts characters, not UTF-16 units", () => {
     expect(Array.from(truncateQuote("\u{1F3AC}".repeat(20), 10)).length).toBe(10);
+  });
+});
+
+describe("clippingVoices", () => {
+  // The page's people as the Timeline has them: in the order of the URL, each with a headshot.
+  const spielberg = { id: 488, profilePath: "/spielberg.jpg" };
+  const williams = { id: 491, profilePath: null };
+
+  it("colours each person as the Timeline does, whatever order the page is in", () => {
+    // `people` (the data's order) is Spielberg, Williams in both cases: only the page's order differs.
+    const canonical = clippingVoices(people, [spielberg, williams]);
+    expect(canonical.map((voice) => voice.slot)).toEqual([0, 1]);
+
+    const reversed = clippingVoices(people, [williams, spielberg]);
+    expect(reversed.map((voice) => voice.slot)).toEqual([1, 0]);
+    // The colour a speaker is drawn in is the Timeline's colour for the same id (`personSlots`, then `personColor`).
+    for (const page of [[spielberg, williams], [williams, spielberg]]) {
+      const slots = personSlots(page);
+      for (const voice of clippingVoices(people, page)) {
+        expect(voice.slot).toBe(slots.get(voice.id));
+        expect(personColor(voice.slot)).toBe(personColor(page.findIndex((p) => p.id === voice.id)));
+      }
+    }
+  });
+
+  it("gives the two people different colours, and a speaker the colour of their own id", () => {
+    for (const page of [[spielberg, williams], [williams, spielberg]]) {
+      const voices = clippingVoices(people, page);
+      expect(personHex(voices[0].slot)).not.toBe(personHex(voices[1].slot));
+      const speaker = speakerIndex(bOnA, voices);
+      expect(speaker).toBe(1);
+      expect(voices[1].id).toBe(491);
+      expect(voices[1].slot).toBe(page.findIndex((p) => p.id === 491));
+    }
+  });
+
+  it("keeps the data's order, so that speakerIndex and the filter mean what they did", () => {
+    const voices = clippingVoices(people, [williams, spielberg]);
+    expect(voices.map((voice) => voice.id)).toEqual([488, 491]);
+    expect(speakerIndex(aOnB, voices)).toBe(0);
+    expect(filterOptions([aOnB, bOnA], voices).map((option) => option.label)).toEqual([
+      "All",
+      "Spielberg on Williams",
+      "Williams on Spielberg",
+    ]);
+  });
+
+  it("takes each headshot from the page's own person, matched by id", () => {
+    const voices = clippingVoices(people, [williams, spielberg]);
+    expect(voices[0].profilePath).toBe("/spielberg.jpg");
+    expect(voices[1].profilePath).toBeNull();
+  });
+
+  it("falls back to the data's position for a person the page does not have", () => {
+    const voices = clippingVoices(people, [spielberg]);
+    expect(voices[0]).toMatchObject({ id: 488, slot: 0 });
+    expect(voices[1]).toMatchObject({ id: 491, slot: 1, profilePath: null });
+  });
+
+  it("voices every pair of clippings.json in both orders of the page", () => {
+    for (const entry of Object.values(raw as ClippingsData)) {
+      const [first, second] = entry.tmdb_ids;
+      const set = {
+        people: [
+          { id: first, name: entry.pair[0] },
+          { id: second, name: entry.pair[1] },
+        ] as const,
+        clippings: entry.clippings,
+      };
+      for (const order of [[first, second], [second, first]]) {
+        const voiced = voiceClippings(
+          set,
+          order.map((id) => ({ id, profilePath: `/${id}.jpg` })),
+        );
+        expect(voiced.clippings).toBe(set.clippings);
+        expect(voiced.people.map((voice) => voice.slot).sort()).toEqual([0, 1]);
+        for (const clipping of entry.clippings) {
+          const side = speakerIndex(clipping, voiced.people);
+          expect(side, `${entry.pair.join(" + ")}: ${clipping.id}`).not.toBeNull();
+          // The speaker's slot is where their id is in the page's order.
+          expect(voiced.people[side!].slot).toBe(order.indexOf(voiced.people[side!].id));
+          expect(voiced.people[side!].profilePath).toBe(`/${voiced.people[side!].id}.jpg`);
+        }
+      }
+    }
   });
 });

@@ -43,6 +43,11 @@ export function personGlow(slot: number): string {
   return `var(--person-${PERSON_COLORS.indexOf(paletteEntry(slot)) + 1}-glow)`;
 }
 
+/** The slot's colour as a hex string, for the places that cannot read a custom property (the preview cards of `og-quote-render.tsx`). */
+export function personHex(slot: number): string {
+  return paletteEntry(slot).hex;
+}
+
 function glowOf(hex: string): string {
   const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
   return `rgb(${r} ${g} ${b} / ${GLOW_ALPHA})`;

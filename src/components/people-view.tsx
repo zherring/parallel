@@ -13,6 +13,7 @@ import { Timeline, type LaneData, type TimelineHandle } from "@/components/timel
 import { Together } from "@/components/timeline/together";
 import { cardFilms } from "@/lib/card-films";
 import type { PairClippings } from "@/lib/clippings";
+import { voiceClippings } from "@/lib/clippings-view";
 import { toggleHidden } from "@/lib/combined-track";
 import { personRows } from "@/lib/film-rows";
 import { headlineCount, showingMessage } from "@/lib/films-view";
@@ -63,6 +64,11 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings }: Prop
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
   const multi = timelines.length > 1;
+  // The Clippings tab draws each speaker in the colour and with the headshot the page gives them, resolved by TMDB id.
+  const voicedClippings = useMemo(
+    () => (clippings ? voiceClippings(clippings, timelines.map((t) => t.person)) : null),
+    [clippings, timelines],
+  );
   const combined = multi && trackMode === "combined";
 
   // The server sends the default (non-minor) lists; recompute only when the toggle is on.
@@ -297,7 +303,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings }: Prop
           timeline={timeline}
           settingsControl={settingsControl}
           onSelect={handleSelect}
-          clippings={clippings}
+          clippings={voicedClippings}
         />
       ) : (
         <FilmsSection

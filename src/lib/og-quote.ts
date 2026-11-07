@@ -58,3 +58,15 @@ export function quoteCardType(text: string): QuoteCardType {
   }
   return { fontSize: QUOTE_FONT_SIZES[QUOTE_FONT_SIZES.length - 1], lineHeight: QUOTE_LINE_HEIGHT };
 }
+
+/**
+ * `text` as the words that flow freely and the tail that stays together: the last `tailWords` words, which the card
+ * sets in one piece with the closing mark, so that the mark never starts a line of its own and a short last line has
+ * at least a couple of words. The renderer cannot colour part of a wrapping line (nested text becomes separate boxes),
+ * so the card sets its quote word by word, and the closing mark in the speaker's colour needs a word to sit beside.
+ */
+export function splitQuoteTail(text: string, tailWords = 2): { words: string[]; tail: string } {
+  const all = text.split(/\s+/).filter(Boolean);
+  const keep = Math.max(0, all.length - Math.max(1, tailWords));
+  return { words: all.slice(0, keep), tail: all.slice(keep).join(" ") };
+}
