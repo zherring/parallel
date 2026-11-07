@@ -558,6 +558,9 @@ export function Timeline({
     if (!didInitialScroll.current) {
       didInitialScroll.current = true;
       scroller.scrollLeft = initialScrollLeft(anchorX, viewportTrackWidth());
+      // Initial Combined views should stand on their baseline, even when shared posters force
+      // more rows than fit. Keep this one-time placement separate from later manual zooms.
+      if (isCombined) scroller.scrollTop = scroller.scrollHeight;
     } else if (lastSeen.current) {
       if (pendingCenter.current === null) scroller.scrollLeft = lastSeen.current.left;
       scroller.scrollTop = lastSeen.current.top;
@@ -565,7 +568,7 @@ export function Timeline({
     remember();
     updateEdges();
     updateActiveLane();
-  }, [active, anchorX, remember, updateActiveLane, updateEdges]);
+  }, [active, anchorX, isCombined, remember, updateActiveLane, updateEdges]);
 
   // Zoom and the minor toggle can move the axis; keep whatever year was centred in place. While the
   // timeline is hidden the year comes from where it was last seen, and is placed once it is shown.
@@ -617,6 +620,9 @@ export function Timeline({
     if (!active || !pending || !scroller || pending.zoom !== pxPerYear) return;
     pendingStart.current = null;
     scroller.scrollLeft = scrollLeftForYearStart(pending.from, scale);
+    // Fitting a linked period can add rows after the first placement. This is a deliberate
+    // programmatic navigation, not a manual zoom, so finish it at the Combined baseline too.
+    if (isCombined) scroller.scrollTop = scroller.scrollHeight;
     remember();
     updateEdges();
   });

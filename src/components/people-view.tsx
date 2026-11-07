@@ -128,13 +128,16 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
     [people],
   );
   const handleToggleOpen = useCallback((personId: number) => {
+    // Leaving the docked column adds the floating inset to --lane-head. Preserve the year
+    // under the viewport's centre before that width changes, even for an individual caret.
+    if (panelLayout === "stack") timelineRef.current?.rememberCenter();
     setPanelLayout("condense");
     setOpenIds((prev) => {
       const next = new Set(prev);
       if (!next.delete(personId)) next.add(personId);
       return next;
     });
-  }, []);
+  }, [panelLayout]);
 
   const handleTrackModeChange = useCallback((mode: TrackMode) => {
     timelineRef.current?.rememberCenter();
