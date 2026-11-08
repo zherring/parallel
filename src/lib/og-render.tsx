@@ -37,7 +37,7 @@ import type { PersonTimeline } from "@/lib/types";
 export const OG_CACHE_CONTROL = "public, s-maxage=86400, stale-while-revalidate=604800";
 
 /** A TMDB image as a data URI; null when TMDB has none or it cannot be fetched. */
-async function loadImage(path: string | null): Promise<string | null> {
+export async function loadImage(path: string | null): Promise<string | null> {
   const url = tmdbImage(path, "w342");
   return url ? fetchImageDataUri(url) : null;
 }

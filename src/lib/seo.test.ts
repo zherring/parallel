@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { peopleDescription, peopleSocial, peopleTitle, periodImagePath, periodTitle } from "@/lib/seo";
+import {
+  criticQuoteDescription,
+  criticQuoteTitle,
+  peopleDescription,
+  peopleSocial,
+  peopleTitle,
+  periodImagePath,
+  periodTitle,
+  quoteDescription,
+  quoteImagePath,
+  quoteTitle,
+} from "@/lib/seo";
 import { sharedFilms } from "@/lib/shared";
 import type { Film, PersonTimeline, SharedFilm } from "@/lib/types";
 
@@ -162,5 +173,79 @@ describe("period metadata", () => {
     const image = { url: "/p/1-a+2-b/og?from=1990&to=2001", width: 1200, height: 630, alt: "T: films from 1990–2001" };
     expect(social.openGraph).toMatchObject({ url: "/p/1-a+2-b?from=1990&to=2001", images: [image] });
     expect(social.twitter).toMatchObject({ card: "summary_large_image", images: [image] });
+  });
+});
+
+describe("quote metadata", () => {
+  const clipping = {
+    speaker: "Steven Spielberg",
+    about: "John Williams",
+    publication: "Variety",
+    said_year: 2023,
+    date: "2023-01-13",
+    quote: "God knows the shark never worked, but Johnny did.",
+  };
+
+  it("titles the link with the quote in curly quotes and who said it", () => {
+    expect(quoteTitle(clipping)).toBe("\u201cGod knows the shark never worked, but Johnny did.\u201d \u2014 Steven Spielberg");
+  });
+
+  it("cuts a long quote to about 90 characters of it, ending in an ellipsis", () => {
+    const title = quoteTitle({ ...clipping, quote: "word ".repeat(60) });
+    const quote = title.slice(1, title.indexOf("\u201d"));
+    expect(quote.endsWith("\u2026")).toBe(true);
+    expect(Array.from(quote).length).toBeLessThanOrEqual(90);
+    expect(Array.from(quote).length).toBeGreaterThan(80);
+    expect(title.endsWith("\u201d \u2014 Steven Spielberg")).toBe(true);
+  });
+
+  it("describes who said it about whom, and where and when: the year of the original or of the remark, whichever is older", () => {
+    expect(quoteDescription(clipping)).toBe("Steven Spielberg on John Williams \u00b7 Variety, 2023");
+    expect(quoteDescription({ ...clipping, said_year: 2011, date: "2012-01-27" })).toBe("Steven Spielberg on John Williams \u00b7 Variety, 2011");
+    expect(quoteDescription({ ...clipping, said_year: 2023, date: "2006-07" })).toBe("Steven Spielberg on John Williams \u00b7 Variety, 2006");
+  });
+
+  it("leaves the year out when there is none", () => {
+    expect(quoteDescription({ ...clipping, said_year: null, date: "" })).toBe("Steven Spielberg on John Williams \u00b7 Variety");
+  });
+
+  it("points the image at the card route, asked for the quote by its id", () => {
+    expect(quoteImagePath("488-steven-spielberg+491-john-williams", "john-is-much-more-of-a")).toBe(
+      "/p/488-steven-spielberg+491-john-williams/og?quote=john-is-much-more-of-a",
+    );
+  });
+});
+
+describe("critic quote metadata", () => {
+  const critic = {
+    critic: "Rebecca Keegan",
+    publication: "Los Angeles Times",
+    date: "2012-01",
+    quote: "That stylistic versatility has been the foundation of their partnership.",
+  };
+  const people = [
+    { id: 488, name: "Steven Spielberg" },
+    { id: 491, name: "John Williams" },
+  ];
+
+  it("titles the link with the quote in curly quotes and the critic", () => {
+    expect(criticQuoteTitle(critic)).toBe(
+      "\u201cThat stylistic versatility has been the foundation of their partnership.\u201d \u2014 Rebecca Keegan",
+    );
+  });
+
+  it("credits the publication when the piece is not signed, and cuts a long quote as an artist's is cut", () => {
+    expect(criticQuoteTitle({ ...critic, critic: null }).endsWith("\u201d \u2014 Los Angeles Times")).toBe(true);
+    const title = criticQuoteTitle({ ...critic, quote: "word ".repeat(60) });
+    expect(title.slice(1, title.indexOf("\u201d")).endsWith("\u2026")).toBe(true);
+  });
+
+  it("describes who wrote it about the pair, in family names, and where and when", () => {
+    expect(criticQuoteDescription(critic, people)).toBe("Rebecca Keegan on Spielberg & Williams \u00b7 Los Angeles Times, 2012");
+    expect(criticQuoteDescription({ ...critic, critic: null }, people)).toBe("Los Angeles Times on Spielberg & Williams \u00b7 Los Angeles Times, 2012");
+  });
+
+  it("leaves the year out when the date is not one", () => {
+    expect(criticQuoteDescription({ ...critic, date: "" }, people)).toBe("Rebecca Keegan on Spielberg & Williams \u00b7 Los Angeles Times");
   });
 });

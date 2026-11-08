@@ -6,15 +6,19 @@ import { PersonSearch } from "@/components/person-search/person-search";
 import { FilmsSection } from "@/components/timeline/films-section";
 import { FilmSettings } from "@/components/timeline/film-settings";
 import { PeoplePanel, type PanelLayout, type PanelPerson } from "@/components/timeline/people-panel";
+import type { BioPerson } from "@/components/timeline/person-bio";
 import { TrackModeToggle, type TrackMode } from "@/components/timeline/track-mode-toggle";
 import { useUrlPeriod } from "@/components/timeline/use-period";
 import { useViewTab } from "@/components/timeline/use-view-tab";
 import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
 import { Together } from "@/components/timeline/together";
 import { cardFilms } from "@/lib/card-films";
+import type { PairClippings } from "@/lib/clippings";
+import { voiceClippings } from "@/lib/clippings-view";
 import { toggleHidden } from "@/lib/combined-track";
+import type { PairCritics } from "@/lib/critics";
 import { personRows } from "@/lib/film-rows";
-import { headlineCount, showingMessage } from "@/lib/films-view";
+import { hasClippingsTab, headlineCount, quoteIdsOf, showingMessage } from "@/lib/films-view";
 import { laneSummary, removePersonHref } from "@/lib/lanes";
 import { periodLabel, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss } from "@/lib/person-colors";
@@ -35,6 +39,10 @@ interface Props {
    * server and the browser lay the timeline out identically.
    */
   today: string;
+  /** The quotes the two people of a pair have about each other; null for one person, 3 or more, or a pair without any. */
+  clippings: PairClippings | null;
+  /** What critics and scholars have written about the collaboration of the two people of a pair (the Clippings tab's critics' quotes and "More reading"); null for one person, 3 or more, or a pair without any. */
+  critics: PairCritics | null;
 }
 
 export function PeopleView(props: Props) {
@@ -43,13 +51,13 @@ export function PeopleView(props: Props) {
   return <PeopleViewInner key={key} {...props} />;
 }
 
-function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
+function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critics }: Props) {
   const [includeMinor, setIncludeMinor] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const timelineRef = useRef<TimelineHandle>(null);
-  const [view] = useViewTab();
+  const [view] = useViewTab(hasClippingsTab(clippings, critics), quoteIdsOf(clippings, critics));
   const [urlPeriod, setPeriod] = useUrlPeriod();
   // Start with one shared track; separating changes only how the people's films are drawn.
   const [trackMode, setTrackMode] = useState<TrackMode>("combined");
@@ -60,6 +68,11 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
   const multi = timelines.length > 1;
+  // The Clippings tab draws each speaker in the colour and with the headshot the page gives them, resolved by TMDB id.
+  const voicedClippings = useMemo(
+    () => (clippings ? voiceClippings(clippings, timelines.map((t) => t.person)) : null),
+    [clippings, timelines],
+  );
   const combined = multi && trackMode === "combined";
 
   // The server sends the default (non-minor) lists; recompute only when the toggle is on.
@@ -117,6 +130,12 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
         };
       }),
     [lanes, includeMinor, hiddenIds, people],
+  );
+
+  // The names in the Clippings tab open the same biography dialog as the people column, with the same roles.
+  const bioPeople: BioPerson[] = useMemo(
+    () => panelPeople.map(({ person, roles }) => ({ person, roles })),
+    [panelPeople],
   );
 
   // Hiding someone changes the axis (it spans the films shown): keep the year in the middle where it is.
@@ -194,7 +213,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
       <button
         type="button"
         onClick={() => setPeriod(null)}
-        className="cursor-pointer rounded text-accent-blue underline-offset-2 hover:underline"
+        className="cursor-pointer rounded text-strong underline-offset-2 hover:underline"
       >
         Show full career
       </button>
@@ -294,6 +313,9 @@ function PeopleViewInner({ timelines, shared, pairwise, today }: Props) {
           timeline={timeline}
           settingsControl={settingsControl}
           onSelect={handleSelect}
+          clippings={voicedClippings}
+          critics={critics}
+          bioPeople={bioPeople}
         />
       ) : (
         <FilmsSection

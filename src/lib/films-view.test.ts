@@ -3,23 +3,93 @@ import { personRows, sharedRows } from "@/lib/film-rows";
 import { sharedFilms } from "@/lib/shared";
 import type { Credit, Film, PersonTimeline } from "@/lib/types";
 import {
+  BASE_VIEWS,
   DEFAULT_VIEW,
   VIEWS,
   VIEW_LABELS,
+  availableViews,
   carryView,
+  hasClippingsTab,
   headlineCount,
+  isFilmView,
   parseView,
+  quoteIdsOf,
+  resolveView,
   searchWithView,
   showingMessage,
   showsPeriodNote,
   viewForKey,
+  viewParams,
 } from "@/lib/films-view";
 
 describe("VIEWS", () => {
   it("lists the timeline first and defaults to it", () => {
-    expect(VIEWS).toEqual(["timeline", "table"]);
+    expect(VIEWS).toEqual(["timeline", "table", "clippings"]);
     expect(DEFAULT_VIEW).toBe("timeline");
-    expect(VIEW_LABELS).toEqual({ timeline: "Timeline", table: "Table" });
+    expect(VIEW_LABELS).toEqual({ timeline: "Timeline", table: "Table", clippings: "Clippings" });
+  });
+});
+
+describe("hasClippingsTab", () => {
+  const quotes = { clippings: [{}] };
+  const criticQuotes = { critics: [{}], reading: [] };
+  const readingOnly = { critics: [], reading: [{}] };
+
+  it("is true for a page with quotes, with critics, with reading only, or with several", () => {
+    expect(hasClippingsTab(quotes, null)).toBe(true);
+    expect(hasClippingsTab(null, criticQuotes)).toBe(true);
+    expect(hasClippingsTab(null, readingOnly)).toBe(true);
+    expect(hasClippingsTab(quotes, criticQuotes)).toBe(true);
+  });
+
+  it("is false for a page with none of them", () => {
+    expect(hasClippingsTab(null, null)).toBe(false);
+    expect(hasClippingsTab(undefined, undefined)).toBe(false);
+    expect(hasClippingsTab({ clippings: [] }, { critics: [], reading: [] })).toBe(false);
+  });
+});
+
+describe("availableViews", () => {
+  it("offers Timeline and Table to every page, and Clippings only to a page that has quotes, critics or reading", () => {
+    expect(availableViews(false)).toEqual(["timeline", "table"]);
+    expect(availableViews(false)).toBe(BASE_VIEWS);
+    expect(availableViews(true)).toEqual(["timeline", "table", "clippings"]);
+  });
+});
+
+describe("resolveView", () => {
+  it("keeps a view the page offers", () => {
+    expect(resolveView("table", availableViews(false))).toBe("table");
+    expect(resolveView("clippings", availableViews(true))).toBe("clippings");
+  });
+
+  it("keeps Clippings for a page that has critics or reading but no quotes", () => {
+    expect(resolveView("clippings", availableViews(hasClippingsTab(null, { critics: [], reading: [{}] })))).toBe("clippings");
+    expect(resolveView("clippings", availableViews(hasClippingsTab(null, { critics: [{}], reading: [] })))).toBe("clippings");
+  });
+
+  it("falls back to the default view for one it does not offer: ?view=clippings on a page with neither quotes nor critics", () => {
+    expect(resolveView(parseView("?view=clippings"), availableViews(hasClippingsTab(null, null)))).toBe("timeline");
+    expect(resolveView(parseView("?view=clippings&sort=rating"), availableViews(false))).toBe("timeline");
+  });
+});
+
+describe("the clippings view in the URL", () => {
+  it("is selected by ?view=clippings and written back the same way", () => {
+    expect(parseView("?view=clippings")).toBe("clippings");
+    expect(searchWithView("", "clippings")).toBe("?view=clippings");
+    expect(searchWithView("?view=clippings", "timeline")).toBe("");
+    expect(searchWithView("?foo=1&view=clippings", "table")).toBe("?foo=1&view=table");
+  });
+
+  it("is not carried to the page of another set of people, which has no clippings of the same pair", () => {
+    expect(carryView("/p/1-a+2-b+3-c", "?view=clippings")).toBe("/p/1-a+2-b+3-c");
+  });
+});
+
+describe("isFilmView", () => {
+  it("is true for the views of the films and false for the clippings", () => {
+    expect(VIEWS.filter(isFilmView)).toEqual(["timeline", "table"]);
   });
 });
 
@@ -60,6 +130,84 @@ describe("parseView", () => {
   it("applies the sort rule to an unknown view too", () => {
     expect(parseView("?view=grid&sort=year&dir=desc")).toBe("table");
   });
+
+  describe("with the ids of the page's quotes", () => {
+    const IDS = ["short-one", "critic-short"];
+
+    it("opens the Clippings for a link to one of them that names no view", () => {
+      expect(parseView("?quote=short-one", IDS)).toBe("clippings");
+      expect(parseView("quote=critic-short", IDS)).toBe("clippings");
+      expect(parseView("?quote=%20short-one%20", IDS)).toBe("clippings");
+      expect(parseView("?from=1970&quote=short-one", IDS)).toBe("clippings");
+      expect(parseView({ quote: "short-one" }, IDS)).toBe("clippings");
+      expect(parseView({ quote: ["short-one", "nope"] }, IDS)).toBe("clippings");
+      expect(parseView(new URLSearchParams({ quote: "short-one" }), new Set(IDS))).toBe("clippings");
+    });
+
+    it("lets it win over a sort, since a quote is only ever on the Clippings", () => {
+      expect(parseView("?sort=rating&quote=short-one", IDS)).toBe("clippings");
+    });
+
+    it("ignores an id the page does not have, an empty one, one of another case, and a quote on a page without any", () => {
+      expect(parseView("?quote=nope", IDS)).toBe("timeline");
+      expect(parseView("?quote=", IDS)).toBe("timeline");
+      expect(parseView("?quote=SHORT-ONE", IDS)).toBe("timeline");
+      expect(parseView("?quote=short", IDS)).toBe("timeline");
+      expect(parseView("?quote=short-one")).toBe("timeline");
+      expect(parseView("?quote=short-one", [])).toBe("timeline");
+      expect(parseView({ quote: ["nope", "short-one"] }, IDS)).toBe("timeline");
+      expect(parseView("?sort=rating&quote=nope", IDS)).toBe("table");
+    });
+
+    it("lets a view the link names win", () => {
+      expect(parseView("?view=table&quote=short-one", IDS)).toBe("table");
+      expect(parseView("?view=timeline&quote=short-one", IDS)).toBe("timeline");
+      expect(parseView("?view=clippings&quote=short-one", IDS)).toBe("clippings");
+      expect(parseView("?view=grid&quote=short-one", IDS)).toBe("clippings");
+    });
+
+    it("is the view the page shows, when resolved: the Clippings for a pair that has quotes, never for one that has none", () => {
+      const clippings = { clippings: [{ id: "short-one" }] };
+      const ids = quoteIdsOf(clippings, null);
+      expect(resolveView(parseView("?quote=short-one", ids), availableViews(hasClippingsTab(clippings, null)))).toBe("clippings");
+      expect(resolveView(parseView("?quote=short-one", quoteIdsOf(null, null)), availableViews(false))).toBe("timeline");
+    });
+
+    it("is dropped again by a change of view, which writes nothing that would bring the Clippings back", () => {
+      expect(searchWithView("?quote=short-one", "timeline")).toBe("");
+      expect(searchWithView("?quote=short-one", "table")).toBe("?view=table");
+      expect(parseView(searchWithView("?quote=short-one", "timeline"), ["short-one"])).toBe("timeline");
+      expect(parseView(searchWithView("?quote=short-one", "table"), ["short-one"])).toBe("table");
+    });
+  });
+});
+
+describe("quoteIdsOf", () => {
+  it("lists the artists' ids and then the critics'", () => {
+    expect(quoteIdsOf({ clippings: [{ id: "a" }, { id: "b" }] }, { critics: [{ id: "critic-c" }] })).toEqual(["a", "b", "critic-c"]);
+  });
+
+  it("is empty for a page without quotes", () => {
+    expect(quoteIdsOf(null, null)).toEqual([]);
+    expect(quoteIdsOf(undefined, { critics: [] })).toEqual([]);
+  });
+});
+
+describe("viewParams", () => {
+  it("is the view, sort, direction and quote of a page's query, in that order, and nothing else", () => {
+    const params = viewParams({ quote: "q", from: "1970", dir: "asc", utm_source: "x", sort: "year", view: "table", to: "1980" });
+    expect(params.toString()).toBe("view=table&sort=year&dir=asc&quote=q");
+  });
+
+  it("takes the first of a repeated parameter and leaves out empty and missing ones", () => {
+    expect(viewParams({ view: ["clippings", "table"], quote: ["a", "b"], sort: "", dir: undefined }).toString()).toBe("view=clippings&quote=a");
+    expect(viewParams({}).toString()).toBe("");
+  });
+
+  it("writes an id so that a URL reads it back unchanged", () => {
+    const text = viewParams({ quote: "a b&c=d" }).toString();
+    expect(new URLSearchParams(text).get("quote")).toBe("a b&c=d");
+  });
 });
 
 describe("searchWithView", () => {
@@ -76,6 +224,13 @@ describe("searchWithView", () => {
   it("keeps the other parameters", () => {
     expect(searchWithView("?foo=1", "table")).toBe("?foo=1&view=table");
     expect(searchWithView("?foo=1&view=table", "timeline")).toBe("?foo=1");
+  });
+
+  it("keeps a quote on the Clippings and drops it from any other view, which has no quote on screen", () => {
+    expect(searchWithView("?view=clippings&quote=a-quote", "clippings")).toBe("?view=clippings&quote=a-quote");
+    expect(searchWithView("?view=clippings&quote=a-quote", "timeline")).toBe("");
+    expect(searchWithView("?view=clippings&quote=a-quote", "table")).toBe("?view=table");
+    expect(searchWithView("?foo=1&quote=a-quote&view=clippings", "timeline")).toBe("?foo=1");
   });
 
   it("keeps the table's sort when the view changes", () => {
@@ -140,6 +295,28 @@ describe("viewForKey", () => {
     for (const key of ["Enter", " ", "Tab", "ArrowDown", "ArrowUp", "a", "Escape"]) {
       expect(viewForKey(key, "timeline")).toBeNull();
     }
+  });
+
+  describe("with the Clippings tab", () => {
+    const three = availableViews(true);
+
+    it("moves across all three tabs, wrapping", () => {
+      expect(viewForKey("ArrowRight", "timeline", three)).toBe("table");
+      expect(viewForKey("ArrowRight", "table", three)).toBe("clippings");
+      expect(viewForKey("ArrowRight", "clippings", three)).toBe("timeline");
+      expect(viewForKey("ArrowLeft", "timeline", three)).toBe("clippings");
+      expect(viewForKey("ArrowLeft", "clippings", three)).toBe("table");
+    });
+
+    it("jumps to the ends, Clippings being the last", () => {
+      expect(viewForKey("End", "timeline", three)).toBe("clippings");
+      expect(viewForKey("Home", "clippings", three)).toBe("timeline");
+    });
+
+    it("never reaches Clippings on a page without it", () => {
+      expect(viewForKey("ArrowRight", "table")).toBe("timeline");
+      expect(viewForKey("End", "timeline", availableViews(false))).toBe("table");
+    });
   });
 });
 

@@ -14,6 +14,8 @@
   --text-strong: #ffffff;
   --text: #99aabb;
   --text-muted: #8899aa;
+  /* The Clippings quotes: midway between the strong white and the body grey. */
+  --text-quote: color-mix(in oklab, var(--text-strong) 50%, var(--text));
   --green: #00e054;
   --green-hover: #00c030;
   --on-green: #14181c;
@@ -56,6 +58,7 @@
   --color-strong: var(--text-strong);
   --color-body: var(--text);
   --color-muted: var(--text-muted);
+  --color-quote: var(--text-quote);
   --color-accent-green: var(--green);
   --color-accent-green-hover: var(--green-hover);
   --color-on-accent: var(--on-green);
@@ -67,12 +70,21 @@
   --color-lit: var(--lit);
   --shadow-lit: 0 0 0 2px var(--lit), 0 0 24px var(--lit-glow);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* The quotes of the Clippings tab; --font-newsreader is set by the panel that loads it. */
+  --font-serif: var(--font-newsreader), ui-serif, Georgia, "Times New Roman", serif;
 }
 
 body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
+}
+
+@layer base {
+  /* Text links share one neutral colour; timeline colours describe people and films, not navigation. */
+  a {
+    color: var(--text-strong);
+  }
 }
 
 :focus-visible {

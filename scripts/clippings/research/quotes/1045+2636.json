@@ -1,0 +1,153 @@
+{
+  "pair": [
+    "Alfred Hitchcock",
+    "Bernard Herrmann"
+  ],
+  "tmdb_ids": [
+    2636,
+    1045
+  ],
+  "clippings": [
+    {
+      "speaker": "Alfred Hitchcock",
+      "about": "Bernard Herrmann",
+      "quote": "I certainly do. … I don’t know. As far as I’m concerned he does as he likes.",
+      "film": null,
+      "said_year": 1964,
+      "publication": "CBC Telescope",
+      "via": "The Bernard Herrmann Society",
+      "title": "Telescope: A Talk with Hitchcock",
+      "date": "1964",
+      "url": "http://bernardherrmann.org/articles/transcript-telescope/",
+      "context": "CBC's Telescope (1964, filmed at Universal during Marnie): asked by host Fletcher Markle whether he thinks highly of Herrmann's work and how they decide on music; transcript by Alan Andres for the Bernard Herrmann Society (2000).",
+      "secondhand": false
+    },
+    {
+      "speaker": "Bernard Herrmann",
+      "about": "Alfred Hitchcock",
+      "quote": "I’m brought in at the very beginning of the idea of a film. And by the time it has gone through all its stages of being written and rewritten and the final process of photographing it, I am so much a part of the whole thing that we have all begun to think one way.",
+      "film": null,
+      "said_year": 1964,
+      "publication": "CBC Telescope",
+      "via": "The Bernard Herrmann Society",
+      "title": "Telescope: A Talk with Hitchcock",
+      "date": "1964",
+      "url": "http://bernardherrmann.org/articles/transcript-telescope/",
+      "context": "Herrmann, appearing on the same 1964 CBC Telescope profile of Hitchcock, describes how he works on Hitchcock's films.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Bernard Herrmann",
+      "about": "Alfred Hitchcock",
+      "quote": "Originally the plan was in our discussions not to have any music over any of the murder scenes. However I differed with Hitch about this and I felt that music was needed. … And he said immediately [after seeing the scored version], “We must have the music, of course!” And I said, “But you were against it.” And he said, “Oh, no. All I made was an poor suggestion.”",
+      "film": "Psycho",
+      "said_year": 1964,
+      "publication": "CBC Telescope",
+      "via": "The Bernard Herrmann Society",
+      "title": "Telescope: A Talk with Hitchcock",
+      "date": "1964",
+      "url": "http://bernardherrmann.org/articles/transcript-telescope/",
+      "context": "Herrmann on CBC Telescope (1964), with Hitchcock in the same program, telling how he scored the Psycho murders against Hitchcock's plan; the bracketed words are the transcriber's.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Bernard Herrmann",
+      "about": "Alfred Hitchcock",
+      "quote": "Hitch has his own world of film. He’s created characters and places and stories for it very much the way Dickens did.",
+      "film": null,
+      "said_year": 1964,
+      "publication": "CBC Telescope",
+      "via": "The Bernard Herrmann Society",
+      "title": "Telescope: A Talk with Hitchcock",
+      "date": "1964",
+      "url": "http://bernardherrmann.org/articles/transcript-telescope/",
+      "context": "Herrmann on CBC Telescope (1964), comparing Hitchcock's screen world to Dickens and the Victorian novelists.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Bernard Herrmann",
+      "about": "Alfred Hitchcock",
+      "quote": "No, it’s Hitchcock. He just wanted pop stuff, and I said, “No, I’m not interested.” I told him, “Hitch, what’s the use of my doing more with you? Your pictures, your mathematics, three zeroes. My mathematics, quite different.”",
+      "film": "Torn Curtain",
+      "said_year": 1975,
+      "publication": "High Fidelity",
+      "via": "The Bernard Herrmann Society",
+      "title": "An Interview with Bernard Herrmann (1911-1975)",
+      "date": "1976-09",
+      "url": "http://bernardherrmann.org/articles/an-interview-with-bernard-herrmann/",
+      "context": "Interviewed by Royal S. Brown in New York in August 1975, four months before his death, asked whether the Hitchcock break was the producers' doing; text as revised from the tape for Brown's 1994 book Overtones and Undertones.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Bernard Herrmann",
+      "about": "Alfred Hitchcock",
+      "quote": "I said, “Look, Hitch, you can’t out-jump your own shadow. And you don’t make pop pictures. What do you want with me? I don’t write pop music.” It’s a mistake, I feel. Because … he only finishes a picture 60 percent. I have to finish it for him.",
+      "film": "Torn Curtain",
+      "said_year": 1975,
+      "publication": "High Fidelity",
+      "via": "The Bernard Herrmann Society",
+      "title": "An Interview with Bernard Herrmann (1911-1975)",
+      "date": "1976-09",
+      "url": "http://bernardherrmann.org/articles/an-interview-with-bernard-herrmann/",
+      "context": "Same August 1975 Royal S. Brown interview, on Hitchcock's demand for a pop score for Torn Curtain; source of the oft-repeated '60 percent' line.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Bernard Herrmann",
+      "about": "Alfred Hitchcock",
+      "quote": "Hitch came to the recording session, listened a while, and said, “Look. If I want Herrmann, I’d ask Herrmann. Where’s Mancini?”",
+      "film": "Frenzy",
+      "said_year": 1975,
+      "publication": "High Fidelity",
+      "via": "The Bernard Herrmann Society",
+      "title": "An Interview with Bernard Herrmann (1911-1975)",
+      "date": "1976-09",
+      "url": "http://bernardherrmann.org/articles/an-interview-with-bernard-herrmann/",
+      "context": "Same 1975 interview: Herrmann recounts how Hitchcock threw out Henry Mancini's Frenzy score (1972) for sounding too much like Herrmann; Hitchcock's words are as relayed by Herrmann.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Alfred Hitchcock",
+      "about": "Bernard Herrmann",
+      "quote": "I AM VERY ANXIOUS FOR YOU TO DO THE MUSIC ON TORN CURTAIN STOP … UNFORTUNATELY FOR WE ARTISTS WE DO NOT HAVE THE FREEDOM THAT WE WOULD LIKE TO HAVE BECAUSE WE ARE CATERING TO AN AUDIENCE AND THAT IS WHY YOU GET YOUR MONEY AND I GET MINE STOP",
+      "film": "Torn Curtain",
+      "said_year": 1965,
+      "publication": "Hitchcock's Notebooks",
+      "via": "Stars and Letters",
+      "title": "We are catering to an audience and that is why you get your money and I get mine",
+      "date": "1999",
+      "url": "https://starsandletters.blogspot.com/2022/08/we-are-catering-to-audience-and-that-is.html",
+      "context": "Hitchcock's telegram to Herrmann ('DEAR BENNY'), 4 November 1965, asking for a modern 'beat' score; reproduced on the Stars and Letters blog from Dan Auiler's Hitchcock's Notebooks (1999).",
+      "secondhand": true
+    },
+    {
+      "speaker": "Alfred Hitchcock",
+      "about": "Bernard Herrmann",
+      "quote": "thirty three and a third of Psycho’s success was due to Bernard Herrmann’s music.",
+      "film": "Psycho",
+      "said_year": null,
+      "publication": "Midnight Marquee",
+      "via": "The Bernard Herrmann Society",
+      "title": "Herrmann and Hitchcock – The Torn Curtain",
+      "date": "2002",
+      "url": "http://bernardherrmann.org/articles/misc-torncurtain/",
+      "context": "Steve Vertlieb's 2002 Midnight Marquee essay says Hitchcock 'would often proclaim to interviewers' this after Psycho; no original interview is cited, and wording varies elsewhere (e.g. '33% of the effect of Psycho was due to the music').",
+      "secondhand": true
+    },
+    {
+      "speaker": "Alfred Hitchcock",
+      "about": "Bernard Herrmann",
+      "quote": "Yes … if he’ll do as he’s told.",
+      "film": "Torn Curtain",
+      "said_year": null,
+      "publication": "Midnight Marquee",
+      "via": "The Bernard Herrmann Society",
+      "title": "Herrmann and Hitchcock – The Torn Curtain",
+      "date": "2002",
+      "url": "http://bernardherrmann.org/articles/misc-torncurtain/",
+      "context": "Per Vertlieb (2002), Hitchcock's answer years after the Torn Curtain firing, at a University of Southern California speaking engagement, when asked if he'd ever work with Herrmann again; no date or original source given.",
+      "secondhand": true
+    }
+  ],
+  "notes": "Both men died long ago, so no new interviews exist. Main finds: (1) the Bernard Herrmann Society's transcript (Alan Andres, Feb 2000) of CBC Telescope's 1964 'A Talk with Hitchcock', which has both men in one program, the only primary source here where Hitchcock speaks about Herrmann on the record; (2) Royal S. Brown's August 1975 interview with Herrmann (High Fidelity, Sept 1976), hosted by the Society in its 1994 revised form (Overtones and Undertones), restored from the original tape, so wording may differ a little from the 1976 magazine text. The Hitchcock direction is thin: after the 1966 firing he reportedly never named Herrmann in interviews. Three of the four Hitchcock items are secondhand: the 4 Nov 1965 telegram (reproduced on the Stars and Letters letters blog from Dan Auiler's Hitchcock's Notebooks, 1999; a blog host, but it cites the book), plus '33 and a third' and the USC 'if he'll do as he's told' line, both from Steve Vertlieb's 2002 Midnight Marquee essay with no original source. The famous '33% of the effect of Psycho was due to the music' wording appears on Legacy.com (2011) and elsewhere with no primary source; not used. Also not used: Smith-relayed lines in Far Out (via Variety) and NPR 2000 (third-hand); TCM's Torn Curtain article (Brian Cady, 2003) has Herrmann's 'pop pictures' line without a source, but the same words are in the Brown interview; Hitchcock's 'Finished, no other way, finished; goodbye, here's your money, sorry' only turned up on a fan blog (herrmann100) with no source; Truffaut book ('asked Bernard Herrmann to supervise the whole sound track' for The Birds) has no open full text; Hitchcock Zone / hitchcockwiki (WSJ 2010, The Times 2006, Cinema Journal 1982 transcriptions) blocked by Cloudflare or refusing connections; Royal Brown's High Fidelity original and Sight and Sound 1971 (Ted Gilling) not freely online. bernardherrmann.org works only over http without www (the www and https versions fail)."
+}

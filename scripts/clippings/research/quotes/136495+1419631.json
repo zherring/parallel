@@ -1,0 +1,91 @@
+{
+  "pair": ["Damien Chazelle", "Justin Hurwitz"],
+  "tmdb_ids": [136495, 1419631],
+  "clippings": [
+    {
+      "speaker": "Damien Chazelle",
+      "about": "Justin Hurwitz",
+      "quote": "I’ve never met anyone more stubborn than Justin and able to stick to a vision despite daunting odds, where most people would buckle.",
+      "film": null,
+      "said_year": 2023,
+      "publication": "Lampoon Magazine",
+      "via": null,
+      "title": "Cinema is real life: Damien Chazelle and Justin Hurwitz talking back and forth",
+      "date": "2023-09-08",
+      "url": "https://lampoonmagazine.com/damen-chazelle-justin-hurwitz-talking-conversation-friendship-masterclass-cinema-venice/",
+      "context": "Said at a Venice Film Festival masterclass (Sept. 1, 2023) while discussing how the pair handled studio pressure to change course.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Damien Chazelle",
+      "about": "Justin Hurwitz",
+      "quote": "It’s a constant back and forth, instead of one of us waiting for the other. It’s respect, it’s human respect – and it must be rough and sincere.",
+      "film": null,
+      "said_year": 2023,
+      "publication": "Lampoon Magazine",
+      "via": null,
+      "title": "Cinema is real life: Damien Chazelle and Justin Hurwitz talking back and forth",
+      "date": "2023-09-08",
+      "url": "https://lampoonmagazine.com/damen-chazelle-justin-hurwitz-talking-conversation-friendship-masterclass-cinema-venice/",
+      "context": "Chazelle describing their creative relationship, from the script stage through the final mix, at the Venice masterclass.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Damien Chazelle",
+      "about": "Justin Hurwitz",
+      "quote": "Weirdly, the hardest navigating that Justin and I ever had to do in terms of within the studio system. Much harder than anything we had to do in Babylon, for instance, … in terms of trying to negotiate the studio with the theremin.",
+      "film": "First Man",
+      "said_year": 2023,
+      "publication": "Lampoon Magazine",
+      "via": null,
+      "title": "Cinema is real life: Damien Chazelle and Justin Hurwitz talking back and forth",
+      "date": "2023-09-08",
+      "url": "https://lampoonmagazine.com/damen-chazelle-justin-hurwitz-talking-conversation-friendship-masterclass-cinema-venice/",
+      "context": "Recalling the fight to keep Hurwitz's theremin in the First Man score against studio resistance.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Justin Hurwitz",
+      "about": "Damien Chazelle",
+      "quote": "Damien and I really bonded over this shared philosophy sophomore year of working really hard and sacrificing … I remember we would really egg each other on and make each other feel guilty for not working hard enough.",
+      "film": null,
+      "said_year": 2017,
+      "publication": "Harvard Gazette",
+      "via": null,
+      "title": "From Harvard to ‘La La Land’",
+      "date": "2017-01-20",
+      "url": "https://news.harvard.edu/gazette/story/2017/01/harvard-and-its-la-la-land-connection/",
+      "context": "Hurwitz on how he and Chazelle bonded as Harvard roommates, in a Gazette feature on the La La Land duo.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Justin Hurwitz",
+      "about": "Damien Chazelle",
+      "quote": "We went to college together and we became roommates in our sophomore year. … It was the junior year of college, the third year, that Damien said he was going to make this musical project for his senior thesis. He asked if I would do the music and I said yes.",
+      "film": "Guy and Madeline on a Park Bench",
+      "said_year": 2019,
+      "publication": "Flickering Myth",
+      "via": null,
+      "title": "Exclusive Interview – Composer Justin Hurwitz reveals the secrets of the First Man score",
+      "date": "2019-02-18",
+      "url": "https://www.flickeringmyth.com/2019/02/exclusive-interview-composer-justin-hurwitz-reveals-the-secrets-of-the-first-man-score",
+      "context": "Hurwitz explaining how the partnership began, answering how they first came to work together.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Justin Hurwitz",
+      "about": "Damien Chazelle",
+      "quote": "He’s the most hands-on specific filmmaker, I’m sure, [that] could possibly exist. It just depends on the phase. Early on, [we] just kept trying to come up with the sound of so many of the tracks in this.",
+      "film": "Babylon",
+      "said_year": 2022,
+      "publication": "Below the Line",
+      "via": "M&E (mande.net)",
+      "title": "Babylon Composer Justin Hurwitz on Creating a Unique Jazz Sound for His Reunion With Damien Chazelle",
+      "date": "2022-12-13",
+      "url": "https://mande.net/btl/awards/babylon-composer-justin-hurwitz-interview?amp=1",
+      "context": "Asked whether Chazelle gave particular direction or notes while Hurwitz scored Babylon.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Chazelle-about-Hurwitz quotes all come from one Lampoon Magazine masterclass write-up (Chazelle quotes are thin elsewhere; Crimson, Oscars and BoxOfficePro pages returned 403 and were skipped), and the Lampoon page itself returned 403 to curl so it was read via WebFetch (spot-checked in several passes; the theremin quote is stitched from fragments with an ellipsis and worth a manual check)."
+}

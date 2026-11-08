@@ -1,0 +1,97 @@
+{
+  "pair": [
+    "Spike Lee",
+    "Denzel Washington"
+  ],
+  "tmdb_ids": [
+    5281,
+    5292
+  ],
+  "clippings": [
+    {
+      "speaker": "Spike Lee",
+      "about": "Denzel Washington",
+      "quote": "Very much so. I think it's evident by the work we've done. And we have acquired sort of like a shorthand. You know, we do most of our discussion, rehearsals, but we're on the set, we know what we have to do. So there's not a lot of need for a whole lot of talking.",
+      "film": "Inside Man",
+      "said_year": 2006,
+      "publication": "NPR",
+      "via": null,
+      "title": "A Conversation with Spike Lee",
+      "date": "2006-04-01",
+      "url": "https://www.npr.org/transcripts/5317036",
+      "context": "Lee talked with Scott Simon on NPR about Inside Man, his fourth film with Washington.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Spike Lee",
+      "about": "Denzel Washington",
+      "quote": "Same way a coach, you're not gonna let everybody take the last shot when the game is on the line. In a movie, you put the ball in Denzel's hands.",
+      "film": "Inside Man",
+      "said_year": 2006,
+      "publication": "NPR",
+      "via": null,
+      "title": "A Conversation with Spike Lee",
+      "date": "2006-04-01",
+      "url": "https://www.npr.org/transcripts/5317036",
+      "context": "Lee talked with Scott Simon on NPR about Inside Man, his fourth film with Washington.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Spike Lee",
+      "about": "Denzel Washington",
+      "quote": "I've become a better director working with Mr. Denzel Washington. … It's not about just what's on the script. It has to be deeper than that.",
+      "film": "Highest 2 Lowest",
+      "said_year": 2025,
+      "publication": "The New Yorker Radio Hour",
+      "via": null,
+      "title": "Spike Lee and Denzel Washington on a Reunion Making “Highest 2 Lowest”",
+      "date": "2025-08-15",
+      "url": "https://www.wnycstudios.org/podcasts/tnyradiohour/articles/1b3b53f512e5ed4ece85bb0f",
+      "context": "Joint interview of Lee and Washington by David Remnick before Highest 2 Lowest opened; the page notes the transcript was produced on a rush deadline.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Denzel Washington",
+      "about": "Spike Lee",
+      "quote": "When I started acting, there were two or three actors that I followed. De Niro, Hoffman, Pacino, the filmmakers that made those films never called me. I was never asked to be in any of their films. When Spike called me, we developed a relationship, and we made our own films.",
+      "film": "Highest 2 Lowest",
+      "said_year": 2025,
+      "publication": "The New Yorker Radio Hour",
+      "via": null,
+      "title": "Spike Lee and Denzel Washington on a Reunion Making “Highest 2 Lowest”",
+      "date": "2025-08-15",
+      "url": "https://www.wnycstudios.org/podcasts/tnyradiohour/articles/1b3b53f512e5ed4ece85bb0f",
+      "context": "Washington on why he and Lee built a partnership beginning with Mo' Better Blues (1990), in the same joint interview.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Denzel Washington",
+      "about": "Spike Lee",
+      "quote": "Which is why I call Spike, Trust. I trust Spike completely. … I completely, 1000% trust Spike and I do my part and he does the rest.",
+      "film": "Highest 2 Lowest",
+      "said_year": 2025,
+      "publication": "The New Yorker Radio Hour",
+      "via": null,
+      "title": "Spike Lee and Denzel Washington on a Reunion Making “Highest 2 Lowest”",
+      "date": "2025-08-15",
+      "url": "https://www.wnycstudios.org/podcasts/tnyradiohour/articles/1b3b53f512e5ed4ece85bb0f",
+      "context": "Washington on the shorthand built over five films, in the same joint interview.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Denzel Washington",
+      "about": "Spike Lee",
+      "quote": "In this case, the script came to me first. I hoped that Spike would be interested in, so I called him up, he said, \"Send it to me.\" He read it, he said, \"Let's make it,\" and here we are.",
+      "film": "Highest 2 Lowest",
+      "said_year": 2025,
+      "publication": "The New Yorker Radio Hour",
+      "via": null,
+      "title": "Spike Lee and Denzel Washington on a Reunion Making “Highest 2 Lowest”",
+      "date": "2025-08-15",
+      "url": "https://www.wnycstudios.org/podcasts/tnyradiohour/articles/1b3b53f512e5ed4ece85bb0f",
+      "context": "Washington on how Highest 2 Lowest came together, in the same joint interview.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Three each way, but Washington's three are all from one 2025 joint interview; no freely readable older Washington-on-Lee interview found (Roger Ebert interview returned 403, Hollywood Reporter Cannes interview was paywalled/402)."
+}

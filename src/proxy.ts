@@ -5,8 +5,8 @@ import { clientIp, createRateLimiter } from "@/lib/ratelimit";
 const checkApi = createRateLimiter();
 
 /**
- * /p/<people>/opengraph-image and /p/<people>/og (the card of a shared period): 30 requests per
- * minute per client, counted apart from /api so one cannot starve the other, and counted together
+ * /p/<people>/opengraph-image and /p/<people>/og (the card of a shared period, or of one quote
+ * with `?quote=<id>`): 30 requests per minute per client, counted apart from /api so one cannot starve the other, and counted together
  * so a client cannot double its budget by asking for both. Every id combination (and every period
  * of it) is its own image and each one costs a render
  * (a fraction of a second of CPU) plus up to eight TMDB image downloads, so the URL space is a
