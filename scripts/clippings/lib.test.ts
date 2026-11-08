@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  assignIds,
   buildCriticsEntry,
   buildQuotesEntry,
   criticsFlags,
   hasUnbalancedStraightQuotes,
+  idBase,
+  idLosses,
   isHttps,
   keyFromIds,
   nestQuotes,
   quotesFlags,
+  shortHash,
   slug,
   stringifyData,
   uniqueId,
@@ -231,6 +235,89 @@ describe("buildQuotesEntry", () => {
     const entry = buildQuotesEntry(quotesFile({}, [same, { ...same }]) as unknown as RawQuotesFile);
     expect(entry.clippings.map((c) => c.id)).toEqual(["john-williams-has-been-the-single", "john-williams-has-been-the-single-2"]);
   });
+  it("gives a quote with no ASCII word an id from a hash of it, not an empty one", () => {
+    const src = quotesFile({}, [quote({ quote: "Это было великолепно." }), quote({ quote: "…" })]) as unknown as RawQuotesFile;
+    const ids = buildQuotesEntry(src).clippings.map((c) => c.id);
+    expect(ids).toEqual([shortHash("Это было великолепно."), shortHash("…")]);
+    for (const id of ids) expect(id).toMatch(/^[0-9a-f]{8}$/);
+    expect(validateIds({ a: { clippings: ids.map((id) => ({ id })) } }, {})).toEqual([]);
+    // the same text twice is still two distinct ids
+    const twice = buildQuotesEntry(quotesFile({}, [quote({ quote: "…" }), quote({ quote: "…" })]) as unknown as RawQuotesFile);
+    expect(twice.clippings.map((c) => c.id)).toEqual([shortHash("…"), `${shortHash("…")}-2`]);
+  });
+  it("keeps the ids of the existing clippings that are still there when it replaces a key", () => {
+    const old = buildQuotesEntry(quotesFile({}, [quote(), quote({ quote: "A second thing he said to me, much later on.", url: "https://example.com/b" })]) as unknown as RawQuotesFile);
+    // The agent re-researched the pair: the first quote is the same with different marks, the second is cut short.
+    const again = quotesFile({}, [
+      quote({ quote: "A second thing he said to me.", url: "https://example.com/b" }),
+      quote({ quote: "John Williams has been the single most significant contributor to my success..." }),
+    ]) as unknown as RawQuotesFile;
+    const entry = buildQuotesEntry(again, old.clippings);
+    expect(entry.clippings.map((c) => c.id)).toEqual([old.clippings[1].id, old.clippings[0].id]);
+  });
+});
+
+describe("assignIds", () => {
+  const old = [
+    { id: "keep-me", url: "https://a.example/1", quote: "It was ‘quite’ the evening, wasn’t it?" },
+    { id: "trimmed", url: "https://a.example/2", quote: "One two three four five six seven eight nine." },
+    { id: "gone", url: "https://a.example/3", quote: "A quote the new file does not have." },
+  ];
+  const item = (base: string, url: string, quote: string) => ({ base, url, quote });
+
+  it("matches by url and words, ignoring marks, case and spacing", () => {
+    expect(assignIds([item("fresh", "https://a.example/1", 'it was "quite" the  evening - wasn\'t it')], old)).toEqual(["keep-me"]);
+  });
+  it("falls back to url and the first six words when the quote was cut or extended", () => {
+    expect(assignIds([item("fresh", "https://a.example/2", "One two three four five six, and more.")], old)).toEqual(["trimmed"]);
+  });
+  it("does not match across urls, and a new quote gets its own id, unique against the kept ones", () => {
+    const ids = assignIds(
+      [item("keep-me", "https://other.example/", "It was quite the evening, wasn't it?"), item("brand-new", "https://a.example/9", "Something else entirely.")],
+      old,
+    );
+    expect(ids).toEqual(["keep-me", "brand-new"]);
+    // a generated id that is already a kept one gets a -2
+    expect(assignIds([item("x", "https://a.example/1", "It was quite the evening, wasn't it?"), item("keep-me", "https://a.example/8", "Another one.")], old)).toEqual([
+      "keep-me",
+      "keep-me-2",
+    ]);
+  });
+  it("uses each existing clipping once, for the first new one that matches", () => {
+    const same = item("dup", "https://a.example/1", "It was quite the evening, wasn't it?");
+    expect(assignIds([same, same], old)).toEqual(["keep-me", "dup"]);
+  });
+  it("is the plain unique ids when there is nothing to keep", () => {
+    expect(assignIds([item("a", "u", "q1"), item("a", "u", "q2")])).toEqual(["a", "a-2"]);
+  });
+});
+
+describe("idLosses", () => {
+  it("names every existing id that is not in the new list, with the start of its quote", () => {
+    const before = [
+      { id: "kept", url: "u", quote: "Short." },
+      { id: "dropped", url: "u", quote: "x".repeat(80) },
+    ];
+    const lines = idLosses("research/quotes/1+2.json", before, [{ id: "kept" }, { id: "new" }]);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('research/quotes/1+2.json: --force would drop the id "dropped"');
+    expect(lines[0]).toContain(`${"x".repeat(50)}…`);
+    expect(idLosses("w", before, [{ id: "kept" }, { id: "dropped" }])).toEqual([]);
+    expect(idLosses("w", [], [{ id: "a" }])).toEqual([]);
+  });
+});
+
+describe("idBase / shortHash", () => {
+  it("is the slug when there is one and 8 hex digits of a stable hash when there is not", () => {
+    expect(idBase("Hello, there world")).toBe("hello-there-world");
+    expect(slug("…")).toBe("");
+    expect(idBase("…")).toBe(shortHash("…"));
+    expect(shortHash("…")).toMatch(/^[0-9a-f]{8}$/);
+    expect(shortHash("…")).toBe(shortHash("…"));
+    expect(shortHash("a")).not.toBe(shortHash("b"));
+    // FNV-1a of "a" (32-bit), a known value
+    expect(shortHash("a")).toBe("e40c292c");
+  });
 });
 
 describe("validateCriticsFile / buildCriticsEntry", () => {
@@ -263,6 +350,13 @@ describe("validateCriticsFile / buildCriticsEntry", () => {
     expect(Object.keys(c)).toEqual(["id", "critic", "publication", "via", "title", "date", "url", "kind", "quote"]);
     expect(entry.reading).toEqual([reading()]);
   });
+  it("gives a quote with no ASCII word a prefixed hash id, and keeps existing ids when it replaces a key", () => {
+    const hashed = buildCriticsEntry(file({ critics: [critic({ quote: "…" })] }) as unknown as RawCriticsFile);
+    expect(hashed.critics[0].id).toBe(`critic-${shortHash("…")}`);
+    const old = buildCriticsEntry(file() as unknown as RawCriticsFile);
+    const again = buildCriticsEntry(file({ critics: [critic({ quote: critic().quote.toUpperCase() })] }) as unknown as RawCriticsFile, old.critics);
+    expect(again.critics[0].id).toBe(old.critics[0].id);
+  });
 });
 
 describe("validateIds", () => {
@@ -277,6 +371,19 @@ describe("validateIds", () => {
       'clippings.json a: id "critic-z" uses the critic- prefix',
       'essays.json a: id "plain" must start with "critic-"',
       'essays.json b: duplicate id "critic-y"',
+    ]);
+  });
+  it("fails an empty id, one that is only a repeat suffix, one with a character a link cannot hold, and a critic id empty after its prefix", () => {
+    const errors = validateIds(
+      { a: { clippings: [{ id: "" }, { id: "-2" }, { id: "Has Space" }, { id: "fine-2-2" }] } },
+      { a: { critics: [{ id: "critic-" }, { id: "critic--2" }, { id: "critic-ok" }] } },
+    );
+    expect(errors.map((e) => e.replace(/ \(.*$/, ""))).toEqual([
+      'clippings.json a: id "" is empty or not a lowercase slug',
+      'clippings.json a: id "-2" is empty or not a lowercase slug',
+      'clippings.json a: id "Has Space" is empty or not a lowercase slug',
+      'essays.json a: id "critic-" is empty after its prefix or not a lowercase slug',
+      'essays.json a: id "critic--2" is empty after its prefix or not a lowercase slug',
     ]);
   });
 });

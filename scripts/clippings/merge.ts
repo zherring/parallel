@@ -1,6 +1,6 @@
 // Merges staged Clippings research into the app's data files.
 //
-//   npm run clippings:merge -- [keys...] [--force] [--dry-run]
+//   npm run clippings:merge -- [keys...] [--force] [--allow-id-changes] [--dry-run]
 //
 // Reads scripts/clippings/research/quotes/<key>.json (artists on each other, into src/lib/clippings.json) and
 // scripts/clippings/research/critics/<key>.json (critics and reading, into src/lib/essays.json), where <key> is
@@ -8,7 +8,9 @@
 //
 // With no keys it merges every staged file whose key is not in the app JSON yet. With keys it merges just those.
 // An existing key is never touched unless --force, which replaces that key's whole entry from the staged file
-// (and so loses any hand edits made to it in the app JSON; see research/README.md). Every file is validated
+// (and so loses any hand edits made to it in the app JSON; see research/README.md). A quote's id is the link that has
+// been shared for it, so --force keeps the id of every quote that is still there (same url and words) and refuses to
+// run when an id would disappear, unless --allow-id-changes says that is meant. Every file is validated
 // first; if anything is wrong nothing is written. --dry-run validates and reports without writing.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -18,6 +20,7 @@ import {
   buildCriticsEntry,
   buildQuotesEntry,
   criticsFlags,
+  idLosses,
   isPairingKey,
   quotesFlags,
   stringifyData,
@@ -54,8 +57,11 @@ function main() {
   const args = process.argv.slice(2);
   const force = args.includes("--force");
   const dryRun = args.includes("--dry-run");
-  const unknownFlags = args.filter((a) => a.startsWith("-") && a !== "--force" && a !== "--dry-run");
-  if (unknownFlags.length) fail([`Unknown option ${unknownFlags.join(", ")}. Usage: npm run clippings:merge -- [keys...] [--force] [--dry-run]`]);
+  const allowIdChanges = args.includes("--allow-id-changes");
+  const unknownFlags = args.filter((a) => a.startsWith("-") && !["--force", "--dry-run", "--allow-id-changes"].includes(a));
+  if (unknownFlags.length) {
+    fail([`Unknown option ${unknownFlags.join(", ")}. Usage: npm run clippings:merge -- [keys...] [--force] [--allow-id-changes] [--dry-run]`]);
+  }
   const wanted = args.filter((a) => !a.startsWith("-"));
   const badKeys = wanted.filter((k) => !isPairingKey(k));
   if (badKeys.length) fail([`Not a pairing key (two TMDB ids joined with "+", e.g. 488+491): ${badKeys.join(", ")}`]);
@@ -89,17 +95,33 @@ function main() {
   const errors: string[] = [];
   const quotesBuilt = new Map<string, ReturnType<typeof buildQuotesEntry>>();
   const criticsBuilt = new Map<string, ReturnType<typeof buildCriticsEntry>>();
+  // Replacing a key (--force) keeps the ids of the quotes that are still there, and says which ids would be lost.
+  const idNotes: string[] = [];
+  const checkIds = (lost: string[]) => {
+    if (allowIdChanges) idNotes.push(...lost.map((l) => `${l} (allowed by --allow-id-changes)`));
+    else if (lost.length) errors.push(...lost.map((l) => `${l}; pass --allow-id-changes if that is meant`));
+  };
   for (const key of quotesTodo) {
     const src: unknown = readJson(`${QUOTES_DIR}${key}.json`);
     const problems = validateQuotesFile(src, key, known);
     if (problems.length) errors.push(...problems.map((p) => `research/quotes/${key}.json: ${p}`));
-    else quotesBuilt.set(key, buildQuotesEntry(src as RawQuotesFile));
+    else {
+      const before = clippings[key]?.clippings ?? [];
+      const entry = buildQuotesEntry(src as RawQuotesFile, before);
+      quotesBuilt.set(key, entry);
+      checkIds(idLosses(`research/quotes/${key}.json`, before, entry.clippings));
+    }
   }
   for (const key of criticsTodo) {
     const src: unknown = readJson(`${CRITICS_DIR}${key}.json`);
     const problems = validateCriticsFile(src, key, known);
     if (problems.length) errors.push(...problems.map((p) => `research/critics/${key}.json: ${p}`));
-    else criticsBuilt.set(key, buildCriticsEntry(src as RawCriticsFile));
+    else {
+      const before = essays[key]?.critics ?? [];
+      const entry = buildCriticsEntry(src as RawCriticsFile, before);
+      criticsBuilt.set(key, entry);
+      checkIds(idLosses(`research/critics/${key}.json`, before, entry.critics));
+    }
   }
 
   const nextClippings: ClippingsData = { ...clippings };
@@ -113,6 +135,7 @@ function main() {
     console.log("Nothing to merge: every staged file is already in the app data.");
     return;
   }
+  for (const note of idNotes) console.log(`id change: ${note}`);
   for (const [key, entry] of quotesBuilt) {
     const flags = quotesFlags(entry);
     const by = entry.pair.map((n) => `${entry.clippings.filter((c) => c.speaker === n).length} ${n}`).join(", ");

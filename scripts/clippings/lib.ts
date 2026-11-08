@@ -2,6 +2,7 @@
 // the entries of src/lib/clippings.json and src/lib/essays.json, and say what is wrong with it when it is.
 // `merge.ts` does the reading and writing; keeping this module free of I/O is what lets the tests import it.
 import type { Clipping, ClippingsEntry } from "../../src/lib/clippings";
+import { CRITIC_ID_PREFIX } from "../../src/lib/clippings-view";
 import type { Critic, CriticKind, CriticsEntry, ReadingItem } from "../../src/lib/critics";
 import { pairingKey } from "../../src/lib/examples";
 
@@ -52,8 +53,11 @@ export const READING_FIELDS = ["title", "author", "publication", "date", "url", 
 
 export const CRITIC_KINDS: readonly CriticKind[] = ["essay", "feature", "academic", "book chapter", "review", "video essay"];
 
-/** Every critic id starts with this, which is what keeps the ids of the two files from colliding. */
-export const CRITIC_ID_PREFIX = "critic-";
+// Every critic id starts with `CRITIC_ID_PREFIX` ("critic-", defined once, in the app's `src/lib/clippings-view.ts`),
+// which is what keeps the ids of the two files from colliding.
+
+/** What an id looks like: lowercase ASCII words joined with "-" (a `slug`, `-2` repeats and hash fallbacks all are). */
+const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const DATE_RE = /^\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?$/;
 const KEY_RE = /^\d+\+\d+$/;
@@ -104,6 +108,83 @@ export function uniqueId(base: string, seen: Set<string>): string {
   while (seen.has(id)) id += "-2";
   seen.add(id);
   return id;
+}
+
+/** 8 hex digits of the 32-bit FNV-1a hash of `s`: stable across runs and machines, and needs no module. */
+export function shortHash(s: string): string {
+  let h = 0x811c9dc5;
+  for (const byte of new TextEncoder().encode(s)) {
+    h ^= byte;
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, "0");
+}
+
+/**
+ * The base of a quote's id: its first six words as a `slug`, or, for a quote with no ASCII letter or digit in it at
+ * all (which would be an empty slug, so an id that no link can name), 8 hex digits of a hash of the quote.
+ */
+export function idBase(quote: string): string {
+  return slug(quote) || shortHash(quote);
+}
+
+/** What an id has to carry the identity of: the same three things a share link, a quote's source and its words are. */
+export interface Identified {
+  id: string;
+  url: string;
+  quote: string;
+}
+
+/** `quote` as lowercase words and digits only: curly or straight marks, dashes, ellipses and spacing do not tell two spellings apart. */
+function words(quote: string): string[] {
+  return quote
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+}
+
+/**
+ * The ids for freshly built items (`base` is the id each would get by itself, `url` and `quote` what it is), keeping the
+ * ids of `existing` where the same quote is there again: a link to a quote has been shared by then, and an id is
+ * the link. An existing item is the same as a new one when they have the same `url` and the same words (marks and
+ * spacing aside), and failing that the same `url` and the same first six words (the quote was trimmed or extended).
+ * Each existing item matches at most one new item, the first in order. The items left over get their own ids, made
+ * unique against the kept ones.
+ */
+export function assignIds(
+  items: readonly { base: string; url: string; quote: string }[],
+  existing: readonly Identified[] = [],
+): string[] {
+  const ids: (string | null)[] = items.map(() => null);
+  const taken = new Set<number>();
+  const match = (keyOf: (quote: string) => string) => {
+    for (const [i, item] of items.entries()) {
+      if (ids[i] !== null) continue;
+      const wanted = `${item.url}\n${keyOf(item.quote)}`;
+      const found = existing.findIndex((old, j) => !taken.has(j) && `${old.url}\n${keyOf(old.quote)}` === wanted);
+      if (found === -1) continue;
+      taken.add(found);
+      ids[i] = existing[found].id;
+    }
+  };
+  match((quote) => words(quote).join(" "));
+  match((quote) => words(quote).slice(0, 6).join(" "));
+
+  const seen = new Set(ids.filter((id): id is string => id !== null));
+  return ids.map((id, i) => id ?? uniqueId(items[i].base, seen));
+}
+
+/**
+ * The problems with replacing `before` by `after` (the same key's items, in the app JSON and as the staged file now builds
+ * them): every id of `before` that is gone from `after`, a link that would stop working. Empty when none is.
+ */
+export function idLosses(where: string, before: readonly Identified[], after: readonly { id: string }[]): string[] {
+  const kept = new Set(after.map((item) => item.id));
+  return before
+    .filter((item) => !kept.has(item.id))
+    .map((item) => `${where}: --force would drop the id "${item.id}" ("${item.quote.slice(0, 50)}${item.quote.length > 50 ? "…" : ""}"), so links to it would stop working`);
 }
 
 /**
@@ -229,33 +310,43 @@ export function validateCriticsFile(src: unknown, key: string, known: KnownPairi
 
 /**
  * A validated staged quotes file as its entry of clippings.json: the field whitelist, inner double quotes
- * nested, a stable id from the first six words of each quote (`-2` on a repeat), missing fields null.
+ * nested, a stable id from the first six words of each quote (`-2` on a repeat; a hash of the quote when it has no
+ * ASCII word), missing fields null. `existing` is the clippings the key already has in the app, when it is being replaced:
+ * a quote that is still there keeps its id (see `assignIds`).
  */
-export function buildQuotesEntry(src: RawQuotesFile): ClippingsEntry {
-  const seen = new Set<string>();
-  const clippings = src.clippings.map((raw) => {
+export function buildQuotesEntry(src: RawQuotesFile, existing: readonly Identified[] = []): ClippingsEntry {
+  const built = src.clippings.map((raw) => {
     const quote = nestQuotes(raw.quote as string);
     const fields = Object.fromEntries(CLIPPING_FIELDS.map((k) => [k, raw[k] ?? null]));
-    return { id: uniqueId(slug(quote), seen), ...fields, quote, secondhand: Boolean(raw.secondhand) } as unknown as Clipping;
+    return { ...fields, quote, secondhand: Boolean(raw.secondhand) } as unknown as Omit<Identified, "id">;
   });
+  const ids = assignIds(
+    built.map((c) => ({ base: idBase(c.quote), url: c.url, quote: c.quote })),
+    existing,
+  );
+  const clippings = built.map((c, i) => ({ id: ids[i], ...c }) as unknown as Clipping);
   return { pair: src.pair, tmdb_ids: src.tmdb_ids, clippings };
 }
 
-/** A validated staged critics file as its entry of essays.json: ids prefixed `critic-`, the same nesting. */
-export function buildCriticsEntry(src: RawCriticsFile): CriticsEntry {
-  const seen = new Set<string>();
-  const critics = src.critics.map((raw) => {
+/** A validated staged critics file as its entry of essays.json: ids prefixed `critic-`, the same nesting and the same kept ids. */
+export function buildCriticsEntry(src: RawCriticsFile, existing: readonly Identified[] = []): CriticsEntry {
+  const built = src.critics.map((raw) => {
     const quote = nestQuotes(raw.quote as string);
     const fields = Object.fromEntries(CRITIC_FIELDS.map((k) => [k, raw[k] ?? null]));
-    return { id: uniqueId(CRITIC_ID_PREFIX + slug(quote), seen), ...fields, quote } as unknown as Critic;
+    return { ...fields, quote } as unknown as Omit<Identified, "id">;
   });
+  const ids = assignIds(
+    built.map((c) => ({ base: CRITIC_ID_PREFIX + idBase(c.quote), url: c.url, quote: c.quote })),
+    existing,
+  );
+  const critics = built.map((c, i) => ({ id: ids[i], ...c }) as unknown as Critic);
   const reading = src.reading.map((raw) => Object.fromEntries(READING_FIELDS.map((k) => [k, raw[k] ?? null])) as unknown as ReadingItem);
   return { pair: src.pair, tmdb_ids: src.tmdb_ids, critics, reading };
 }
 
 /**
- * Problems that span the whole app JSON rather than one staged file: clipping ids repeated within a pair,
- * critic ids repeated anywhere or missing their prefix, a clipping id that could collide with a critic's.
+ * Problems that span the whole app JSON rather than one staged file: ids that are empty or not a slug, clipping ids
+ * repeated within a pair, critic ids repeated anywhere or missing their prefix, a clipping id that could collide with a critic's.
  */
 export function validateIds(
   clippings: Record<string, { clippings: readonly { id: string }[] }>,
@@ -265,6 +356,7 @@ export function validateIds(
   for (const [key, entry] of Object.entries(clippings)) {
     const seen = new Set<string>();
     for (const c of entry.clippings) {
+      if (!ID_RE.test(c.id)) errors.push(`clippings.json ${key}: id "${c.id}" is empty or not a lowercase slug (a link cannot name it)`);
       if (seen.has(c.id)) errors.push(`clippings.json ${key}: duplicate id "${c.id}"`);
       seen.add(c.id);
       if (c.id.startsWith(CRITIC_ID_PREFIX)) errors.push(`clippings.json ${key}: id "${c.id}" uses the critic- prefix`);
@@ -274,6 +366,7 @@ export function validateIds(
   for (const [key, entry] of Object.entries(critics)) {
     for (const c of entry.critics) {
       if (!c.id.startsWith(CRITIC_ID_PREFIX)) errors.push(`essays.json ${key}: id "${c.id}" must start with "${CRITIC_ID_PREFIX}"`);
+      else if (!ID_RE.test(c.id.slice(CRITIC_ID_PREFIX.length))) errors.push(`essays.json ${key}: id "${c.id}" is empty after its prefix or not a lowercase slug`);
       if (seenCritic.has(c.id)) errors.push(`essays.json ${key}: duplicate id "${c.id}"`);
       seenCritic.add(c.id);
     }

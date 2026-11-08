@@ -42,6 +42,7 @@ npm run clippings:merge                       # every staged file whose key is n
 npm run clippings:merge -- 3098+4415          # just these keys
 npm run clippings:merge -- 3098+4415 --dry-run   # validate and report, write nothing
 npm run clippings:merge -- 488+491 --force    # replace an existing key from its staged file (see research/README.md)
+npm run clippings:merge -- 488+491 --force --allow-id-changes   # ... even if a quote's share-link id would disappear
 ```
 
 It never overwrites a key that is already in the app JSON unless `--force`, and never writes anything if any file fails
@@ -51,7 +52,10 @@ validation (all problems are listed). Checks:
 - `speaker` and `about` are in the pair (and different); `quote`, `publication`, `title`, `context` are present.
 - `date` is `YYYY`, `YYYY-MM` or `YYYY-MM-DD`; `url` is https (two http-only sites already cited are allowed, see `HTTP_ONLY_HOSTS` in `lib.ts`).
 - Critics: `kind` is one of essay / feature / academic / book chapter / review / video essay; reading items have `paywalled`.
-- Straight double quotes inside a quote come in pairs; ids are unique (a critic's id starts with `critic-`).
+- Straight double quotes inside a quote come in pairs; ids are unique, non-empty slugs (a critic's id starts with `critic-`).
+  A quote with no ASCII word to make a slug from gets 8 hex digits of a hash of the quote instead.
+- `--force` keeps the id of every quote that is still there (same `url` and words, or same `url` and first six words) and fails,
+  listing them, when an existing id would disappear, since a shared link names it; `--allow-id-changes` accepts that.
 
 What it does to the data: keeps only the whitelisted fields, turns quoted speech inside a quote into paired curly single quotes
 (`"Yes"` or `“Yes”` become `‘Yes’`), and gives each quote a stable id: the first six words, lowercased, apostrophes dropped,
