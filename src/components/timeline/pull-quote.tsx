@@ -153,7 +153,7 @@ export function PullQuote({
                   type="button"
                   aria-expanded={showContext}
                   aria-controls={contextId}
-                  aria-label="Context"
+                  aria-label={`Context for ${speaker}'s quote`}
                   title="Context"
                   onClick={() => setShowContext((open) => !open)}
                   className={cn(

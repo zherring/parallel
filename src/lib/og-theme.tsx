@@ -14,7 +14,6 @@ export const OG = {
   body: "#99aabb",
   muted: "#8899aa",
   green: "#00e054",
-  orange: "#ff8000",
   greenGlow: "rgba(0, 224, 84, 0.45)",
 } as const;
 

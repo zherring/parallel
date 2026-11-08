@@ -6,6 +6,7 @@ import { getPairClippingSet } from "@/lib/clippings";
 import { clippingById, parseQuoteId, quoteLinkSearch } from "@/lib/clippings-view";
 import { getPairCritics } from "@/lib/critics";
 import { criticById } from "@/lib/critics-view";
+import { parseView, quoteIdsOf, viewParams } from "@/lib/films-view";
 import { loadPeople } from "@/lib/people";
 import { parsePeriodParams, rawPeriodSearch, resolvePeriod, searchWithPeriod, spanOfYears } from "@/lib/period";
 import { todayIso } from "@/lib/released";
@@ -23,9 +24,10 @@ import {
 } from "@/lib/seo";
 import { sharedFilms, sharedFilmsPairwise } from "@/lib/shared";
 
+type Query = Record<string, string | string[] | undefined>;
 type Props = {
   params: Promise<{ people: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<Query>;
 };
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
@@ -39,11 +41,15 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 
   // A link to one quote of the Clippings (`?view=clippings&quote=<id>`), an artist's or a critic's (whose ids start with
   // "critic-"), gets the quote's card and words. An id the pair does not have is ignored, as it is on the page; a quote
-  // wins over a period, since a link names one or the other.
+  // wins over a period, since a link names one or the other. The card is promised only where the page opens on the quote:
+  // the Clippings, which a valid `quote` opens without `view=clippings` (see `parseView`), but not a link that names
+  // another view.
   const ids = timelines.map((t) => t.person.id);
-  const quoteId = parseQuoteId(query);
-  const clipping = clippingById(getPairClippingSet(ids)?.clippings ?? [], quoteId);
+  const clippingSet = getPairClippingSet(ids);
   const criticSet = getPairCritics(ids);
+  const opensClippings = parseView(query, quoteIdsOf(clippingSet, criticSet)) === "clippings";
+  const quoteId = opensClippings ? parseQuoteId(query) : null;
+  const clipping = clippingById(clippingSet?.clippings ?? [], quoteId);
   const critic = criticById(criticSet?.critics ?? [], quoteId);
   const quote = clipping
     ? { id: clipping.id, title: quoteTitle(clipping), description: quoteDescription(clipping) }
@@ -82,11 +88,19 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   };
 }
 
+/** The query a redirect to the canonical address keeps: the link's period (in canonical order), then its view, sort and quote as written. Nothing else is the page's. */
+function redirectSearch(query: Query): string {
+  const params = new URLSearchParams(rawPeriodSearch(parsePeriodParams(query)));
+  for (const [name, value] of viewParams(query)) params.set(name, value);
+  const text = params.toString();
+  return text ? `?${text}` : "";
+}
+
 export default async function PeoplePage({ params, searchParams }: Props) {
   const { people } = await params;
   const { timelines, canonical, isCanonical } = await loadPeople(people);
-  // A link typed with a shorthand slug still opens on its period.
-  if (!isCanonical) redirect(`/p/${canonical}${rawPeriodSearch(parsePeriodParams(await searchParams))}`);
+  // A link typed with a shorthand slug still opens on its period, view, sort and quote.
+  if (!isCanonical) redirect(`/p/${canonical}${redirectSearch(await searchParams)}`);
 
   // Computed once, here, and handed to the client: only released films count as shared or connected,
   // and the browser must draw the same timeline the server did, so it never reads the clock itself.

@@ -13,11 +13,13 @@ import {
   headlineCount,
   isFilmView,
   parseView,
+  quoteIdsOf,
   resolveView,
   searchWithView,
   showingMessage,
   showsPeriodNote,
   viewForKey,
+  viewParams,
 } from "@/lib/films-view";
 
 describe("VIEWS", () => {
@@ -127,6 +129,84 @@ describe("parseView", () => {
 
   it("applies the sort rule to an unknown view too", () => {
     expect(parseView("?view=grid&sort=year&dir=desc")).toBe("table");
+  });
+
+  describe("with the ids of the page's quotes", () => {
+    const IDS = ["short-one", "critic-short"];
+
+    it("opens the Clippings for a link to one of them that names no view", () => {
+      expect(parseView("?quote=short-one", IDS)).toBe("clippings");
+      expect(parseView("quote=critic-short", IDS)).toBe("clippings");
+      expect(parseView("?quote=%20short-one%20", IDS)).toBe("clippings");
+      expect(parseView("?from=1970&quote=short-one", IDS)).toBe("clippings");
+      expect(parseView({ quote: "short-one" }, IDS)).toBe("clippings");
+      expect(parseView({ quote: ["short-one", "nope"] }, IDS)).toBe("clippings");
+      expect(parseView(new URLSearchParams({ quote: "short-one" }), new Set(IDS))).toBe("clippings");
+    });
+
+    it("lets it win over a sort, since a quote is only ever on the Clippings", () => {
+      expect(parseView("?sort=rating&quote=short-one", IDS)).toBe("clippings");
+    });
+
+    it("ignores an id the page does not have, an empty one, one of another case, and a quote on a page without any", () => {
+      expect(parseView("?quote=nope", IDS)).toBe("timeline");
+      expect(parseView("?quote=", IDS)).toBe("timeline");
+      expect(parseView("?quote=SHORT-ONE", IDS)).toBe("timeline");
+      expect(parseView("?quote=short", IDS)).toBe("timeline");
+      expect(parseView("?quote=short-one")).toBe("timeline");
+      expect(parseView("?quote=short-one", [])).toBe("timeline");
+      expect(parseView({ quote: ["nope", "short-one"] }, IDS)).toBe("timeline");
+      expect(parseView("?sort=rating&quote=nope", IDS)).toBe("table");
+    });
+
+    it("lets a view the link names win", () => {
+      expect(parseView("?view=table&quote=short-one", IDS)).toBe("table");
+      expect(parseView("?view=timeline&quote=short-one", IDS)).toBe("timeline");
+      expect(parseView("?view=clippings&quote=short-one", IDS)).toBe("clippings");
+      expect(parseView("?view=grid&quote=short-one", IDS)).toBe("clippings");
+    });
+
+    it("is the view the page shows, when resolved: the Clippings for a pair that has quotes, never for one that has none", () => {
+      const clippings = { clippings: [{ id: "short-one" }] };
+      const ids = quoteIdsOf(clippings, null);
+      expect(resolveView(parseView("?quote=short-one", ids), availableViews(hasClippingsTab(clippings, null)))).toBe("clippings");
+      expect(resolveView(parseView("?quote=short-one", quoteIdsOf(null, null)), availableViews(false))).toBe("timeline");
+    });
+
+    it("is dropped again by a change of view, which writes nothing that would bring the Clippings back", () => {
+      expect(searchWithView("?quote=short-one", "timeline")).toBe("");
+      expect(searchWithView("?quote=short-one", "table")).toBe("?view=table");
+      expect(parseView(searchWithView("?quote=short-one", "timeline"), ["short-one"])).toBe("timeline");
+      expect(parseView(searchWithView("?quote=short-one", "table"), ["short-one"])).toBe("table");
+    });
+  });
+});
+
+describe("quoteIdsOf", () => {
+  it("lists the artists' ids and then the critics'", () => {
+    expect(quoteIdsOf({ clippings: [{ id: "a" }, { id: "b" }] }, { critics: [{ id: "critic-c" }] })).toEqual(["a", "b", "critic-c"]);
+  });
+
+  it("is empty for a page without quotes", () => {
+    expect(quoteIdsOf(null, null)).toEqual([]);
+    expect(quoteIdsOf(undefined, { critics: [] })).toEqual([]);
+  });
+});
+
+describe("viewParams", () => {
+  it("is the view, sort, direction and quote of a page's query, in that order, and nothing else", () => {
+    const params = viewParams({ quote: "q", from: "1970", dir: "asc", utm_source: "x", sort: "year", view: "table", to: "1980" });
+    expect(params.toString()).toBe("view=table&sort=year&dir=asc&quote=q");
+  });
+
+  it("takes the first of a repeated parameter and leaves out empty and missing ones", () => {
+    expect(viewParams({ view: ["clippings", "table"], quote: ["a", "b"], sort: "", dir: undefined }).toString()).toBe("view=clippings&quote=a");
+    expect(viewParams({}).toString()).toBe("");
+  });
+
+  it("writes an id so that a URL reads it back unchanged", () => {
+    const text = viewParams({ quote: "a b&c=d" }).toString();
+    expect(new URLSearchParams(text).get("quote")).toBe("a b&c=d");
   });
 });
 

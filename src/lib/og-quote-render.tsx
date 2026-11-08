@@ -13,13 +13,13 @@ import {
   splitQuoteTail,
 } from "@/lib/og-quote";
 import { OG, OG_SIZE, ogQuoteFonts, ogWordmark } from "@/lib/og-theme";
-import { personHex } from "@/lib/person-colors";
+import { hexChannels, personHex } from "@/lib/person-colors";
 import { initials } from "@/lib/person-labels";
 import type { PersonTimeline } from "@/lib/types";
 
 /** "111, 155, 209" for "#6f9bd1": the channels of a palette hex, for the translucent wash behind the card. */
 function rgbOf(hex: string): string {
-  return [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16)).join(", ");
+  return hexChannels(hex).join(", ");
 }
 
 const PAD_X = 80;
