@@ -6,6 +6,7 @@ import { PersonSearch } from "@/components/person-search/person-search";
 import { FilmsSection } from "@/components/timeline/films-section";
 import { FilmSettings } from "@/components/timeline/film-settings";
 import { PeoplePanel, type PanelLayout, type PanelPerson } from "@/components/timeline/people-panel";
+import type { BioPerson } from "@/components/timeline/person-bio";
 import { TrackModeToggle, type TrackMode } from "@/components/timeline/track-mode-toggle";
 import { useUrlPeriod } from "@/components/timeline/use-period";
 import { useViewTab } from "@/components/timeline/use-view-tab";
@@ -129,6 +130,12 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         };
       }),
     [lanes, includeMinor, hiddenIds, people],
+  );
+
+  // The names in the Clippings tab open the same biography dialog as the people column, with the same roles.
+  const bioPeople: BioPerson[] = useMemo(
+    () => panelPeople.map(({ person, roles }) => ({ person, roles })),
+    [panelPeople],
   );
 
   // Hiding someone changes the axis (it spans the films shown): keep the year in the middle where it is.
@@ -308,6 +315,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
           onSelect={handleSelect}
           clippings={voicedClippings}
           critics={critics}
+          bioPeople={bioPeople}
         />
       ) : (
         <FilmsSection

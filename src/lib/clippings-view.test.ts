@@ -11,7 +11,9 @@ import {
   filterCritics,
   filterOptions,
   isCriticId,
+  pagePersonFor,
   parseQuoteId,
+  personIndex,
   quoteCardSearch,
   quoteLinkSearch,
   speakerIndex,
@@ -58,6 +60,33 @@ describe("speakerIndex", () => {
 
   it("is null for someone else", () => {
     expect(speakerIndex({ speaker: "Somebody Else" }, people)).toBeNull();
+  });
+});
+
+describe("personIndex", () => {
+  it("is 0 or 1 for a name of the pair, ignoring case, spaces and accents", () => {
+    expect(personIndex("Steven Spielberg", people)).toBe(0);
+    expect(personIndex(" john  WILLÍAMS ", people)).toBe(1);
+  });
+
+  it("is null for anyone else, and for a family name alone", () => {
+    expect(personIndex("Somebody Else", people)).toBeNull();
+    expect(personIndex("Spielberg", people)).toBeNull();
+  });
+});
+
+describe("pagePersonFor", () => {
+  const entry = (id: number) => ({ person: { id }, roles: "Director" });
+  const page = [entry(491), entry(488)];
+
+  it("finds the page's entry of the person by TMDB id, whatever the order of the page", () => {
+    expect(pagePersonFor("Steven Spielberg", people, page)).toBe(page[1]);
+    expect(pagePersonFor("John Williams", people, page)).toBe(page[0]);
+  });
+
+  it("is null for a name that is not the pair's, or a person the page does not have", () => {
+    expect(pagePersonFor("Somebody Else", people, page)).toBeNull();
+    expect(pagePersonFor("Steven Spielberg", people, [entry(491)])).toBeNull();
   });
 });
 

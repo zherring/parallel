@@ -14,6 +14,8 @@
   --text-strong: #ffffff;
   --text: #99aabb;
   --text-muted: #8899aa;
+  /* The Clippings quotes: midway between the strong white and the body grey. */
+  --text-quote: color-mix(in oklab, var(--text-strong) 50%, var(--text));
   --green: #00e054;
   --green-hover: #00c030;
   --on-green: #14181c;
@@ -56,6 +58,7 @@
   --color-strong: var(--text-strong);
   --color-body: var(--text);
   --color-muted: var(--text-muted);
+  --color-quote: var(--text-quote);
   --color-accent-green: var(--green);
   --color-accent-green-hover: var(--green-hover);
   --color-on-accent: var(--on-green);

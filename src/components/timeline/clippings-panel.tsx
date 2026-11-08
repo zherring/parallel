@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { newsreader } from "@/components/newsreader";
-import type { Clipping, ClippingsVoice, VoicedClippings } from "@/lib/clippings";
+import type { Clipping, ClippingsPerson, ClippingsVoice, VoicedClippings } from "@/lib/clippings";
 import {
   clippingById,
   clippingYear,
@@ -10,13 +10,13 @@ import {
   filterClippings,
   filterCritics,
   filterOptions,
+  pagePersonFor,
   parseQuoteId,
   speakerIndex,
   type ClippingsFilter,
 } from "@/lib/clippings-view";
 import type { Critic, PairCritics } from "@/lib/critics";
 import {
-  criticAbout,
   criticAvatarName,
   criticBackground,
   criticById,
@@ -25,8 +25,10 @@ import {
   interleaveQuotes,
 } from "@/lib/critics-view";
 import { personColor } from "@/lib/person-colors";
+import { headingNames } from "@/lib/short-name";
 import { cn } from "./cn";
 import { MoreReading } from "./more-reading";
+import { PersonBio, type BioPerson } from "./person-bio";
 import { PullQuote, quoteElementId } from "./pull-quote";
 import { scrollBehavior } from "./scroll-behavior";
 
@@ -49,20 +51,25 @@ interface ClippingsPanelProps {
   critics: PairCritics | null;
   /** Whether the Clippings tab is the one showing: the panel is always in the page, hidden when it is not. */
   active: boolean;
+  /** The page's people (matched to the names in the quotes by TMDB id): a name of one of them opens their biography. Without it, names are plain text. */
+  bioPeople?: readonly BioPerson[];
 }
+
+/** No one to open a biography of: one array for every render. */
+const NO_BIO_PEOPLE: readonly BioPerson[] = [];
 
 /**
  * The Clippings tab: the pair's quotes about each other and what the critics have written about the collaboration, both
  * as pull quotes in one list (`Quotes`), then "More reading" (`MoreReading`): pieces that are only linked. A pair may
  * have any of the three alone, and the tab then shows only that. The serif is loaded here.
  */
-export function ClippingsPanel({ pair, critics, active }: ClippingsPanelProps) {
+export function ClippingsPanel({ pair, critics, active, bioPeople = NO_BIO_PEOPLE }: ClippingsPanelProps) {
   const quotes = critics?.critics ?? NO_CRITICS;
   const reading = critics?.reading ?? [];
   const hasQuotes = (pair?.clippings.length ?? 0) > 0 || quotes.length > 0;
   return (
     <div className={newsreader.variable}>
-      {hasQuotes && <Quotes pair={pair} critics={critics} active={active} />}
+      {hasQuotes && <Quotes pair={pair} critics={critics} active={active} bioPeople={bioPeople} />}
       {reading.length > 0 && <MoreReading reading={reading} afterQuotes={hasQuotes} />}
     </div>
   );
@@ -79,8 +86,20 @@ export function ClippingsPanel({ pair, critics, active }: ClippingsPanelProps) {
  * A link to one quote (`?view=clippings&quote=<id>`) opens the tab on it: it is scrolled to the middle
  * of the screen and highlighted for a moment. An id that is not one of the pair's is ignored.
  */
-function Quotes({ pair, critics, active }: { pair: VoicedClippings | null; critics: PairCritics | null; active: boolean }) {
+function Quotes({
+  pair,
+  critics,
+  active,
+  bioPeople,
+}: {
+  pair: VoicedClippings | null;
+  critics: PairCritics | null;
+  active: boolean;
+  bioPeople: readonly BioPerson[];
+}) {
   const people = pair?.people ?? null;
+  // The two names of the page, whichever of the pair's lists has them: what a name in a quote is matched against.
+  const named = pair?.people ?? critics?.people ?? null;
   const clippings = pair?.clippings ?? [];
   const criticQuotes = critics?.critics ?? NO_CRITICS;
   const [filter, setFilter] = useState<ClippingsFilter>("all");
@@ -93,7 +112,9 @@ function Quotes({ pair, critics, active }: { pair: VoicedClippings | null; criti
   const shown = people ? filterClippings(clippings, people, filter) : [];
   const shownCritics = filterCritics(criticQuotes, filter);
   const entries = interleaveQuotes(shown, shownCritics);
-  const criticsAbout = critics ? criticAbout(critics.people) : "";
+  const bioFor = (name: string) => (named ? pagePersonFor(name, named, bioPeople) : null);
+  // "Spielberg & Williams" (see `criticAbout`), each name opening its person's biography; the critic's own name stays plain.
+  const criticsAbout = critics ? <CriticsAbout people={critics.people} bioPeople={bioPeople} /> : null;
 
   // The address bar is read once the tab is showing (the server's HTML and the first client render are the Timeline,
   // see `useViewTab`), so a link that names a quote lands here with the tab already un-hidden and its quote on the page.
@@ -179,6 +200,8 @@ function Quotes({ pair, critics, active }: { pair: VoicedClippings | null; criti
                 <ClippingQuote
                   clipping={clipping}
                   voice={side === null || !people ? null : people[side]}
+                  speakerBio={bioFor(clipping.speaker)}
+                  aboutBio={bioFor(clipping.about)}
                   color={colorOf(side)}
                   highlighted={clipping.id === highlighted}
                 />
@@ -197,12 +220,17 @@ function Quotes({ pair, critics, active }: { pair: VoicedClippings | null; criti
 function ClippingQuote({
   clipping,
   voice,
+  speakerBio,
+  aboutBio,
   color,
   highlighted,
 }: {
   clipping: Clipping;
   /** The one of the pair who said it; null when it is neither (no headshot, a muted mark). */
   voice: ClippingsVoice | null;
+  /** The speaker and who it is about, as the page has them (their names open the biography); null for someone who is not on the page. */
+  speakerBio: BioPerson | null;
+  aboutBio: BioPerson | null;
   /** A CSS colour: the speaker's on the Timeline. */
   color: string;
   highlighted: boolean;
@@ -224,7 +252,8 @@ function ClippingQuote({
       url={url}
       linkTitle={title}
       speaker={speaker}
-      about={about}
+      speakerLabel={<BioName name={speaker} entry={speakerBio} />}
+      about={<BioName name={about} entry={aboutBio} />}
       color={color}
       avatar={voice ? { name: voice.name, profilePath: voice.profilePath } : null}
       film={film}
@@ -242,7 +271,7 @@ function ClippingQuote({
  * an unsigned piece) is the speaker and "on Spielberg & Williams" is what it is about; the picture is their initials in
  * a neutral ring, since there is no photo; the ⓘ names the piece it is from; and no film, no kind tag.
  */
-function CriticQuote({ critic, about, highlighted }: { critic: Critic; about: string; highlighted: boolean }) {
+function CriticQuote({ critic, about, highlighted }: { critic: Critic; about: ReactNode; highlighted: boolean }) {
   return (
     <PullQuote
       id={critic.id}
@@ -259,5 +288,32 @@ function CriticQuote({ critic, about, highlighted }: { critic: Critic; about: st
       background={criticBackground(critic)}
       highlighted={highlighted}
     />
+  );
+}
+
+/**
+ * A name in a quote's attribution: the button that opens that person's biography (the people column's `PersonBio`),
+ * or just the name when the person is not one the page has. It takes the colour and weight of the text around it.
+ */
+function BioName({ name, entry }: { name: string; entry: BioPerson | null }) {
+  if (!entry) return <>{name}</>;
+  return <PersonBio person={entry.person} roles={entry.roles} nameTrigger label={name} />;
+}
+
+/** Who the critics' quotes are about, in the short names `criticAbout` uses ("Spielberg & Williams"), each as a `BioName`. */
+function CriticsAbout({
+  people,
+  bioPeople,
+}: {
+  people: readonly [ClippingsPerson, ClippingsPerson];
+  bioPeople: readonly BioPerson[];
+}) {
+  const names = headingNames(people, true);
+  return (
+    <>
+      <BioName name={names[0]} entry={bioPeople.find((entry) => entry.person.id === people[0].id) ?? null} />
+      {" & "}
+      <BioName name={names[1]} entry={bioPeople.find((entry) => entry.person.id === people[1].id) ?? null} />
+    </>
   );
 }

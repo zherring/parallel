@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink, Info } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { PersonAvatar } from "@/components/person-avatar";
 import { cn } from "./cn";
 import { QuoteShareButton } from "./quote-share-button";
@@ -33,7 +33,9 @@ export interface PullQuoteProps {
   linkTitle: string;
   /** Who is speaking, and who they are speaking of: the line under the quote reads "{speaker} on {about}". */
   speaker: string;
-  about: string;
+  /** What the line says in place of `speaker` (the name as a link to the biography); `speaker` itself is what a share carries. */
+  speakerLabel?: ReactNode;
+  about: ReactNode;
   /**
    * A CSS colour for the marks, the dot before the name and the ring of the avatar: a person's colour on the Timeline
    * for an artist, a quiet neutral for anyone else (a critic).
@@ -64,6 +66,7 @@ export function PullQuote({
   url,
   linkTitle,
   speaker,
+  speakerLabel,
   about,
   color,
   avatar,
@@ -103,7 +106,7 @@ export function PullQuote({
           cite={url}
           className={cn(
             COLUMN,
-            "font-serif text-[21px] leading-[1.42] text-body text-pretty sm:text-[25px] sm:leading-[1.4] md:text-[28px] md:leading-[1.38]",
+            "font-serif text-[21px] leading-[1.42] text-quote text-pretty sm:text-[25px] sm:leading-[1.4] md:text-[28px] md:leading-[1.38]",
           )}
         >
           {/* The marks are the quote's first and last characters, in the speaker's colour, so that none hangs out of the column. */}
@@ -139,7 +142,7 @@ export function PullQuote({
                   className={cn("mr-2 size-2 rounded-full align-middle", avatar ? "hidden md:inline-block" : "inline-block")}
                   style={{ backgroundColor: color }}
                 />
-                <span className="font-medium text-strong">{speaker}</span>{" "}
+                <span className="font-medium text-strong">{speakerLabel ?? speaker}</span>{" "}
                 <span className="whitespace-nowrap text-muted">on {about}</span>
               </p>
             </div>

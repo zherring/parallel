@@ -23,6 +23,14 @@ interface PersonBioProps {
   flow?: boolean;
   /** Use the person's name as the modal opener, without a teaser. Works even when no biography is available. */
   nameTrigger?: boolean;
+  /** With `nameTrigger`: what the opener says in place of the full name ("Spielberg"); the dialog still opens on the full name. */
+  label?: string;
+}
+
+/** A person of the page with the roles their biography dialog gives under the name: what a name outside the people column needs to open it. */
+export interface BioPerson {
+  person: PersonSummary;
+  roles: string;
 }
 
 /**
@@ -34,7 +42,7 @@ interface PersonBioProps {
  * the teaser shrinks line by line, down to just the button. The full text is only rendered
  * while the dialog is open.
  */
-export function PersonBio({ person, roles, flow = false, nameTrigger = false }: PersonBioProps) {
+export function PersonBio({ person, roles, flow = false, nameTrigger = false, label }: PersonBioProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const wasOpen = useRef(false);
@@ -64,7 +72,7 @@ export function PersonBio({ person, roles, flow = false, nameTrigger = false }: 
           onClick={() => setOpen(true)}
           className="cursor-pointer rounded text-left hover:underline"
         >
-          {person.name}
+          {label ?? person.name}
         </button>
         {open && createPortal(<BioDialog person={person} roles={roles} onClose={() => setOpen(false)} />, document.body)}
       </>

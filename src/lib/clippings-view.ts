@@ -35,12 +35,31 @@ function normalized(name: string): string {
     .toLowerCase();
 }
 
+/** 0 or 1 for the person of the pair that `name` is (compared with the pair's names, ignoring case, spaces and accents), null if it is neither. */
+export function personIndex(name: string, people: Pair): 0 | 1 | null {
+  const wanted = normalized(name);
+  if (wanted === normalized(people[0].name)) return 0;
+  if (wanted === normalized(people[1].name)) return 1;
+  return null;
+}
+
 /** 0 or 1 for the person of the pair who said the clipping (`speaker` compared with the pair's names), null if it is neither. */
 export function speakerIndex(clipping: Pick<Clipping, "speaker">, people: Pair): 0 | 1 | null {
-  const speaker = normalized(clipping.speaker);
-  if (speaker === normalized(people[0].name)) return 0;
-  if (speaker === normalized(people[1].name)) return 1;
-  return null;
+  return personIndex(clipping.speaker, people);
+}
+
+/**
+ * The entry of `page` (the page's people, by TMDB id) for the person of `pair` that `name` is, or null when `name` is
+ * neither of them or the page does not have them: a name is then set as plain text rather than as a link to a biography.
+ */
+export function pagePersonFor<T extends { person: Pick<PersonSummary, "id"> }>(
+  name: string,
+  pair: Pair,
+  page: readonly T[],
+): T | null {
+  const index = personIndex(name, pair);
+  if (index === null) return null;
+  return page.find((entry) => entry.person.id === pair[index].id) ?? null;
 }
 
 /**
