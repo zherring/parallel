@@ -1061,9 +1061,12 @@ test("with reduced motion the caption is showing at rest and the title brightens
   await expect.poll(async () => (await captionOf(page, "100"))!.titleAlpha).toBeCloseTo(0.9, 2);
 });
 
+/** The closed pill's outline (the capsule): it is there closed, and faded away while the card is open. */
 const capsule = (page: Page) => page.locator("[data-pill-capsule]");
-/** The field to add a person: in the capsule, where the heads were. */
-const pillSearch = (page: Page) => capsule(page).getByRole("combobox", { name: "Add a person", exact: true });
+/** What the open pill puts over the capsule: the field to add a person, and the close button to its right. */
+const openBar = (page: Page) => page.locator("[data-pill-open]");
+const pillSearch = (page: Page) => openBar(page).getByRole("combobox", { name: "Add a person", exact: true });
+const pillClose = (page: Page) => openBar(page).getByRole("button", { name: "Close people", exact: true });
 
 /** Answers the page's search requests: Scroll Beta is already on the page, Scroll Gamma is not. */
 async function mockSearch(page: Page, results = [
@@ -1090,9 +1093,10 @@ test("the people pill opens on a press and closes when the scene scrolls", async
   await expect(button).toHaveAttribute("aria-expanded", "true");
   const card = peopleCard(page);
   await expect(card).toBeVisible();
-  // The capsule holds the field to add a person where the heads were (they have flown into the card's rows), and the close icon.
+  // The heads have flown into the card's rows; over the pill are the field to add a person and the close button.
   await expect(pillSearch(page)).toBeVisible();
-  await expect(button.locator("[data-pill-open]")).toHaveCount(1);
+  await expect(openBar(page)).toHaveCount(1);
+  await expect(pillClose(page)).toBeVisible();
   await expect(bubble).not.toContainText("Parallel");
   await expect(bubble.locator('a[href="/"]')).toHaveCount(0);
   await expect(card.getByRole("link", { name: "Remove Scroll Alpha", exact: true })).toHaveAttribute("href", /view=depth/);
@@ -1105,8 +1109,9 @@ test("the people pill opens on a press and closes when the scene scrolls", async
   await expect(page.locator("[data-pill-open]")).toHaveCount(0);
 });
 
-test("the search is in the capsule, flush with it, and no search is left in the card", async ({ page }) => {
+test("the open pill is the app's usual search field, boxed, with the close button outside it and no capsule around them, and no search is left in the card", async ({ page }) => {
   await openDepth(page);
+  await expect(capsule(page)).toHaveCSS("opacity", "1");
   await pill(page).click();
   const card = peopleCard(page);
   await expect(card).toBeVisible();
@@ -1119,26 +1124,83 @@ test("the search is in the capsule, flush with it, and no search is left in the 
   await expect(page.getByRole("combobox")).toHaveCount(1);
   await expect(card.getByText("Green: made together", { exact: true })).toBeVisible();
   await expect(card.getByRole("link", { name: "Flat timeline", exact: true })).toBeVisible();
-  // The "People" label is gone: the field stands in its place.
-  await expect(capsule(page)).not.toContainText("People");
 
-  // The field is inside the capsule's box, above the card, and as tall as the capsule's inside; it has no box of its own.
-  await expect.poll(async () => (await capsule(page).boundingBox())!.width).toBeCloseTo((await card.boundingBox())!.width, 0);
-  const bar = (await capsule(page).boundingBox())!;
-  const field = (await search.locator("xpath=ancestor::div[contains(@class, 'rounded-full')][1]").boundingBox())!;
-  const below = (await card.boundingBox())!;
-  expect(field.x).toBeGreaterThanOrEqual(bar.x);
-  expect(field.x + field.width).toBeLessThanOrEqual(bar.x + bar.width);
-  expect(field.y).toBeGreaterThanOrEqual(bar.y);
-  expect(field.y + field.height).toBeLessThanOrEqual(bar.y + bar.height);
-  // The capsule's height is its border and padding (10px) around the field.
-  expect(Math.abs(bar.height - field.height - 10)).toBeLessThanOrEqual(1);
-  expect(bar.y + bar.height).toBeLessThanOrEqual(below.y);
-  const box = await search.locator("xpath=ancestor::div[contains(@class, 'rounded-full')][1]").evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { border: style.borderTopWidth, ring: style.boxShadow };
+  // The field is the flat page's own: a box with a border, a surface fill, `rounded-md`, the search icon and the placeholder.
+  const box = search.locator("xpath=ancestor::div[contains(@class, 'rounded-md')][1]");
+  const style = await box.evaluate((element) => {
+    const css = getComputedStyle(element);
+    return { border: css.borderTopWidth, radius: css.borderTopLeftRadius, background: css.backgroundColor, icon: element.querySelectorAll("svg").length, rounded: css.borderTopLeftRadius };
   });
-  expect(box).toEqual({ border: "0px", ring: "none" });
+  expect(style.border).toBe("1px");
+  expect(style.radius).toBe("6px");
+  expect(channelsOf(style.background)!.alpha).toBe(1);
+  expect(style.icon).toBeGreaterThan(0);
+  await expect(search).toHaveAttribute("placeholder", /^Add a person/);
+
+  // It spans the card's width with the close button, a square of its own, just to its right: outside the field, level with its middle, and 8px off it.
+  await expect.poll(async () => (await openBar(page).boundingBox())!.width).toBeCloseTo((await card.boundingBox())!.width, 0);
+  const field = (await box.boundingBox())!;
+  const close = (await pillClose(page).boundingBox())!;
+  const below = (await card.boundingBox())!;
+  expect(Math.abs(field.x - below.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(close.x + close.width - (below.x + below.width))).toBeLessThanOrEqual(1);
+  expect(close.x).toBeGreaterThanOrEqual(field.x + field.width + 6);
+  expect(close.x).toBeLessThanOrEqual(field.x + field.width + 10);
+  expect(Math.abs(close.width - close.height)).toBeLessThanOrEqual(0.5);
+  expect(Math.abs(close.y + close.height / 2 - (field.y + field.height / 2))).toBeLessThanOrEqual(1);
+  expect(close.height).toBeGreaterThanOrEqual(field.height - 1);
+  expect(await box.evaluate((element, button) => element.contains(button), await pillClose(page).elementHandle())).toBe(false);
+  // The close button is a box of its own too.
+  expect(await pillClose(page).evaluate((element) => ({ radius: getComputedStyle(element).borderTopLeftRadius, border: getComputedStyle(element).borderTopWidth }))).toEqual({ radius: "6px", border: "1px" });
+  // Above the card, and the card is where it was.
+  expect(field.y + field.height).toBeLessThanOrEqual(below.y);
+
+  // No capsule behind them: the pill's outline is faded away (nothing is left of its border), and the row the field and the button stand in has no box of its own.
+  await expect(capsule(page)).toHaveCSS("opacity", "0");
+  const row = await openBar(page).evaluate((element) => {
+    const css = getComputedStyle(element);
+    return { border: css.borderTopWidth, background: css.backgroundColor, radius: css.borderTopLeftRadius, shadow: css.boxShadow, filter: css.backdropFilter };
+  });
+  expect(row).toEqual({ border: "0px", background: "rgba(0, 0, 0, 0)", radius: "0px", shadow: "none", filter: "none" });
+  // Nothing rounded-full is painted behind the field or the button but the faded pill: the elements at their middles are the field's and the button's own.
+  const behind = await page.evaluate(
+    ([a, b]) => [document.elementFromPoint(a!.x, a!.y)?.closest("[data-pill-capsule]") !== null, document.elementFromPoint(b!.x, b!.y)?.closest("[data-pill-capsule]") !== null],
+    [
+      { x: field.x + field.width / 2, y: field.y + field.height / 2 },
+      { x: close.x + close.width / 2, y: close.y + close.height / 2 },
+    ],
+  );
+  expect(behind).toEqual([false, false]);
+});
+
+test("the pill's outline and the field are never on screen together: the outline is gone before the field fades in, and comes back after it has faded out", async ({ page }) => {
+  await openDepth(page);
+  // The timings of the fades (a frame after the press, once the animations have been made): when each starts and ends, in ms from the press.
+  const fades = (action: string) =>
+    page.evaluate(async (selector) => {
+      document.querySelector<HTMLElement>(selector)!.click();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const of = (target: Element | null) => {
+        const own = document.getAnimations().filter((animation) => (animation.effect as KeyframeEffect).target === target);
+        const timings = own.map((animation) => animation.effect!.getComputedTiming());
+        return { start: Math.min(...timings.map((timing) => Number(timing.delay))), end: Math.max(...timings.map((timing) => Number(timing.endTime))), count: own.length };
+      };
+      return { capsule: of(document.querySelector("[data-pill-capsule]")), bar: of(document.querySelector("[data-pill-open]")) };
+    }, action);
+
+  const opening = await fades('[aria-label^="People on this page"]');
+  expect(opening.capsule.count).toBe(1);
+  expect(opening.bar.count).toBe(1);
+  expect(opening.capsule.end).toBeLessThanOrEqual(opening.bar.start);
+  await expect(peopleCard(page)).toBeVisible();
+  await page.waitForTimeout(500);
+
+  const closing = await fades('[aria-label="Close people"]');
+  expect(closing.capsule.count).toBe(1);
+  expect(closing.bar.count).toBe(1);
+  expect(closing.bar.end).toBeLessThanOrEqual(closing.capsule.start);
+  await expect(peopleCard(page)).toBeHidden();
+  await expect(capsule(page)).toHaveCSS("opacity", "1");
 });
 
 test("opening the pill focuses the search, and typing in it does not close the pill", async ({ page }) => {
@@ -1156,16 +1218,18 @@ test("opening the pill focuses the search, and typing in it does not close the p
   await expect(button).toHaveAttribute("aria-expanded", "true");
   await expect(peopleCard(page)).toBeVisible();
 
-  // The dropdown hangs below the capsule and draws over the card, not under it.
+  // The dropdown hangs below the field and draws over the card, not under it.
   const gamma = page.getByRole("option", { name: /Scroll Gamma/ });
   const hit = await gamma.evaluate((element) => {
     const { x, y, width, height } = element.getBoundingClientRect();
     return document.elementFromPoint(x + width / 2, y + height / 2)?.closest('[role="option"]')?.textContent ?? null;
   });
   expect(hit).toContain("Scroll Gamma");
-  const bar = (await capsule(page).boundingBox())!;
+  const field = (await search.locator("xpath=ancestor::div[contains(@class, 'rounded-md')][1]").boundingBox())!;
   const firstOption = (await page.getByRole("option").first().boundingBox())!;
-  expect(firstOption.y).toBeGreaterThanOrEqual(bar.y + bar.height);
+  expect(firstOption.y).toBeGreaterThanOrEqual(field.y + field.height);
+  // As wide as the field, which is as wide as the card less the close button.
+  expect(Math.abs(firstOption.x - field.x)).toBeLessThanOrEqual(1);
   await expect(button).toHaveAttribute("aria-expanded", "true");
 });
 
@@ -1213,7 +1277,7 @@ test("Escape on the empty field closes the pill at once", async ({ page }) => {
   await expect(pillSearch(page)).toBeFocused();
 });
 
-test("a press on the dropdown is not an outside press, and the close icon and an outside press still close the pill", async ({ page }) => {
+test("a press on the dropdown is not an outside press, and the close button and an outside press still close the pill", async ({ page }) => {
   await mockSearch(page, []);
   await openDepth(page);
   const button = pill(page);
@@ -1227,10 +1291,12 @@ test("a press on the dropdown is not an outside press, and the close icon and an
   await expect(button).toHaveAttribute("aria-expanded", "true");
   await expect(search).toBeFocused();
 
-  // The close icon is the pill's own button.
-  await button.locator("[data-pill-open] svg").click();
+  // The close button, to the right of the field, closes it and puts focus back on the pill.
+  await pillClose(page).click();
   await expect(button).toHaveAttribute("aria-expanded", "false");
   await expect(peopleCard(page)).toBeHidden();
+  await expect(button).toBeFocused();
+  await expect(capsule(page)).toHaveCSS("opacity", "1");
 
   // A press on the scene outside the pill closes it too.
   await button.click();
@@ -1239,7 +1305,7 @@ test("a press on the dropdown is not an outside press, and the close icon and an
   await expect(button).toHaveAttribute("aria-expanded", "false");
 });
 
-test("picking a person from the capsule's search adds them and stays in the Depth view", async ({ page }) => {
+test("picking a person from the pill's search adds them and stays in the Depth view", async ({ page }) => {
   await mockSearch(page);
   await openDepth(page);
   await pill(page).click();
@@ -1323,7 +1389,7 @@ test.describe("on a phone", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toBeHidden();
 
-    // A tap opens the card, and it and the capsule (with the search in it) fit the screen.
+    // A tap opens the card, and it and the bar over the pill (the field, and the close button to its right) fit the screen.
     await pill(page).tap();
     const card = peopleCard(page);
     await expect(card).toBeVisible();
@@ -1331,14 +1397,20 @@ test.describe("on a phone", () => {
     expect(cardBox.x).toBeGreaterThanOrEqual(0);
     expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(390);
     await expect(pillSearch(page)).toBeFocused();
-    // The capsule has grown to the card's width (it animates there).
-    await expect.poll(async () => (await capsule(page).boundingBox())!.width).toBeCloseTo(cardBox.width, 0);
-    const barBox = (await capsule(page).boundingBox())!;
+    // The bar spans the card's width, with the field boxed (`rounded-md`, a border) and the close button, a square of its own, outside it.
+    await expect.poll(async () => (await openBar(page).boundingBox())!.width).toBeCloseTo(cardBox.width, 0);
+    const barBox = (await openBar(page).boundingBox())!;
     expect(barBox.x).toBeGreaterThanOrEqual(0);
     expect(barBox.x + barBox.width).toBeLessThanOrEqual(390);
-    const searchBox = (await pillSearch(page).boundingBox())!;
-    expect(searchBox.x).toBeGreaterThanOrEqual(barBox.x);
-    expect(searchBox.x + searchBox.width).toBeLessThanOrEqual(barBox.x + barBox.width);
+    const box = pillSearch(page).locator("xpath=ancestor::div[contains(@class, 'rounded-md')][1]");
+    const field = (await box.boundingBox())!;
+    const close = (await pillClose(page).boundingBox())!;
+    expect(field.x).toBeGreaterThanOrEqual(barBox.x);
+    expect(close.x).toBeGreaterThanOrEqual(field.x + field.width + 6);
+    expect(close.x + close.width).toBeLessThanOrEqual(barBox.x + barBox.width + 0.5);
+    expect(Math.abs(close.width - close.height)).toBeLessThanOrEqual(0.5);
+    expect(await box.evaluate((element) => ({ border: getComputedStyle(element).borderTopWidth, radius: getComputedStyle(element).borderTopLeftRadius }))).toEqual({ border: "1px", radius: "6px" });
+    await expect(capsule(page)).toHaveCSS("opacity", "0");
   });
 
   test("posters are as faint and soft as their film is obscure, gently, and the middle of the screen brings one to full opacity", async ({ page }) => {
