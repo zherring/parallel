@@ -23,11 +23,17 @@ the current data and comparing):
 | `525+947` | Nolan & Zimmer | revert `publication`/`via`/`date` (New York Times 2017-07 via Gulf News, ReelBlend via Screen Rant) |
 | `1045+2636` (critics) | Hitchcock & Herrmann | bring back the dropped Steven C. Smith quote about *Psycho* (the old merge script skipped it because it overlapped another) |
 | `488+491` (critics) | Spielberg & Williams | change the Keegan quote's " — " back to the agent's " -- " |
-| `151+137427`, `3186+7467`, `510+531`, `5281+5292`, `138+2231`, `1032+6193` | six duos from the second and third batches | change one quote each (six in all) whose inner quotes were merged with the wrong opening mark: the old Python merge turned every straight `"` into `’`, so the app has `’Will you join me?’` where `--force` gives `‘Will you join me?’`. This one is a fix, and nothing else in those six keys differs, so `--force` on just those keys repairs them |
 
-Every other quotes key (`380+1032`, `7623+11357`, `1045+2636`, `3146+3151`, `4762+74333`, `136495+1419631`, `608+636`, `4185+11218`,
-`1357+12453`, `564+569`, `1532+5655`, `500+9033`, `20738+21684`, `309+955`, `107446+155267`, `880+1892`) round-trips
-byte-for-byte: `--force` on all of them leaves `src/lib/clippings.json` without a diff. Critics key `488+491`'s reading list does too.
+Every other quotes key round-trips byte-for-byte: `--force` on all of them leaves `src/lib/clippings.json` without a diff.
+That includes the six duos whose inner quotes had the wrong opening mark (`151+137427`, `3186+7467`, `510+531`, `5281+5292`,
+`138+2231`, `1032+6193`), repaired in the app by commit a7601bc, and `380+1032`, `7623+11357`, `1045+2636`, `3146+3151`,
+`4762+74333`, `136495+1419631`, `608+636`, `4185+11218`, `1357+12453`, `564+569`, `1532+5655`, `500+9033`, `20738+21684`,
+`309+955`, `107446+155267`, `880+1892`. Critics key `488+491`'s reading list does too.
+
+A quote's `id` is the link that has been shared for it (`?quote=<id>`), so `--force` keeps the id of every quote that is
+still in the staged file (matched by `url` and the quote's words, or by `url` and its first six words) and refuses to run
+when any existing id would disappear, listing them. `--allow-id-changes` says that is meant. `npm run clippings:merge --
+<keys> --force --dry-run` shows the refusal without writing.
 
 To change a merged quote, edit the app JSON. To redo a pair from scratch, research it again (the workflow's `force` option
 overwrites the staged file), then decide key by key whether to `--force` it over the app data.

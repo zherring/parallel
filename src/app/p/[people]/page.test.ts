@@ -144,6 +144,24 @@ describe("generateMetadata with a quote in the link", () => {
     expect(meta.openGraph?.url).toBe(`/p/${PAIR_SLUG}?view=clippings&quote=short-one`);
   });
 
+  // The page opens a valid quote on the Clippings with or without `view=clippings` (see `parseView`), so the card is
+  // promised for both; a link that names another view opens that view, so it promises no quote.
+  it.each([
+    ["the table", { view: "table", quote: "short-one" }],
+    ["the timeline", { view: "timeline", quote: "short-one" }],
+    ["a critic's quote on the table", { view: "table", quote: "critic-short" }],
+  ])("is the plain page's metadata when the link names %s as well", async (_name, query) => {
+    const meta = await generateMetadata(props(PAIR_SLUG, query));
+    expect(meta.title).toBe("Jack Lemmon & Walter Matthau: films made together");
+    expect(meta.openGraph).not.toHaveProperty("images");
+    expect(meta.openGraph?.url).toBe(`/p/${PAIR_SLUG}`);
+  });
+
+  it("opens a quote on the Clippings even when the link also carries a sort, if it names no view", async () => {
+    const sorted = await generateMetadata(props(PAIR_SLUG, { sort: "rating", quote: "short-one" }));
+    expect(sorted.openGraph?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("short-one"))]);
+  });
+
   it.each([
     ["an id the pair does not have", { quote: "nope" }],
     ["an empty id", { quote: "" }],
@@ -240,13 +258,48 @@ describe("the page", () => {
     expect(await redirectsTo("3151+6837", { from: "1980", to: "1970" })).toBe(`/p/${PAIR_SLUG}?from=1970&to=1980`);
   });
 
-  it("drops what is not a year, and leaves out every other parameter", async () => {
+  it("drops what is not a year, and leaves out parameters that are not the page's", async () => {
     expect(await redirectsTo("3151+6837", { from: "abc", to: "1980" })).toBe(`/p/${PAIR_SLUG}?to=1980`);
     expect(await redirectsTo("3151+6837", { from: "1700", to: "3000" })).toBe(`/p/${PAIR_SLUG}`);
-    expect(await redirectsTo("3151+6837", { from: "1970", to: "1980", view: "table" })).toBe(`/p/${PAIR_SLUG}?from=1970&to=1980`);
+    expect(await redirectsTo("3151+6837", { from: "1970", to: "1980", utm_source: "newsletter" })).toBe(`/p/${PAIR_SLUG}?from=1970&to=1980`);
   });
 
   it("takes the first of a repeated parameter", async () => {
     expect(await redirectsTo("3151+6837", { from: ["1970", "1975"], to: "1980" })).toBe(`/p/${PAIR_SLUG}?from=1970&to=1980`);
+  });
+
+  describe("carries the view and the quote through that redirect", () => {
+    it("keeps a link to a quote opening on it", async () => {
+      expect(await redirectsTo("3151+6837", { view: "clippings", quote: "short-one" })).toBe(`/p/${PAIR_SLUG}?view=clippings&quote=short-one`);
+      expect(await redirectsTo("3151+6837", { quote: "critic-short" })).toBe(`/p/${PAIR_SLUG}?quote=critic-short`);
+    });
+
+    it("keeps the view alone, and the table's sort and direction", async () => {
+      expect(await redirectsTo("3151+6837", { view: "clippings" })).toBe(`/p/${PAIR_SLUG}?view=clippings`);
+      expect(await redirectsTo("3151+6837", { view: "table" })).toBe(`/p/${PAIR_SLUG}?view=table`);
+      expect(await redirectsTo("3151+6837", { sort: "rating", dir: "desc" })).toBe(`/p/${PAIR_SLUG}?sort=rating&dir=desc`);
+      expect(await redirectsTo("3151-wrong+6837-words", { dir: "asc", sort: "year", view: "timeline" })).toBe(
+        `/p/${PAIR_SLUG}?view=timeline&sort=year&dir=asc`,
+      );
+    });
+
+    it("puts the period first, in canonical order, and the rest in a fixed order", async () => {
+      expect(await redirectsTo("3151+6837", { quote: "short-one", view: "clippings", to: "1970", from: "1980" })).toBe(
+        `/p/${PAIR_SLUG}?from=1970&to=1980&view=clippings&quote=short-one`,
+      );
+    });
+
+    it("takes the first of a repeated parameter, and leaves out an empty one", async () => {
+      expect(await redirectsTo("3151+6837", { view: ["clippings", "table"], quote: ["short-one", "long-one"] })).toBe(
+        `/p/${PAIR_SLUG}?view=clippings&quote=short-one`,
+      );
+      expect(await redirectsTo("3151+6837", { view: "", quote: "", sort: "" })).toBe(`/p/${PAIR_SLUG}`);
+    });
+
+    it("writes an id as a URL does, so that it reads back as the same id", async () => {
+      const to = await redirectsTo("3151+6837", { view: "clippings", quote: "a b&c=d" });
+      expect(to).toBe(`/p/${PAIR_SLUG}?view=clippings&quote=a+b%26c%3Dd`);
+      expect(new URLSearchParams(to!.split("?")[1]).get("quote")).toBe("a b&c=d");
+    });
   });
 });

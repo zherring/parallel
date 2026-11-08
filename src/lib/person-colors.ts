@@ -48,8 +48,14 @@ export function personHex(slot: number): string {
   return paletteEntry(slot).hex;
 }
 
-function glowOf(hex: string): string {
+/** The red, green and blue channels (0 to 255) of a palette hex such as "#6f9bd1". */
+export function hexChannels(hex: string): [number, number, number] {
   const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
+  return [r, g, b];
+}
+
+function glowOf(hex: string): string {
+  const [r, g, b] = hexChannels(hex);
   return `rgb(${r} ${g} ${b} / ${GLOW_ALPHA})`;
 }
 

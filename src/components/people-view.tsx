@@ -19,7 +19,7 @@ import { voiceClippings } from "@/lib/clippings-view";
 import { toggleHidden } from "@/lib/combined-track";
 import type { PairCritics } from "@/lib/critics";
 import { personRows } from "@/lib/film-rows";
-import { hasClippingsTab, headlineCount, showingMessage } from "@/lib/films-view";
+import { hasClippingsTab, headlineCount, quoteIdsOf, showingMessage } from "@/lib/films-view";
 import { laneSummary, removePersonHref } from "@/lib/lanes";
 import { periodLabel, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss } from "@/lib/person-colors";
@@ -60,7 +60,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   const [panel, setPanel] = useState<PanelTarget | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const timelineRef = useRef<TimelineHandle>(null);
-  const [view] = useViewTab(hasClippingsTab(clippings, critics));
+  const [view] = useViewTab(hasClippingsTab(clippings, critics), quoteIdsOf(clippings, critics));
   const [urlPeriod, setPeriod] = useUrlPeriod();
   // Start with one shared track; separating changes only how the people's films are drawn.
   const [trackMode, setTrackMode] = useState<TrackMode>("combined");

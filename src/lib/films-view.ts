@@ -7,7 +7,8 @@
  *
  * The URL carries the view as `?view=table`. Timeline is the default and is left out, except where
  * leaving it out would be read as Table: a sorted-table link (`?sort=...&dir=...`, with no `view`)
- * opens the Table, so choosing Timeline on such a URL writes `view=timeline` to say so.
+ * opens the Table, so choosing Timeline on such a URL writes `view=timeline` to say so. A link to one quote
+ * (`?quote=<id>`, with an id the page has) opens the Clippings without saying so.
  */
 
 import { DIR_PARAM, SORT_PARAM } from "@/lib/films-table";
@@ -41,6 +42,17 @@ export function hasClippingsTab(
   return (clippings?.clippings.length ?? 0) > 0 || (critics?.critics.length ?? 0) > 0 || (critics?.reading.length ?? 0) > 0;
 }
 
+/**
+ * The ids of every quote a page's Clippings has, the artists' and the critics': what a `?quote=` link can name.
+ * Empty for a page without quotes.
+ */
+export function quoteIdsOf(
+  clippings: { clippings: readonly { id: string }[] } | null | undefined,
+  critics: { critics: readonly { id: string }[] } | null | undefined,
+): string[] {
+  return [...(clippings?.clippings ?? []).map((c) => c.id), ...(critics?.critics ?? []).map((c) => c.id)];
+}
+
 /** The views a page offers as tabs: Clippings only when the page has something for it, see `hasClippingsTab`. */
 export function availableViews(clippingsTab: boolean): readonly View[] {
   return clippingsTab ? VIEWS : BASE_VIEWS;
@@ -64,17 +76,59 @@ function hasSortParams(params: URLSearchParams): boolean {
   return params.has(SORT_PARAM) || params.has(DIR_PARAM);
 }
 
+type ParamValue = string | string[] | undefined;
+
 /**
- * The view a query string selects. `view=table` and `view=timeline` say so outright; without a
- * (known) `view`, a query that carries a sort means the visitor was looking at the table, so a
- * sorted link opens it; anything else is the default. `search` is `window.location.search`, with
- * or without the leading "?".
+ * The query as `URLSearchParams`: the `searchParams` of a page (the first of a repeated parameter, a parameter with no
+ * value left out), a query string with or without its "?", or the `URLSearchParams` themselves.
  */
-export function parseView(search: string): View {
-  const params = new URLSearchParams(search);
+function paramsOf(source: string | URLSearchParams | Record<string, ParamValue>): URLSearchParams {
+  if (typeof source === "string") return new URLSearchParams(source);
+  if (source instanceof URLSearchParams) return source;
+  const params = new URLSearchParams();
+  for (const [name, value] of Object.entries(source)) {
+    const first = Array.isArray(value) ? value[0] : value;
+    if (typeof first === "string") params.set(name, first);
+  }
+  return params;
+}
+
+/**
+ * The view a query selects. `view=table`, `view=timeline` and `view=clippings` say so outright; without a (known)
+ * `view`, a `quote` that is one of the page's (`quoteIds`: a link to one quote, see `quoteLinkSearch`) means the Clippings,
+ * where the quote is, and a query that carries a sort means the visitor was looking at the table, so a sorted link
+ * opens it; anything else is the default. The page's own quotes are what make a `quote` count: one it does not have
+ * is ignored, as the page and its preview card ignore it. `search` is `window.location.search` (with or without the
+ * leading "?"), or the page's `searchParams`.
+ */
+export function parseView(
+  search: string | URLSearchParams | Record<string, ParamValue>,
+  quoteIds: Iterable<string> = [],
+): View {
+  const params = paramsOf(search);
   const named = VIEWS.find((view) => view === params.get(VIEW_PARAM));
   if (named) return named;
+  const quote = params.get(QUOTE_PARAM)?.trim();
+  if (quote) for (const id of quoteIds) if (id === quote) return "clippings";
   return hasSortParams(params) ? "table" : DEFAULT_VIEW;
+}
+
+/** What a redirect to another spelling of a page's address carries of the view: `view`, the table's `sort` and `dir`, and `quote`. Others are not the view's. */
+const VIEW_PARAMS = [VIEW_PARAM, SORT_PARAM, DIR_PARAM, QUOTE_PARAM] as const;
+
+/**
+ * Those of the view's own parameters (see `VIEW_PARAMS`) that a `searchParams` object has, with a value, in that order and
+ * as written (the first of a repeated one): for a redirect to the canonical address of a page, which must open on
+ * the same view, sort and quote as the address it replaces.
+ */
+export function viewParams(query: Record<string, ParamValue>): URLSearchParams {
+  const all = paramsOf(query);
+  const params = new URLSearchParams();
+  for (const name of VIEW_PARAMS) {
+    const value = all.get(name);
+    if (value) params.set(name, value);
+  }
+  return params;
 }
 
 /**

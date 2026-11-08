@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 import type { VoicedClippings } from "@/lib/clippings";
 import type { PairCritics } from "@/lib/critics";
 import type { TableRow } from "@/lib/film-rows";
-import { availableViews, hasClippingsTab, isFilmView, showsPeriodNote, type View } from "@/lib/films-view";
+import { availableViews, hasClippingsTab, isFilmView, quoteIdsOf, showsPeriodNote, type View } from "@/lib/films-view";
 import type { ShareInput } from "@/lib/share";
 import { ClippingsPanel } from "./clippings-panel";
 import { FilmsTable } from "./films-table";
@@ -85,7 +85,7 @@ export function FilmsSection({
   const table = useFilmsTable(rows, today);
   const clippingsTab = hasClippingsTab(clippings, critics);
   const views = availableViews(clippingsTab);
-  const [view, setView] = useViewTab(clippingsTab);
+  const [view, setView] = useViewTab(clippingsTab, quoteIdsOf(clippings, critics));
   const toolbarRef = useRef<HTMLDivElement>(null);
   /** A tab was chosen by the visitor and the page should be brought back to the tabs once it has re-rendered. */
   const reveal = useRef(false);
