@@ -37,11 +37,13 @@ function accessibleName(title: string, year: number, roles: string, note: string
 const round = (value: number) => Math.round(value * 100) / 100;
 
 /**
- * The chip behind a label (title above a film made together, year below): near-black (`rgb(10 12 14)`, a shade under the page's
- * `--bg` #14181c, at 92%) so it reads as black on the scene and the text is legible over any poster behind it. Tight padding (3px
- * above and below, 8px at the sides) and rounded; the chip hugs its text up to the poster's width.
+ * The highlight behind a label (title above a film made together, year below): the marker technique. The near-black background
+ * (`rgb(10 12 14)`, a shade under the page's `--bg` #14181c, at 92%) is on the label's inline text itself, with `box-decoration-break:
+ * clone`, so each wrapped line gets its own snug band that hugs that line's words, the padding (6px at the sides, 2px above and below)
+ * and the rounding repeated per line; there is no rectangle around the whole label. The line-height of the label (set where
+ * the labels are drawn, below) is a pixel or so over the band's height, so the bands of two lines never overlap and leave a hairline between them.
  */
-const LABEL_CHIP = "max-w-full rounded-md bg-[rgb(10_12_14/0.92)] px-2 py-[3px]";
+const LABEL_HIGHLIGHT = "box-decoration-clone rounded-[4px] bg-[rgb(10_12_14/0.92)] px-1.5 py-0.5";
 
 /** The title in a box, for a film TMDB has no poster of. */
 function TitleFace({ title }: { title: string }) {
@@ -224,24 +226,25 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
           <>
             {/* The labels of a film made together, out of the poster's box (the layout and the packing know their room, `DEPTH.collabGap`, but
                 they are absolutely positioned and add nothing to the poster's size): the title just above the poster's top edge, three lines at most (a long title is never cut short),
-                and the year just below its bottom edge, 6px of air each, each on a near-black chip. Always there; a hover or keyboard focus brightens the title
-                from 90% to full (a pointer that can hover only: Tailwind's `hover:` variant) and nothing moves. The button's label already says all of it. */}
-            <span aria-hidden data-poster-caption="title" className="pointer-events-none absolute inset-x-0 bottom-full mb-1.5 flex justify-center">
-              <span data-caption-chip className={LABEL_CHIP}>
-                <span
-                  data-caption-line
-                  className={cn(
-                    "line-clamp-3 break-words text-center text-[13px] leading-4 text-strong/90 max-sm:text-[14px]",
-                    "transition-colors duration-150 group-hover:text-strong group-focus-visible:text-strong motion-reduce:transition-none",
-                  )}
-                >
+                and the year just below its bottom edge, 6px of air each, each text highlighted line by line (`LABEL_HIGHLIGHT`) in a block no wider than the poster, centred. Always there; a hover or keyboard focus brightens the title
+                from 90% to full (a pointer that can hover only: Tailwind's `hover:` variant) and nothing moves. The button's label already says all of it.
+                The clamp is on the block (`data-caption-line`) and the highlight on the inline span in it (`data-caption-chip`): a clamped element is a block, which would give the highlight one box. */}
+            <span aria-hidden data-poster-caption="title" className="pointer-events-none absolute inset-x-0 bottom-full mb-1.5 text-center">
+              <span
+                data-caption-line
+                className={cn(
+                  "line-clamp-3 break-words text-[13px] leading-[21px] text-strong/90 max-sm:text-[14px] max-sm:leading-[22px]",
+                  "transition-colors duration-150 group-hover:text-strong group-focus-visible:text-strong motion-reduce:transition-none",
+                )}
+              >
+                <span data-caption-chip className={LABEL_HIGHLIGHT}>
                   {film.title}
                 </span>
               </span>
             </span>
-            <span aria-hidden data-poster-caption="year" className="pointer-events-none absolute inset-x-0 top-full mt-1.5 flex justify-center">
-              <span data-caption-chip className={LABEL_CHIP}>
-                <span data-caption-line="year" className="block text-center text-[12px] leading-[15px] tabular-nums text-muted max-sm:text-[13px]">
+            <span aria-hidden data-poster-caption="year" className="pointer-events-none absolute inset-x-0 top-full mt-1.5 text-center">
+              <span data-caption-line="year" className="block text-[12px] leading-[19px] tabular-nums text-muted max-sm:text-[13px] max-sm:leading-5">
+                <span data-caption-chip className={LABEL_HIGHLIGHT}>
                   {film.year}
                 </span>
               </span>

@@ -68,15 +68,16 @@ export const DEPTH = {
   rowGap: 14,
   /**
    * Vertical gap (px) between two films several people made in a column: room for the two labels that sit outside the poster's
-   * box (`DepthPoster`), the year chip under the first and the title chip over the next, so neither sits on the other or on a
-   * poster. Each chip is 6px off its poster's edge; the year chip is a 15px line and 6px of padding (21px); the title chip is
-   * three 16px lines at most and 6px of padding (54px: the longest titles, such as "Who's That Knocking at My Door" and "The Last
-   * Temptation of Christ", take three at the poster's width and are not cut short); and 6px of air between the two chips:
-   * 6 + 21 + 6 + 54 + 6 = 93, and 96 leaves 3px over. A tighter run of films takes the next column over, as before; only the posters
-   * of one column need it (a chip is no wider than its poster, and the columns are further apart than that). The first title chip
-   * hangs 60px over the first poster, which `pad` has room for.
+   * box (`DepthPoster`), the year under the first and the title over the next, so neither sits on the other or on a poster. Each
+   * label is 6px off its poster's edge and is text highlighted line by line (a band 20px tall at the 21px line-height of the title's
+   * 13px text, a hairline between two): the year is one 19px line (12px text); the title is three 21px lines at most (63px: the longest
+   * titles, such as "Who's That Knocking at My Door" and "The Last Temptation of Christ", take three at the poster's width and are not
+   * cut short); and 6px of air between the two labels: 6 + 19 + 6 + 63 + 6 = 100, and 102 leaves 2px over. (A phone's text is
+   * 14px on 22px lines but drawn at 0.76 of this, so it is further from tight.) A tighter run of films takes the next column over,
+   * as before; only the posters of one column need it (a label is no wider than its poster, and the columns are further apart than
+   * that). The first title hangs 69px over the first poster, which `pad` has room for.
    */
-  collabGap: 96,
+  collabGap: 102,
 } as const;
 
 /**

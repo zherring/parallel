@@ -678,7 +678,7 @@ const scrollToOffset = async (page: Page, id: number, distance: number) => {
 };
 
 /**
- * The labels of a film's caption (only the films made together have them: a title chip over the poster and a year chip under it), or null:
+ * The labels of a film's caption (only the films made together have them: a title over the poster and a year under it, each with its text highlighted), or null:
  * the opacities of the lines, the title's colour and its travel.
  */
 const captionOf = (page: Page, id: string) =>
@@ -697,6 +697,7 @@ const captionOf = (page: Page, id: string) =>
       titleTransition: title.transitionProperty,
       ariaHidden: labels.map((label) => label.getAttribute("aria-hidden")),
       text: labels.map((label) => label.textContent).join(""),
+      // The highlighted text's box: the union of its lines' bands.
       box: labels.flatMap((label) => {
         const { left, top, width, height } = label.querySelector("[data-caption-chip]")!.getBoundingClientRect();
         return [left, top, width, height];
@@ -715,7 +716,7 @@ const allCaptionsShown = (page: Page) =>
         labels: labels.length,
         opacities: lines.map((line) => Number(line.opacity)),
         transforms: lines.map((line) => line.transform),
-        // The radial scrim is gone: the chips are the background now.
+        // The radial scrim is gone: the highlight on the text is the background now.
         scrim: labels.map((label) => getComputedStyle(label, "::before").content),
         marked: li.hasAttribute("data-caption"),
       };
@@ -732,7 +733,10 @@ interface Rect {
   bottom: number;
 }
 
-/** For every film made together: its poster's box, its title chip's and its year chip's (screen px) and the chips' background colours. */
+/**
+ * For every film made together: its poster's box and the boxes of its title's and its year's highlight (screen px: the union of the bands of a
+ * label's lines), the highlights' background colours, and how each is painted (an inline box that repeats its background, padding and corners per line).
+ */
 const labelGeometry = (page: Page) =>
   scene(page).evaluate((scroller) => {
     const rect = (element: Element): Rect => {
@@ -743,6 +747,18 @@ const labelGeometry = (page: Page) =>
       const title = li.querySelector('[data-poster-caption="title"] [data-caption-chip]');
       const year = li.querySelector('[data-poster-caption="year"] [data-caption-chip]');
       if (!title || !year) return null;
+      const painted = (highlight: Element) => {
+        const style = getComputedStyle(highlight);
+        return {
+          display: style.display,
+          // `box-decoration-break` (the prefixed one too: a browser that has only that one answers on it).
+          decorationBreak: style.getPropertyValue("box-decoration-break") || style.getPropertyValue("-webkit-box-decoration-break"),
+          paddingX: [style.paddingLeft, style.paddingRight],
+          paddingY: [style.paddingTop, style.paddingBottom],
+          radius: style.borderTopLeftRadius,
+          bands: highlight.getClientRects().length,
+        };
+      };
       return {
         id: li.dataset.poster!,
         // The poster's column in the layout (steps from the centre line, `--col`): films in one column are `h + collabGap` apart.
@@ -752,8 +768,10 @@ const labelGeometry = (page: Page) =>
         year: rect(year),
         titleBg: getComputedStyle(title).backgroundColor,
         yearBg: getComputedStyle(year).backgroundColor,
-        pointerEvents: [title, year].map((chip) => getComputedStyle(chip.parentElement!).pointerEvents),
-        position: [title, year].map((chip) => getComputedStyle(chip.parentElement!).position),
+        titlePaint: painted(title),
+        yearPaint: painted(year),
+        pointerEvents: [title, year].map((highlight) => getComputedStyle(highlight.closest("[data-poster-caption]")!).pointerEvents),
+        position: [title, year].map((highlight) => getComputedStyle(highlight.closest("[data-poster-caption]")!).position),
       };
     }).filter((one) => one !== null);
   });
@@ -768,8 +786,8 @@ const channelsOf = (colour: string) => {
 };
 
 /**
- * The title chip sits over its poster and the year chip under it, both on a near-black background that is nearly opaque, and no chip of a
- * film made together lies on another's chip or on another's poster.
+ * The title sits over its poster and the year under it, each on a highlight that is on the text itself (an inline box, near-black and nearly
+ * opaque, that repeats its background per line), and no label of a film made together lies on another's label or on another's poster.
  */
 async function expectLabelsClear(page: Page) {
   const films = await labelGeometry(page);
@@ -782,23 +800,33 @@ async function expectLabelsClear(page: Page) {
     expect(film.poster.top - film.title.bottom).toBeLessThan(10);
     expect(film.year.top - film.poster.bottom).toBeGreaterThan(3);
     expect(film.year.top - film.poster.bottom).toBeLessThan(10);
-    for (const chip of [film.title, film.year]) {
-      expect((chip.left + chip.right) / 2).toBeCloseTo((film.poster.left + film.poster.right) / 2, 0);
+    for (const label of [film.title, film.year]) {
+      expect((label.left + label.right) / 2).toBeCloseTo((film.poster.left + film.poster.right) / 2, 0);
       // Hugs its text, no wider than the poster.
-      expect(chip.right - chip.left).toBeLessThanOrEqual(film.poster.right - film.poster.left + 0.5);
+      expect(label.right - label.left).toBeLessThanOrEqual(film.poster.right - film.poster.left + 0.5);
     }
-    // Near-black and nearly opaque, on both chips.
+    // Near-black and nearly opaque, on both highlights.
     for (const bg of [film.titleBg, film.yearBg]) {
       const colour = channelsOf(bg)!;
       expect(colour.alpha).toBeGreaterThanOrEqual(0.85);
       for (const channel of colour.rgb) expect(channel).toBeLessThanOrEqual(24);
     }
+    // The background is on the inline text (not a block around the label), cloned onto every line: each line has its own band, with its own padding and corners.
+    for (const paint of [film.titlePaint, film.yearPaint]) {
+      expect(paint.display).toBe("inline");
+      expect(paint.decorationBreak).toBe("clone");
+      expect(paint.paddingX).toEqual(["6px", "6px"]);
+      expect(paint.paddingY).toEqual(["2px", "2px"]);
+      expect(paint.radius).toBe("4px");
+      expect(paint.bands).toBeGreaterThanOrEqual(1);
+    }
+    expect(film.yearPaint.bands).toBe(1);
     // Out of the layout: positioned absolutely, and the pointer goes through them.
     expect(film.position).toEqual(["absolute", "absolute"]);
     expect(film.pointerEvents).toEqual(["none", "none"]);
   }
-  // No chip lies on another film's chip or poster. Films in one column of the layout are held apart by `DEPTH.collabGap`, which is what has room for
-  // the chips; films in different columns are apart across the page, except where the stage is too narrow for the columns and the scene clamps them
+  // No label lies on another film's label or poster. Films in one column of the layout are held apart by `DEPTH.collabGap`, which is what has room for
+  // the labels; films in different columns are apart across the page, except where the stage is too narrow for the columns and the scene clamps them
   // together (the fixture packs eight films into under two years, so on a phone a few columns collapse into one): that is the stage's, not the labels'.
   // So the films are checked where they share a column or where their posters are apart across the page.
   let checked = 0;
@@ -822,7 +850,7 @@ test("only the films made together have a caption, a title over the poster and a
   await openDepth(page);
   const region = scene(page);
 
-  // The films made together have one (a title chip over the poster, a year chip under it); the posters behind have none, ever.
+  // The films made together have one (a title over the poster, a year under it); the posters behind have none, ever.
   await expect(region.locator('[data-poster-caption="title"]')).toHaveCount(9);
   await expect(region.locator('[data-poster-caption="year"]')).toHaveCount(9);
   await expect(region.locator('li:has(button:not([data-layer="0"])) [data-poster-caption]')).toHaveCount(0);
@@ -849,8 +877,61 @@ test("only the films made together have a caption, a title over the poster and a
   });
   expect([geometry.liW, geometry.liH]).toEqual([136, 204]);
   expect(Math.round(geometry.boxH)).toBe(227);
-  // The title over the top edge and the year under the bottom edge, centred, on near-black chips, and none on another film's poster or chip.
+  // The title over the top edge and the year under the bottom edge, centred, on near-black highlights, and none on another film's poster or label.
   await expectLabelsClear(page);
+});
+
+test("a title that wraps is highlighted line by line: each line has its own snug band, the bands do not overlap, and three lines at most are shown", async ({ page }) => {
+  await openDepth(page);
+  const bands = (text: string) =>
+    scene(page).evaluate((scroller, title) => {
+      const li = scroller.querySelector<HTMLElement>('[data-poster="100"]')!;
+      const label = li.querySelector<HTMLElement>('[data-poster-caption="title"]')!;
+      const highlight = label.querySelector<HTMLElement>("[data-caption-chip]")!;
+      // The fixture's titles are short: put a long one in (a leaf of the page's own markup, which nothing re-renders).
+      highlight.textContent = title;
+      const block = highlight.parentElement!;
+      const poster = li.querySelector("[data-poster-card]")!.getBoundingClientRect();
+      const rects = Array.from(highlight.getClientRects(), ({ left, top, width, height }) => ({ left, top, width, height }));
+      const bottom = block.getBoundingClientRect().bottom;
+      return {
+        rects,
+        // The lines that are inside the clamped block; a clamped line is cut off at its bottom edge.
+        shown: rects.filter((rect) => rect.top + rect.height <= bottom + 1).length,
+        clamped: block.scrollHeight > block.clientHeight + 1,
+        posterWidth: poster.width,
+        backgroundColor: getComputedStyle(highlight).backgroundColor,
+        labelLeft: label.getBoundingClientRect().left,
+        labelRight: label.getBoundingClientRect().right,
+      };
+    }, text);
+
+  // Three lines at the poster's width: three bands, one per line, each as wide as its own words (not one rectangle round the block), centred, with a hairline between them.
+  const three = await bands("Who's That Knocking at My Door");
+  expect(three.rects.length).toBe(3);
+  expect(three.clamped).toBe(false);
+  expect(three.shown).toBe(3);
+  expect(channelsOf(three.backgroundColor)!.alpha).toBeGreaterThanOrEqual(0.85);
+  expect(new Set(three.rects.map((rect) => Math.round(rect.width))).size).toBeGreaterThan(1);
+  for (const [index, rect] of three.rects.entries()) {
+    expect(rect.width).toBeGreaterThan(0);
+    expect(rect.height).toBeGreaterThan(0);
+    // Inside the poster's width, and centred on it.
+    expect(rect.width).toBeLessThanOrEqual(three.posterWidth + 0.5);
+    expect(rect.left + rect.width / 2).toBeCloseTo((three.labelLeft + three.labelRight) / 2, 0);
+    if (index === 0) continue;
+    // The band below starts under the band above, a hairline off it (never over it: the line-height is more than the band's height).
+    const gap = rect.top - (three.rects[index - 1]!.top + three.rects[index - 1]!.height);
+    expect(gap).toBeGreaterThan(0);
+    expect(gap).toBeLessThan(3);
+  }
+
+  // Past three lines it is cut off after the third, the highlight still on each shown line.
+  const many = await bands("An Extraordinarily Long Title That Would Surely Take Far More Than Three Lines To Set At This Width, Truly");
+  expect(many.rects.length).toBeGreaterThan(3);
+  expect(many.clamped).toBe(true);
+  expect(many.shown).toBe(3);
+  for (const rect of many.rects.slice(0, 3)) expect(rect.width).toBeGreaterThan(0);
 });
 
 test("a caption is showing wherever its poster is on the screen: scrolled to the middle, the end, or back", async ({ page }) => {
@@ -894,8 +975,8 @@ test("hovering a film made together brightens its title a little and moves nothi
   expect(await captionOf(page, "100")).toMatchObject({ title: 1, year: 1 });
 });
 
-test("the hover card of a film made together opens below its year chip and covers neither chip", async ({ page }) => {
-  // Tall enough for the card (about 240px) to fit under the year chip of the poster in the middle of the screen.
+test("the hover card of a film made together opens below its year and covers neither label", async ({ page }) => {
+  // Tall enough for the card (about 240px) to fit under the year of the poster in the middle of the screen.
   await page.setViewportSize({ width: 1440, height: 900 });
   await openDepth(page);
   await scene(page).getByRole("button", { name: FIRST_SHARED }).hover();
@@ -905,7 +986,7 @@ test("the hover card of a film made together opens below its year chip and cover
   await page.waitForTimeout(300);
   const cardBox = (await card.boundingBox())!;
   const film = (await labelGeometry(page)).find((one) => one.id === "100")!;
-  // Below the year chip (with the card's usual 10px of air under the anchor), and centred on the poster.
+  // Below the year (with the card's usual 10px of air under the anchor), and centred on the poster.
   expect(cardBox.y).toBeGreaterThanOrEqual(film.year.bottom + 8);
   expect(cardBox.y).toBeLessThanOrEqual(film.year.bottom + 14);
   expect(cardBox.x + cardBox.width / 2).toBeCloseTo((film.poster.left + film.poster.right) / 2, 0);
@@ -1282,7 +1363,7 @@ test.describe("on a phone", () => {
     expect(behind).toContain("0px 4px 11px");
   });
 
-  test("the labels stay in the area left of the rail, the page does not scroll sideways, and no chip lies on another film's poster or chip", async ({ page }) => {
+  test("the labels stay in the area left of the rail, the page does not scroll sideways, and no label lies on another film's poster or label", async ({ page }) => {
     await openDepth(page);
     await expect(scene(page).locator('[data-poster="100"] [data-poster-caption="title"]')).toBeVisible();
     const fits = await scene(page).evaluate((scroller) => {
@@ -1298,7 +1379,7 @@ test.describe("on a phone", () => {
       expect(box.right).toBeLessThanOrEqual(box.rail + 0.5);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
-    // The title over the poster, the year under it, near-black chips, clear of every other film's poster and chips, on a phone too.
+    // The title over the poster, the year under it, near-black highlights, clear of every other film's poster and labels, on a phone too.
     await expectLabelsClear(page);
   });
 });

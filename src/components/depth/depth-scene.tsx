@@ -68,8 +68,9 @@ function filmElement(target: EventTarget | null): HTMLElement | null {
 }
 
 /**
- * The box of a film made together's poster with its labels (the title chip above, the year chip below), or null for any other poster:
- * the hover card opens below the year chip, or above the title chip, and never covers either.
+ * The box of a film made together's poster with its labels (the title above, the year below, each highlighted line by line), or null for any other poster:
+ * the hover card opens below the year, or above the title, and never covers either. A label's box is its lines' boxes: the bands
+ * of the highlight are inside it (the line-height is over the band's height), so this is the union of the bands to within a pixel.
  */
 function labelledRect(element: HTMLElement): { left: number; top: number; right: number; bottom: number } | null {
   const labels = element.querySelectorAll("[data-poster-caption]");
@@ -161,7 +162,7 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
   const pinned = useCallback((element: HTMLElement, on: boolean) => {
     element.closest("[data-poster]")?.toggleAttribute("data-pinned", on);
   }, []);
-  // The hover card anchors to the poster; a film made together, to the poster and the labels over and under it, so the card opens below the year chip.
+  // The hover card anchors to the poster; a film made together, to the poster and the labels over and under it, so the card opens below the year.
   const targetOf = (element: HTMLElement): PopoverTarget => ({ ...popoverTargetOf(element), anchor: () => labelledRect(element) });
   // A mouse drag scrolls the scene (touch keeps its native scrolling); the hover card closes when one starts and none opens under it.
   const { isPanning } = useDragPan(
