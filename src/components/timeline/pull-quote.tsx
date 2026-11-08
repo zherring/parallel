@@ -103,7 +103,7 @@ export function PullQuote({
           cite={url}
           className={cn(
             COLUMN,
-            "font-serif text-[21px] leading-[1.42] text-strong text-pretty sm:text-[25px] sm:leading-[1.4] md:text-[28px] md:leading-[1.38]",
+            "font-serif text-[21px] leading-[1.42] text-body text-pretty sm:text-[25px] sm:leading-[1.4] md:text-[28px] md:leading-[1.38]",
           )}
         >
           {/* The marks are the quote's first and last characters, in the speaker's colour, so that none hangs out of the column. */}
