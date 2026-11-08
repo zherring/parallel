@@ -1,0 +1,24 @@
+# Research queue for the Clippings pipeline: one pairingKey per line (the two TMDB ids, sorted, joined with "+"),
+# then "# Name & Name". Blank lines and lines that start with # are ignored. Keys must exist in
+# src/lib/examples.generated.json (add the pairing to src/lib/examples.ts and run `npm run examples:refresh` first if not).
+#
+# "next N from the queue" means the first N keys here that are not yet in src/lib/clippings.json and have no
+# file in scripts/clippings/research/quotes/. Delete a line once its pair is merged, or leave it: both are skipped.
+# `/clippings` (see .claude/skills/clippings/SKILL.md) reads this file.
+
+# Deferred from the first batches
+3098+4415  # Federico Fellini & Nino Rota
+5026+7450  # Akira Kurosawa & Toshiro Mifune
+6648+11905  # Ingmar Bergman & Sven Nykvist
+1223+1224  # Joel Coen & Ethan Coen
+
+# Alternates
+15344+15347  # J.J. Abrams & Michael Giacchino
+10828+17005  # Guillermo del Toro & Doug Jones
+11090+11108  # Edgar Wright & Simon Pegg
+291263+1761126  # Jordan Peele & Michael Abels
+31+488  # Steven Spielberg & Tom Hanks
+117+224  # David Cronenberg & Howard Shore
+4110+7570  # Humphrey Bogart & Lauren Bacall
+3460+9309  # Gene Wilder & Richard Pryor
+525+74401  # Christopher Nolan & Hoyte van Hoytema
