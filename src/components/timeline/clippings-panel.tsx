@@ -293,7 +293,7 @@ function CriticQuote({ critic, about, highlighted }: { critic: Critic; about: Re
 
 /**
  * A name in a quote's attribution: the button that opens that person's biography (the people column's `PersonBio`),
- * or just the name when the person is not one the page has. It takes the colour and weight of the text around it.
+ * or just the name when the person is not one the page has. Biography openers are white regardless of the surrounding text.
  */
 function BioName({ name, entry }: { name: string; entry: BioPerson | null }) {
   if (!entry) return <>{name}</>;

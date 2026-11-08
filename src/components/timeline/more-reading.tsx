@@ -33,7 +33,7 @@ export function MoreReading({ reading, afterQuotes }: MoreReadingProps) {
                 href={item.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded text-body underline decoration-border underline-offset-4 transition-colors hover:text-accent-blue hover:decoration-accent-blue motion-reduce:transition-none"
+                className="rounded text-strong underline decoration-border underline-offset-4 transition-colors hover:decoration-strong motion-reduce:transition-none"
               >
                 {item.title.trim()}
                 <span className="sr-only"> (opens in a new tab)</span>

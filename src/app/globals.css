@@ -80,6 +80,13 @@ body {
   font-family: var(--font-sans);
 }
 
+@layer base {
+  /* Text links share one neutral colour; timeline colours describe people and films, not navigation. */
+  a {
+    color: var(--text-strong);
+  }
+}
+
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;

@@ -213,7 +213,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       <button
         type="button"
         onClick={() => setPeriod(null)}
-        className="cursor-pointer rounded text-accent-blue underline-offset-2 hover:underline"
+        className="cursor-pointer rounded text-strong underline-offset-2 hover:underline"
       >
         Show full career
       </button>

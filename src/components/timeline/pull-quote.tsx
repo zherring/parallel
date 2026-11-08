@@ -180,7 +180,7 @@ export function PullQuote({
               target="_blank"
               rel="noopener noreferrer"
               title={linkTitle}
-              className="rounded underline decoration-border underline-offset-4 transition-colors hover:text-accent-blue hover:decoration-accent-blue motion-reduce:transition-none"
+              className="rounded text-strong underline decoration-border underline-offset-4 transition-colors hover:decoration-strong motion-reduce:transition-none"
             >
               {publication}
               {/* The year and the icon stay with the last word of the name, so that neither starts a line. */}
