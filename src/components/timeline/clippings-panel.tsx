@@ -1,7 +1,7 @@
 "use client";
 
-import { Newsreader } from "next/font/google";
 import { useEffect, useState } from "react";
+import { newsreader } from "@/components/newsreader";
 import type { Clipping, ClippingsVoice, VoicedClippings } from "@/lib/clippings";
 import {
   clippingById,
@@ -29,20 +29,6 @@ import { cn } from "./cn";
 import { MoreReading } from "./more-reading";
 import { PullQuote, quoteElementId } from "./pull-quote";
 import { scrollBehavior } from "./scroll-behavior";
-
-/**
- * The serif of the quotes, and of nothing else. One weight, with its italic, loaded when the tab is first shown rather
- * than preloaded for every /p/ page (most of them have no Clippings, and the tab is not the default). The card of a quote
- * (`og-quote-render.tsx`) draws the same face from a file of its own.
- */
-const newsreader = Newsreader({
-  variable: "--font-newsreader",
-  subsets: ["latin", "latin-ext"],
-  weight: "400",
-  style: ["normal", "italic"],
-  display: "swap",
-  preload: false,
-});
 
 /** How long a quote that a link opened on stays highlighted. */
 const HIGHLIGHT_MS = 2800;
