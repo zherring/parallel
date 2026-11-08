@@ -1,0 +1,91 @@
+{
+  "pair": ["Wong Kar-wai", "Christopher Doyle"],
+  "tmdb_ids": [12453, 1357],
+  "clippings": [
+    {
+      "speaker": "Christopher Doyle",
+      "about": "Wong Kar-wai",
+      "quote": "Wong Kar-wai has given me so much. You know I spent more time with him than I’ve spent with any woman in my life, including my ex-wife.",
+      "film": null,
+      "said_year": 2019,
+      "publication": "BFI",
+      "via": null,
+      "title": "Christopher Doyle on shooting Chungking Express for Wong Kar-wai",
+      "date": "2019-07-24",
+      "url": "https://www.bfi.org.uk/interviews/christopher-doyle-shooting-chungking-express",
+      "context": "Doyle, near tears, looks back on the partnership in an interview (by Ann Lee) timed to the Chungking Express restoration.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Christopher Doyle",
+      "about": "Wong Kar-wai",
+      "quote": "The Wong Kar-wai style is to change a situation rather than a performance. You just say, ‘So that didn’t work. We’ll just flip everything around and see what happens if we put you over there and she says this to you.’ It’s much more intuitive and organic.",
+      "film": "Chungking Express",
+      "said_year": 2019,
+      "publication": "BFI",
+      "via": null,
+      "title": "Christopher Doyle on shooting Chungking Express for Wong Kar-wai",
+      "date": "2019-07-24",
+      "url": "https://www.bfi.org.uk/interviews/christopher-doyle-shooting-chungking-express",
+      "context": "Doyle describes how Wong directs actors, as part of his account of shooting Chungking Express.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Christopher Doyle",
+      "about": "Wong Kar-wai",
+      "quote": "It’s like a sculptor taking a block of stone and ending with Giacometti, a piece this small. I think that all the films that we made up until In the Mood for Love were basically refining an idea, and then somehow it all came into place. That was the sculpture hidden in the stone.",
+      "film": "In the Mood for Love",
+      "said_year": 2012,
+      "publication": "The Skinny",
+      "via": null,
+      "title": "Reflections in a Golden Eye: An Interview with Christopher Doyle",
+      "date": "2012-03-01",
+      "url": "https://www.theskinny.co.uk/film/interviews/reflections-in-a-golden-eye-an-interview-with-christopher-doyle",
+      "context": "Doyle (interviewed by Alan Bett in Hong Kong) describes the arc of his films with Wong as a process of simplification.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Wong Kar-wai",
+      "about": "Christopher Doyle",
+      "quote": "I will ask Chris if he can do something better. It’s like a challenge.",
+      "film": "2046",
+      "said_year": 2004,
+      "publication": "TIME",
+      "via": null,
+      "title": "\"We love what we can't have, and we can't have what we love\"",
+      "date": "2004-09-27",
+      "url": "https://content.time.com/time/subscriber/article/0,33009,702208-4,00.html",
+      "context": "Wong, asked by Bryan Walsh about his working relationship with Doyle and William Chang, around the release of 2046.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Wong Kar-wai",
+      "about": "Christopher Doyle",
+      "quote": "I think we speak almost the same language. We know that. And I think we respect each other very well.",
+      "film": "2046",
+      "said_year": 2004,
+      "publication": "TIME",
+      "via": null,
+      "title": "\"We love what we can't have, and we can't have what we love\"",
+      "date": "2004-09-27",
+      "url": "https://content.time.com/time/subscriber/article/0,33009,702208-4,00.html",
+      "context": "Wong answers how he and his longtime collaborators (the interview names Doyle and Chang) communicate; the question is a general one about the team, not Doyle alone.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Wong Kar-wai",
+      "about": "Christopher Doyle",
+      "quote": "At two o'clock in the morning, my line producer called me up and said, 'Big problem: Chris is lying in his bathtub'",
+      "film": "Ashes of Time",
+      "said_year": 2008,
+      "publication": "Tatler Asia",
+      "via": null,
+      "title": "Cinematographer Christopher Doyle Reflects On His 40-Year Career And What's Next For Him",
+      "date": "2021-08-04",
+      "url": "https://www.tatlerasia.com/lifestyle/arts/cinematographer-christopher-doyle-interview",
+      "context": "Wong telling the story of the last day of the Ashes of Time shoot, quoted by Tatler from a 2008 appearance at the Museum of the Moving Image in New York.",
+      "secondhand": true
+    }
+  ],
+  "notes": "Wong speaks about Doyle rarely and mostly in group terms, so that direction is thinner (one is secondhand via Tatler; the TIME paywall-style URL loaded freely but the Wong excerpts were read via a summarizing fetch, so recheck wording before publishing). Filmmaker Magazine, Criterion, Deccan Herald and SCMP returned 403 and were skipped."
+}

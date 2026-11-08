@@ -42,3 +42,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# clippings link-check reports (npm run clippings:check)
+/scripts/clippings/reports/

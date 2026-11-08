@@ -1,0 +1,97 @@
+{
+  "pair": [
+    "Paul Thomas Anderson",
+    "Jonny Greenwood"
+  ],
+  "tmdb_ids": [
+    4762,
+    74333
+  ],
+  "clippings": [
+    {
+      "speaker": "Jonny Greenwood",
+      "about": "Paul Thomas Anderson",
+      "quote": "My reaction when Paul asked me was excitement… I thought, 'This is going to be a bit like being in a band with somebody — except I'm in a band with Paul and the people who are making this film.'",
+      "film": "There Will Be Blood",
+      "said_year": 2022,
+      "publication": "Fresh Air",
+      "via": "High Plains Public Radio",
+      "title": "For Radiohead's Jonny Greenwood, there are no rules to composing for film",
+      "date": "2022-02-07",
+      "url": "https://www.hppr.org/2022-02-07/for-radioheads-jonny-greenwood-there-are-no-rules-to-composing-for-film",
+      "context": "Greenwood on Fresh Air, recalling Anderson asking him to score There Will Be Blood.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Jonny Greenwood",
+      "about": "Paul Thomas Anderson",
+      "quote": "He has faith in me and he likes making fun of me … I think they're the two prongs of the perfect relationship, really.",
+      "film": "Phantom Thread",
+      "said_year": 2018,
+      "publication": "Associated Press",
+      "via": "Stereogum",
+      "title": "Jonny Greenwood And Paul Thomas Anderson Seem To Have A Delightful Working Relationship",
+      "date": "2018-02-15",
+      "url": "https://stereogum.com/1983217/jonny-greenwood-and-paul-thomas-anderson-seem-to-have-a-delightful-working-relationship/news",
+      "context": "Greenwood, asked in an AP interview what makes him and Anderson such a good match, ahead of the Phantom Thread Oscars.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Jonny Greenwood",
+      "about": "Paul Thomas Anderson",
+      "quote": "He said, 'Either you come and you're dressed like an idiot, and that'd be brilliant. Or you come and you have to say something on stage, which would also be brilliant. So win-win for me,' … It's a kind of abuse, really, the way he treats me.",
+      "film": "Phantom Thread",
+      "said_year": 2018,
+      "publication": "Associated Press",
+      "via": "Stereogum",
+      "title": "Jonny Greenwood And Paul Thomas Anderson Seem To Have A Delightful Working Relationship",
+      "date": "2018-02-15",
+      "url": "https://stereogum.com/1983217/jonny-greenwood-and-paul-thomas-anderson-seem-to-have-a-delightful-working-relationship/news",
+      "context": "Greenwood in an AP phone interview, relaying Anderson's teasing about him attending the Oscars in a tux.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Paul Thomas Anderson",
+      "about": "Jonny Greenwood",
+      "quote": "To make a film, the final big collaborator that you have is the composer. … Jonny was really one of the first people to see the film. And when he came back with a bunch of music, it actually helped show me what his impression of the film was.",
+      "film": "There Will Be Blood",
+      "said_year": 2007,
+      "publication": "Entertainment Weekly",
+      "via": "Nonesuch Records",
+      "title": "Jonny Greenwood and Paul Thomas Anderson's EW Interview",
+      "date": "2007-11-07",
+      "url": "https://nonesuch.com/journal/jonny-greenwood-and-paul-thomas-andersons-ew-interview",
+      "context": "Anderson in a joint Entertainment Weekly interview with Greenwood at the release of There Will Be Blood, as reprinted by Nonesuch.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Paul Thomas Anderson",
+      "about": "Jonny Greenwood",
+      "quote": "I would go through the script with Jonny and I found myself - I was like, OK, we should have music here, and it'll end here just for a second. Then it'll have to come back here. And, you know, I just found myself like, wow, I've just mapped out the whole movie.",
+      "film": "Phantom Thread",
+      "said_year": 2018,
+      "publication": "Fresh Air",
+      "via": "NPR",
+      "title": "Oscar-Nominated 'Phantom Thread' Focuses On Fashion's 'Most Obsessive'",
+      "date": "2018-01-23",
+      "url": "https://www.npr.org/transcripts/579940053",
+      "context": "Anderson on Fresh Air, answering Terry Gross about how the near-constant score for Phantom Thread was planned with Greenwood.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Paul Thomas Anderson",
+      "about": "Jonny Greenwood",
+      "quote": "I'll get music in the morning, when I wake up, let him know I have it. But by the time I make it in to the office to place it against the film, he's gone to bed … Usually by the next day there's three new pieces in my inbox, each one more interesting than the last.",
+      "film": "Phantom Thread",
+      "said_year": 2018,
+      "publication": "Associated Press",
+      "via": "Stereogum",
+      "title": "Jonny Greenwood And Paul Thomas Anderson Seem To Have A Delightful Working Relationship",
+      "date": "2018-02-15",
+      "url": "https://stereogum.com/1983217/jonny-greenwood-and-paul-thomas-anderson-seem-to-have-a-delightful-working-relationship/news",
+      "context": "Anderson in an AP interview, describing the day-to-night, cross-time-zone rhythm of working with Greenwood on Phantom Thread.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Only the 2007 Entertainment Weekly excerpt (via Nonesuch's reprint) could not be re-verified outside WebFetch, since Nonesuch blocks curl and the EW original was not found; Inherent Vice and The Master had no usable first-hand quotes in budget."
+}
