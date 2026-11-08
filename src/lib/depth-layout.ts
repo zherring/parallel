@@ -67,17 +67,16 @@ export const DEPTH = {
   /** Vertical gap (px) between posters of a column. */
   rowGap: 14,
   /**
-   * Vertical gap (px) between two films several people made in a column: room for the two labels that sit outside the poster's
-   * box (`DepthPoster`), the year under the first and the title over the next, so neither sits on the other or on a poster. Each
-   * label is 6px off its poster's edge and is text highlighted line by line (a band 20px tall at the 21px line-height of the title's
-   * 13px text, a hairline between two): the year is one 19px line (12px text); the title is three 21px lines at most (63px: the longest
-   * titles, such as "Who's That Knocking at My Door" and "The Last Temptation of Christ", take three at the poster's width and are not
-   * cut short); and 6px of air between the two labels: 6 + 19 + 6 + 63 + 6 = 100, and 102 leaves 2px over. (A phone's text is
-   * 14px on 22px lines but drawn at 0.76 of this, so it is further from tight.) A tighter run of films takes the next column over,
-   * as before; only the posters of one column need it (a label is no wider than its poster, and the columns are further apart than
-   * that). The first title hangs 69px over the first poster, which `pad` has room for.
+   * Vertical gap (px) between two films several people made in a column: room for the label that hangs under the first one's poster
+   * (`DepthPoster`), so it sits on neither the next poster nor anything else. The label is `Title, Year` as one run of text, 6px off the
+   * poster's bottom edge, wrapping past the poster's width (a desktop lets it overhang by a tenth) onto up to two lines on every title of the pages
+   * checked (a third for a few on a phone and a tablet, where the film is drawn smaller and the extra line fits in the room the scale gives): each
+   * line is a highlight band 20px tall on a 21px line (13px text; 14px on a 22px line on a phone). So 6 + 2 x 22 + 6px of air above the next
+   * poster = 56, and 58 leaves 2px over. Nothing hangs over a poster's top edge, so the next film's side of the gap is bare. (The label is no wider than the
+   * poster bar a tenth on a desktop, and the columns are further apart than that, so only the posters of one column need this gap.) A tighter run
+   * of films takes the next column over, as before. The first poster has nothing above it and the last has its label under it, which `pad` has room for.
    */
-  collabGap: 102,
+  collabGap: 58,
 } as const;
 
 /**

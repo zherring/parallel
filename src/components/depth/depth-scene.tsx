@@ -68,9 +68,9 @@ function filmElement(target: EventTarget | null): HTMLElement | null {
 }
 
 /**
- * The box of a film made together's poster with its labels (the title above, the year below, each highlighted line by line), or null for any other poster:
- * the hover card opens below the year, or above the title, and never covers either. A label's box is its lines' boxes: the bands
- * of the highlight are inside it (the line-height is over the band's height), so this is the union of the bands to within a pixel.
+ * The box of a film made together's poster with its label (`Title, Year`, one line under the poster), or null for any other poster:
+ * the hover card opens below the label, or above the poster, and never covers either. The label may be wider than the poster, but the card
+ * is centred on the poster, so only the label's top and bottom extend the box.
  */
 function labelledRect(element: HTMLElement): { left: number; top: number; right: number; bottom: number } | null {
   const labels = element.querySelectorAll("[data-poster-caption]");

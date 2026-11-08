@@ -691,7 +691,7 @@ describe("depthLayout", () => {
       }
     });
 
-    it("leaves room under a film made together, for its year and the next one's title, before it in the column (and none of the solo gap)", () => {
+    it("leaves room under a film made together, for its label, before the next one in the column (and none of the solo gap)", () => {
       for (const l of [crowded("shared"), layout([[[1, "2000-01-01"], [2, "2001-06-01"], [3, "2003-01-01"]], [[1, "2000-01-01"], [2, "2001-06-01"], [3, "2003-01-01"]]])]) {
         const collab = l.films.filter((f) => f.layer === 0);
         for (const a of collab) {
@@ -701,20 +701,21 @@ describe("depthLayout", () => {
           }
         }
       }
-      // The labels: 6px of air, the year (one 19px line), 6px clear between the labels, the next one's title (three 21px lines at most: the
-      // highlight bands are 20px tall, a hairline apart) and 6px of air to its poster.
+      // The label: 6px of air under the poster, two lines at most on a desktop (22px lines at most, a phone's) and 6px of air to the next poster: nothing hangs over a
+      // poster's top edge. (A third line, for a rare title on a small screen, fits in the room that the film's smaller scale gives.)
       const air = 6;
-      const yearLabel = 19;
-      const titleLabel = 3 * 21;
-      expect(DEPTH.collabGap).toBeGreaterThanOrEqual(air + yearLabel + 6 + titleLabel + air);
+      const lines = 2 * 22;
+      expect(DEPTH.collabGap).toBeGreaterThanOrEqual(air + lines + air);
       // A person's own films have no labels and keep the tighter gap.
       expect(DEPTH.rowGap).toBeLessThan(DEPTH.collabGap);
     });
 
-    it("leaves room above the first film made together, in the track, for its title", () => {
-      // The title hangs over the poster's top edge by 6px of air and three 21px lines (69px) at most; the layer is drawn `layerFactor(0)` larger.
-      const hang = (DEPTH.collab.h / 2 + 6 + 3 * 21) * layerFactor(0);
-      expect(DEPTH.pad).toBeGreaterThanOrEqual(hang);
+    it("leaves room in the track above the first film made together (its poster) and below the last (its poster and its label)", () => {
+      // Nothing hangs over the poster's top edge; the label hangs 6px under the bottom edge, three 22px lines at most. The layer is drawn `layerFactor(0)` larger.
+      const above = (DEPTH.collab.h / 2) * layerFactor(0);
+      const below = (DEPTH.collab.h / 2 + 6 + 3 * 22) * layerFactor(0);
+      expect(DEPTH.pad).toBeGreaterThanOrEqual(above);
+      expect(DEPTH.pad).toBeGreaterThanOrEqual(below);
     });
 
     it("keeps the films several people made on the centre line unless they crowd", () => {

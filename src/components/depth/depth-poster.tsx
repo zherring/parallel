@@ -37,13 +37,25 @@ function accessibleName(title: string, year: number, roles: string, note: string
 const round = (value: number) => Math.round(value * 100) / 100;
 
 /**
- * The highlight behind a label (title above a film made together, year below): the marker technique. The near-black background
- * (`rgb(10 12 14)`, a shade under the page's `--bg` #14181c, at 92%) is on the label's inline text itself, with `box-decoration-break:
- * clone`, so each wrapped line gets its own snug band that hugs that line's words, the padding (6px at the sides, 2px above and below)
- * and the rounding repeated per line; there is no rectangle around the whole label. The line-height of the label (set where
- * the labels are drawn, below) is a pixel or so over the band's height, so the bands of two lines never overlap and leave a hairline between them.
+ * The highlight behind the label of a film made together (`Title, Year`, under the poster): the marker technique. The near-black background
+ * (`rgb(10 12 14)`, a shade under the page's `--bg` #14181c, at 92%) is on the label's inline text itself, with `box-decoration-break: clone`, so
+ * each wrapped line gets its own snug band that hugs that line's words, the padding (6px at the sides, 2px above and below) and the rounding
+ * repeated per line; there is no rectangle around the whole label. The line-height of the label (set where it is drawn, below) is a pixel
+ * or so over the band's height, so the bands of two lines never overlap and leave a hairline between them.
  */
 const LABEL_HIGHLIGHT = "box-decoration-clone rounded-[4px] bg-[rgb(10_12_14/0.92)] px-1.5 py-0.5";
+
+/**
+ * The widest the label may be, as a share of the poster's width: it is centred on the poster and overhangs both sides by half of what is over 100%.
+ * Past it the label wraps (to a second line and, for a rare title on a small screen, a third), so no title is cut short. The columns of the films made
+ * together are only a few px apart on screen (about 15px between posters on a desktop, 10px on a tablet, and on a phone 5px where the outer columns sit
+ * at the screen's edge, 4px off it), and a film in the next column is often level with the label, so how far it may reach is what that gap leaves.
+ * Measured on the pair and trio pages (24 and 30 films made together) and three others, at 1440, 1024, 768 and 390: a cap of 160% put labels on a
+ * neighbouring poster at 1440 (4 on the trio page) and 5 to 9 at 390 (over the left edge or the rail too); 130% is still 2 to 4 at 1440; up to 125% a desktop
+ * is clear everywhere; a tablet and a phone are clear at nothing over the poster's width every time (a slightly wider cap is clear on some pages and not on
+ * others, as where the lines break moves with the cap). So: 110% on a desktop, the poster's width below it.
+ */
+const LABEL_CAP = "max-w-full lg:max-w-[110%]";
 
 /** The title in a box, for a film TMDB has no poster of. */
 function TitleFace({ title }: { title: string }) {
@@ -223,33 +235,34 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
           </span>
         </span>
         {shared && (
-          <>
-            {/* The labels of a film made together, out of the poster's box (the layout and the packing know their room, `DEPTH.collabGap`, but
-                they are absolutely positioned and add nothing to the poster's size): the title just above the poster's top edge, three lines at most (a long title is never cut short),
-                and the year just below its bottom edge, 6px of air each, each text highlighted line by line (`LABEL_HIGHLIGHT`) in a block no wider than the poster, centred. Always there; a hover or keyboard focus brightens the title
-                from 90% to full (a pointer that can hover only: Tailwind's `hover:` variant) and nothing moves. The button's label already says all of it.
-                The clamp is on the block (`data-caption-line`) and the highlight on the inline span in it (`data-caption-chip`): a clamped element is a block, which would give the highlight one box. */}
-            <span aria-hidden data-poster-caption="title" className="pointer-events-none absolute inset-x-0 bottom-full mb-1.5 text-center">
-              <span
-                data-caption-line
-                className={cn(
-                  "line-clamp-3 break-words text-[13px] leading-[21px] text-strong/90 max-sm:text-[14px] max-sm:leading-[22px]",
-                  "transition-colors duration-150 group-hover:text-strong group-focus-visible:text-strong motion-reduce:transition-none",
-                )}
-              >
-                <span data-caption-chip className={LABEL_HIGHLIGHT}>
-                  {film.title}
+          /* The label of a film made together, out of the poster's box (the layout and the packing know its room, `DEPTH.collabGap`, but it is
+             absolutely positioned and adds nothing to the poster's size): `Title, Year` as one run of text, 6px under the poster's bottom edge and centred on it,
+             highlighted line by line (`LABEL_HIGHLIGHT`). It may be wider than the poster, to `LABEL_CAP`, and wraps past that, so no title is ever cut short;
+             the comma and the year are one unbreakable piece, so the year never lands alone on a line. The title and the comma are `text-strong` at 90%,
+             a hover or keyboard focus brightens them to full (a pointer that can hover only: Tailwind's `hover:` variant) and nothing moves; the year is muted,
+             in tabular figures. Always there; the button's label already says all of it. The width is on the block (`data-caption-line`, `w-max` up to
+             the cap, so a short label is as wide as its words) and the highlight on the inline span in it (`data-caption-chip`): a block with a background would give one box.
+             (A break reserves no room for the padding of the line it ends, so a wrapped line's band can stick out of the block by up to 6px, and sit a few px off centre.) */
+          <span aria-hidden data-poster-caption className="pointer-events-none absolute inset-x-0 top-full mt-1.5 flex justify-center">
+            <span
+              data-caption-line
+              className={cn(
+                "block w-max shrink-0 break-words text-center text-[13px] leading-[21px] text-strong/90 max-sm:text-[14px] max-sm:leading-[22px]",
+                LABEL_CAP,
+                "transition-colors duration-150 group-hover:text-strong group-focus-visible:text-strong motion-reduce:transition-none",
+              )}
+            >
+              <span data-caption-chip className={LABEL_HIGHLIGHT}>
+                {film.title}
+                <span data-caption-tail className="whitespace-nowrap">
+                  {", "}
+                  <span data-caption-year className="tabular-nums text-muted">
+                    {film.year}
+                  </span>
                 </span>
               </span>
             </span>
-            <span aria-hidden data-poster-caption="year" className="pointer-events-none absolute inset-x-0 top-full mt-1.5 text-center">
-              <span data-caption-line="year" className="block text-[12px] leading-[19px] tabular-nums text-muted max-sm:text-[13px] max-sm:leading-5">
-                <span data-caption-chip className={LABEL_HIGHLIGHT}>
-                  {film.year}
-                </span>
-              </span>
-            </span>
-          </>
+          </span>
         )}
       </button>
     </li>
