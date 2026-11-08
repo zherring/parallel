@@ -38,8 +38,19 @@ test("both attribution names and source links stay white on desktop and mobile",
     await expect(source).toHaveCSS("color", "rgb(255, 255, 255)");
     await expect(subject.locator("..")).not.toHaveCSS("color", "rgb(255, 255, 255)");
   }
+  await page.setViewportSize({ width: 1440, height: 900 });
   await subject.click();
+  // The same slide-out panel the films use, not a centred modal: a sheet against the right edge at desktop width
+  // (measured once its slide-in has finished).
   const dialog = page.getByRole("dialog", { name: "Pedro Almodóvar", exact: true });
+  await expect(dialog.getByText("Person", { exact: true })).toBeVisible();
+  await expect(dialog).toBeFocused();
+  await expect
+    .poll(async () => {
+      const box = await dialog.boundingBox();
+      return box && [Math.round(box.x + box.width), Math.round(box.height)];
+    })
+    .toEqual([1440, 900]);
   const tmdbLink = dialog.getByRole("heading").getByRole("link");
   await expect(tmdbLink).toHaveAttribute("href", "https://www.themoviedb.org/person/309");
   await expect(tmdbLink).toHaveAttribute("target", "_blank");

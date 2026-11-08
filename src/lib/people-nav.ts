@@ -61,6 +61,16 @@ export function extendedPeopleHref(
 }
 
 /**
+ * `/p/<slug>` for a person on their own: where the person panel leads to see their whole timeline.
+ * Null on a page that is already theirs alone, where the link would lead nowhere new.
+ */
+export function soloPersonHref(inView: readonly PersonRef[], person: PersonRef): string | null {
+  const here = dedupePeople(inView);
+  if (here.length === 1 && here[0].id === person.id) return null;
+  return `/p/${buildPeopleSlug([person])}`;
+}
+
+/**
  * The people on a `/p/<slug>` page, read back from its pathname (names come from the slug text,
  * which is enough to rebuild an equivalent slug). Any other pathname gives an empty list.
  */

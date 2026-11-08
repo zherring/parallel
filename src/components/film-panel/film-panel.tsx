@@ -1,17 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import {
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  useTransition,
-  type KeyboardEvent,
-} from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { SidePanel, useRememberPressed } from "@/components/side-panel/side-panel";
 import { Spinner } from "@/components/spinner";
 import { errorMessage } from "@/lib/api-client";
 import type { PersonRow } from "@/lib/film-people";
@@ -27,35 +18,10 @@ export interface FilmPanelProps {
   onClose: () => void;
 }
 
-const TRIGGER_SELECTOR = "button, a[href], [role='button'], [tabindex]";
-const FOCUSABLE_SELECTOR =
-  "a[href]:not([tabindex='-1']), button:not([disabled]):not([tabindex='-1']), input:not([disabled]):not([tabindex='-1']), select:not([disabled]):not([tabindex='-1']), textarea:not([disabled]):not([tabindex='-1']), [tabindex]:not([tabindex='-1'])";
-
-/** Safari and Firefox on macOS do not focus a button on click, so remember what was pressed. */
-let lastPressed: Element | null = null;
-
-const subscribeNothing = () => () => {};
-
 export function FilmPanel({ filmId, peopleInView, onClose }: FilmPanelProps) {
-  const mounted = useSyncExternalStore(
-    subscribeNothing,
-    () => true,
-    () => false,
-  );
-
-  useEffect(() => {
-    const remember = (event: PointerEvent) => {
-      lastPressed = event.target instanceof Element ? event.target.closest(TRIGGER_SELECTOR) : null;
-    };
-    document.addEventListener("pointerdown", remember, true);
-    return () => document.removeEventListener("pointerdown", remember, true);
-  }, []);
-
-  if (filmId === null || !mounted) return null;
-  return createPortal(
-    <FilmDialog filmId={filmId} peopleInView={peopleInView} onClose={onClose} />,
-    document.body,
-  );
+  useRememberPressed();
+  if (filmId === null) return null;
+  return <FilmDialog filmId={filmId} peopleInView={peopleInView} onClose={onClose} />;
 }
 
 function FilmDialog({
@@ -68,13 +34,7 @@ function FilmDialog({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const titleId = useId();
-  const rootRef = useRef<HTMLDivElement>(null);
-  const backdropRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
-  const openerRef = useRef<Element | null>(null);
   const { state, retry } = useFilmDetails(filmId);
 
   const [addingId, setAddingId] = useState<number | null>(null);
@@ -91,104 +51,6 @@ function FilmDialog({
     wasAdding.current = isAdding;
   }, [isAdding]);
 
-  // Slide in from the right (md and up) or up from the bottom, and fade the backdrop. There is no
-  // exit animation. Skipped entirely for visitors who prefer reduced motion.
-  useLayoutEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const fromSide = window.matchMedia("(min-width: 48rem)").matches;
-    backdropRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], {
-      duration: 180,
-      easing: "ease-out",
-    });
-    panelRef.current?.animate(
-      [{ transform: fromSide ? "translateX(100%)" : "translateY(100%)" }, { transform: "none" }],
-      { duration: 240, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
-    );
-  }, []);
-
-  // Focus in on open. This must run before the inert effect below: making the page inert blurs
-  // whatever has focus, so the opener has to be read first.
-  useEffect(() => {
-    const active = document.activeElement;
-    openerRef.current = active && active !== document.body ? active : lastPressed;
-    panelRef.current?.focus({ preventScroll: true });
-  }, []);
-
-  // Lock page scroll without shifting the layout when the scrollbar disappears.
-  useEffect(() => {
-    const { body, documentElement } = document;
-    const previous = { overflow: body.style.overflow, paddingRight: body.style.paddingRight };
-    const scrollbar = window.innerWidth - documentElement.clientWidth;
-    body.style.overflow = "hidden";
-    if (scrollbar > 0) body.style.paddingRight = `${scrollbar}px`;
-    return () => {
-      body.style.overflow = previous.overflow;
-      body.style.paddingRight = previous.paddingRight;
-    };
-  }, []);
-
-  // Everything else on the page is unreachable (keyboard, pointer and assistive tech) while open.
-  useEffect(() => {
-    const root = rootRef.current;
-    const inerted: Element[] = [];
-    for (const child of Array.from(document.body.children)) {
-      const skip =
-        child === root ||
-        child.hasAttribute("inert") ||
-        child.tagName.includes("-") || // custom elements, e.g. the Next dev overlay
-        ["SCRIPT", "STYLE", "LINK", "TEMPLATE", "NOSCRIPT"].includes(child.tagName);
-      if (skip) continue;
-      child.setAttribute("inert", "");
-      inerted.push(child);
-    }
-    return () => inerted.forEach((child) => child.removeAttribute("inert"));
-  }, []);
-
-  useEffect(() => {
-    const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      event.preventDefault();
-      onCloseRef.current();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  // A different film starts at the top.
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 0 });
-  }, [filmId]);
-
-  // Focus back to the opener on close. Declared last on purpose: unmount cleanups run in
-  // declaration order, so by now the page is no longer inert and can take focus again.
-  useEffect(() => {
-    return () => {
-      const opener = openerRef.current;
-      if (opener instanceof HTMLElement && opener.isConnected) opener.focus({ preventScroll: true });
-    };
-  }, []);
-
-  function trapTab(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key !== "Tab") return;
-    const panel = panelRef.current;
-    if (!panel) return;
-    const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-    if (focusable.length === 0) {
-      event.preventDefault();
-      return;
-    }
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    const active = document.activeElement;
-    if (event.shiftKey && (active === first || active === panel)) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && active === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  }
-
   function add(person: PersonRow) {
     const href = extendedPeopleHref(peopleInView, { id: person.id, name: person.name }, window.location.search);
     if (!href) return;
@@ -196,49 +58,16 @@ function FilmDialog({
     startAdding(() => router.push(href));
   }
 
-  const loading = state.status === "loading";
-
   return (
-    <div ref={rootRef} className="fixed inset-0 z-50">
-      <div
-        ref={backdropRef}
-        aria-hidden="true"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/70"
-      />
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-busy={loading || undefined}
-        tabIndex={-1}
-        onKeyDown={trapTab}
-        className="absolute inset-x-0 bottom-0 flex max-h-[90dvh] flex-col rounded-t-2xl border-t border-border bg-canvas shadow-2xl shadow-black/60 outline-none! md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-[30rem] md:rounded-none md:border-l md:border-t-0"
-      >
-        <div className="flex shrink-0 items-center justify-between border-b border-border py-1.5 pl-4 pr-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted">Film</span>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close film details"
-            className="flex h-9 w-9 items-center justify-center rounded-md text-body hover:bg-surface hover:text-strong"
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              className="h-5 w-5"
-            >
-              <path d="M6 6l12 12M18 6 6 18" />
-            </svg>
-          </button>
-        </div>
-
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-8 pt-5">
+    <SidePanel
+      label="Film"
+      closeLabel="Close film details"
+      busy={state.status === "loading"}
+      contentKey={filmId}
+      onClose={onClose}
+    >
+      {({ titleId, scrollRef }) => (
+        <>
           {state.status === "success" && (
             <FilmContent
               film={state.film}
@@ -278,9 +107,9 @@ function FilmDialog({
               </div>
             </div>
           )}
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    </SidePanel>
   );
 }
 

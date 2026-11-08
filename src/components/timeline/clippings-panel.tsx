@@ -28,7 +28,7 @@ import { personColor } from "@/lib/person-colors";
 import { headingNames } from "@/lib/short-name";
 import { cn } from "./cn";
 import { MoreReading } from "./more-reading";
-import { PersonBio, type BioPerson } from "./person-bio";
+import { PersonBio, type BioPerson, type OpenPerson } from "./person-bio";
 import { PullQuote, quoteElementId } from "./pull-quote";
 import { scrollBehavior } from "./scroll-behavior";
 
@@ -51,8 +51,10 @@ interface ClippingsPanelProps {
   critics: PairCritics | null;
   /** Whether the Clippings tab is the one showing: the panel is always in the page, hidden when it is not. */
   active: boolean;
-  /** The page's people (matched to the names in the quotes by TMDB id): a name of one of them opens their biography. Without it, names are plain text. */
+  /** The page's people (matched to the names in the quotes by TMDB id): a name of one of them opens their details. Without it, names are plain text. */
   bioPeople?: readonly BioPerson[];
+  /** Opens a person's details in the slide-out panel; with `bioPeople`, what turns a name into a button. */
+  onOpenPerson?: OpenPerson;
 }
 
 /** No one to open a biography of: one array for every render. */
@@ -63,13 +65,13 @@ const NO_BIO_PEOPLE: readonly BioPerson[] = [];
  * as pull quotes in one list (`Quotes`), then "More reading" (`MoreReading`): pieces that are only linked. A pair may
  * have any of the three alone, and the tab then shows only that. The serif is loaded here.
  */
-export function ClippingsPanel({ pair, critics, active, bioPeople = NO_BIO_PEOPLE }: ClippingsPanelProps) {
+export function ClippingsPanel({ pair, critics, active, bioPeople = NO_BIO_PEOPLE, onOpenPerson }: ClippingsPanelProps) {
   const quotes = critics?.critics ?? NO_CRITICS;
   const reading = critics?.reading ?? [];
   const hasQuotes = (pair?.clippings.length ?? 0) > 0 || quotes.length > 0;
   return (
     <div className={newsreader.variable}>
-      {hasQuotes && <Quotes pair={pair} critics={critics} active={active} bioPeople={bioPeople} />}
+      {hasQuotes && <Quotes pair={pair} critics={critics} active={active} bioPeople={bioPeople} onOpenPerson={onOpenPerson} />}
       {reading.length > 0 && <MoreReading reading={reading} afterQuotes={hasQuotes} />}
     </div>
   );
@@ -91,11 +93,13 @@ function Quotes({
   critics,
   active,
   bioPeople,
+  onOpenPerson,
 }: {
   pair: VoicedClippings | null;
   critics: PairCritics | null;
   active: boolean;
   bioPeople: readonly BioPerson[];
+  onOpenPerson: OpenPerson | undefined;
 }) {
   const people = pair?.people ?? null;
   // The two names of the page, whichever of the pair's lists has them: what a name in a quote is matched against.
@@ -113,8 +117,10 @@ function Quotes({
   const shownCritics = filterCritics(criticQuotes, filter);
   const entries = interleaveQuotes(shown, shownCritics);
   const bioFor = (name: string) => (named ? pagePersonFor(name, named, bioPeople) : null);
-  // "Spielberg & Williams" (see `criticAbout`), each name opening its person's biography; the critic's own name stays plain.
-  const criticsAbout = critics ? <CriticsAbout people={critics.people} bioPeople={bioPeople} /> : null;
+  // "Spielberg & Williams" (see `criticAbout`), each name opening its person's details; the critic's own name stays plain.
+  const criticsAbout = critics ? (
+    <CriticsAbout people={critics.people} bioPeople={bioPeople} onOpenPerson={onOpenPerson} />
+  ) : null;
 
   // The address bar is read once the tab is showing (the server's HTML and the first client render are the Timeline,
   // see `useViewTab`), so a link that names a quote lands here with the tab already un-hidden and its quote on the page.
@@ -202,6 +208,7 @@ function Quotes({
                   voice={side === null || !people ? null : people[side]}
                   speakerBio={bioFor(clipping.speaker)}
                   aboutBio={bioFor(clipping.about)}
+                  onOpenPerson={onOpenPerson}
                   color={colorOf(side)}
                   highlighted={clipping.id === highlighted}
                 />
@@ -222,6 +229,7 @@ function ClippingQuote({
   voice,
   speakerBio,
   aboutBio,
+  onOpenPerson,
   color,
   highlighted,
 }: {
@@ -231,6 +239,7 @@ function ClippingQuote({
   /** The speaker and who it is about, as the page has them (their names open the biography); null for someone who is not on the page. */
   speakerBio: BioPerson | null;
   aboutBio: BioPerson | null;
+  onOpenPerson: OpenPerson | undefined;
   /** A CSS colour: the speaker's on the Timeline. */
   color: string;
   highlighted: boolean;
@@ -252,8 +261,8 @@ function ClippingQuote({
       url={url}
       linkTitle={title}
       speaker={speaker}
-      speakerLabel={<BioName name={speaker} entry={speakerBio} />}
-      about={<BioName name={about} entry={aboutBio} />}
+      speakerLabel={<BioName name={speaker} entry={speakerBio} onOpen={onOpenPerson} />}
+      about={<BioName name={about} entry={aboutBio} onOpen={onOpenPerson} />}
       color={color}
       avatar={voice ? { name: voice.name, profilePath: voice.profilePath } : null}
       film={film}
@@ -292,28 +301,39 @@ function CriticQuote({ critic, about, highlighted }: { critic: Critic; about: Re
 }
 
 /**
- * A name in a quote's attribution: the button that opens that person's biography (the people column's `PersonBio`),
- * or just the name when the person is not one the page has. Biography openers are white regardless of the surrounding text.
+ * A name in a quote's attribution: the button that opens that person's details in the slide-out panel (the people
+ * column's `PersonBio`), or just the name when the person is not one the page has. Openers are white regardless of
+ * the surrounding text.
  */
-function BioName({ name, entry }: { name: string; entry: BioPerson | null }) {
-  if (!entry) return <>{name}</>;
-  return <PersonBio person={entry.person} roles={entry.roles} nameTrigger label={name} />;
+function BioName({ name, entry, onOpen }: { name: string; entry: BioPerson | null; onOpen: OpenPerson | undefined }) {
+  if (!entry || !onOpen) return <>{name}</>;
+  return <PersonBio person={entry.person} onOpen={onOpen} nameTrigger label={name} />;
 }
 
 /** Who the critics' quotes are about, in the short names `criticAbout` uses ("Spielberg & Williams"), each as a `BioName`. */
 function CriticsAbout({
   people,
   bioPeople,
+  onOpenPerson,
 }: {
   people: readonly [ClippingsPerson, ClippingsPerson];
   bioPeople: readonly BioPerson[];
+  onOpenPerson: OpenPerson | undefined;
 }) {
   const names = headingNames(people, true);
   return (
     <>
-      <BioName name={names[0]} entry={bioPeople.find((entry) => entry.person.id === people[0].id) ?? null} />
+      <BioName
+        name={names[0]}
+        entry={bioPeople.find((entry) => entry.person.id === people[0].id) ?? null}
+        onOpen={onOpenPerson}
+      />
       {" & "}
-      <BioName name={names[1]} entry={bioPeople.find((entry) => entry.person.id === people[1].id) ?? null} />
+      <BioName
+        name={names[1]}
+        entry={bioPeople.find((entry) => entry.person.id === people[1].id) ?? null}
+        onOpen={onOpenPerson}
+      />
     </>
   );
 }

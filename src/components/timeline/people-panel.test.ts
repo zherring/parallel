@@ -28,6 +28,7 @@ function markup(
       openIds,
       onToggleOpen: () => {},
       onToggleVisible: () => {},
+      onOpenPerson: () => {},
     }),
   );
 }
@@ -58,7 +59,7 @@ describe("PeoplePanel", () => {
     expect(row.indexOf('aria-label="Expand Jack Lemmon"')).toBeLessThan(row.indexOf("JL"));
   });
 
-  it("opens the artist's bio from the name without navigating to a solo timeline", () => {
+  it("opens the artist's details from the name without navigating to a solo timeline", () => {
     const html = markup("condense");
     // The name is text in the heading (which names the lane region), not a label that renames it.
     expect(html).not.toContain('aria-label="Biography of');

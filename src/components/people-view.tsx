@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { FilmPanel } from "@/components/film-panel/film-panel";
+import { PersonPanel } from "@/components/person-panel/person-panel";
 import { PersonSearch } from "@/components/person-search/person-search";
 import { FilmsSection } from "@/components/timeline/films-section";
 import { FilmSettings } from "@/components/timeline/film-settings";
@@ -25,6 +26,7 @@ import { personColorCss } from "@/lib/person-colors";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import { pageHeading } from "@/lib/short-name";
 import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms, type PairShared } from "@/lib/shared";
+import { filmIdOf, openFilm, openPerson, personIdOf, type PanelTarget } from "@/lib/side-panel";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
 interface Props {
@@ -54,7 +56,8 @@ export function PeopleView(props: Props) {
 function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critics }: Props) {
   const [includeMinor, setIncludeMinor] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  // The one slide-out panel: a film's details or a person's, never both.
+  const [panel, setPanel] = useState<PanelTarget | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const timelineRef = useRef<TimelineHandle>(null);
   const [view] = useViewTab(hasClippingsTab(clippings, critics));
@@ -132,7 +135,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     [lanes, includeMinor, hiddenIds, people],
   );
 
-  // The names in the Clippings tab open the same biography dialog as the people column, with the same roles.
+  // The names in the Clippings tab open the same person panel as the people column, with the same roles.
   const bioPeople: BioPerson[] = useMemo(
     () => panelPeople.map(({ person, roles }) => ({ person, roles })),
     [panelPeople],
@@ -177,11 +180,16 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
 
   const handleSelect = useCallback((id: number, trigger: HTMLElement) => {
     triggerRef.current = trigger;
-    setSelectedId(id);
+    setPanel(openFilm(id));
+  }, []);
+
+  const handleOpenPerson = useCallback((id: number, trigger: HTMLElement) => {
+    triggerRef.current = trigger;
+    setPanel(openPerson(id));
   }, []);
 
   const handleClose = useCallback(() => {
-    setSelectedId(null);
+    setPanel(null);
     const trigger = triggerRef.current;
     triggerRef.current = null;
     // Put focus back where the keyboard user left off.
@@ -252,6 +260,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
                 openIds={openIds}
                 onToggleOpen={handleToggleOpen}
                 onToggleVisible={handleToggleVisible}
+                onOpenPerson={handleOpenPerson}
               />
             )
           : undefined
@@ -259,8 +268,9 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       people={people}
       includeMinor={includeMinor}
       today={today}
-      selectedId={selectedId}
+      selectedId={filmIdOf(panel)}
       onSelect={handleSelect}
+      onOpenPerson={handleOpenPerson}
       period={period}
       periodSpan={periodSpan}
       periodYears={filmYears}
@@ -316,6 +326,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
           clippings={voicedClippings}
           critics={critics}
           bioPeople={bioPeople}
+          onOpenPerson={handleOpenPerson}
         />
       ) : (
         <FilmsSection
@@ -339,7 +350,12 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         />
       )}
 
-      <FilmPanel filmId={selectedId} peopleInView={people} onClose={handleClose} />
+      <FilmPanel filmId={filmIdOf(panel)} peopleInView={people} onClose={handleClose} />
+      <PersonPanel
+        entry={bioPeople.find((entry) => entry.person.id === personIdOf(panel)) ?? null}
+        peopleInView={people}
+        onClose={handleClose}
+      />
     </div>
   );
 }

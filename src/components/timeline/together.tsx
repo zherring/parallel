@@ -10,7 +10,7 @@ import type { SharedFilm } from "@/lib/types";
 import type { PersonRef } from "@/lib/lanes";
 import { detailsButtonClass, linkClass, tmdbMovieUrl } from "./film-links";
 import { FilmsSection } from "./films-section";
-import type { BioPerson } from "./person-bio";
+import type { BioPerson, OpenPerson } from "./person-bio";
 
 interface TogetherProps {
   people: PersonRef[];
@@ -38,6 +38,8 @@ interface TogetherProps {
   critics?: PairCritics | null;
   /** The page's people, for the names in the Clippings tab (see `FilmsSection`). */
   bioPeople?: readonly BioPerson[];
+  /** Opens a person's details in the slide-out panel (see `FilmsSection`). */
+  onOpenPerson?: OpenPerson;
 }
 
 const joinNames = (names: string[]) => new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(names);
@@ -58,6 +60,7 @@ export function Together({
   clippings,
   critics,
   bioPeople,
+  onOpenPerson,
 }: TogetherProps) {
   const rows = useMemo(() => sharedRows(shared, people), [shared, people]);
   const nameById = new Map(people.map((p) => [p.id, p.name]));
@@ -88,6 +91,7 @@ export function Together({
       clippings={clippings}
       critics={critics}
       bioPeople={bioPeople}
+      onOpenPerson={onOpenPerson}
     >
       {pairwise.length > 0 && (
         <details className="mt-6 rounded-lg border border-border bg-surface">

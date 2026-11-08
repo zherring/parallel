@@ -8,7 +8,7 @@ import { availableViews, hasClippingsTab, isFilmView, showsPeriodNote, type View
 import type { ShareInput } from "@/lib/share";
 import { ClippingsPanel } from "./clippings-panel";
 import { FilmsTable } from "./films-table";
-import type { BioPerson } from "./person-bio";
+import type { BioPerson, OpenPerson } from "./person-bio";
 import { ShareActions } from "./share-actions";
 import { useFilmsTable } from "./use-films-table";
 import { useViewTab } from "./use-view-tab";
@@ -41,8 +41,10 @@ interface FilmsSectionProps {
   clippings?: VoicedClippings | null;
   /** What the critics have written about the pair's collaboration, which adds the Clippings tab too (their quotes, and "More reading"); none (the default) for a page without any. */
   critics?: PairCritics | null;
-  /** The page's people, for the names in the Clippings tab: each opens their biography (see `ClippingsPanel`). */
+  /** The page's people, for the names in the Clippings tab: each opens their details (see `ClippingsPanel`). */
   bioPeople?: readonly BioPerson[];
+  /** Opens a person's details in the slide-out panel (see `ClippingsPanel`). */
+  onOpenPerson?: OpenPerson;
   /** More content under the table, in the Table tab (the "By pair" lists). */
   children?: ReactNode;
 }
@@ -77,6 +79,7 @@ export function FilmsSection({
   clippings = null,
   critics = null,
   bioPeople,
+  onOpenPerson,
   children,
 }: FilmsSectionProps) {
   const table = useFilmsTable(rows, today);
@@ -154,7 +157,13 @@ export function FilmsSection({
           hidden={hidden("clippings")}
           className="mt-4"
         >
-          <ClippingsPanel pair={clippings} critics={critics} active={view === "clippings"} bioPeople={bioPeople} />
+          <ClippingsPanel
+            pair={clippings}
+            critics={critics}
+            active={view === "clippings"}
+            bioPeople={bioPeople}
+            onOpenPerson={onOpenPerson}
+          />
         </div>
       )}
 
