@@ -1,10 +1,9 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { BioPerson } from "@/components/timeline/person-bio";
-import { PersonContent, PersonPanel } from "./person-panel";
+import { PersonContent, PersonPanel, type PersonPanelEntry } from "./person-panel";
 
-const entry: BioPerson = {
+const entry: PersonPanelEntry = {
   person: {
     id: 137427,
     name: "Denis Villeneuve",
@@ -21,7 +20,7 @@ const pair = [
   { id: 151, name: "Roger Deakins" },
 ];
 
-function content(overrides: Partial<BioPerson["person"]> = {}, peopleInView = pair) {
+function content(overrides: Partial<PersonPanelEntry["person"]> = {}, peopleInView = pair) {
   return renderToStaticMarkup(
     createElement(PersonContent, {
       entry: { ...entry, person: { ...entry.person, ...overrides } },

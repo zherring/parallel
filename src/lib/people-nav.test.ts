@@ -7,7 +7,6 @@ import {
   extendedPeople,
   isTimelineFull,
   peopleFromPathname,
-  soloPersonHref,
 } from "@/lib/people-nav";
 import { parsePeopleSlug } from "@/lib/slug";
 
@@ -123,25 +122,5 @@ describe("peopleFromPathname", () => {
     expect(peopleFromPathname("/about")).toEqual([]);
     expect(peopleFromPathname("/p/not-a-slug")).toEqual([]);
     expect(peopleFromPathname("/p/1+2+3+4+5")).toEqual([]);
-  });
-});
-
-describe("soloPersonHref", () => {
-  it("links a person on a page with others to their own timeline", () => {
-    expect(soloPersonHref([fincher, pitt], pitt)).toBe("/p/287-brad-pitt");
-  });
-
-  it("links to a person who is not on the page at all", () => {
-    expect(soloPersonHref([fincher], pitt)).toBe("/p/287-brad-pitt");
-  });
-
-  it("has nowhere new to go on the person's own page", () => {
-    expect(soloPersonHref([pitt], pitt)).toBeNull();
-    expect(soloPersonHref([pitt, pitt], pitt)).toBeNull();
-  });
-
-  it("produces a slug the page can parse", () => {
-    const href = soloPersonHref([fincher, pitt], fincher)!;
-    expect(parsePeopleSlug(href.replace("/p/", ""))?.ids).toEqual([fincher.id]);
   });
 });

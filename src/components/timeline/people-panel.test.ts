@@ -62,9 +62,9 @@ describe("PeoplePanel", () => {
   it("opens the artist's details from the name without navigating to a solo timeline", () => {
     const html = markup("condense");
     // The name is text in the heading (which names the lane region), not a label that renames it.
-    expect(html).not.toContain('aria-label="Biography of');
-    expect(html).toContain('title="Biography of Jack Lemmon"');
-    expect(html).toContain('title="Biography of Walter Matthau"');
+    expect(html).not.toContain('aria-label="Details for');
+    expect(html).toContain('title="Details for Jack Lemmon"');
+    expect(html).toContain('title="Details for Walter Matthau"');
     expect(html).toContain(">Jack Lemmon</button>");
     expect(html).toContain(">Walter Matthau</button>");
     expect(html).toContain('aria-haspopup="dialog"');
@@ -74,7 +74,7 @@ describe("PeoplePanel", () => {
   it("keeps the row-wide unfurl target separate from the name and eye", () => {
     const row = markup("condense").split("<li ")[1];
     const unfurl = row.indexOf('aria-label="Expand Jack Lemmon"');
-    const bio = row.indexOf('title="Biography of Jack Lemmon"');
+    const bio = row.indexOf('title="Details for Jack Lemmon"');
     const eye = row.indexOf("Show Jack Lemmon&#x27;s films on the timeline");
     // Three controls, in reading order: unfurl, name, eye; none of them inside another.
     expect(unfurl).toBeGreaterThan(-1);

@@ -1,18 +1,25 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { useMemo, useState } from "react";
-import { SidePanel, useRememberPressed } from "@/components/side-panel/side-panel";
-import type { BioPerson } from "@/components/timeline/person-bio";
+import { SidePanel } from "@/components/side-panel/side-panel";
+import { Spinner } from "@/components/spinner";
 import { lifeLine, splitParagraphs } from "@/lib/biography";
 import { tmdbPersonUrl } from "@/lib/film-people";
 import { tmdbImage } from "@/lib/images";
-import { soloPersonHref } from "@/lib/people-nav";
+import { peopleHref } from "@/lib/lanes";
 import { initials } from "@/lib/person-labels";
+import type { PersonSummary } from "@/lib/types";
+
+/** A person of the page with the roles the panel gives under the name: what a name outside the people column needs to open the panel. */
+export interface PersonPanelEntry {
+  person: PersonSummary;
+  roles: string;
+}
 
 export interface PersonPanelProps {
   /** The person to show, with the roles the page gives them; null keeps the panel closed. */
-  entry: BioPerson | null;
+  entry: PersonPanelEntry | null;
   /** Everyone on the page: the link to the person's own timeline is left out where it would lead nowhere. */
   peopleInView: { id: number; name: string }[];
   onClose: () => void;
@@ -24,7 +31,6 @@ export interface PersonPanelProps {
  * nothing to load.
  */
 export function PersonPanel({ entry, peopleInView, onClose }: PersonPanelProps) {
-  useRememberPressed();
   if (!entry) return null;
   return (
     <SidePanel label="Person" closeLabel="Close person details" contentKey={entry.person.id} onClose={onClose}>
@@ -38,7 +44,7 @@ export function PersonContent({
   titleId,
   peopleInView,
 }: {
-  entry: BioPerson;
+  entry: PersonPanelEntry;
   titleId: string;
   peopleInView: PersonPanelProps["peopleInView"];
 }) {
@@ -48,7 +54,9 @@ export function PersonContent({
   const [failedPhoto, setFailedPhoto] = useState<string | null>(null);
   const life = lifeLine(person);
   const paragraphs = useMemo(() => splitParagraphs(person.biography ?? ""), [person.biography]);
-  const soloHref = soloPersonHref(peopleInView, person);
+  // Their own timeline; nowhere new to go from the page that is already theirs alone.
+  const onOwnPage = peopleInView.length === 1 && peopleInView[0].id === person.id;
+  const soloHref = onOwnPage ? null : peopleHref([person]);
 
   return (
     <>
@@ -94,7 +102,7 @@ export function PersonContent({
               className="mt-3 inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-strong no-underline hover:bg-surface"
             >
               View their timeline
-              <span aria-hidden="true">→</span>
+              <LinkArrow />
             </Link>
           )}
         </div>
@@ -122,5 +130,15 @@ export function PersonContent({
         </a>
       </p>
     </>
+  );
+}
+
+/** The arrow after "View their timeline": a spinner of the same size while the page loads (the link is not prefetched). */
+function LinkArrow() {
+  const { pending } = useLinkStatus();
+  return (
+    <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center">
+      {pending ? <Spinner className="h-3.5 w-3.5" /> : "→"}
+    </span>
   );
 }

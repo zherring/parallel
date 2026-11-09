@@ -28,7 +28,8 @@ import { personColor } from "@/lib/person-colors";
 import { headingNames } from "@/lib/short-name";
 import { cn } from "./cn";
 import { MoreReading } from "./more-reading";
-import { PersonBio, type BioPerson, type OpenPerson } from "./person-bio";
+import type { PersonPanelEntry } from "@/components/person-panel/person-panel";
+import { PersonBio, type OpenPerson } from "./person-bio";
 import { PullQuote, quoteElementId } from "./pull-quote";
 import { scrollBehavior } from "./scroll-behavior";
 
@@ -52,26 +53,26 @@ interface ClippingsPanelProps {
   /** Whether the Clippings tab is the one showing: the panel is always in the page, hidden when it is not. */
   active: boolean;
   /** The page's people (matched to the names in the quotes by TMDB id): a name of one of them opens their details. Without it, names are plain text. */
-  bioPeople?: readonly BioPerson[];
-  /** Opens a person's details in the slide-out panel; with `bioPeople`, what turns a name into a button. */
+  personEntries?: readonly PersonPanelEntry[];
+  /** Opens a person's details in the slide-out panel; with `personEntries`, what turns a name into a button. */
   onOpenPerson?: OpenPerson;
 }
 
-/** No one to open a biography of: one array for every render. */
-const NO_BIO_PEOPLE: readonly BioPerson[] = [];
+/** No one to open details of: one array for every render. */
+const NO_PERSON_ENTRIES: readonly PersonPanelEntry[] = [];
 
 /**
  * The Clippings tab: the pair's quotes about each other and what the critics have written about the collaboration, both
  * as pull quotes in one list (`Quotes`), then "More reading" (`MoreReading`): pieces that are only linked. A pair may
  * have any of the three alone, and the tab then shows only that. The serif is loaded here.
  */
-export function ClippingsPanel({ pair, critics, active, bioPeople = NO_BIO_PEOPLE, onOpenPerson }: ClippingsPanelProps) {
+export function ClippingsPanel({ pair, critics, active, personEntries = NO_PERSON_ENTRIES, onOpenPerson }: ClippingsPanelProps) {
   const quotes = critics?.critics ?? NO_CRITICS;
   const reading = critics?.reading ?? [];
   const hasQuotes = (pair?.clippings.length ?? 0) > 0 || quotes.length > 0;
   return (
     <div className={newsreader.variable}>
-      {hasQuotes && <Quotes pair={pair} critics={critics} active={active} bioPeople={bioPeople} onOpenPerson={onOpenPerson} />}
+      {hasQuotes && <Quotes pair={pair} critics={critics} active={active} personEntries={personEntries} onOpenPerson={onOpenPerson} />}
       {reading.length > 0 && <MoreReading reading={reading} afterQuotes={hasQuotes} />}
     </div>
   );
@@ -92,13 +93,13 @@ function Quotes({
   pair,
   critics,
   active,
-  bioPeople,
+  personEntries,
   onOpenPerson,
 }: {
   pair: VoicedClippings | null;
   critics: PairCritics | null;
   active: boolean;
-  bioPeople: readonly BioPerson[];
+  personEntries: readonly PersonPanelEntry[];
   onOpenPerson: OpenPerson | undefined;
 }) {
   const people = pair?.people ?? null;
@@ -116,10 +117,10 @@ function Quotes({
   const shown = people ? filterClippings(clippings, people, filter) : [];
   const shownCritics = filterCritics(criticQuotes, filter);
   const entries = interleaveQuotes(shown, shownCritics);
-  const bioFor = (name: string) => (named ? pagePersonFor(name, named, bioPeople) : null);
+  const entryFor = (name: string) => (named ? pagePersonFor(name, named, personEntries) : null);
   // "Spielberg & Williams" (see `criticAbout`), each name opening its person's details; the critic's own name stays plain.
   const criticsAbout = critics ? (
-    <CriticsAbout people={critics.people} bioPeople={bioPeople} onOpenPerson={onOpenPerson} />
+    <CriticsAbout people={critics.people} personEntries={personEntries} onOpenPerson={onOpenPerson} />
   ) : null;
 
   // The address bar is read once the tab is showing (the server's HTML and the first client render are the Timeline,
@@ -206,8 +207,8 @@ function Quotes({
                 <ClippingQuote
                   clipping={clipping}
                   voice={side === null || !people ? null : people[side]}
-                  speakerBio={bioFor(clipping.speaker)}
-                  aboutBio={bioFor(clipping.about)}
+                  speakerEntry={entryFor(clipping.speaker)}
+                  aboutEntry={entryFor(clipping.about)}
                   onOpenPerson={onOpenPerson}
                   color={colorOf(side)}
                   highlighted={clipping.id === highlighted}
@@ -227,8 +228,8 @@ function Quotes({
 function ClippingQuote({
   clipping,
   voice,
-  speakerBio,
-  aboutBio,
+  speakerEntry,
+  aboutEntry,
   onOpenPerson,
   color,
   highlighted,
@@ -236,9 +237,9 @@ function ClippingQuote({
   clipping: Clipping;
   /** The one of the pair who said it; null when it is neither (no headshot, a muted mark). */
   voice: ClippingsVoice | null;
-  /** The speaker and who it is about, as the page has them (their names open the biography); null for someone who is not on the page. */
-  speakerBio: BioPerson | null;
-  aboutBio: BioPerson | null;
+  /** The speaker and who it is about, as the page has them (their names open their details); null for someone who is not on the page. */
+  speakerEntry: PersonPanelEntry | null;
+  aboutEntry: PersonPanelEntry | null;
   onOpenPerson: OpenPerson | undefined;
   /** A CSS colour: the speaker's on the Timeline. */
   color: string;
@@ -261,8 +262,8 @@ function ClippingQuote({
       url={url}
       linkTitle={title}
       speaker={speaker}
-      speakerLabel={<BioName name={speaker} entry={speakerBio} onOpen={onOpenPerson} />}
-      about={<BioName name={about} entry={aboutBio} onOpen={onOpenPerson} />}
+      speakerLabel={<PersonNameTrigger name={speaker} entry={speakerEntry} onOpen={onOpenPerson} />}
+      about={<PersonNameTrigger name={about} entry={aboutEntry} onOpen={onOpenPerson} />}
       color={color}
       avatar={voice ? { name: voice.name, profilePath: voice.profilePath } : null}
       film={film}
@@ -305,33 +306,33 @@ function CriticQuote({ critic, about, highlighted }: { critic: Critic; about: Re
  * column's `PersonBio`), or just the name when the person is not one the page has. Openers are white regardless of
  * the surrounding text.
  */
-function BioName({ name, entry, onOpen }: { name: string; entry: BioPerson | null; onOpen: OpenPerson | undefined }) {
+function PersonNameTrigger({ name, entry, onOpen }: { name: string; entry: PersonPanelEntry | null; onOpen: OpenPerson | undefined }) {
   if (!entry || !onOpen) return <>{name}</>;
   return <PersonBio person={entry.person} onOpen={onOpen} nameTrigger label={name} />;
 }
 
-/** Who the critics' quotes are about, in the short names `criticAbout` uses ("Spielberg & Williams"), each as a `BioName`. */
+/** Who the critics' quotes are about, in the short names `criticAbout` uses ("Spielberg & Williams"), each as a `PersonNameTrigger`. */
 function CriticsAbout({
   people,
-  bioPeople,
+  personEntries,
   onOpenPerson,
 }: {
   people: readonly [ClippingsPerson, ClippingsPerson];
-  bioPeople: readonly BioPerson[];
+  personEntries: readonly PersonPanelEntry[];
   onOpenPerson: OpenPerson | undefined;
 }) {
   const names = headingNames(people, true);
   return (
     <>
-      <BioName
+      <PersonNameTrigger
         name={names[0]}
-        entry={bioPeople.find((entry) => entry.person.id === people[0].id) ?? null}
+        entry={personEntries.find((entry) => entry.person.id === people[0].id) ?? null}
         onOpen={onOpenPerson}
       />
       {" & "}
-      <BioName
+      <PersonNameTrigger
         name={names[1]}
-        entry={bioPeople.find((entry) => entry.person.id === people[1].id) ?? null}
+        entry={personEntries.find((entry) => entry.person.id === people[1].id) ?? null}
         onOpen={onOpenPerson}
       />
     </>

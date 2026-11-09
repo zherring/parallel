@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filmIdOf, openFilm, openPerson, personIdOf, type PanelTarget } from "@/lib/side-panel";
+import { filmIdOf, openFilm, openPerson, personIdOf } from "@/lib/side-panel";
 
 describe("the slide-out panel's target", () => {
   it("shows nothing when it is closed", () => {
@@ -17,12 +17,5 @@ describe("the slide-out panel's target", () => {
   it("keeps a film and a person with the same id apart", () => {
     expect(filmIdOf(openPerson(550))).toBeNull();
     expect(personIdOf(openFilm(550))).toBeNull();
-  });
-
-  it("replaces one target with the other when state is set to the new one", () => {
-    let state: PanelTarget | null = openFilm(550);
-    state = openPerson(287);
-    expect(filmIdOf(state)).toBeNull();
-    expect(personIdOf(state)).toBe(287);
   });
 });

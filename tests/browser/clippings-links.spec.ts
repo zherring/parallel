@@ -44,7 +44,8 @@ test("both attribution names and source links stay white on desktop and mobile",
   // (measured once its slide-in has finished).
   const dialog = page.getByRole("dialog", { name: "Pedro Almodóvar", exact: true });
   await expect(dialog.getByText("Person", { exact: true })).toBeVisible();
-  await expect(dialog).toBeFocused();
+  // Focus is on the panel's scroll container, so the arrow keys scroll a long biography.
+  await expect(dialog.locator("[data-side-panel-scroll]")).toBeFocused();
   await expect
     .poll(async () => {
       const box = await dialog.boundingBox();

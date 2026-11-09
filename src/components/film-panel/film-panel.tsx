@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { SidePanel, useRememberPressed } from "@/components/side-panel/side-panel";
+import { SidePanel } from "@/components/side-panel/side-panel";
 import { Spinner } from "@/components/spinner";
 import { errorMessage } from "@/lib/api-client";
 import type { PersonRow } from "@/lib/film-people";
@@ -19,7 +19,6 @@ export interface FilmPanelProps {
 }
 
 export function FilmPanel({ filmId, peopleInView, onClose }: FilmPanelProps) {
-  useRememberPressed();
   if (filmId === null) return null;
   return <FilmDialog filmId={filmId} peopleInView={peopleInView} onClose={onClose} />;
 }

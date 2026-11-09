@@ -24,12 +24,6 @@ interface PersonBioProps {
   label?: string;
 }
 
-/** A person of the page with the roles their details panel gives under the name: what a name outside the people column needs to open it. */
-export interface BioPerson {
-  person: PersonSummary;
-  roles: string;
-}
-
 /**
  * Biography teaser for a lane header, with a "More" button that opens the person's details in the
  * slide-out panel. Renders nothing when TMDB has no biography for the person.
@@ -48,8 +42,8 @@ export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, l
         type="button"
         aria-haspopup="dialog"
         // A title, not an aria-label: the button is the content of its row's heading and of a lane
-        // region's name, and a label would name both "Biography of ...". The title is only a description.
-        title={`Biography of ${person.name}`}
+        // region's name, and a label would name both "Details for ...". The title is only a description.
+        title={`Details for ${person.name}`}
         onClick={(event) => onOpen(person.id, event.currentTarget)}
         className="cursor-pointer rounded text-left text-strong underline-offset-2 hover:underline"
       >

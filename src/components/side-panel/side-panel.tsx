@@ -22,9 +22,9 @@ let lastPressed: Element | null = null;
 const subscribeNothing = () => () => {};
 
 /**
- * Remembers the control that was last pressed, for the panel to hand focus back to when it closes.
- * Call it from a component that is mounted while the panel is closed: the press that opens a panel
- * happens before the panel exists.
+ * Remembers the control that was last pressed, for a panel to hand focus back to when it closes.
+ * Call it once, from a component that is mounted while every panel is closed (the people page's
+ * view): the press that opens a panel happens before the panel exists, so a panel cannot do it itself.
  */
 export function useRememberPressed() {
   useEffect(() => {
@@ -104,11 +104,13 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, childre
   }, []);
 
   // Focus in on open. This must run before the inert effect below: making the page inert blurs
-  // whatever has focus, so the opener has to be read first.
+  // whatever has focus, so the opener has to be read first. Focus goes to the scroll container, not
+  // the dialog: the arrow keys, Space and Page Down scroll whatever is focused, so a long biography
+  // scrolls from the first key press.
   useEffect(() => {
     const active = document.activeElement;
     openerRef.current = active && active !== document.body ? active : lastPressed;
-    panelRef.current?.focus({ preventScroll: true });
+    (scrollRef.current ?? panelRef.current)?.focus({ preventScroll: true });
   }, []);
 
   // Lock page scroll without shifting the layout when the scrollbar disappears.
@@ -168,6 +170,7 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, childre
   function trapTab(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "Tab") return;
     const panel = panelRef.current;
+    const scroller = scrollRef.current;
     if (!panel) return;
     const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
     if (focusable.length === 0) {
@@ -177,10 +180,16 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, childre
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
     const active = document.activeElement;
+    // The dialog and its scroll container take focus but are not in the tab order (tabindex -1).
+    // From the dialog, Shift+Tab has nothing before it to go to: wrap. From the scroll container,
+    // Tab goes to the first control inside it, or wraps when there is none; Shift+Tab goes to the
+    // close button before it.
+    const tabsOutOfScroller =
+      scroller !== null && active === scroller && !focusable.some((element) => scroller.contains(element));
     if (event.shiftKey && (active === first || active === panel)) {
       event.preventDefault();
       last.focus();
-    } else if (!event.shiftKey && active === last) {
+    } else if (!event.shiftKey && (active === last || tabsOutOfScroller)) {
       event.preventDefault();
       first.focus();
     }
@@ -226,7 +235,12 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, childre
           </button>
         </div>
 
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-8 pt-5">
+        <div
+          ref={scrollRef}
+          data-side-panel-scroll
+          tabIndex={-1}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-8 pt-5 outline-none!"
+        >
           {children({ titleId, scrollRef })}
         </div>
       </div>
