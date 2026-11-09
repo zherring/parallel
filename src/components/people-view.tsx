@@ -1,9 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { FilmPanel } from "@/components/film-panel/film-panel";
-import { PersonSearch } from "@/components/person-search/person-search";
+import { PageHeadline } from "@/components/page-headline";
+import { PeopleBar } from "@/components/people-bar";
 import { FilmsSection } from "@/components/timeline/films-section";
 import { FilmSettings } from "@/components/timeline/film-settings";
 import { PeoplePanel, type PanelLayout, type PanelPerson } from "@/components/timeline/people-panel";
@@ -11,6 +12,7 @@ import type { BioPerson } from "@/components/timeline/person-bio";
 import { LayoutToggle, type Layout } from "@/components/timeline/layout-toggle";
 import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
 import { useLayoutPref } from "@/components/timeline/use-layout-pref";
+import { useFilmsTable } from "@/components/timeline/use-films-table";
 import { useUrlPeriod } from "@/components/timeline/use-period";
 import { useViewTab } from "@/components/timeline/use-view-tab";
 import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
@@ -23,13 +25,13 @@ import type { PairCritics } from "@/lib/critics";
 import { depthSearch } from "@/lib/depth-url";
 import { effectiveTrackMode } from "@/lib/film-prefs";
 import { layoutPrefOf } from "@/lib/layout-pref";
-import { personRows } from "@/lib/film-rows";
-import { hasClippingsTab, headlineCount, quoteIdsOf, showingMessage } from "@/lib/films-view";
+import { personRows, sharedRows } from "@/lib/film-rows";
+import { availableViews, hasClippingsTab, quoteIdsOf, searchWithView, showingMessage, type View } from "@/lib/films-view";
 import { laneSummary, removePersonHref } from "@/lib/lanes";
 import { periodLabel, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss } from "@/lib/person-colors";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
-import { pageHeading } from "@/lib/short-name";
+import type { ShareInput } from "@/lib/share";
 import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms, type PairShared } from "@/lib/shared";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
@@ -59,14 +61,20 @@ export function PeopleView(props: Props) {
 
 function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critics }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
+  const search = useSearchParams().toString();
   // The display preferences are shared with the Depth view (`?view=depth`), which a visitor moves to and from: see `useFilmPrefs`.
   const [{ includeMinor, showAll, trackMode }, setPrefs] = useFilmPrefs(timelines.map((t) => t.person.id).join("+"));
-  // The layout the visitor last chose, which the Timeline tab (in `FilmsSection`) goes to: the layout control sets it.
-  const [, chooseLayout] = useLayoutPref();
+  // The layout the visitor last chose, which the Timeline tab (in the page bar) goes to: the layout control sets it.
+  const [layoutPref, chooseLayout] = useLayoutPref();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const timelineRef = useRef<TimelineHandle>(null);
-  const [view] = useViewTab(hasClippingsTab(clippings, critics), quoteIdsOf(clippings, critics));
+  const clippingsTab = hasClippingsTab(clippings, critics);
+  const [view, setView] = useViewTab(clippingsTab, quoteIdsOf(clippings, critics));
+  const views = useMemo(() => availableViews(clippingsTab), [clippingsTab]);
+  /** Counts up each time the visitor chooses a view: the films section brings the page back to its top (see `FilmsSection`). */
+  const [revealTick, setRevealTick] = useState(0);
   const [urlPeriod, setPeriod] = useUrlPeriod();
   // Starts with one shared track; separating changes only how the people's films are drawn.
   const [hiddenIds, setHiddenIds] = useState<ReadonlySet<number>>(() => new Set());
@@ -108,6 +116,10 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   const soloRows = useMemo(() => (multi ? [] : personRows(timelines[0], includeMinor)), [multi, timelines, includeMinor]);
   // Films whose every credit is minor: what the toggle would add to an otherwise empty list.
   const soloMinorExtra = !multi && !includeMinor && soloRows.length === 0 ? timelines[0].films.length : 0;
+  // The films the table lists (and the headline counts, and Export writes): the films the people share, or one person's films. The table's state
+  // is held here, not in the section, so that Export (in the page bar's gear) writes them in the order the table is sorted in right now.
+  const rows = useMemo(() => (multi ? sharedRows(sharedNow, people) : soloRows), [multi, sharedNow, people, soloRows]);
+  const table = useFilmsTable(rows, today);
 
   const lanes: LaneData[] = useMemo(
     () =>
@@ -216,14 +228,40 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
 
   // The link opens the default view, so the share text counts the non-minor films, not what the toggle shows.
   const soloFilmCount = timelines[0].films.filter((film) => !film.minor).length;
-  // Three or more people: family names only, with the full names on hover.
-  const heading = pageHeading(people);
-  // The headline's count is the table's: the films they share, or the films listed for one person. It follows the
-  // checkbox like the table does; the server renders the default (checkbox off), so the first client render matches.
-  const filmCount = headlineCount(multi ? sharedNow.length : soloRows.length);
+  const share = useMemo<ShareInput>(
+    () => ({ people, count: multi ? shared.length : soloFilmCount, years: filmYears }),
+    [people, multi, shared.length, soloFilmCount, filmYears],
+  );
 
-  // The note in the toolbar: it says what the page is showing and takes the period away. It is in the toolbar's row
-  // (not above it) so that choosing a period with the brush does not push the timeline down.
+  // The page bar's views: tabs of this page's panels (the section's, which carry the ids). Timeline is the layout the visitor last chose: the
+  // Depth view for Focus (the same page on `?view=depth`, with its period, not a panel of this one), the flat timeline for Combined.
+  const headingId = multi ? "together" : "films";
+  const hrefFor = useCallback(
+    (next: View) => {
+      if (next === "timeline" && layoutPref === "focus") return `${pathname}${depthSearch(search)}`;
+      return `${pathname}${searchWithView(search, next)}`;
+    },
+    [pathname, search, layoutPref],
+  );
+  const selectView = useCallback(
+    (next: View) => {
+      if (next === view) return;
+      if (next === "timeline" && layoutPref === "focus") {
+        router.push(`${window.location.pathname}${depthSearch(window.location.search)}`);
+        return;
+      }
+      setRevealTick((tick) => tick + 1);
+      setView(next);
+    },
+    [view, layoutPref, router, setView],
+  );
+  const exportList = useMemo(
+    () => ({ films: table.rows, today, names: people.map((person) => person.name) }),
+    [table.rows, today, people],
+  );
+
+  // The note over the panels: it says what the page is showing and takes the period away. Its line is kept (see `FilmsSection`),
+  // so that choosing a period with the brush does not push the timeline down.
   const periodNote = period && (
     <p>
       Showing <span className="font-semibold text-strong">{periodLabel(period)}</span>
@@ -289,77 +327,73 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   );
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-6xl px-4 py-8">
-      {/* The combined timeline's colours, as custom properties (src/lib/person-colors.ts): the hover card is in a portal. */}
-      {multi && <style>{personColorCss()}</style>}
+    <>
       {/*
-        The title row: the headline (the names and, muted, the film count the table lists) and the Add
-        a person field. They share a row while the headline leaves room for the field; a longer
-        headline takes the whole row and the field drops under it, at the right (wrapping, not
-        shrinking: the headline keeps its width until it is wider than the row). On a one-person page
-        the field offers the person's frequent collaborators when it is focused while empty (a
-        dropdown over the page, so nothing in the row ever changes size or moves).
+        The page bar, the same on every view of the page, and the Depth view's too (see `PeopleBar`): fixed to the top of the screen, over the page, whose
+        top the headline's block clears. The site's header is hidden on these pages (globals.css). It is before the headline, so first in the tab order.
       */}
-      <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-3">
-        <h1
-          title={heading.full ?? undefined}
-          className="max-w-full shrink-0 break-words text-2xl font-semibold text-strong sm:text-3xl"
-        >
-          {heading.text}
-          {filmCount && <span className="font-normal text-muted">, {filmCount}</span>}
-        </h1>
-        <div className="w-full lg:ml-auto lg:w-72 lg:shrink-0">
-          <PersonSearch
-            peopleInView={people}
-            size="compact"
-            ariaLabel="Add a person"
-            suggestFor={multi ? undefined : people[0].id}
-            wideMenu
+      <PeopleBar
+        people={panelPeople}
+        views={views}
+        view={view}
+        hrefFor={hrefFor}
+        panels={{ idBase: headingId, onSelect: selectView }}
+        showAll={showAll}
+        onShowAllChange={handleShowAllChange}
+        includeMinor={includeMinor}
+        onIncludeMinorChange={handleIncludeMinorChange}
+        settingsMessage={showingMessage(multi ? sharedNow.length : soloRows.length, multi)}
+        share={share}
+        exportList={exportList}
+        backdrop
+      />
+      {/*
+        The headline: the names and, muted, the film count the table lists (it follows the checkbox, like the table does; the server renders the
+        default, the checkbox off, so the first client render matches). At the top left under the bar, as in the Depth view, and in the flow of the page.
+      */}
+      <PageHeadline people={people} count={rows.length} />
+      <div className="mx-auto w-full min-w-0 max-w-6xl px-4 pb-8">
+        {/* The combined timeline's colours, as custom properties (src/lib/person-colors.ts): the hover card is in a portal. */}
+        {multi && <style>{personColorCss()}</style>}
+
+        {multi ? (
+          <Together
+            people={people}
+            rows={rows}
+            table={table}
+            revealTick={revealTick}
+            pairwise={pairwiseNow}
+            minorExtra={minorExtra}
+            upcomingExtra={upcomingExtra}
+            note={periodNote}
+            timeline={timeline}
+            onSelect={handleSelect}
+            clippings={voicedClippings}
+            critics={critics}
+            bioPeople={bioPeople}
           />
-        </div>
+        ) : (
+          <FilmsSection
+            headingId="films"
+            together={false}
+            rows={rows}
+            caption={`Films ${people[0].name} worked on`}
+            table={table}
+            revealTick={revealTick}
+            note={periodNote}
+            empty={
+              <>
+                No films found on TMDB.
+                {soloMinorExtra > 0 && ` Turning on "${MINOR_TOGGLE_LABEL}" would add ${soloMinorExtra}.`}
+              </>
+            }
+            timeline={timeline}
+            onSelect={handleSelect}
+          />
+        )}
+
+        <FilmPanel filmId={selectedId} peopleInView={people} onClose={handleClose} />
       </div>
-
-      {multi ? (
-        <Together
-          people={people}
-          shared={sharedNow}
-          pairwise={pairwiseNow}
-          minorExtra={minorExtra}
-          upcomingExtra={upcomingExtra}
-          shareCount={shared.length}
-          shareYears={filmYears}
-          note={periodNote}
-          today={today}
-          timeline={timeline}
-          settingsControl={settingsControl}
-          onSelect={handleSelect}
-          clippings={voicedClippings}
-          critics={critics}
-          bioPeople={bioPeople}
-        />
-      ) : (
-        <FilmsSection
-          headingId="films"
-          together={false}
-          rows={soloRows}
-          names={[people[0].name]}
-          caption={`Films ${people[0].name} worked on`}
-          share={{ people, count: soloFilmCount, years: filmYears }}
-          note={periodNote}
-          today={today}
-          timeline={timeline}
-          settingsControl={settingsControl}
-          empty={
-            <>
-              No films found on TMDB.
-              {soloMinorExtra > 0 && ` Turning on "${MINOR_TOGGLE_LABEL}" would add ${soloMinorExtra}.`}
-            </>
-          }
-          onSelect={handleSelect}
-        />
-      )}
-
-      <FilmPanel filmId={selectedId} peopleInView={people} onClose={handleClose} />
-    </div>
+    </>
   );
 }

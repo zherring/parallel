@@ -93,10 +93,19 @@ body {
 }
 
 /*
- * The Depth view (?view=depth) is a full-viewport scene with its own controls: the site's header and footer leave
- * the page, and the tab order, once it mounts (src/components/depth/depth-view.tsx sets the attribute).
+ * A /p/ page (every view of it) has its own bar fixed to the top of the screen (src/components/people-bar.tsx): the home pill, the
+ * people, the views and the gear. The site's header leaves the page, and the tab order, for as long as that bar is on it: the bar
+ * is what the rule looks for, so the header is hidden from the first paint (server-rendered), and only on these pages (a 404 under
+ * /p/ has none and keeps its header).
  */
-:root[data-view="depth"] body > header,
+body:has([data-people-bar]) > header {
+  display: none;
+}
+
+/*
+ * The Depth view (?view=depth) is a full-viewport scene: the site's footer leaves the page too, and the tab order, once it mounts
+ * (src/components/depth/depth-view.tsx sets the attribute). The flat views keep it: it is at the bottom of the page.
+ */
 :root[data-view="depth"] body > footer {
   display: none;
 }

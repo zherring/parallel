@@ -68,6 +68,36 @@ test("the scene opens scrolled to the first collaboration", async ({ page }) => 
   await expect(page.locator("html")).toHaveAttribute("data-view", "depth");
 });
 
+test("the headline is at the top of where the scene lands, under the bar, mid-career, and scrolls away either way", async ({ page }) => {
+  await openDepth(page);
+  const region = scene(page);
+  const h1 = page.getByRole("heading", { level: 1 });
+
+  // The scene opened scrolled well past the top of the track (the first collaboration, 2000, is ten years in): the headline is not up there out of sight.
+  const landed = await region.evaluate((element) => element.scrollTop);
+  expect(landed).toBeGreaterThan(300);
+  await expect(h1).toHaveText(/^Scroll Alpha & Scroll Beta, \d+ films$/);
+  // Placed and shown (it is hidden until the scene has chosen where it lands), with nothing of it flashed at the top of the track.
+  await expect(h1.locator("..").locator("..")).toHaveCSS("opacity", "1");
+  const bar = (await page.locator("[data-people-bar]").getByRole("button", { name: /^People on this page/ }).boundingBox())!;
+  const rest = (await h1.boundingBox())!;
+  expect(rest.y).toBeGreaterThanOrEqual(bar.y + bar.height);
+  expect(rest.y).toBeLessThan(bar.y + bar.height + 24);
+  expect(rest.x).toBeLessThan(16);
+  expect(rest.y + rest.height).toBeLessThan(150);
+
+  // Scrolling later or earlier moves it with the content, out of sight either way.
+  await region.evaluate((element, value) => {
+    element.scrollTop = value;
+  }, landed + 300);
+  await expect.poll(async () => (await h1.boundingBox())!.y).toBeCloseTo(rest.y - 300, 1);
+  expect((await h1.boundingBox())!.y + (await h1.boundingBox())!.height).toBeLessThan(0);
+  await region.evaluate((element, value) => {
+    element.scrollTop = value;
+  }, landed - 300);
+  await expect.poll(async () => (await h1.boundingBox())!.y).toBeCloseTo(rest.y + 300, 1);
+});
+
 test("the films made together float in front: larger, with their own shadow, and above every layer behind", async ({ page }) => {
   await openDepth(page);
   const region = scene(page);
@@ -1906,16 +1936,19 @@ test.describe("on a phone", () => {
     expect(sheetBox.y + sheetBox.height).toBeLessThanOrEqual(844);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
 
-    // A tap on Table goes to the table.
+    // A tap on Table goes to the table (the flat page's tabs are in its sheet on a phone too: there are none on the bar to look for).
     await views.getByRole("link", { name: "Table", exact: true }).tap();
-    await expect(page.getByRole("tab", { name: "Table", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(page).toHaveURL(/view=table/);
+    // (A phone's table is a list of cards, not a `table`: the tab, which is not shown there, says which view is on.)
+    await expect(page.locator('[role="tab"][id$="-tab-table"]')).toHaveAttribute("aria-selected", "true");
+    await expect(scene(page)).toHaveCount(0);
   });
 
   test("the bar has no home pill, to leave the heads their room: the way home is a link in the gear's sheet", async ({ page }) => {
     await openDepth(page);
     // Not on the bar: the home pill would push the open card off the right edge, and crowd the heads.
     await expect(homeLink(page)).toBeHidden();
-    await expect(page.locator("[data-depth-chrome]").getByRole("link", { name: "Parallel home", exact: true })).toBeHidden();
+    await expect(page.locator("[data-people-bar]").getByRole("link", { name: "Parallel home", exact: true })).toBeHidden();
 
     await settingsGear(page).tap();
     const sheet = settingsSheet(page);
@@ -1942,7 +1975,7 @@ test.describe("on a phone", () => {
     await expect(sheet.getByRole("combobox", { name: "From year", exact: true })).toBeVisible();
 
     await sheet.getByRole("button", { name: "Combined timeline", exact: true }).tap();
-    await expect(page.getByRole("tab", { name: "Timeline", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(scene(page)).toHaveCount(0);
     await expect(layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(scene(page)).toHaveCount(0);
   });

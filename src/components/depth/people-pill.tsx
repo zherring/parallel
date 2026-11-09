@@ -8,14 +8,15 @@ import { springEasing } from "@/components/landing/hero-motion";
 import { PersonAvatar } from "@/components/person-avatar";
 import { PersonSearch } from "@/components/person-search/person-search";
 import { cn } from "@/components/timeline/cn";
+import { PersonBio } from "@/components/timeline/person-bio";
 import { filmCountLabel, joinNames } from "@/lib/format";
 import { personColor } from "@/lib/person-colors";
+import type { PersonSummary } from "@/lib/types";
 
-/** One person of the page as the pill shows them. */
+/** One person of the page as the pill shows them (the people column's `PanelPerson` has all of it, and is one). */
 export interface PillPerson {
-  id: number;
-  name: string;
-  profilePath: string | null;
+  /** The person, with the biography their name opens. */
+  person: PersonSummary;
   /** Palette slot: their position in the URL (see `personSlots`). */
   slot: number;
   /** "Director, Writer" over the films shown. */
@@ -28,8 +29,8 @@ export interface PillPerson {
 
 interface PeoplePillProps {
   people: readonly PillPerson[];
-  /** The scene's scroller: scrolling it more than `SCROLL_CLOSE_PX` closes the panel. */
-  scrollerRef: RefObject<HTMLDivElement | null>;
+  /** The scene's scroller: scrolling it more than `SCROLL_CLOSE_PX` closes the panel. None on the flat pages, where the window is what scrolls. */
+  scrollerRef?: RefObject<HTMLDivElement | null>;
 }
 
 /** Closed, open, or on its way back to closed (the heads are flying home). */
@@ -53,6 +54,11 @@ function flipTransform(from: DOMRect, to: DOMRect): string {
   return `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${scale})`;
 }
 
+/** Whether the event is in a biography dialog (a native `<dialog>` on the body, see `PersonBio`), which is not inside the pill's box. */
+function inDialog(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest("dialog") !== null;
+}
+
 function headRects(root: ParentNode, attribute: string): Map<string, DOMRect> {
   const rects = new Map<string, DOMRect>();
   root.querySelectorAll<HTMLElement>(`[${attribute}]`).forEach((el) => rects.set(el.getAttribute(attribute) ?? "", el.getBoundingClientRect()));
@@ -62,7 +68,7 @@ function headRects(root: ParentNode, attribute: string): Map<string, DOMRect> {
 /**
  * The people on the page, folded into a pill at the top left: their overlapping heads (in their colours) and names,
  * with no logo. Tapping the heads opens a floating card: each person's row, with a way to remove them, and the key to the green.
- * The way back to the flat timeline is the layout control and the views, in `DepthChrome`, which also holds the pill's place. The heads fly apart into their rows when it opens and fly back together when it closes (a FLIP animation
+ * The way back to the flat timeline is the layout control and the views, in `PeopleBar`, which also holds the pill's place. The heads fly apart into their rows when it opens and fly back together when it closes (a FLIP animation
  * with the hero's spring, on the compositor; none for reduced motion). While it is open the pill's outline fades away and, in
  * its place, the app's usual search field to add someone (focused) takes the card's width, with a close button of its own,
  * a square icon just to its right.
@@ -73,7 +79,7 @@ function headRects(root: ParentNode, attribute: string): Map<string, DOMRect> {
  * text typed or a dropdown showing it clears or closes that, and only an Escape with nothing to dismiss closes the pill. It is
  * closed on the server.
  *
- * It is laid out by `DepthChrome` (a fixed bar, a sibling of the scroller, never inside it: perspective would turn `fixed` into
+ * It is laid out by `PeopleBar` (a fixed bar, a sibling of the Depth view's scroller, never inside it: perspective would turn `fixed` into
  * `absolute`); while it is open it has `data-open`, which the bar's other controls look for to step aside.
  */
 export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
@@ -91,15 +97,15 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
   const openedAt = useRef(0);
   const running = useRef<Animation[]>([]);
 
-  const peopleInView = useMemo(() => people.map(({ id, name }) => ({ id, name })), [people]);
-  const names = joinNames(people.map((person) => person.name));
+  const peopleInView = useMemo(() => people.map(({ person }) => ({ id: person.id, name: person.name })), [people]);
+  const names = joinNames(people.map(({ person }) => person.name));
   const single = people.length === 1;
 
   const open = () => {
     const root = rootRef.current;
     if (!root) return;
     fromRects.current = headRects(root, "data-pill-head");
-    openedAt.current = scrollerRef.current?.scrollTop ?? 0;
+    openedAt.current = scrollerRef?.current?.scrollTop ?? window.scrollY;
     setPhase("open");
   };
 
@@ -214,39 +220,46 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
   // ---- what closes it ------------------------------------------------------------
   useEffect(() => {
     if (phase !== "open") return;
-    const scroller = scrollerRef.current;
+    // The scene's scroller, or the page itself on the flat pages (their bar is fixed, and the window is what scrolls under it).
+    const scroller = scrollerRef?.current ?? null;
+    const scrolled = () => (scroller ? scroller.scrollTop : window.scrollY);
+    const scrollTarget: HTMLElement | Window = scroller ?? window;
     // The scene is re-fitted when the viewport changes (a phone's keyboard opening for the field, its address bar folding), and
     // the browser may move the scroller with it: that is not the visitor scrolling, so the distance starts again from there.
     let settleUntil = 0;
     const onResize = () => {
       settleUntil = performance.now() + RESIZE_SETTLE_MS;
-      if (scroller) openedAt.current = scroller.scrollTop;
+      openedAt.current = scrolled();
     };
     const onScroll = () => {
-      if (!scroller) return;
       if (performance.now() < settleUntil) {
-        openedAt.current = scroller.scrollTop;
+        openedAt.current = scrolled();
         return;
       }
-      if (Math.abs(scroller.scrollTop - openedAt.current) > SCROLL_CLOSE_PX) requestClose(false);
+      if (Math.abs(scrolled() - openedAt.current) > SCROLL_CLOSE_PX) requestClose(false);
     };
     const onPointerDown = (event: PointerEvent) => {
       // The field's dropdown hangs inside the pill's box (it is not portalled), so a press on it is a press inside.
       if (event.target instanceof Node && rootRef.current?.contains(event.target)) return;
+      // A biography a name opened (`PersonBio`) is a dialog on the body: a press in it is not one outside the pill, which stays open under it, for
+      // the focus to come back to the name that opened it.
+      if (inDialog(event.target)) return;
       requestClose(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       // A key the field handled (closing its list of results, clearing its text) is not for the pill as well.
       if (event.key !== "Escape" || event.defaultPrevented) return;
+      // An Escape in an open biography closes the biography (the dialog's own), not the pill under it.
+      if (inDialog(event.target)) return;
       requestClose(true);
     };
-    scroller?.addEventListener("scroll", onScroll, { passive: true });
+    scrollTarget.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
     window.visualViewport?.addEventListener("resize", onResize);
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("keydown", onKeyDown);
     return () => {
-      scroller?.removeEventListener("scroll", onScroll);
+      scrollTarget.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
       window.visualViewport?.removeEventListener("resize", onResize);
       document.removeEventListener("pointerdown", onPointerDown, true);
@@ -282,7 +295,7 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
             className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-full py-1 pl-2 pr-2 hover:bg-surface/60 max-sm:pl-1.5"
           >
             <span className="flex shrink-0 items-center -space-x-1 pl-1">
-              {people.map((person) => (
+              {people.map(({ person, slot }) => (
                 <span
                   key={person.id}
                   data-pill-head={person.id}
@@ -293,7 +306,7 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
                     name={person.name}
                     profilePath={person.profilePath}
                     size={32}
-                    ringColor={personColor(person.slot)}
+                    ringColor={personColor(slot)}
                     className="max-sm:size-7!"
                   />
                 </span>
@@ -318,7 +331,7 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
                 peopleInView={peopleInView}
                 size="compact"
                 ariaLabel="Add a person"
-                suggestFor={single ? people[0].id : undefined}
+                suggestFor={single ? people[0].person.id : undefined}
                 onIdleEscape={() => close(true)}
               />
             </div>
@@ -352,19 +365,29 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
           />
           <div className="relative p-2">
             <ul className="m-0 list-none p-0">
-              {people.map((person) => (
+              {people.map(({ person, slot, roles, filmCount, removeHref }) => (
                 <li key={person.id} className="flex items-center gap-3 rounded-xl px-2 py-2">
                   <span data-row-head={person.id} className="inline-flex shrink-0 origin-top-left">
-                    <PersonAvatar name={person.name} profilePath={person.profilePath} size={40} ringColor={personColor(person.slot)} />
+                    {/* The portrait opens the biography, as the name does (and as the people column's rows open it from their name). */}
+                    <PersonBio
+                      person={person}
+                      roles={roles}
+                      portrait={<PersonAvatar name={person.name} profilePath={person.profilePath} size={40} ringColor={personColor(slot)} />}
+                    />
                   </span>
                   <div data-fade className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold leading-tight text-strong">{person.name}</p>
-                    {person.roles && <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-body">{person.roles}</p>}
-                    <p className="mt-0.5 text-xs tabular-nums text-muted">{filmCountLabel(person.filmCount)}</p>
+                    {/* As the people column writes a row: the name (up to two lines, the whole of it on hover) opening the biography, the roles in full, the film count. */}
+                    <p title={person.name} className="line-clamp-2 break-words text-sm font-semibold leading-tight text-strong">
+                      <span className="relative inline-block max-w-full align-top">
+                        <PersonBio person={person} roles={roles} nameTrigger />
+                      </span>
+                    </p>
+                    {roles && <p className="mt-0.5 text-xs leading-snug text-body">{roles}</p>}
+                    <p className="mt-0.5 text-xs tabular-nums text-muted">{filmCountLabel(filmCount)}</p>
                   </div>
                   <Link
                     data-fade
-                    href={person.removeHref}
+                    href={removeHref}
                     prefetch={false}
                     aria-label={`Remove ${person.name}`}
                     title={`Remove ${person.name} from the page`}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useLayoutEffect, useMemo, useRef, type FocusEvent, type PointerEvent, type RefObject } from "react";
+import { useCallback, useId, useLayoutEffect, useMemo, useRef, type FocusEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { DepthPoster } from "@/components/depth/depth-poster";
 import { useFocusField } from "@/components/depth/use-focus-field";
 import { SOFT_WINDOW, usePosterImages } from "@/components/depth/use-poster-images";
@@ -39,6 +39,11 @@ interface DepthSceneProps {
   /** yyyy-mm-dd computed on the server; an announced film is an "upcoming" poster. */
   today: string;
   onSelect: (id: number, trigger: HTMLElement) => void;
+  /**
+   * The page's headline (`PageHeadline`, the `h1`), which goes over the track at the top of where the scene opens (the first collaboration, which can
+   * be mid-career): a plain block, not part of the 3D scene. It scrolls away with the scene, in either direction.
+   */
+  headline: ReactNode;
 }
 
 /** The scene pans by mouse like the flat timeline, but only up and down, and from posters too (a click still opens one; a drag does not). */
@@ -108,7 +113,7 @@ function focusIsVisible(element: HTMLElement): boolean {
  * `preserve-3d` too: without that it would flatten its posters onto its own plane and the push would do nothing.
  *
  * What perspective needs, and what would silently break it: nothing inside the scroller is `position: fixed` (perspective
- * turns it absolute), and the `preserve-3d` elements (the track and each layer's list) have no `overflow`, `opacity` or `filter` (any of them flattens it).
+ * turns it absolute; the page's headline is in it, a plain block where the scene opens, which scrolls away), and the `preserve-3d` elements (the track and each layer's list) have no `overflow`, `opacity` or `filter` (any of them flattens it).
  * The scroller is the one that clips; it has no background, so the dust motes behind it (`DustMotes`) show through and are never over a
  * poster. Its own scrollbar is hidden: the year rail, pinned over that edge, is the scrollbar.
  *
@@ -118,7 +123,7 @@ function focusIsVisible(element: HTMLElement): boolean {
  * Hover and focus are handled once, on the scroller, for every poster (the film popover is a portal on the body, which
  * is not inside the scroller either). The field of focus that sharpens the soft posters behind is `useFocusField`.
  */
-export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slots, info, outsideIds, includeMinor, selectedId, today, onSelect }: DepthSceneProps) {
+export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slots, info, outsideIds, includeMinor, selectedId, today, onSelect, headline }: DepthSceneProps) {
   const layers = useMemo(() => {
     const byLayer = new Map<number, DepthFilm[]>();
     for (const item of layout.films) {
@@ -130,6 +135,8 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
   }, [layout.films]);
   const byId = useMemo(() => new Map(layout.films.map((item) => [item.film.id, item])), [layout.films]);
 
+  const headlineRef = useRef<HTMLDivElement>(null);
+
   // Open on the first film made together (or where the latest-starting person begins), not at the oldest year.
   const didInitialScroll = useRef(false);
   const { anchorY, trackHeight } = layout;
@@ -138,6 +145,14 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
     if (!scroller || didInitialScroll.current) return;
     didInitialScroll.current = true;
     scroller.scrollTop = anchorScrollTop(anchorY, scroller.clientHeight, trackHeight);
+    // The headline goes at the top of where the scene lands, not at the top of the track: it is under the bar on arrival, and scrolls away from
+    // there in either direction. It is hidden until it is placed (the server does not know the viewport, so it cannot say where the scene lands),
+    // which is before the first paint of the client's render.
+    const headlineBlock = headlineRef.current;
+    if (headlineBlock) {
+      headlineBlock.style.top = `${scroller.scrollTop}px`;
+      headlineBlock.setAttribute("data-placed", "");
+    }
   }, [scrollerRef, anchorY, trackHeight]);
 
   useFocusField(scrollerRef, layout.films, people.length);
@@ -254,7 +269,16 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
         onBlur={handleBlur}
         className="fixed inset-0 z-10 cursor-grab overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none] [perspective-origin:50%_50%] [perspective:1000px] focus-visible:outline-offset-[-3px] data-[panning]:select-none [&[data-panning]_*]:cursor-grabbing!"
       >
-        <div className="pointer-events-none relative w-full [transform-style:preserve-3d]" style={{ height: trackHeight }}>
+        {/*
+          The headline, at the top of where the scene lands: absolutely placed at the scroll position it opened on (see the initial scroll), so
+          it is under the bar on arrival and scrolls with the scene from there, and does not push the track down (the track's top is the
+          scroller's scrollTop 0, which the year axis, the rail and the first scroll are all worked out from). It is a sibling of the track,
+          not in it: the track's `preserve-3d` is for the layers. No transform (so no z, no parallax: the scroller's perspective does nothing to
+          a block that is not transformed), its own stacking context (`isolate`) and over the track (`z-[1]`), which is transparent and takes no
+          pointer events. Nothing here is `fixed`: perspective would make it `absolute` anyway.
+        */}
+        <div ref={headlineRef} className="pointer-events-none absolute inset-x-0 top-0 isolate z-[1] opacity-0 data-[placed]:opacity-100">{headline}</div>
+        <div data-depth-track className="pointer-events-none relative w-full [transform-style:preserve-3d]" style={{ height: trackHeight }}>
           {layers.map((group) => (
             <ol
               key={group.layer}

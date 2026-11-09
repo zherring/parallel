@@ -1,44 +1,38 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import type { VoicedClippings } from "@/lib/clippings";
 import type { PairCritics } from "@/lib/critics";
-import { depthSearch } from "@/lib/depth-url";
 import type { TableRow } from "@/lib/film-rows";
-import { availableViews, hasClippingsTab, isFilmView, quoteIdsOf, showsPeriodNote, type View } from "@/lib/films-view";
-import type { ShareInput } from "@/lib/share";
+import { hasClippingsTab, isFilmView, quoteIdsOf, showsPeriodNote, type View } from "@/lib/films-view";
 import { ClippingsPanel } from "./clippings-panel";
 import { FilmsTable } from "./films-table";
 import type { BioPerson } from "./person-bio";
-import { ShareActions } from "./share-actions";
-import { useFilmsTable } from "./use-films-table";
-import { useLayoutPref } from "./use-layout-pref";
+import type { FilmsTableModel } from "./use-films-table";
 import { useViewTab } from "./use-view-tab";
-import { ViewTabs, viewPanelId, viewTabId } from "./view-tabs";
+import { viewPanelId, viewTabId } from "./view-tabs";
+
+/** Where the bar's bottom edge is (px from the top of the screen), and a little room: a view chosen from far down the page brings the section back to here. */
+const BAR_CLEARANCE_PX = 72;
 
 interface FilmsSectionProps {
-  /** The id of the section's (visually hidden) heading, which names it for assistive technology; also the prefix of the tab ids. */
+  /** The id of the section's (visually hidden) heading, which names it for assistive technology; also the prefix of the tab ids (the tabs are in the page bar). */
   headingId: string;
   /** The films are the ones several people made together: it words the section's heading. */
   together: boolean;
   rows: TableRow[];
-  /** Names in lane order, for the CSV file name. */
-  names: string[];
   /** What the table is, for screen readers: "Films Harrison Ford made". */
   caption: string;
-  /** What the Share menu posts about. */
-  share: ShareInput;
-  /** A short note in the toolbar between the tabs and the buttons ("Showing 1966–1981 · Show full career"); nothing when null. */
+  /** The table's state (the sort, the metrics, the films in sorted order): the page holds it, so that the bar's Export writes the table's order. */
+  table: FilmsTableModel;
+  /** Counts up each time the visitor chooses a view: the page is brought back to the section (see below). */
+  revealTick: number;
+  /** A short note over the panels ("Showing 1966–1981 · Show full career"); nothing when null. Its line is kept even then, so that a period chosen with the brush does not push the timeline down. */
   note?: ReactNode;
-  /** yyyy-mm-dd, the page's date (computed once on the server). */
-  today: string;
   /** What to say instead of a table when there are no films. */
   empty: ReactNode;
   /** The Timeline tab: the legend, the lanes and the pinned bottom bar. */
   timeline: ReactNode;
-  /** The same film preferences as the timeline, accessible from the Table toolbar too. */
-  settingsControl: ReactNode;
   onSelect: (id: number, trigger: HTMLElement) => void;
   /** The pair's quotes about each other, which add a Clippings tab; none (the default) for a page without any. */
   clippings?: VoicedClippings | null;
@@ -51,88 +45,54 @@ interface FilmsSectionProps {
 }
 
 /**
- * The films of a page as one section with two views, Timeline and Table, shown one at a time as
- * tabs: the tabs and Export and Share on one row (the section's heading is for screen readers; the
- * page headline above carries the film count), then the selected view and the small source note.
- * Preferences live in the timeline's gear or, for Table, beside its tabs. A pair with curated quotes
- * (`clippings`) or critics writing about their collaboration (`critics`) has a third tab, Clippings; it is not about the films, so while it is selected the
- * period note, Export, the settings control and the source note are left out (Share stays).
+ * The films of a page as one section with two views, Timeline and Table, shown one at a time (and a third, Clippings, for a pair with curated
+ * quotes (`clippings`) or critics writing about their collaboration (`critics`)). The views' tabs are in the page bar (`PeopleBar`, the same
+ * on every view of the page, with Export and Share in its gear); the section is what is under the page's headline: a line for the period
+ * note, then the selected view, then the small source note. The section's heading is for screen readers; the headline above carries the
+ * film count.
  *
  * The panels are always mounted (the server renders them all, the inactive ones `hidden`): the table's
  * film titles and credits are in the HTML whichever tab is selected, and the timeline keeps its
  * zoom, scroll position and expanded lanes while the table is shown. The server and the first
  * client render show the Timeline; the address bar (`?view=`) is read after hydration, see
- * `useViewTab`. Choosing Timeline from another tab goes to the Depth view instead, if Focus is the layout the visitor last chose (`useLayoutPref`).
+ * `useViewTab`. While the Clippings are selected the period note and the source note are left out.
  */
 export function FilmsSection({
   headingId,
   together,
   rows,
-  names,
   caption,
-  share,
+  table,
+  revealTick,
   note,
-  today,
   empty,
   timeline,
-  settingsControl,
   onSelect,
   clippings = null,
   critics = null,
   bioPeople,
   children,
 }: FilmsSectionProps) {
-  const table = useFilmsTable(rows, today);
   const clippingsTab = hasClippingsTab(clippings, critics);
-  const views = availableViews(clippingsTab);
-  const [view, setView] = useViewTab(clippingsTab, quoteIdsOf(clippings, critics));
-  const router = useRouter();
-  // The layout the visitor last chose (see `useLayoutPref`): Timeline is the Depth view for a visitor who chose Focus.
-  const [layoutPref] = useLayoutPref();
-  const toolbarRef = useRef<HTMLDivElement>(null);
-  /** A tab was chosen by the visitor and the page should be brought back to the tabs once it has re-rendered. */
-  const reveal = useRef(false);
+  const [view] = useViewTab(clippingsTab, quoteIdsOf(clippings, critics));
+  const sectionRef = useRef<HTMLElement>(null);
 
-  const select = (next: View) => {
-    if (next === view) return;
-    if (next === "timeline" && layoutPref === "focus") {
-      // The Timeline tab is the layout they chose: Focus is the same page on `?view=depth`, with its period, not a panel of this one.
-      router.push(`${window.location.pathname}${depthSearch(window.location.search)}`);
-      return;
-    }
-    reveal.current = true;
-    setView(next);
-  };
-
-  // Switching from far down a long table: the new panel starts at the toolbar, so bring that back
-  // into view rather than leaving the visitor at the bottom of a page that has just got shorter.
+  // Switching from far down a long table: the new panel starts at the top of the section, so bring that back into view (under the
+  // bar) rather than leaving the visitor at the bottom of a page that has just got shorter.
   useLayoutEffect(() => {
-    if (!reveal.current) return;
-    reveal.current = false;
-    const top = toolbarRef.current?.getBoundingClientRect().top ?? 0;
-    if (top < 0) window.scrollBy(0, top - 8);
-  }, [view]);
+    if (revealTick === 0) return;
+    const top = sectionRef.current?.getBoundingClientRect().top ?? BAR_CLEARANCE_PX;
+    if (top < BAR_CLEARANCE_PX) window.scrollBy(0, top - BAR_CLEARANCE_PX);
+  }, [revealTick]);
 
   const hidden = (panel: View) => view !== panel;
 
   return (
-    <section aria-labelledby={headingId} className="mt-6">
+    <section ref={sectionRef} aria-labelledby={headingId}>
       <h2 id={headingId} className="sr-only">
         {together ? "Films together" : "Films"}
       </h2>
-      <div ref={toolbarRef} className="flex flex-wrap items-center gap-x-4 gap-y-3">
-        <ViewTabs idBase={headingId} view={view} views={views} onChange={select} />
-        {note && showsPeriodNote(view) && <div className="min-w-0 text-sm text-body">{note}</div>}
-        <ShareActions
-          // The export follows the table: the films in the order they are sorted in right now.
-          films={table.rows}
-          today={today}
-          names={names}
-          share={share}
-          showExport={isFilmView(view)}
-        />
-        {view === "table" && <div className="ml-auto sm:ml-0">{settingsControl}</div>}
-      </div>
+      <div className="min-h-5 min-w-0 text-sm text-body">{note && showsPeriodNote(view) && note}</div>
 
       {rows.length === 0 && isFilmView(view) && <p className="mt-4 max-w-xl text-body">{empty}</p>}
 
@@ -141,7 +101,9 @@ export function FilmsSection({
         id={viewPanelId(headingId, "timeline")}
         aria-labelledby={viewTabId(headingId, "timeline")}
         hidden={hidden("timeline")}
-        className="mt-4"
+        // The timeline's panels (the people column and the controls are `z-[65]` and above) stay in the timeline's own stacking context, under the page bar
+        // that is fixed over the top of the page, as they are under everything else outside it.
+        className="isolate mt-2"
       >
         {timeline}
       </div>
@@ -151,7 +113,7 @@ export function FilmsSection({
         id={viewPanelId(headingId, "table")}
         aria-labelledby={viewTabId(headingId, "table")}
         hidden={hidden("table")}
-        className="mt-4"
+        className="mt-2"
       >
         {rows.length === 0 ? <p className="text-sm text-muted">There are no films to list.</p> : <FilmsTable caption={caption} table={table} onSelect={onSelect} />}
         {children}
@@ -163,7 +125,7 @@ export function FilmsSection({
           id={viewPanelId(headingId, "clippings")}
           aria-labelledby={viewTabId(headingId, "clippings")}
           hidden={hidden("clippings")}
-          className="mt-4"
+          className="mt-2"
         >
           <ClippingsPanel pair={clippings} critics={critics} active={view === "clippings"} bioPeople={bioPeople} />
         </div>

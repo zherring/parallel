@@ -51,7 +51,7 @@ interface FilmSettingsPopupProps extends FilmSettingsProps {
    * that hangs from something inside it (the Share menu) shows in full.
    */
   scrollable?: boolean;
-  /** More in the pop-up, over and under the film options (the Depth view's views, layout and Share). */
+  /** More in the pop-up, over and under the film options (the page bar's views and layout, and Share and Export). A click inside an element with `data-close-sheet` closes the pop-up. */
   before?: ReactNode;
   after?: ReactNode;
 }
@@ -149,6 +149,12 @@ export function FilmSettings({
             scrollable && "max-h-[calc(100dvh-1rem)] overflow-y-auto",
           )}
           style={position ? { left: position.left, top: position.top } : { visibility: "hidden" }}
+          // A choice that moves the page on (a view chosen in the sheet) closes it: the sheet would be left over the new view.
+          onClick={(event) => {
+            if (!(event.target instanceof Element) || !event.target.closest("[data-close-sheet]")) return;
+            setOpen(false);
+            buttonRef.current?.focus({ preventScroll: true });
+          }}
         >
           {before}
           <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">Film settings</h2>

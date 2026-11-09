@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { PersonAvatar } from "@/components/person-avatar";
 import { bioSnippet, lifeLine, splitParagraphs } from "@/lib/biography";
@@ -25,6 +25,11 @@ interface PersonBioProps {
   nameTrigger?: boolean;
   /** With `nameTrigger`: what the opener says in place of the full name ("Spielberg"); the dialog still opens on the full name. */
   label?: string;
+  /**
+   * The person's portrait (a `PersonAvatar`) as the opener, for a row that shows one beside the name: it opens the same dialog. It is a button
+   * of its own that is out of the Tab order, since the name beside it (`nameTrigger`) is the keyboard's way in; it takes the mouse and the touch.
+   */
+  portrait?: ReactNode;
 }
 
 /** A person of the page with the roles their biography dialog gives under the name: what a name outside the people column needs to open it. */
@@ -42,7 +47,7 @@ export interface BioPerson {
  * the teaser shrinks line by line, down to just the button. The full text is only rendered
  * while the dialog is open.
  */
-export function PersonBio({ person, roles, flow = false, nameTrigger = false, label }: PersonBioProps) {
+export function PersonBio({ person, roles, flow = false, nameTrigger = false, label, portrait }: PersonBioProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const wasOpen = useRef(false);
@@ -58,6 +63,26 @@ export function PersonBio({ person, roles, flow = false, nameTrigger = false, la
     if (wasOpen.current && !open) buttonRef.current?.focus({ preventScroll: true });
     wasOpen.current = open;
   }, [open]);
+
+  if (portrait) {
+    return (
+      <>
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-haspopup="dialog"
+          aria-label={`Biography of ${person.name}`}
+          title={`Biography of ${person.name}`}
+          tabIndex={-1}
+          onClick={() => setOpen(true)}
+          className="inline-flex cursor-pointer rounded-full"
+        >
+          {portrait}
+        </button>
+        {open && createPortal(<BioDialog person={person} roles={roles} onClose={() => setOpen(false)} />, document.body)}
+      </>
+    );
+  }
 
   if (nameTrigger) {
     return (

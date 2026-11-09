@@ -7,6 +7,8 @@ import { DepthChrome } from "@/components/depth/depth-chrome";
 import type { PillPerson } from "@/components/depth/people-pill";
 import { YearRail } from "@/components/depth/year-rail";
 import { FilmPanel } from "@/components/film-panel/film-panel";
+import { PageHeadline } from "@/components/page-headline";
+import type { ExportList } from "@/components/timeline/export-button";
 import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
 import { useUrlPeriod } from "@/components/timeline/use-period";
 import { cardFilms } from "@/lib/card-films";
@@ -16,19 +18,21 @@ import type { PairCritics } from "@/lib/critics";
 import { depthLayout } from "@/lib/depth-layout";
 import { demoteMinor, minorOnlyIds } from "@/lib/depth-minor";
 import { DEPTH_VIEW, withDepth } from "@/lib/depth-url";
+import { personRows, sharedRows } from "@/lib/film-rows";
+import { DEFAULT_SORT, sortFilms } from "@/lib/films-table";
 import { availableViews, hasClippingsTab, showingMessage } from "@/lib/films-view";
 import { laneSummary, removePersonHref } from "@/lib/lanes";
 import { outsidePeriodIds, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss, personSlots } from "@/lib/person-colors";
 import { postersLeftOut } from "@/lib/poster-cap";
 import type { ShareInput } from "@/lib/share";
-import type { PairShared } from "@/lib/shared";
+import { sharedFilms, type PairShared } from "@/lib/shared";
 import { centerYear, scrollLeftForCenter } from "@/lib/timeline-layout";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
 interface Props {
   timelines: PersonTimeline[];
-  /** Films all people share (the flat view's headline and table; the Depth view works them out from the lanes). */
+  /** Films all people share, non-minor credits only (the flat view's headline and table: the Depth view's headline counts them too, and Export writes them). */
   shared: SharedFilm[];
   /** Per-pair shared films; empty unless there are 3 or more people. */
   pairwise: PairShared[];
@@ -99,9 +103,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
       lanes.map(({ person, films }): PillPerson => {
         const removeHref = removePersonHref(people, person.id);
         return {
-          id: person.id,
-          name: person.name,
-          profilePath: person.profilePath,
+          person,
           slot: slots.get(person.id) ?? 0,
           roles: laneSummary(films, person, includeMinor).roles,
           filmCount: films.length,
@@ -129,6 +131,22 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
   );
   // The count the flat page's checkbox announces: every film (the cap leaves a film without a poster, it does not take it off the page).
   const settingsMessage = showingMessage(multi ? everyEntry.filter((entry) => entry.shared).length : everyEntry.length, multi);
+
+  // The flat page's list, which the headline counts and Export writes (the gear has it on every view): the films the people share, or one person's
+  // films, minor credits in only when the settings include them. The server sends the default list; it is worked out again only when they do.
+  const sharedNow = useMemo(
+    () => (includeMinor ? sharedFilms(timelines, { includeMinor: true, today }) : shared),
+    [includeMinor, shared, timelines, today],
+  );
+  const rows = useMemo(
+    () => (multi ? sharedRows(sharedNow, people) : personRows(timelines[0], includeMinor)),
+    [multi, sharedNow, people, timelines, includeMinor],
+  );
+  // The table's default order, which is what the flat page's Export writes before a column is sorted.
+  const exportList = useMemo<ExportList>(
+    () => ({ films: sortFilms(rows, DEFAULT_SORT, new Map(), today), today, names: people.map((person) => person.name) }),
+    [rows, today, people],
+  );
 
   // The year at the middle of the screen stays there when the settings redraw the scene (the axis may grow or shrink at its ends).
   const keptCenter = useRef<number | null>(null);
@@ -190,6 +208,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
         onTrackModeChange={(trackMode) => setPrefs({ trackMode })}
         settingsMessage={settingsMessage}
         share={share}
+        exportList={exportList}
       />
       {/* Beneath the scroller, which is transparent: a mote is never drawn over a poster. */}
       <DustMotes scrollerRef={scrollerRef} />
@@ -206,6 +225,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
         selectedId={selectedId}
         today={today}
         onSelect={handleSelect}
+        headline={<PageHeadline people={people} count={rows.length} />}
       />
       <YearRail
         scrollerRef={scrollerRef}
