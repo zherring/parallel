@@ -1,5 +1,7 @@
 import { memo, type CSSProperties } from "react";
+import { filmLabel } from "@/lib/film-label";
 import { tmdbImage } from "@/lib/images";
+import { placeholderFill } from "@/lib/poster-placeholder";
 import { blurFor, columnIndex, phoneBlurFor, posterFactor, restOpacityFor, type DepthFilm } from "@/lib/depth-layout";
 import { personColor, personGlow } from "@/lib/person-colors";
 import { cn } from "@/components/timeline/cn";
@@ -27,8 +29,8 @@ interface DepthPosterProps {
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
-function accessibleName(title: string, year: number, roles: string, note: string, upcoming: boolean): string {
-  return [`${title}, ${year}`, roles, note, upcoming ? "Upcoming release" : "", "Open details"]
+function accessibleName(label: ReturnType<typeof filmLabel>, roles: string, note: string, upcoming: boolean): string {
+  return [label.year === null ? label.title : `${label.title}, ${label.year}`, roles, note, upcoming ? "Upcoming release" : "", "Open details"]
     .filter(Boolean)
     .join(". ")
     .concat(".");
@@ -71,6 +73,8 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
   // Collaborations are the sharp ones in front: a bigger image. The posters of the layers behind are two images, a soft
   // one (small and blurred, drawn once) under a sharp one whose opacity the focus field raises (see `useFocusField`).
   const soft = background;
+  // `Title, Year`: a title that already ends with its year is not said twice (see `filmLabel`). The label is only drawn for a film made together.
+  const label = filmLabel(film.title, film.year);
   // Out of the period a link chose, the dimming (the `li`'s `opacity-25`) is the whole opacity: the obscurity's is not stacked under it.
   const dimmed = outside && !selected;
   // The films several people made, and a page of one person's (up front, big and sharp), get the larger image.
@@ -148,7 +152,7 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
         data-film={film.id}
         data-lane={slots[0] ?? 0}
         data-layer={layer}
-        aria-label={accessibleName(film.title, film.year, roles, note, upcoming)}
+        aria-label={accessibleName(label, roles, note, upcoming)}
         aria-describedby={describedBy}
         aria-current={selected ? "true" : undefined}
         onClick={(event) => onSelect(film.id, event.currentTarget)}
@@ -169,13 +173,18 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
             />
           )}
           <span
+            data-poster-face
             className={cn(
-              "relative block size-full overflow-hidden rounded-[5px] bg-surface",
+              "relative block size-full overflow-hidden rounded-[5px]",
               selected && "outline outline-2 outline-offset-2 outline-strong",
               "group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-focus",
             )}
             // The ring only: the glow and the shadows are under the card (globals.css), so a ring and a shadow never paint over each other.
-            style={shared ? { boxShadow: "0 0 0 2px var(--lit)" } : ringColor !== null ? { boxShadow: `0 0 0 1.5px ${ringColor}` } : undefined}
+            // The fill is what shows until the image has arrived: the surface, tinted with the person's colour (green for a film made together).
+            style={{
+              backgroundColor: placeholderFill(shared ? "var(--lit)" : ringColor),
+              ...(shared ? { boxShadow: "0 0 0 2px var(--lit)" } : ringColor !== null ? { boxShadow: `0 0 0 1.5px ${ringColor}` } : null),
+            }}
           >
             {soft &&
               (softSrc ? (
@@ -260,13 +269,15 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
               )}
             >
               <span data-caption-chip className={LABEL_HIGHLIGHT}>
-                {film.title}
-                <span data-caption-tail className="whitespace-nowrap">
-                  {", "}
-                  <span data-caption-year className="tabular-nums text-muted">
-                    {film.year}
+                {label.title}
+                {label.year !== null && (
+                  <span data-caption-tail className="whitespace-nowrap">
+                    {", "}
+                    <span data-caption-year className="tabular-nums text-muted">
+                      {label.year}
+                    </span>
                   </span>
-                </span>
+                )}
               </span>
             </span>
           </span>

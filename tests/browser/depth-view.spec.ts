@@ -1,4 +1,4 @@
-import { test, expect, MINOR_FILM_COUNT, PEOPLE_PATH } from "./fixtures";
+import { test, expect, MINOR_FILM_COUNT, PEOPLE_PATH, PIXEL } from "./fixtures";
 import type { Page } from "next/experimental/testmode/playwright";
 
 // Activate the server-side fetch fixtures before any test navigates to a people page.
@@ -1554,6 +1554,72 @@ test("while the pill is open the bar's other controls step aside: nothing is und
   await expect(pill(page)).toHaveAttribute("aria-expanded", "false");
   await expect(depthViews(page)).toBeVisible();
   await expect(settingsGear(page)).toBeVisible();
+});
+
+test("until its image arrives a poster is the dark surface tinted with its person's colour (green for a film made together), and the image arrives without moving anything", async ({ page }) => {
+  // Every poster image is held back until the test lets go: the connection is as slow as it gets.
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("https://image.tmdb.org/**", async (route) => {
+    await gate;
+    await route.fulfill({ contentType: "image/png", body: PIXEL }).catch(() => {});
+  });
+  try {
+    // The page's load waits for images that are in the markup, so it is the scene that is waited for.
+    await page.goto(`${PEOPLE_PATH}?view=depth`, { waitUntil: "domcontentloaded" });
+    await expect(scene(page)).toBeVisible();
+    await expect.poll(async () => Number(await rail(page).getAttribute("aria-valuenow"))).toBeGreaterThan(0);
+    // A jump (as along the rail) to posters whose images were not asked for before it.
+    await scrollToCentre(page, 1011);
+
+    const onScreen = () =>
+      scene(page).evaluate((scroller) =>
+        [...scroller.querySelectorAll<HTMLElement>("[data-poster]")]
+          .map((li) => {
+            const box = li.getBoundingClientRect();
+            const face = li.querySelector<HTMLElement>("[data-poster-face]")!;
+            // A `color-mix` computes to `color(srgb r g b)` with channels 0 to 1, a plain colour to `rgb(r, g, b)`.
+            const colour = getComputedStyle(face).backgroundColor;
+            const [r, g, b] = colour.match(/[\d.]+/g)!.slice(0, 3).map((channel) => Math.round(Number(channel) * (colour.startsWith("color(") ? 255 : 1)));
+            return {
+              id: li.dataset.poster!,
+              layer: Number(li.querySelector("button")!.dataset.layer),
+              box: [box.left, box.top, box.width, box.height].map((value) => Math.round(value * 2) / 2),
+              loaded: [...li.querySelectorAll("img")].some((img) => img.complete && img.naturalWidth > 0),
+              visible: box.bottom > 0 && box.top < innerHeight && box.right > 0 && box.left < innerWidth,
+              fill: { r, g, b },
+            };
+          })
+          .filter((poster) => poster.visible),
+      );
+    const waiting = await onScreen();
+    expect(waiting.length).toBeGreaterThan(4);
+    expect(waiting.some((poster) => poster.loaded)).toBe(false);
+
+    // The surface is #202830 (32, 40, 48); each kind of poster is tinted a little towards its colour and no more.
+    const fillOf = (layer: number) => waiting.find((poster) => poster.layer === layer)!.fill;
+    const collab = fillOf(0);
+    expect(collab.g).toBeGreaterThan(collab.r + 25);
+    expect(collab.g).toBeGreaterThan(collab.b + 8);
+    const first = fillOf(1);
+    expect(first.b).toBeGreaterThan(first.r + 15);
+    const second = fillOf(2);
+    expect(second.r).toBeGreaterThan(second.b + 3);
+    for (const { r, g, b } of [collab, first, second]) {
+      expect(Math.max(Math.abs(r - 32), Math.abs(g - 40), Math.abs(b - 48))).toBeLessThan(45);
+      expect([r, g, b]).not.toEqual([32, 40, 48]);
+    }
+
+    // The images arrive: no poster has moved or changed size.
+    release();
+    await expect.poll(async () => (await onScreen()).filter((poster) => !poster.loaded).length).toBe(0);
+    const arrived = await onScreen();
+    for (const poster of waiting) expect(arrived.find((other) => other.id === poster.id)?.box).toEqual(poster.box);
+  } finally {
+    release();
+  }
 });
 
 test("the plain address still renders the Timeline and Table tabs", async ({ page }) => {

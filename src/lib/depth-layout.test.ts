@@ -158,14 +158,26 @@ describe("bandFor", () => {
     expect([0, 1, 2, 3].map((slot) => bandFor(slot, 4))).toEqual([0.15, 0.85, 0.35, 0.65]);
   });
 
-  it("draws the bands in towards the middle on a smaller viewport, symmetrically", () => {
+  it("draws the bands in towards the middle on a tablet, symmetrically", () => {
     for (const people of [2, 3, 4]) {
       const wide = bandFor(0, people, "desktop");
-      const narrow = bandFor(0, people, "phone");
+      const narrow = bandFor(0, people, "tablet");
       expect(narrow).toBeGreaterThan(wide);
       expect(narrow).toBeLessThan(0.5);
-      expect(bandFor(1, people, "phone") - 0.5).toBeCloseTo(0.5 - narrow, 10);
+      expect(bandFor(1, people, "tablet") - 0.5).toBeCloseTo(0.5 - narrow, 10);
     }
+  });
+
+  it("does not draw them in on a phone: three or four people's columns have 362px to share, and bands any closer interleave them", () => {
+    // Measured on the real trio and quartet pages at 390 (the screens' mean overlap of the posters of different people, whole scroll): bands drawn in to
+    // 0.8 (a tablet's 0.9 is not enough room either) overlapped about 50% more on three people and a third more on four than the bands at the
+    // desktop's proportions; wider than them, the columns pile at the gutters and it is worse again.
+    for (const people of [2, 3, 4]) for (const slot of [0, 1, people - 1]) expect(bandFor(slot, people, "phone")).toBe(bandFor(slot, people, "desktop"));
+    const stage = 390 - xSpec("phone", 3).rail;
+    const [first, second, third] = xSpec("phone", 3).bands;
+    // Neighbouring people's bands (the first and the third of three) are over 100px apart on the stage, where the columns around them are 70px.
+    expect((third - first) * stage).toBeGreaterThan(100);
+    expect((second - third) * stage).toBeGreaterThan(100);
   });
 });
 
@@ -180,10 +192,10 @@ describe("xSpec", () => {
     }
   });
 
-  it("widens the columns and the bands with the viewport", () => {
+  it("widens the columns with the viewport, and the bands from a tablet's to a desktop's", () => {
     expect(xSpec("desktop", 2).stepSolo).toBeGreaterThan(xSpec("phone", 2).stepSolo);
     expect(xSpec("desktop", 2).stepCollab).toBeGreaterThan(xSpec("phone", 2).stepCollab);
-    expect(xSpec("desktop", 2).bands[0]).toBeLessThan(xSpec("phone", 2).bands[0]);
+    expect(xSpec("desktop", 2).bands[0]).toBeLessThan(xSpec("tablet", 2).bands[0]);
   });
 
   it("keeps the columns of a layer further apart than a poster and the jitter, so none overlap, even on the first layer back (the least shrunk)", () => {

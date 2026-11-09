@@ -129,7 +129,8 @@ export interface XSpec {
  * is what lets a desktop use its width while a phone keeps three columns inside 362px.
  */
 const TIERS: Record<DepthTier, Omit<XSpec, "bands" | "soloScale" | "people"> & { stepSoloOne: number; singleScale: number; spread: number }> = {
-  phone: { rail: 28, gutter: 4, stepCollab: 128, collabScale: 0.76, stepSolo: 70, stepSoloOne: 108, singleScale: 0.8, jitterSpan: 8, spread: 0.8 },
+  // A phone's `spread` is 1 (the desktop's bands, not drawn in): see `bandFor`'s test for what the 390px trio and quartet pages measured.
+  phone: { rail: 28, gutter: 4, stepCollab: 128, collabScale: 0.76, stepSolo: 70, stepSoloOne: 108, singleScale: 0.8, jitterSpan: 8, spread: 1 },
   tablet: { rail: 60, gutter: 8, stepCollab: 146, collabScale: 0.9, stepSolo: 100, stepSoloOne: 190, singleScale: 0.9, jitterSpan: 20, spread: 0.9 },
   desktop: { rail: 60, gutter: 8, stepCollab: 166, collabScale: 1, stepSolo: 120, stepSoloOne: 300, singleScale: 1, jitterSpan: 36, spread: 1 },
 };

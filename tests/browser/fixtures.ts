@@ -49,7 +49,7 @@ const people: Record<string, RawPerson> = {
 };
 
 /** A 1x1 PNG: every poster request is answered with it, so the browser tests need no network and still load images. */
-const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+export const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
 
 export const test = base.extend({
   page: async ({ page }, provide) => {
