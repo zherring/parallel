@@ -26,6 +26,7 @@ import {
   type DepthFilm,
   type DepthTier,
 } from "@/lib/depth-layout";
+import { MINOR_OBSCURITY } from "@/lib/depth-minor";
 import { projectX } from "@/lib/depth-projection";
 import { personSlots } from "@/lib/person-colors";
 import { xForDate } from "@/lib/timeline-layout";
@@ -452,6 +453,51 @@ describe("what obscurity does to a poster", () => {
     expect([restOpacityFor(-1), restOpacityFor(2)]).toEqual([OBSCURITY_CUES.opacity.best, OBSCURITY_CUES.opacity.worst]);
     expect([blurFor(-1), blurFor(2)]).toEqual([OBSCURITY_CUES.blur.best, OBSCURITY_CUES.blur.worst]);
     expect([depthPush(Number.NaN), restOpacityFor(Number.NaN), blurFor(Number.NaN)]).toEqual([0, 0.8, 1]);
+  });
+});
+
+describe("minor films", () => {
+  const FAMOUS_CAMEO = 9;
+  const lanes: FilmSpec[][] = [
+    [[1, "1990-01-01", 20_000], [2, "1995-01-01", 400], [FAMOUS_CAMEO, "2000-01-01", 500_000]],
+    [[4, "1991-01-01", 9000], [5, "1996-01-01", 30]],
+  ];
+  const withMinor = (people: FilmSpec[][], minor: number[]) => {
+    const { entries, peopleCount } = entriesOf(people);
+    return depthLayout(entries, peopleCount, TODAY, { minorIds: new Set(minor) });
+  };
+
+  it("are background posters, at least as faint and far back as MINOR_OBSCURITY says, whatever their votes", () => {
+    const l = withMinor(lanes, [FAMOUS_CAMEO]);
+    const cameo = byId(l, FAMOUS_CAMEO);
+    expect(cameo.background).toBe(true);
+    expect(cameo.obscurity).toBe(MINOR_OBSCURITY);
+    expect(cameo.push).toBe(depthPush(MINOR_OBSCURITY));
+    expect(cameo.depth).toBe(layerDepth(cameo.layer, 2) + cameo.push);
+    expect(posterFactor(cameo)).toBeLessThan(posterFactor(byId(l, 1)));
+  });
+
+  it("do not move the scale of the page's own work: a cameo in a famous film leaves every other poster as it was", () => {
+    const without = layout(lanes.map((films) => films.filter(([id]) => id !== FAMOUS_CAMEO)));
+    const l = withMinor(lanes, [FAMOUS_CAMEO]);
+    for (const { film: { id } } of without.films) expect(byId(l, id).obscurity).toBe(byId(without, id).obscurity);
+  });
+
+  it("keep a more obscure film more obscure than the floor", () => {
+    const l = withMinor([[[1, "1990-01-01", 20_000], [2, "1995-01-01", 0]], [[4, "1991-01-01", 9000]]], [2]);
+    expect(byId(l, 2).obscurity).toBe(1);
+  });
+
+  it("are background posters on a page of one person too, where every other poster is sharp, opaque and level", () => {
+    const l = withMinor([[[1, "1990-01-01", 20_000], [2, "1995-01-01", 400], [3, "2000-01-01", 90_000]]], [3]);
+    expect(byId(l, 1)).toMatchObject({ background: false, obscurity: 0, push: 0 });
+    expect(byId(l, 2)).toMatchObject({ background: false, obscurity: 0, push: 0 });
+    expect(byId(l, 3)).toMatchObject({ background: true, obscurity: MINOR_OBSCURITY, depth: DEPTH.singleZ + depthPush(MINOR_OBSCURITY) });
+  });
+
+  it("change nothing when there are none", () => {
+    const { entries, peopleCount } = entriesOf(lanes);
+    expect(depthLayout(entries, peopleCount, TODAY, { minorIds: new Set() })).toEqual(depthLayout(entries, peopleCount, TODAY));
   });
 });
 

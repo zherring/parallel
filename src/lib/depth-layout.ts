@@ -25,6 +25,7 @@
  */
 
 import type { CombinedFilm } from "@/lib/combined-track";
+import { MINOR_OBSCURITY } from "@/lib/depth-minor";
 import {
   axisRange,
   makeScale,
@@ -173,9 +174,9 @@ export interface DepthFilm {
   /** Distance (px) behind the screen plane, negative in front of it: the layer's (`layerDepth`) plus `push`. Its factor on screen is `posterFactor`. */
   depth: number;
   /**
-   * A poster of a layer behind, on a page of several people: drawn soft, faded by its obscurity and pushed back by it, until
-   * the focus field (or a hover) brings it into focus. False for the films several people made and for a page of one person's
-   * posters, which are always sharp, opaque and level.
+   * A poster of a layer behind, on a page of several people, or a minor film on any page: drawn soft, faded by its obscurity and pushed
+   * back by it, until the focus field (or a hover) brings it into focus. False for the films several people made and for a page of
+   * one person's posters (but its minor films), which are always sharp, opaque and level.
    */
   background: boolean;
 }
@@ -196,6 +197,12 @@ export interface DepthLayout {
 
 export interface DepthOptions {
   pxPerYear?: number;
+  /**
+   * The films that are minor for everyone who has them (see `minorOnlyIds`), on a page that includes minor credits: they are
+   * background posters, whatever the number of people on the page, at least as faint and far back as `MINOR_OBSCURITY` says.
+   * (`entries` must not list them as made together: see `demoteMinor`.) None by default.
+   */
+  minorIds?: ReadonlySet<number>;
 }
 
 /**
@@ -407,6 +414,8 @@ function scatterColumns(films: readonly Film[], scale: Scale, room: number): Map
   return result;
 }
 
+const NO_FILMS: ReadonlySet<number> = new Set();
+
 /** The layer an entry is drawn on: 0 when several (released) made it, else its first person's slot + 1. */
 function layerOf(entry: CombinedFilm): number {
   return entry.shared ? 0 : (entry.slots[0] ?? 0) + 1;
@@ -441,9 +450,14 @@ export function depthLayout(
     else byLayer.set(layer, [entry]);
   }
 
-  // The cues are for the layers behind on a page of several people; the most votes among those films is what obscurity is measured against.
+  // The cues are for the layers behind on a page of several people, and for a minor film on any page. The most votes among the films that are
+  // not minor is what obscurity is measured against: a cameo in a famous film does not move the scale of the page's own work.
   const cued = peopleCount >= 2;
-  const maxVotes = cued ? Math.max(0, ...placeable.filter((entry) => layerOf(entry) > 0).map((entry) => entry.film.voteCount || 0)) : 0;
+  const minorIds = options.minorIds ?? NO_FILMS;
+  const maxVotes = Math.max(
+    0,
+    ...placeable.filter((entry) => layerOf(entry) > 0 && !minorIds.has(entry.film.id)).map((entry) => entry.film.voteCount || 0),
+  );
 
   const films: DepthFilm[] = [];
   for (const layer of [...byLayer.keys()].sort((a, b) => a - b)) {
@@ -469,8 +483,9 @@ export function depthLayout(
       const { y, col } = columns.get(film.id) as { y: number; col: number };
       // The vertical jitter stays within half the gap on each side, so two posters that were `rowGap` apart still do not touch.
       const dy = spine ? 0 : (hashUnit(film.id * 7 + 1) - 0.5) * DEPTH.rowGap;
-      const background = cued && !spine;
-      const obscurity = background ? obscurityOf(film.voteCount, maxVotes) : 0;
+      const minor = !spine && minorIds.has(film.id);
+      const background = (cued && !spine) || minor;
+      const obscurity = background ? Math.max(obscurityOf(film.voteCount, maxVotes), minor ? MINOR_OBSCURITY : 0) : 0;
       const push = background ? depthPush(obscurity) : 0;
       films.push({
         film,

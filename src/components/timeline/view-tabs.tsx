@@ -5,7 +5,8 @@ import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import { VIEW_LABELS, viewForKey, type View } from "@/lib/films-view";
 import { cn } from "./cn";
 
-const ICONS: Record<View, ReactNode> = {
+/** The icon of each view, beside its label (also in the Depth view's links to the views). */
+export const VIEW_ICONS: Record<View, ReactNode> = {
   timeline: <ChartNoAxesGantt aria-hidden="true" className="size-4 shrink-0" />,
   table: <Table2 aria-hidden="true" className="size-4 shrink-0" />,
   clippings: <Quote aria-hidden="true" className="size-4 shrink-0" />,
@@ -68,7 +69,7 @@ export function ViewTabs({ idBase, view, views, onChange }: ViewTabsProps) {
               selected ? "bg-border text-strong" : "text-muted hover:bg-surface hover:text-strong",
             )}
           >
-            <span className={selected ? "text-accent-green" : undefined}>{ICONS[id]}</span>
+            <span className={selected ? "text-accent-green" : undefined}>{VIEW_ICONS[id]}</span>
             {VIEW_LABELS[id]}
           </button>
         );

@@ -3,18 +3,26 @@
 import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DepthScene } from "@/components/depth/depth-scene";
 import { DustMotes } from "@/components/depth/dust-motes";
-import { PeoplePill, type PillPerson } from "@/components/depth/people-pill";
+import { DepthChrome } from "@/components/depth/depth-chrome";
+import type { PillPerson } from "@/components/depth/people-pill";
 import { YearRail } from "@/components/depth/year-rail";
 import { FilmPanel } from "@/components/film-panel/film-panel";
+import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
 import { useUrlPeriod } from "@/components/timeline/use-period";
 import { cardFilms } from "@/lib/card-films";
+import type { PairClippings } from "@/lib/clippings";
 import { combineLanes, combinedMinimapFilms, describeCombined } from "@/lib/combined-track";
+import type { PairCritics } from "@/lib/critics";
 import { depthLayout } from "@/lib/depth-layout";
+import { demoteMinor, minorOnlyIds } from "@/lib/depth-minor";
 import { DEPTH_VIEW, withDepth } from "@/lib/depth-url";
+import { availableViews, hasClippingsTab, showingMessage } from "@/lib/films-view";
 import { laneSummary, removePersonHref } from "@/lib/lanes";
 import { outsidePeriodIds, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss, personSlots } from "@/lib/person-colors";
+import type { ShareInput } from "@/lib/share";
 import type { PairShared } from "@/lib/shared";
+import { centerYear, scrollLeftForCenter } from "@/lib/timeline-layout";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
 interface Props {
@@ -25,7 +33,14 @@ interface Props {
   pairwise: PairShared[];
   /** yyyy-mm-dd (UTC), computed once on the server, so the server and the browser lay the scene out identically. */
   today: string;
+  /** The quotes the two people of a pair have about each other, or null: whether the page has a Clippings view (the links to it). */
+  clippings: PairClippings | null;
+  /** What critics have written about the pair's collaboration, or null: the same. */
+  critics: PairCritics | null;
 }
+
+/** No film is minor: the usual scene. */
+const NO_MINOR: ReadonlySet<number> = new Set();
 
 /**
  * The Depth view of a `/p/` page (`?view=depth`): the same films as the Timeline, drawn as a vertical scene with
@@ -38,12 +53,14 @@ export function DepthView(props: Props) {
   return <DepthViewInner key={key} {...props} />;
 }
 
-function DepthViewInner({ timelines, today }: Props) {
+function DepthViewInner({ timelines, shared, today, clippings, critics }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const scrollerId = useId();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const [urlPeriod] = useUrlPeriod();
+  // "Include minor credits" is the flat page's setting, held for both views (see `useFilmPrefs`).
+  const [{ includeMinor }, setPrefs] = useFilmPrefs(timelines.map((t) => t.person.id).join("+"));
 
   // The scene hides the site's header and footer (see globals.css) for as long as it is on screen.
   useLayoutEffect(() => {
@@ -54,15 +71,16 @@ function DepthViewInner({ timelines, today }: Props) {
   }, []);
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
-  // Minor credits stay hidden: the scene has no toggle for them.
+  // Minor credits are left out unless the settings include them; with them in, a film that is minor for everyone who has it is a background poster.
   const lanes = useMemo(
-    () => timelines.map(({ person, films }) => ({ person, films: films.filter((film) => !film.minor) })),
-    [timelines],
+    () => timelines.map(({ person, films }) => ({ person, films: includeMinor ? films : films.filter((film) => !film.minor) })),
+    [timelines, includeMinor],
   );
+  const minorIds = useMemo(() => (includeMinor ? minorOnlyIds(lanes) : NO_MINOR), [includeMinor, lanes]);
   const slots = useMemo(() => personSlots(people), [people]);
-  const entries = useMemo(() => combineLanes(lanes, slots, today), [lanes, slots, today]);
-  const info = useMemo(() => describeCombined(entries, lanes, false), [entries, lanes]);
-  const layout = useMemo(() => depthLayout(entries, people.length, today), [entries, people.length, today]);
+  const entries = useMemo(() => demoteMinor(combineLanes(lanes, slots, today), minorIds), [lanes, slots, today, minorIds]);
+  const info = useMemo(() => describeCombined(entries, lanes, includeMinor), [entries, lanes, includeMinor]);
+  const layout = useMemo(() => depthLayout(entries, people.length, today, { minorIds }), [entries, people.length, today, minorIds]);
   // The people pill's rows. Removing someone stays in the Depth view, unless it was the last person (that goes home).
   const pillPeople = useMemo(
     () =>
@@ -73,20 +91,52 @@ function DepthViewInner({ timelines, today }: Props) {
           name: person.name,
           profilePath: person.profilePath,
           slot: slots.get(person.id) ?? 0,
-          roles: laneSummary(films, person, false).roles,
+          roles: laneSummary(films, person, includeMinor).roles,
           filmCount: films.length,
           removeHref: people.length > 1 ? withDepth(removeHref) : removeHref,
         };
       }),
-    [lanes, people, slots],
+    [lanes, people, slots, includeMinor],
   );
   const railFilms = useMemo(() => combinedMinimapFilms(entries), [entries]);
 
   // A link to a period dims the films outside it. It is resolved against the films the page's preview card shows,
   // so the server and the browser agree on it (as `PeopleView` does).
-  const periodSpan = useMemo(() => spanOfYears(cardFilms(timelines, today).films.map((film) => film.year)), [timelines, today]);
+  const filmYears = useMemo(() => cardFilms(timelines, today).films.map((film) => film.year), [timelines, today]);
+  const periodSpan = useMemo(() => spanOfYears(filmYears), [filmYears]);
   const period = useMemo(() => resolvePeriod(urlPeriod, periodSpan), [urlPeriod, periodSpan]);
   const outsideIds = useMemo(() => outsidePeriodIds(entries.map((entry) => entry.film), period), [entries, period]);
+
+  // The settings' footing: the page's views (Clippings only for a pair that has some), and what Share posts about, as on the flat page: the
+  // films a pair made together, or a person's films, as the link opens them (minor credits out).
+  const multi = people.length > 1;
+  const views = useMemo(() => availableViews(hasClippingsTab(clippings, critics)), [clippings, critics]);
+  const share = useMemo<ShareInput>(
+    () => ({ people, count: multi ? shared.length : timelines[0].films.filter((film) => !film.minor).length, years: filmYears }),
+    [people, multi, shared.length, timelines, filmYears],
+  );
+  const settingsMessage = showingMessage(multi ? layout.films.filter((item) => item.shared).length : layout.films.length, multi);
+
+  // The year at the middle of the screen stays there when the settings redraw the scene (the axis may grow or shrink at its ends).
+  const keptCenter = useRef<number | null>(null);
+  const rememberCenter = useCallback(() => {
+    const scroller = scrollerRef.current;
+    if (scroller) keptCenter.current = centerYear(scroller.scrollTop, scroller.clientHeight, layout.scale);
+  }, [layout.scale]);
+  useLayoutEffect(() => {
+    const year = keptCenter.current;
+    const scroller = scrollerRef.current;
+    keptCenter.current = null;
+    if (year === null || !scroller) return;
+    scroller.scrollTop = Math.max(0, Math.round(scrollLeftForCenter(year, scroller.clientHeight, layout.scale)));
+  }, [layout.scale]);
+  const handleIncludeMinorChange = useCallback(
+    (next: boolean) => {
+      rememberCenter();
+      setPrefs({ includeMinor: next });
+    },
+    [rememberCenter, setPrefs],
+  );
 
   const handleSelect = useCallback((id: number, trigger: HTMLElement) => {
     triggerRef.current = trigger;
@@ -106,7 +156,17 @@ function DepthViewInner({ timelines, today }: Props) {
       {/* The palette as custom properties (src/lib/person-colors.ts): the hover card and the panel are in portals. */}
       <style>{personColorCss()}</style>
       {/* First in the tab order, as the site's header was; fixed chrome is a sibling of the scroller, never inside it. */}
-      <PeoplePill people={pillPeople} scrollerRef={scrollerRef} />
+      <DepthChrome
+        people={pillPeople}
+        scrollerRef={scrollerRef}
+        views={views}
+        several={multi}
+        includeMinor={includeMinor}
+        onIncludeMinorChange={handleIncludeMinorChange}
+        onTrackModeChange={(trackMode) => setPrefs({ trackMode })}
+        settingsMessage={settingsMessage}
+        share={share}
+      />
       {/* Beneath the scroller, which is transparent: a mote is never drawn over a poster. */}
       <DustMotes scrollerRef={scrollerRef} />
       <DepthScene
@@ -118,6 +178,7 @@ function DepthViewInner({ timelines, today }: Props) {
         slots={slots}
         info={info}
         outsideIds={outsideIds}
+        includeMinor={includeMinor}
         selectedId={selectedId}
         today={today}
         onSelect={handleSelect}

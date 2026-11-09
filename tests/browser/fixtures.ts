@@ -13,6 +13,17 @@ const movie = (id: number, date: string, votes = 100): RawCastCredit => ({
   character: "Lead",
 });
 
+/** A cameo (the character is "Himself"): the film is minor for the person, so it shows only with "Include minor credits" on. */
+const cameo = (id: number, date: string): RawCastCredit => ({ ...movie(id, date, 9000), title: `Scroll Cameo ${id}`, character: "Himself" });
+
+/**
+ * Minor credits (see `cameo`): three each of the people's own, at ids 1100 and 2100 + index, and one both have, 300. Well-voted, so
+ * that it is what "minor" does, not the film's votes, that makes the Depth view draw them faint and far back.
+ */
+export const MINOR_FILM_COUNT = 7;
+const minorOf = (offset: number) => [cameo(offset, "1992-03-01"), cameo(offset + 1, "1996-03-01"), cameo(offset + 2, "2003-03-01")];
+const sharedCameo = cameo(300, "2010-03-01");
+
 // Shared films need at least four poster rows even with the default row cap, so a short
 // viewport genuinely overflows. Period fitting/zooming changes the number of packed rows.
 const shared = [
@@ -56,6 +67,8 @@ export const test = base.extend({
         return Response.json({
           cast: [
             ...shared,
+            ...minorOf(offset + 100),
+            ...(match[1] === "90000003" ? [] : [sharedCameo]),
             ...Array.from({ length: 16 }, (_, index) => movie(offset + index, `${1990 + index}-06-01`, OWN_FILM_VOTES[index])),
           ],
           crew: [],

@@ -2,14 +2,12 @@
 
 import { ChevronDown, X } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { REDUCED_MOTION, useMediaQuery } from "@/components/depth/use-media";
 import { springEasing } from "@/components/landing/hero-motion";
 import { PersonAvatar } from "@/components/person-avatar";
 import { PersonSearch } from "@/components/person-search/person-search";
 import { cn } from "@/components/timeline/cn";
-import { flatSearch } from "@/lib/depth-url";
 import { filmCountLabel, joinNames } from "@/lib/format";
 import { personColor } from "@/lib/person-colors";
 
@@ -63,8 +61,8 @@ function headRects(root: ParentNode, attribute: string): Map<string, DOMRect> {
 
 /**
  * The people on the page, folded into a pill at the top left: their overlapping heads (in their colours) and names,
- * with no logo. Tapping the heads opens a floating card: each person's row, the key to the green and the way back to the
- * flat timeline. The heads fly apart into their rows when it opens and fly back together when it closes (a FLIP animation
+ * with no logo. Tapping the heads opens a floating card: each person's row, with a way to remove them, and the key to the green.
+ * The way back to the flat timeline is the layout control and the views, in `DepthChrome`, which also holds the pill's place. The heads fly apart into their rows when it opens and fly back together when it closes (a FLIP animation
  * with the hero's spring, on the compositor; none for reduced motion). While it is open the pill's outline fades away and, in
  * its place, the app's usual search field to add someone (focused) takes the card's width, with a close button of its own,
  * a square icon just to its right.
@@ -75,14 +73,11 @@ function headRects(root: ParentNode, attribute: string): Map<string, DOMRect> {
  * text typed or a dropdown showing it clears or closes that, and only an Escape with nothing to dismiss closes the pill. It is
  * closed on the server.
  *
- * A sibling of the scroller, never inside it: perspective would turn its `fixed` into `absolute`.
+ * It is laid out by `DepthChrome` (a fixed bar, a sibling of the scroller, never inside it: perspective would turn `fixed` into
+ * `absolute`); while it is open it has `data-open`, which the bar's other controls look for to step aside.
  */
 export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
   const reduced = useMediaQuery(REDUCED_MOTION);
-  const pathname = usePathname();
-  const search = useSearchParams().toString();
-  // The way back to the flat timeline: this page without `view=depth`, keeping the period. The bare path on the server.
-  const flatHref = `${pathname}${flatSearch(search)}`;
 
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -262,7 +257,7 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
   const shown = phase !== "closed";
 
   return (
-    <div ref={rootRef} data-people-pill className="fixed left-3 top-3 z-30 max-w-[calc(100vw-3rem)]">
+    <div ref={rootRef} data-people-pill data-open={shown ? "" : undefined} className="pointer-events-auto relative z-30 min-w-0 max-w-[calc(100vw-3rem)]">
       {/* The bar: the pill, and over it, while open, the field and the close button, which together are as wide as the card (the pill may be wider: a long list of names). */}
       <div className="relative">
         <div
@@ -387,15 +382,6 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
                 Green: made together
               </p>
             )}
-            <div data-fade className="px-2 pb-1 pt-2.5">
-              <Link
-                href={flatHref}
-                prefetch={false}
-                className="flex h-9 items-center justify-center rounded-md border border-border text-sm font-medium text-strong hover:bg-surface"
-              >
-                Flat timeline
-              </Link>
-            </div>
           </div>
         </div>
       )}

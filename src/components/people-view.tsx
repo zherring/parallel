@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { FilmPanel } from "@/components/film-panel/film-panel";
 import { PersonSearch } from "@/components/person-search/person-search";
@@ -7,7 +8,8 @@ import { FilmsSection } from "@/components/timeline/films-section";
 import { FilmSettings } from "@/components/timeline/film-settings";
 import { PeoplePanel, type PanelLayout, type PanelPerson } from "@/components/timeline/people-panel";
 import type { BioPerson } from "@/components/timeline/person-bio";
-import { TrackModeToggle, type TrackMode } from "@/components/timeline/track-mode-toggle";
+import { LayoutToggle, type Layout } from "@/components/timeline/layout-toggle";
+import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
 import { useUrlPeriod } from "@/components/timeline/use-period";
 import { useViewTab } from "@/components/timeline/use-view-tab";
 import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
@@ -17,6 +19,7 @@ import type { PairClippings } from "@/lib/clippings";
 import { voiceClippings } from "@/lib/clippings-view";
 import { toggleHidden } from "@/lib/combined-track";
 import type { PairCritics } from "@/lib/critics";
+import { depthSearch } from "@/lib/depth-url";
 import { personRows } from "@/lib/film-rows";
 import { hasClippingsTab, headlineCount, quoteIdsOf, showingMessage } from "@/lib/films-view";
 import { laneSummary, removePersonHref } from "@/lib/lanes";
@@ -52,15 +55,15 @@ export function PeopleView(props: Props) {
 }
 
 function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critics }: Props) {
-  const [includeMinor, setIncludeMinor] = useState(false);
-  const [showAll, setShowAll] = useState(false);
+  const router = useRouter();
+  // The display preferences are shared with the Depth view (`?view=depth`), which a visitor moves to and from: see `useFilmPrefs`.
+  const [{ includeMinor, showAll, trackMode }, setPrefs] = useFilmPrefs(timelines.map((t) => t.person.id).join("+"));
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const timelineRef = useRef<TimelineHandle>(null);
   const [view] = useViewTab(hasClippingsTab(clippings, critics), quoteIdsOf(clippings, critics));
   const [urlPeriod, setPeriod] = useUrlPeriod();
-  // Start with one shared track; separating changes only how the people's films are drawn.
-  const [trackMode, setTrackMode] = useState<TrackMode>("combined");
+  // Starts with one shared track; separating changes only how the people's films are drawn.
   const [hiddenIds, setHiddenIds] = useState<ReadonlySet<number>>(() => new Set());
   const [openIds, setOpenIds] = useState<ReadonlySet<number>>(() => new Set());
   // Full-height docking is an explicit choice of the top control, not a side effect of opening the last row.
@@ -158,10 +161,18 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     });
   }, [panelLayout]);
 
-  const handleTrackModeChange = useCallback((mode: TrackMode) => {
-    timelineRef.current?.rememberCenter();
-    setTrackMode(mode);
-  }, []);
+  // The layout control: Combined and Lanes redraw this timeline; Focus is the Depth view, the same page on `?view=depth`, with its period.
+  const handleLayoutChange = useCallback(
+    (layout: Layout) => {
+      if (layout === "focus") {
+        router.push(`${window.location.pathname}${depthSearch(window.location.search)}`);
+        return;
+      }
+      timelineRef.current?.rememberCenter();
+      setPrefs({ trackMode: layout });
+    },
+    [router, setPrefs],
+  );
 
   const handlePanelLayoutChange = useCallback((layout: PanelLayout) => {
     timelineRef.current?.rememberCenter();
@@ -172,8 +183,9 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   // Filtering can change the axis; keep the year in the middle before updating either view.
   const handleIncludeMinorChange = useCallback((next: boolean) => {
     timelineRef.current?.rememberCenter();
-    setIncludeMinor(next);
-  }, []);
+    setPrefs({ includeMinor: next });
+  }, [setPrefs]);
+  const handleShowAllChange = useCallback((next: boolean) => setPrefs({ showAll: next }), [setPrefs]);
 
   const handleSelect = useCallback((id: number, trigger: HTMLElement) => {
     triggerRef.current = trigger;
@@ -223,7 +235,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   const settingsControl = (
     <FilmSettings
       showAll={showAll}
-      onShowAllChange={setShowAll}
+      onShowAllChange={handleShowAllChange}
       includeMinor={includeMinor}
       onIncludeMinorChange={handleIncludeMinorChange}
       message={showingMessage(multi ? sharedNow.length : soloRows.length, multi)}
@@ -238,7 +250,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       combined={combined}
       showAll={showAll}
       settingsControl={settingsControl}
-      layoutToggle={multi ? <TrackModeToggle mode={trackMode} onChange={handleTrackModeChange} /> : undefined}
+      layoutToggle={<LayoutToggle layout={multi ? trackMode : "combined"} several={multi} onChange={handleLayoutChange} />}
       sidebarExpanded={panelLayout === "stack"}
       sidebar={
         // The people column belongs to both layouts: the eye and the details stay where they were

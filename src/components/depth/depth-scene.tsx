@@ -25,7 +25,7 @@ interface DepthSceneProps {
   scrollerId: string;
   layout: DepthLayout;
   people: readonly { id: number; name: string }[];
-  /** Each person's films (minor credits left out), for the hover card's credits. */
+  /** Each person's films (minor credits left out unless `includeMinor`), for the hover card's credits. */
   lanes: CardLanes;
   /** Palette slot of each person, by person id. */
   slots: ReadonlyMap<number, number>;
@@ -33,6 +33,8 @@ interface DepthSceneProps {
   info: ReadonlyMap<number, CombinedFilmInfo>;
   /** Films outside the period a link chose. */
   outsideIds: ReadonlySet<number>;
+  /** Whether the minor credits count: the hover card names them too. */
+  includeMinor: boolean;
   selectedId: number | null;
   /** yyyy-mm-dd computed on the server; an announced film is an "upcoming" poster. */
   today: string;
@@ -116,7 +118,7 @@ function focusIsVisible(element: HTMLElement): boolean {
  * Hover and focus are handled once, on the scroller, for every poster (the film popover is a portal on the body, which
  * is not inside the scroller either). The field of focus that sharpens the soft posters behind is `useFocusField`.
  */
-export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slots, info, outsideIds, selectedId, today, onSelect }: DepthSceneProps) {
+export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slots, info, outsideIds, includeMinor, selectedId, today, onSelect }: DepthSceneProps) {
   const layers = useMemo(() => {
     const byLayer = new Map<number, DepthFilm[]>();
     for (const item of layout.films) {
@@ -222,8 +224,8 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
   );
 
   const popoverContent = useMemo(
-    () => (popoverTarget ? filmCardContent(popoverTarget.filmId, lanes, { includeMinor: false }) : null),
-    [popoverTarget, lanes],
+    () => (popoverTarget ? filmCardContent(popoverTarget.filmId, lanes, { includeMinor }) : null),
+    [popoverTarget, lanes, includeMinor],
   );
 
   const coloured = people.length > 1;

@@ -74,7 +74,7 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
   // Out of the period a link chose, the dimming (the `li`'s `opacity-25`) is the whole opacity: the obscurity's is not stacked under it.
   const dimmed = outside && !selected;
   // The films several people made, and a page of one person's (up front, big and sharp), get the larger image.
-  const src = tmdbImage(film.posterPath, shared || !coloured ? "w342" : "w185");
+  const src = tmdbImage(film.posterPath, shared || !soft ? "w342" : "w185");
   const softSrc = soft ? tmdbImage(film.posterPath, "w92") : null;
   // One person made it: their colour rings the poster. Several people making a film that is not out yet: neutral.
   const ring = coloured && !shared && slots.length === 1 ? slots[0] : null;
@@ -99,7 +99,10 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
       layer === 0
         ? "scale(var(--collab-scale))"
         : !coloured
-          ? "scale(var(--solo-scale))"
+          ? // One person's page: the posters are level, except a minor film, which is pushed back like any film of a page of several.
+            push > 0
+            ? `scale(var(--solo-scale)) translateZ(${-round(push)}px)`
+            : "scale(var(--solo-scale))"
           : `translateZ(${-round(push)}px)`,
     "--f": Math.round(posterFactor(item) * 100_000) / 100_000,
     "--lead": `${round(w / 2)}px`,

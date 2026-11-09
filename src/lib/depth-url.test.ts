@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEPTH_VIEW, flatSearch, isDepthView, withDepth } from "@/lib/depth-url";
+import { DEPTH_VIEW, depthSearch, flatSearch, isDepthView, withDepth } from "@/lib/depth-url";
 
 describe("isDepthView", () => {
   it("is true for view=depth only", () => {
@@ -31,6 +31,25 @@ describe("flatSearch", () => {
   it("is the same query when it was not the Depth view", () => {
     expect(flatSearch("")).toBe("");
     expect(flatSearch("?from=1990&to=2000")).toBe("?from=1990&to=2000");
+  });
+});
+
+describe("depthSearch", () => {
+  it("is view=depth alone for a page with nothing to carry", () => {
+    expect(depthSearch("")).toBe("?view=depth");
+    expect(depthSearch("?")).toBe("?view=depth");
+  });
+
+  it("carries the period, in its canonical order, before view=depth", () => {
+    expect(depthSearch("?from=1970&to=1980")).toBe("?from=1970&to=1980&view=depth");
+    expect(depthSearch("to=1980&from=1970")).toBe("?from=1970&to=1980&view=depth");
+    expect(depthSearch("?from=1980&to=1970")).toBe("?from=1970&to=1980&view=depth");
+    expect(depthSearch("?to=1980")).toBe("?to=1980&view=depth");
+  });
+
+  it("leaves the other views' parameters behind", () => {
+    expect(depthSearch("?view=timeline&sort=rating&dir=desc&from=1970&to=1980")).toBe("?from=1970&to=1980&view=depth");
+    expect(depthSearch("?view=clippings&quote=short-one&utm_source=x")).toBe("?view=depth");
   });
 });
 

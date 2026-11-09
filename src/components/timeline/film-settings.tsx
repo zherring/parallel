@@ -1,10 +1,11 @@
 "use client";
 
 import { Settings } from "lucide-react";
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { placePopover, type Placement } from "@/lib/popover-position";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
+import { cn } from "./cn";
 
 interface FilmSettingsProps {
   showAll: boolean;
@@ -13,11 +14,16 @@ interface FilmSettingsProps {
   onIncludeMinorChange: (checked: boolean) => void;
   /** The sentence to announce, politely, after the minor-credits checkbox changes (e.g. "Showing 43 films together"). */
   message: string;
+  /**
+   * "Show all films" is already the case where the films are drawn (the Depth view gives every film a poster): it is then
+   * shown on and cannot be changed, with this as its hint in place of the usual one.
+   */
+  showAllLocked?: string;
 }
 
 /** Native, independently controlled checkboxes shared by either placement of the gear. */
 export function FilmSettingsOptions({
-  showAll, onShowAllChange, includeMinor, onIncludeMinorChange, message, posterHintId,
+  showAll, onShowAllChange, includeMinor, onIncludeMinorChange, message, showAllLocked, posterHintId,
 }: FilmSettingsProps & { posterHintId: string }) {
   // The live region is always in the DOM, so that it exists before its text changes; the text
   // waits for a change to the minor-credits checkbox, whose effect is usually out of sight.
@@ -25,10 +31,10 @@ export function FilmSettingsOptions({
   return (
     <div className="space-y-3">
       <label className="flex cursor-pointer items-start gap-2.5">
-        <input type="checkbox" aria-label="Show all films" aria-describedby={posterHintId} checked={showAll} onChange={(event) => onShowAllChange(event.target.checked)} className="mt-0.5 size-4 shrink-0 cursor-pointer accent-accent-green" />
+        <input type="checkbox" aria-label="Show all films" aria-describedby={posterHintId} checked={showAllLocked ? true : showAll} disabled={Boolean(showAllLocked)} onChange={(event) => onShowAllChange(event.target.checked)} className="mt-0.5 size-4 shrink-0 cursor-pointer accent-accent-green disabled:cursor-default" />
         <span>
           <span className="text-strong">Show all films</span>
-          <span id={posterHintId} className="mt-0.5 block text-xs text-muted">Give every film a poster, adding rows as needed.</span>
+          <span id={posterHintId} className="mt-0.5 block text-xs text-muted">{showAllLocked ?? "Give every film a poster, adding rows as needed."}</span>
         </span>
       </label>
       <label className="flex cursor-pointer items-start gap-2.5">
@@ -40,8 +46,26 @@ export function FilmSettingsOptions({
   );
 }
 
+interface FilmSettingsPopupProps extends FilmSettingsProps {
+  /** The gear's name and the pop-up's title; "Film settings" for the flat timeline's. */
+  label?: string;
+  /** Classes for the gear button, after the flat timeline's (so a view over a busier surface can restyle it). */
+  buttonClassName?: string;
+  /**
+   * Whether the pop-up scrolls (and is no taller than the screen), as the flat timeline's does. Off, nothing in it is clipped: a menu
+   * that hangs from something inside it (the Share menu) shows in full.
+   */
+  scrollable?: boolean;
+  /** More in the pop-up, over and under the film options (the Depth view's views, layout and Share). */
+  before?: ReactNode;
+  after?: ReactNode;
+}
+
 /** Both film-display preferences in a small, non-modal pop-up; checkbox changes keep it open. */
-export function FilmSettings({ showAll, onShowAllChange, includeMinor, onIncludeMinorChange, message }: FilmSettingsProps) {
+export function FilmSettings({
+  showAll, onShowAllChange, includeMinor, onIncludeMinorChange, message, showAllLocked,
+  label = "Film settings", buttonClassName, scrollable = true, before, after,
+}: FilmSettingsPopupProps) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<Placement | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -66,7 +90,7 @@ export function FilmSettings({ showAll, onShowAllChange, includeMinor, onInclude
     place();
     // The first render is hidden until measured; make it focusable before moving focus inside.
     panel.style.visibility = "visible";
-    panel.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+    panel.querySelector<HTMLElement>("input:not(:disabled), a[href], button:not(:disabled)")?.focus({ preventScroll: true });
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(place);
@@ -109,13 +133,13 @@ export function FilmSettings({ showAll, onShowAllChange, includeMinor, onInclude
       <button
         ref={buttonRef}
         type="button"
-        aria-label="Film settings"
+        aria-label={label}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
-        title="Film settings"
+        title={label}
         onClick={() => setOpen((previous) => !previous)}
-        className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md bg-canvas text-muted hover:bg-surface hover:text-strong"
+        className={cn("inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md bg-canvas text-muted hover:bg-surface hover:text-strong", buttonClassName)}
       >
         <Settings aria-hidden="true" className="size-4" />
       </button>
@@ -124,10 +148,14 @@ export function FilmSettings({ showAll, onShowAllChange, includeMinor, onInclude
           ref={panelRef}
           id={panelId}
           role="dialog"
-          aria-label="Film settings"
-          className="fixed z-[90] max-h-[calc(100dvh-1rem)] w-80 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-lg border border-border bg-canvas p-3 text-sm text-body shadow-xl shadow-black/40"
+          aria-label={label}
+          className={cn(
+            "fixed z-[90] w-80 max-w-[calc(100vw-1rem)] rounded-lg border border-border bg-canvas p-3 text-sm text-body shadow-xl shadow-black/40",
+            scrollable && "max-h-[calc(100dvh-1rem)] overflow-y-auto",
+          )}
           style={position ? { left: position.left, top: position.top } : { visibility: "hidden" }}
         >
+          {before}
           <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">Film settings</h2>
           <FilmSettingsOptions
             showAll={showAll}
@@ -135,8 +163,10 @@ export function FilmSettings({ showAll, onShowAllChange, includeMinor, onInclude
             includeMinor={includeMinor}
             onIncludeMinorChange={onIncludeMinorChange}
             message={message}
+            showAllLocked={showAllLocked}
             posterHintId={`${panelId}-posters`}
           />
+          {after}
         </div>,
         document.body,
       )}

@@ -9,6 +9,7 @@
  */
 
 import { DEPTH_VIEW, VIEW_PARAM, searchWithView } from "@/lib/films-view";
+import { parsePeriodParams, rawPeriodSearch } from "@/lib/period";
 
 export { DEPTH_VIEW };
 
@@ -25,6 +26,16 @@ export function isDepthView(value: ParamValue): boolean {
  */
 export function flatSearch(search: string): string {
   return searchWithView(search, "timeline");
+}
+
+/**
+ * The query (with its "?") for the Depth view of the page the visitor is on, from that page's `search`: its period and
+ * `view=depth`. Nothing else goes along: a sort, a quote and the view it leaves are the other views' own.
+ */
+export function depthSearch(search: string): string {
+  const params = new URLSearchParams(rawPeriodSearch(parsePeriodParams(search)));
+  params.set(VIEW_PARAM, DEPTH_VIEW);
+  return `?${params.toString()}`;
 }
 
 /** `href` with `view=depth` set (kept last, before a hash), so a link the Depth view writes lands on the Depth view. */

@@ -830,7 +830,7 @@ export function Timeline({
         )}
         {layout.legend.length > 0 && (
           // The legend belongs to the track, not the People panel's sizing or position.
-          <div className={cn("relative z-[65] shrink-0 pl-3 pr-20 pt-2", sidebar ? "md:pl-[var(--lane-head)]" : undefined)}>
+          <div className={cn("relative z-[65] shrink-0 pl-3 pr-36 pt-2", sidebar ? "md:pl-[var(--lane-head)]" : undefined)}>
             <ConnectionLegend
               entries={layout.legend}
               names={layout.names}

@@ -1,4 +1,4 @@
-import { test, expect, PEOPLE_PATH } from "./fixtures";
+import { test, expect, MINOR_FILM_COUNT, PEOPLE_PATH } from "./fixtures";
 import type { Page } from "next/experimental/testmode/playwright";
 
 // Activate the server-side fetch fixtures before any test navigates to a people page.
@@ -1100,7 +1100,8 @@ test("the people pill opens on a press and closes when the scene scrolls", async
   await expect(bubble).not.toContainText("Parallel");
   await expect(bubble.locator('a[href="/"]')).toHaveCount(0);
   await expect(card.getByRole("link", { name: "Remove Scroll Alpha", exact: true })).toHaveAttribute("href", /view=depth/);
-  await expect(card.getByRole("link", { name: "Flat timeline", exact: true })).not.toHaveAttribute("href", /view=/);
+  // The way back to the flat page is the layout control and the views, in the bar: not in the card.
+  await expect(card.getByRole("link", { name: "Flat timeline", exact: true })).toHaveCount(0);
 
   const top = await region.evaluate((element) => element.scrollTop);
   await region.evaluate((element, to) => { element.scrollTop = to; }, top + 200);
@@ -1118,12 +1119,11 @@ test("the open pill is the app's usual search field, boxed, with the close butto
   const search = pillSearch(page);
   await expect(search).toBeVisible();
 
-  // The card is the people, the key to the green and the way back to the flat timeline: no field.
+  // The card is the people and the key to the green: no field.
   await expect(card.getByRole("combobox")).toHaveCount(0);
   await expect(card.locator("input")).toHaveCount(0);
   await expect(page.getByRole("combobox")).toHaveCount(1);
   await expect(card.getByText("Green: made together", { exact: true })).toBeVisible();
-  await expect(card.getByRole("link", { name: "Flat timeline", exact: true })).toBeVisible();
 
   // The field is the flat page's own: a box with a border, a surface fill, `rounded-md`, the search icon and the placeholder.
   const box = search.locator("xpath=ancestor::div[contains(@class, 'rounded-md')][1]");
@@ -1341,15 +1341,215 @@ test("a viewport resize (a phone's keyboard opening) does not close the pill, ev
   await expect(button).toHaveAttribute("aria-expanded", "false");
 });
 
-test("the Flat timeline link leaves the Depth view and keeps the period", async ({ page }) => {
-  await openDepth(page, "&from=2000&to=2001");
-  await pill(page).click();
-  await peopleCard(page).getByRole("link", { name: "Flat timeline", exact: true }).click();
+// ---- the way to the rest of the interface: views, layout, settings and share -------------------------------------
 
-  await expect(page.getByRole("tab", { name: "Timeline", exact: true })).toHaveAttribute("aria-selected", "true");
-  await expect(page).toHaveURL(/from=2000&to=2001/);
-  expect(new URL(page.url()).searchParams.has("view")).toBe(false);
+const layoutGroup = (page: Page) => page.getByRole("group", { name: "Timeline layout", exact: true });
+const settingsGear = (page: Page) => page.getByRole("button", { name: "Settings", exact: true });
+const settingsSheet = (page: Page) => page.getByRole("dialog", { name: "Settings", exact: true });
+const minorToggle = (page: Page) => settingsSheet(page).getByRole("checkbox", { name: /Show shorts, music videos, cameos and uncredited/ });
+const depthViews = (page: Page) => page.getByRole("navigation", { name: "Views", exact: true });
+
+test("the bar has the views beside the pill, with Timeline current, and the layout control and the gear at the right, clear of the rail", async ({ page }) => {
+  await openDepth(page);
+  const views = depthViews(page);
+  // Timeline | Table, in the flat page's order and words (the fixture pair has no quotes, so no Clippings, as on the flat page).
+  await expect(views.getByRole("link")).toHaveText(["Timeline", "Table"]);
+  await expect(views.getByRole("link", { name: "Timeline", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(views.getByRole("link", { name: "Clippings", exact: true })).toHaveCount(0);
+
+  // To the right of the pill, on its level; and the controls are left of the rail with room to spare, the layout control then the gear.
+  const pillBox = (await pill(page).boundingBox())!;
+  const viewsBox = (await views.boundingBox())!;
+  expect(viewsBox.x).toBeGreaterThan(pillBox.x + pillBox.width);
+  expect(Math.abs(viewsBox.y + viewsBox.height / 2 - (pillBox.y + pillBox.height / 2))).toBeLessThan(4);
+  const railBox = (await page.locator("[data-depth-rail]").boundingBox())!;
+  const toggleBox = (await layoutGroup(page).boundingBox())!;
+  const gearBox = (await settingsGear(page).boundingBox())!;
+  expect(toggleBox.x + toggleBox.width).toBeLessThan(gearBox.x);
+  expect(gearBox.x + gearBox.width).toBeLessThanOrEqual(railBox.x - 8);
+
+  // Focus is the layout this page is in; the other two leave for the flat timeline.
+  await expect(layoutGroup(page).getByRole("button")).toHaveCount(3);
+  await expect(layoutGroup(page).getByRole("button", { name: "Focus view", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true })).toHaveAttribute("aria-pressed", "false");
+  await expect(layoutGroup(page).getByRole("button", { name: "Separate lanes", exact: true })).toHaveAttribute("aria-pressed", "false");
+});
+
+test("the Table link lands on the table, with the people and the period", async ({ page }) => {
+  await openDepth(page, "&from=2000&to=2001");
+  await depthViews(page).getByRole("link", { name: "Table", exact: true }).click();
+
+  await expect(page.getByRole("tab", { name: "Table", exact: true })).toHaveAttribute("aria-selected", "true");
+  // The flat page's own address for the table (`view=table`), the period kept.
+  expect(Object.fromEntries(new URL(page.url()).searchParams)).toEqual({ view: "table", from: "2000", to: "2001" });
+  expect(new URL(page.url()).pathname).toBe("/p/90000001-scroll-alpha+90000002-scroll-beta");
   await expect(scene(page)).toHaveCount(0);
+  await expect(page.locator("html")).not.toHaveAttribute("data-view", /.+/);
+  await expect(page.getByRole("table")).toBeVisible();
+});
+
+test("the layout control round-trips Focus, Combined, Focus, and the period goes along each way", async ({ page }) => {
+  await openDepth(page, "&from=2000&to=2001");
+  await layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true }).click();
+
+  // The flat Timeline, in the combined layout, with the same control: Combined is the one pressed there.
+  await expect(page.getByRole("tab", { name: "Timeline", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(layoutGroup(page).getByRole("button", { name: "Focus view", exact: true })).toHaveAttribute("aria-pressed", "false");
+  await expect(page).toHaveURL(/\?from=2000&to=2001$/);
+  await expect(scene(page)).toHaveCount(0);
+
+  await layoutGroup(page).getByRole("button", { name: "Focus view", exact: true }).click();
+  await expect(scene(page)).toBeVisible();
+  await expect(page).toHaveURL(/\?from=2000&to=2001&view=depth$/);
+  await expect(layoutGroup(page).getByRole("button", { name: "Focus view", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("html")).toHaveAttribute("data-view", "depth");
+});
+
+test("Lanes opens the flat timeline in separate lanes, and leaving it for Focus and coming back to Combined puts the lanes away", async ({ page }) => {
+  await openDepth(page);
+  await layoutGroup(page).getByRole("button", { name: "Separate lanes", exact: true }).click();
+  await expect(layoutGroup(page).getByRole("button", { name: "Separate lanes", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true })).toHaveAttribute("aria-pressed", "false");
+
+  // The layout is held, as the settings are: Focus and back to the flat page is Lanes still.
+  await layoutGroup(page).getByRole("button", { name: "Focus view", exact: true }).click();
+  await expect(scene(page)).toBeVisible();
+  await layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true }).click();
+  await expect(layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("the flat Timeline's layout control reaches Focus, with the period", async ({ page }) => {
+  await page.goto(`${PEOPLE_PATH}?from=2000&to=2001`);
+  await expect(layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await layoutGroup(page).getByRole("button", { name: "Focus view", exact: true }).click();
+  await expect(scene(page)).toBeVisible();
+  await expect(page).toHaveURL(/\?from=2000&to=2001&view=depth$/);
+});
+
+test("the gear opens the flat page's settings and Share: Show all films is already on, and the period is in Share", async ({ page }) => {
+  await openDepth(page);
+  await settingsGear(page).click();
+  const sheet = settingsSheet(page);
+  await expect(sheet).toBeVisible();
+
+  // Every film has a poster here, so "Show all films" is shown on and cannot be turned off.
+  const showAll = sheet.getByRole("checkbox", { name: "Show all films", exact: true });
+  await expect(showAll).toBeChecked();
+  await expect(showAll).toBeDisabled();
+  await expect(minorToggle(page)).not.toBeChecked();
+  // The views and the layout control are on the bar from `sm`: the sheet has them for a phone only.
+  await expect(sheet.getByRole("navigation", { name: "Views", exact: true })).toBeHidden();
+
+  // Share is the flat page's own menu, with its Period years.
+  await sheet.getByRole("button", { name: "Share", exact: true }).click();
+  await expect(sheet.getByRole("menuitem", { name: "Copy link", exact: true })).toBeVisible();
+  await expect(sheet.getByRole("menuitem", { name: /^Post on X/ })).toBeVisible();
+  await expect(sheet.getByRole("combobox", { name: "From year", exact: true })).toBeVisible();
+  // The card's years are the shared films' (2000 to 2020), so the whole span is no period: 2001 is one.
+  await sheet.getByRole("combobox", { name: "From year", exact: true }).selectOption("2001");
+  await expect(page).toHaveURL(/from=2001&to=2020/);
+  // Escape closes the menu first, then the sheet.
+  await page.keyboard.press("Escape");
+  await expect(sheet.getByRole("menuitem", { name: "Copy link", exact: true })).toBeHidden();
+  await expect(sheet).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
+  await expect(settingsGear(page)).toBeFocused();
+});
+
+test("turning on minor credits in the gear adds them as background posters, faint and far back, and turning it off takes them away", async ({ page }) => {
+  await openDepth(page);
+  const posters = scene(page).locator("button[data-film]");
+  const before = await posters.count();
+  const centreBefore = await scene(page).evaluate((scroller) => scroller.scrollTop + scroller.clientHeight / 2);
+
+  await settingsGear(page).click();
+  await minorToggle(page).check();
+  await expect.poll(() => posters.count()).toBe(before + MINOR_FILM_COUNT);
+  await expect(scene(page).locator('[data-poster="1100"]')).toHaveCount(1);
+
+  // Each is a background poster at least as faint as the 0.5 that "minor" asks, whatever its 9,000 votes, and further back than the film of
+  // the same person that is as well known (1001, 5,200 votes). The one both people have is not a film made together: it is on its first person's layer.
+  for (const id of [1100, 1102, 2100, 300]) {
+    const look = await lookOf(page, id);
+    expect(look.opacity).toBeLessThan(0.55);
+    expect(look.opacity).toBeGreaterThanOrEqual(0.45);
+    expect(look.blur).toBeGreaterThan(2);
+  }
+  expect((await lookOf(page, 1100)).f).toBeLessThan((await lookOf(page, 1001)).f);
+  await expect(scene(page).locator('[data-poster="300"] button')).not.toHaveAttribute("data-layer", "0");
+  await expect(scene(page).locator('[data-poster="300"] [data-poster-caption]')).toHaveCount(0);
+
+  // The sheet stays open while the setting changes, and the year in the middle of the screen stays there.
+  await expect(settingsSheet(page)).toBeVisible();
+  const centreAfter = await scene(page).evaluate((scroller) => scroller.scrollTop + scroller.clientHeight / 2);
+  expect(Math.abs(centreAfter - centreBefore)).toBeLessThan(2);
+
+  await minorToggle(page).uncheck();
+  await expect.poll(() => posters.count()).toBe(before);
+  await expect(scene(page).locator('[data-poster="1100"]')).toHaveCount(0);
+});
+
+test("a setting made in the gear is there on the flat page, and the other way round", async ({ page }) => {
+  await openDepth(page);
+  await settingsGear(page).click();
+  await minorToggle(page).check();
+  await page.keyboard.press("Escape");
+  await layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true }).click();
+
+  const flatSettings = page.getByRole("button", { name: "Film settings", exact: true });
+  await flatSettings.click();
+  const flatDialog = page.getByRole("dialog", { name: "Film settings", exact: true });
+  await expect(flatDialog.getByRole("checkbox", { name: /Show shorts, music videos, cameos and uncredited/ })).toBeChecked();
+  // Turn it off here; Focus has it off too.
+  await flatDialog.getByRole("checkbox", { name: /Show shorts, music videos, cameos and uncredited/ }).uncheck();
+  await page.keyboard.press("Escape");
+  await layoutGroup(page).getByRole("button", { name: "Focus view", exact: true }).click();
+  await expect(scene(page)).toBeVisible();
+  await settingsGear(page).click();
+  await expect(minorToggle(page)).not.toBeChecked();
+});
+
+test("a different set of people starts over with the settings off", async ({ page }) => {
+  await mockSearch(page);
+  await openDepth(page);
+  await settingsGear(page).click();
+  await minorToggle(page).check();
+  await page.keyboard.press("Escape");
+
+  await pill(page).click();
+  await pillSearch(page).fill("scroll");
+  await page.getByRole("option", { name: /Scroll Gamma/ }).click();
+  await expect(page).toHaveURL(/scroll-gamma\?view=depth/);
+  await expect(scene(page)).toBeVisible();
+  await settingsGear(page).click();
+  await expect(minorToggle(page)).not.toBeChecked();
+});
+
+test("a page of one person offers Focus and the flat Timeline, and nothing about lanes", async ({ page }) => {
+  await page.goto("/p/90000001-scroll-alpha?view=depth");
+  await expect(scene(page)).toBeVisible();
+  await expect(layoutGroup(page).getByRole("button")).toHaveCount(2);
+  await expect(layoutGroup(page).getByRole("button", { name: "Separate lanes", exact: true })).toHaveCount(0);
+  await layoutGroup(page).getByRole("button", { name: "Timeline", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "Timeline", exact: true })).toHaveAttribute("aria-selected", "true");
+  // The flat page of one person has the same control, to come back.
+  await expect(layoutGroup(page).getByRole("button", { name: "Focus view", exact: true })).toBeVisible();
+  await expect(scene(page)).toHaveCount(0);
+});
+
+test("while the pill is open the bar's other controls step aside: nothing is under its field", async ({ page }) => {
+  await openDepth(page);
+  await expect(depthViews(page)).toBeVisible();
+  await pill(page).click();
+  await expect(pillSearch(page)).toBeVisible();
+  await expect(depthViews(page)).toBeHidden();
+  await expect(settingsGear(page)).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(pill(page)).toHaveAttribute("aria-expanded", "false");
+  await expect(depthViews(page)).toBeVisible();
+  await expect(settingsGear(page)).toBeVisible();
 });
 
 test("the plain address still renders the Timeline and Table tabs", async ({ page }) => {
@@ -1411,6 +1611,64 @@ test.describe("on a phone", () => {
     expect(Math.abs(close.width - close.height)).toBeLessThanOrEqual(0.5);
     expect(await box.evaluate((element) => ({ border: getComputedStyle(element).borderTopWidth, radius: getComputedStyle(element).borderTopLeftRadius }))).toEqual({ border: "1px", radius: "6px" });
     await expect(capsule(page)).toHaveCSS("opacity", "0");
+  });
+
+  test("the bar is the heads and the gear alone, and the gear's sheet holds the views, the layout, the settings and Share", async ({ page }) => {
+    await openDepth(page);
+
+    // No tabs and no layout control on the bar: the heads at the left and the gear at the right, clear of the pill, the rail and the edges.
+    await expect(depthViews(page)).toBeHidden();
+    await expect(layoutGroup(page)).toBeHidden();
+    const pillBox = (await pill(page).boundingBox())!;
+    const gearBox = (await settingsGear(page).boundingBox())!;
+    const railBox = (await page.locator("[data-depth-rail]").boundingBox())!;
+    expect(gearBox.x).toBeGreaterThan(pillBox.x + pillBox.width + 8);
+    expect(gearBox.x + gearBox.width).toBeLessThanOrEqual(railBox.x - 4);
+    expect(gearBox.y).toBeGreaterThanOrEqual(0);
+
+    await settingsGear(page).tap();
+    const sheet = settingsSheet(page);
+    await expect(sheet).toBeVisible();
+    // The view links, as on the flat page (the fixture pair has no Clippings), with Timeline the current one.
+    const views = sheet.getByRole("navigation", { name: "Views", exact: true });
+    await expect(views.getByRole("link")).toHaveText(["Timeline", "Table"]);
+    await expect(views.getByRole("link", { name: "Timeline", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(views.getByRole("link", { name: "Table", exact: true })).toHaveAttribute("href", /view=table/);
+    // The layout control, with its words, then the settings and Share.
+    await expect(sheet.getByRole("button", { name: "Focus view", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(sheet.getByRole("button", { name: "Combined timeline", exact: true })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: "Separate lanes", exact: true })).toBeVisible();
+    await expect(minorToggle(page)).toBeVisible();
+    await expect(sheet.getByRole("button", { name: "Share", exact: true })).toBeVisible();
+
+    // The sheet fits the screen, over neither the rail nor an edge, and nothing scrolls sideways.
+    const sheetBox = (await sheet.boundingBox())!;
+    expect(sheetBox.x).toBeGreaterThanOrEqual(0);
+    expect(sheetBox.x + sheetBox.width).toBeLessThanOrEqual(railBox.x);
+    expect(sheetBox.y + sheetBox.height).toBeLessThanOrEqual(844);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+
+    // A tap on Table goes to the table.
+    await views.getByRole("link", { name: "Table", exact: true }).tap();
+    await expect(page.getByRole("tab", { name: "Table", exact: true })).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("the layout control in the sheet leaves for the flat timeline, and Share's menu opens in full inside it", async ({ page }) => {
+    await openDepth(page);
+    await settingsGear(page).tap();
+    const sheet = settingsSheet(page);
+    await sheet.getByRole("button", { name: "Share", exact: true }).tap();
+    const copy = sheet.getByRole("menuitem", { name: "Copy link", exact: true });
+    await expect(copy).toBeVisible();
+    // The whole menu is on screen (the sheet does not clip it).
+    const last = (await sheet.getByRole("menuitem").last().boundingBox())!;
+    expect(last.y + last.height).toBeLessThanOrEqual(844);
+    await expect(sheet.getByRole("combobox", { name: "From year", exact: true })).toBeVisible();
+
+    await sheet.getByRole("button", { name: "Separate lanes", exact: true }).tap();
+    await expect(page.getByRole("tab", { name: "Timeline", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(layoutGroup(page).getByRole("button", { name: "Separate lanes", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(scene(page)).toHaveCount(0);
   });
 
   test("posters are as faint and soft as their film is obscure, gently, and the middle of the screen brings one to full opacity", async ({ page }) => {
