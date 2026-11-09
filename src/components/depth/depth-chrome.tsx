@@ -8,10 +8,12 @@ import { cn } from "@/components/timeline/cn";
 import { FilmSettings } from "@/components/timeline/film-settings";
 import { LayoutToggle, type Layout } from "@/components/timeline/layout-toggle";
 import { ShareMenu } from "@/components/timeline/share-menu";
+import { useLayoutPref } from "@/components/timeline/use-layout-pref";
 import { VIEW_ICONS } from "@/components/timeline/view-tabs";
-import { flatSearch } from "@/lib/depth-url";
+import { depthSearch, flatSearch } from "@/lib/depth-url";
 import type { TrackMode } from "@/lib/film-prefs";
 import { VIEW_LABELS, searchWithView, type View } from "@/lib/films-view";
+import { layoutPrefOf } from "@/lib/layout-pref";
 import type { ShareInput } from "@/lib/share";
 
 interface DepthChromeProps {
@@ -54,7 +56,8 @@ interface ViewLinksProps {
 /**
  * The page's views as links, the flat page's tabs in the same order with the same labels, icons and addresses: Timeline (the
  * Focus layout is the Timeline's, so it is the current one here), Table and Clippings, which leave for the flat page on that
- * view with the people and the period. They are links, not tabs: there are no panels to switch between here.
+ * view with the people and the period. They are links, not tabs: there are no panels to switch between here. Where Timeline
+ * goes is the layout the visitor last chose (see `useLayoutPref`): this page for Focus, the flat timeline for Combined.
  */
 function ViewLinks({ views, hrefFor, className, compact = false }: ViewLinksProps) {
   return (
@@ -94,7 +97,8 @@ function ViewLinks({ views, hrefFor, className, compact = false }: ViewLinksProp
  *
  * Choosing a layout other than Focus, or a view other than Timeline, leaves for the flat page (a client-side navigation to the
  * same address without `view=depth`, or with the view): the people and the period go along, and the display preferences are held
- * for the flat page to read (see `useFilmPrefs`).
+ * for the flat page to read (see `useFilmPrefs`). Choosing a layout is also remembered, as the layout the Timeline tab goes to
+ * (see `useLayoutPref`).
  */
 export function DepthChrome({
   people,
@@ -110,6 +114,8 @@ export function DepthChrome({
   const router = useRouter();
   const pathname = usePathname();
   const search = useSearchParams().toString();
+  // The layout the visitor last chose: the Timeline link goes to it (the Depth view for Focus, the flat timeline for Combined).
+  const [layoutPref, chooseLayout] = useLayoutPref();
   const [status, setStatus] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -121,13 +127,18 @@ export function DepthChrome({
     timer.current = setTimeout(() => setStatus(""), 4000);
   }, []);
 
-  // The flat page's address for a view, as its tabs write it: `?view=table`, `?view=clippings`, the period kept. (The bare path on the server.)
+  // The flat page's address for a view, as its tabs write it: `?view=table`, `?view=clippings`, the period kept. Timeline is the layout the
+  // visitor last chose: this page for Focus, the flat timeline for Combined (what the server writes, before the choice is read).
   const hrefFor = useCallback(
-    (view: View) => (view === "timeline" ? `${pathname}${search ? `?${search}` : ""}` : `${pathname}${searchWithView(search, view)}`),
-    [pathname, search],
+    (view: View) => {
+      if (view !== "timeline") return `${pathname}${searchWithView(search, view)}`;
+      return `${pathname}${layoutPref === "focus" ? depthSearch(search) : flatSearch(search)}`;
+    },
+    [pathname, search, layoutPref],
   );
 
   const handleLayout = (layout: Layout) => {
+    chooseLayout(layoutPrefOf(layout));
     if (layout === "focus") return;
     onTrackModeChange(layout);
     // The page as it is now without `view=depth` (read from the address bar: the period may have just been chosen in the Share menu).

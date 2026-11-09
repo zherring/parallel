@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import type { VoicedClippings } from "@/lib/clippings";
 import type { PairCritics } from "@/lib/critics";
+import { depthSearch } from "@/lib/depth-url";
 import type { TableRow } from "@/lib/film-rows";
 import { availableViews, hasClippingsTab, isFilmView, quoteIdsOf, showsPeriodNote, type View } from "@/lib/films-view";
 import type { ShareInput } from "@/lib/share";
@@ -11,6 +13,7 @@ import { FilmsTable } from "./films-table";
 import type { BioPerson } from "./person-bio";
 import { ShareActions } from "./share-actions";
 import { useFilmsTable } from "./use-films-table";
+import { useLayoutPref } from "./use-layout-pref";
 import { useViewTab } from "./use-view-tab";
 import { ViewTabs, viewPanelId, viewTabId } from "./view-tabs";
 
@@ -59,7 +62,7 @@ interface FilmsSectionProps {
  * film titles and credits are in the HTML whichever tab is selected, and the timeline keeps its
  * zoom, scroll position and expanded lanes while the table is shown. The server and the first
  * client render show the Timeline; the address bar (`?view=`) is read after hydration, see
- * `useViewTab`.
+ * `useViewTab`. Choosing Timeline from another tab goes to the Depth view instead, if Focus is the layout the visitor last chose (`useLayoutPref`).
  */
 export function FilmsSection({
   headingId,
@@ -83,12 +86,20 @@ export function FilmsSection({
   const clippingsTab = hasClippingsTab(clippings, critics);
   const views = availableViews(clippingsTab);
   const [view, setView] = useViewTab(clippingsTab, quoteIdsOf(clippings, critics));
+  const router = useRouter();
+  // The layout the visitor last chose (see `useLayoutPref`): Timeline is the Depth view for a visitor who chose Focus.
+  const [layoutPref] = useLayoutPref();
   const toolbarRef = useRef<HTMLDivElement>(null);
   /** A tab was chosen by the visitor and the page should be brought back to the tabs once it has re-rendered. */
   const reveal = useRef(false);
 
   const select = (next: View) => {
     if (next === view) return;
+    if (next === "timeline" && layoutPref === "focus") {
+      // The Timeline tab is the layout they chose: Focus is the same page on `?view=depth`, with its period, not a panel of this one.
+      router.push(`${window.location.pathname}${depthSearch(window.location.search)}`);
+      return;
+    }
     reveal.current = true;
     setView(next);
   };

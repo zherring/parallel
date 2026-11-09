@@ -10,6 +10,7 @@ import { PeoplePanel, type PanelLayout, type PanelPerson } from "@/components/ti
 import type { BioPerson } from "@/components/timeline/person-bio";
 import { LayoutToggle, type Layout } from "@/components/timeline/layout-toggle";
 import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
+import { useLayoutPref } from "@/components/timeline/use-layout-pref";
 import { useUrlPeriod } from "@/components/timeline/use-period";
 import { useViewTab } from "@/components/timeline/use-view-tab";
 import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
@@ -21,6 +22,7 @@ import { toggleHidden } from "@/lib/combined-track";
 import type { PairCritics } from "@/lib/critics";
 import { depthSearch } from "@/lib/depth-url";
 import { effectiveTrackMode } from "@/lib/film-prefs";
+import { layoutPrefOf } from "@/lib/layout-pref";
 import { personRows } from "@/lib/film-rows";
 import { hasClippingsTab, headlineCount, quoteIdsOf, showingMessage } from "@/lib/films-view";
 import { laneSummary, removePersonHref } from "@/lib/lanes";
@@ -59,6 +61,8 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   const router = useRouter();
   // The display preferences are shared with the Depth view (`?view=depth`), which a visitor moves to and from: see `useFilmPrefs`.
   const [{ includeMinor, showAll, trackMode }, setPrefs] = useFilmPrefs(timelines.map((t) => t.person.id).join("+"));
+  // The layout the visitor last chose, which the Timeline tab (in `FilmsSection`) goes to: the layout control sets it.
+  const [, chooseLayout] = useLayoutPref();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const timelineRef = useRef<TimelineHandle>(null);
@@ -167,6 +171,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   // The layout control: Combined and Lanes redraw this timeline; Focus is the Depth view, the same page on `?view=depth`, with its period.
   const handleLayoutChange = useCallback(
     (layout: Layout) => {
+      chooseLayout(layoutPrefOf(layout));
       if (layout === "focus") {
         router.push(`${window.location.pathname}${depthSearch(window.location.search)}`);
         return;
@@ -174,7 +179,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       timelineRef.current?.rememberCenter();
       setPrefs({ trackMode: layout });
     },
-    [router, setPrefs],
+    [chooseLayout, router, setPrefs],
   );
 
   const handlePanelLayoutChange = useCallback((layout: PanelLayout) => {
