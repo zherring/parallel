@@ -20,6 +20,7 @@ import { availableViews, hasClippingsTab, showingMessage } from "@/lib/films-vie
 import { laneSummary, removePersonHref } from "@/lib/lanes";
 import { outsidePeriodIds, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss, personSlots } from "@/lib/person-colors";
+import { postersLeftOut } from "@/lib/poster-cap";
 import type { ShareInput } from "@/lib/share";
 import type { PairShared } from "@/lib/shared";
 import { centerYear, scrollLeftForCenter } from "@/lib/timeline-layout";
@@ -41,6 +42,8 @@ interface Props {
 
 /** No film is minor: the usual scene. */
 const NO_MINOR: ReadonlySet<number> = new Set();
+/** No film is left without a poster: every film of the page is in the scene. */
+const NO_FILMS_LEFT_OUT: ReadonlySet<number> = new Set();
 
 /**
  * The Depth view of a `/p/` page (`?view=depth`): the same films as the Timeline, drawn as a vertical scene with
@@ -59,8 +62,8 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const [urlPeriod] = useUrlPeriod();
-  // "Include minor credits" is the flat page's setting, held for both views (see `useFilmPrefs`).
-  const [{ includeMinor }, setPrefs] = useFilmPrefs(timelines.map((t) => t.person.id).join("+"));
+  // "Include minor credits" and "Show all films" are the flat page's settings, held for both views (see `useFilmPrefs`).
+  const [{ includeMinor, showAll }, setPrefs] = useFilmPrefs(timelines.map((t) => t.person.id).join("+"));
 
   // The scene hides the site's header and footer (see globals.css) for as long as it is on screen.
   useLayoutEffect(() => {
@@ -78,7 +81,16 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
   );
   const minorIds = useMemo(() => (includeMinor ? minorOnlyIds(lanes) : NO_MINOR), [includeMinor, lanes]);
   const slots = useMemo(() => personSlots(people), [people]);
-  const entries = useMemo(() => demoteMinor(combineLanes(lanes, slots, today), minorIds), [lanes, slots, today, minorIds]);
+  // Every film of the page, oldest first: what the flat page lists and counts.
+  const everyEntry = useMemo(() => demoteMinor(combineLanes(lanes, slots, today), minorIds), [lanes, slots, today, minorIds]);
+  // With "Show all films" off, the films the flat timeline would leave as bare nodes (the same packing, at its default zoom) have no poster here:
+  // the scene is only the films that do, and a page of hundreds of credits is a few dozen posters. On, every film is in the scene.
+  const cappedOut = useMemo(() => postersLeftOut(lanes, slots, today), [lanes, slots, today]);
+  const leftOut = showAll ? NO_FILMS_LEFT_OUT : cappedOut;
+  const entries = useMemo(
+    () => (leftOut.size === 0 ? everyEntry : everyEntry.filter((entry) => !leftOut.has(entry.film.id))),
+    [everyEntry, leftOut],
+  );
   const info = useMemo(() => describeCombined(entries, lanes, includeMinor), [entries, lanes, includeMinor]);
   const layout = useMemo(() => depthLayout(entries, people.length, today, { minorIds }), [entries, people.length, today, minorIds]);
   // The people pill's rows. Removing someone stays in the Depth view, unless it was the last person (that goes home).
@@ -115,7 +127,8 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
     () => ({ people, count: multi ? shared.length : timelines[0].films.filter((film) => !film.minor).length, years: filmYears }),
     [people, multi, shared.length, timelines, filmYears],
   );
-  const settingsMessage = showingMessage(multi ? layout.films.filter((item) => item.shared).length : layout.films.length, multi);
+  // The count the flat page's checkbox announces: every film (the cap leaves a film without a poster, it does not take it off the page).
+  const settingsMessage = showingMessage(multi ? everyEntry.filter((entry) => entry.shared).length : everyEntry.length, multi);
 
   // The year at the middle of the screen stays there when the settings redraw the scene (the axis may grow or shrink at its ends).
   const keptCenter = useRef<number | null>(null);
@@ -136,6 +149,15 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
       setPrefs({ includeMinor: next });
     },
     [rememberCenter, setPrefs],
+  );
+  // Only when films are on the cap's line does the scene change: with none, there is nothing to redraw and no centre to restore.
+  const capHasEffect = cappedOut.size > 0;
+  const handleShowAllChange = useCallback(
+    (next: boolean) => {
+      if (capHasEffect) rememberCenter();
+      setPrefs({ showAll: next });
+    },
+    [capHasEffect, rememberCenter, setPrefs],
   );
 
   const handleSelect = useCallback((id: number, trigger: HTMLElement) => {
@@ -161,6 +183,8 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
         scrollerRef={scrollerRef}
         views={views}
         several={multi}
+        showAll={showAll}
+        onShowAllChange={handleShowAllChange}
         includeMinor={includeMinor}
         onIncludeMinorChange={handleIncludeMinorChange}
         onTrackModeChange={(trackMode) => setPrefs({ trackMode })}

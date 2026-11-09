@@ -26,6 +26,9 @@ interface DepthChromeProps {
   views: readonly View[];
   /** Several people: Focus and Combined (Lanes too, if it is on offer, see `LANES_ENABLED`). One person's page has the flat timeline alone. */
   several: boolean;
+  /** "Show all films", as on the flat page: off, the films the flat timeline leaves as bare nodes have no poster here (see `postersLeftOut`). */
+  showAll: boolean;
+  onShowAllChange: (showAll: boolean) => void;
   includeMinor: boolean;
   onIncludeMinorChange: (include: boolean) => void;
   /** Chooses how the flat timeline draws several people, before the page moves to it (Combined, while Lanes are parked). */
@@ -93,7 +96,7 @@ function ViewLinks({ views, hrefFor, className, compact = false }: ViewLinksProp
  * sibling of the scroller, never inside it (perspective would turn `fixed` into `absolute`), and takes no pointer events
  * of its own: only what is in it does, so the scene is draggable up to the controls' edges.
  *
- * The gear opens the flat page's film settings (Show all films, which Focus always does; Include minor credits) and Share, the
+ * The gear opens the flat page's film settings (Show all films and Include minor credits, which mean here what they mean there) and Share, the
  * flat page's menu with its Period choice. On a phone there is no room for the home pill, the views and the layout control on the
  * bar, so the bar holds the pill's heads and the gear alone, and the gear's sheet holds the views, the layout control and the way home too.
  *
@@ -107,6 +110,8 @@ export function DepthChrome({
   scrollerRef,
   views,
   several,
+  showAll,
+  onShowAllChange,
   includeMinor,
   onIncludeMinorChange,
   onTrackModeChange,
@@ -191,9 +196,8 @@ export function DepthChrome({
           label="Settings"
           buttonClassName={cn("size-[34px]", FLOATING)}
           scrollable={false}
-          showAll
-          onShowAllChange={() => {}}
-          showAllLocked="Every film has a poster in the Focus view."
+          showAll={showAll}
+          onShowAllChange={onShowAllChange}
           includeMinor={includeMinor}
           onIncludeMinorChange={onIncludeMinorChange}
           message={settingsMessage}

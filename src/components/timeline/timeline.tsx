@@ -31,7 +31,6 @@ import { nodeOnlyIds, rovingIndex, tabStopId } from "@/lib/roving";
 import { shortName } from "@/lib/short-name";
 import {
   AXIS_HEIGHT,
-  DEFAULT_MAX_ROWS,
   DEFAULT_ZOOM,
   DOT_HIT_SIZE,
   MAX_ZOOM,
@@ -46,7 +45,6 @@ import {
   filmMembership,
   initialAnchorX,
   initialScrollLeft,
-  laneObstacles,
   lineYInLane,
   makeScale,
   nextZoom,
@@ -54,7 +52,7 @@ import {
   nodeY,
   overflowCount,
   packFilms,
-  quietFilmIds,
+  packTrackLanes,
   rowCount,
   scrollLeftForCenter,
   scrollLeftForYearStart,
@@ -298,16 +296,8 @@ export function Timeline({
     const priorityIds = isCombined
       ? new Set(entries.filter((entry) => entry.shared).map((entry) => entry.film.id))
       : sharedAcrossLanes(trackLanes, today);
-    // While something is connected, the films that are not get a smaller card (and so pack tighter).
-    // Always the people's lanes: the combined track is one lane, and cannot tell what is shared.
-    const quietIds = quietFilmIds(lanes, today);
-
-    // Connector lines run through the poster rows of the lanes below their first node.
-    const obstacles = laneObstacles(trackLanes, base, today);
-    const optionsFor = (index: number) => ({ ...base, priorityIds, quietIds, obstacles: obstacles[index] });
-    const capped = trackLanes.map((lane, index) =>
-      packFilms(lane.films, { ...optionsFor(index), maxRows: DEFAULT_MAX_ROWS }),
-    );
+    // The row cap's packing (the Depth view's poster cap is the same function, at this default zoom), and the options to repack without it.
+    const { quietIds, optionsFor, capped } = packTrackLanes(trackLanes, lanes, priorityIds, base, today);
     const overflow = capped.map(overflowCount);
     const items = trackLanes.map((lane, index) =>
       showAll && overflow[index] > 0 ? packFilms(lane.films, optionsFor(index)) : capped[index],

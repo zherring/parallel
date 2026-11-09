@@ -404,6 +404,30 @@ export function laneObstacles(
   );
 }
 
+/**
+ * How the lanes of a track are packed, and what the row cap leaves without a poster. `trackLanes` are the lanes the track draws (the
+ * people's, or the one lane of the combined track), `lanes` the people's lanes (what decides which films are quiet), `priorityIds` the
+ * films every lane that shows them keeps a card for, and `base` the scale. Returns the pack options of a lane (the one place the options
+ * are put together, so a repack without the cap uses exactly the capped pack's) and the lanes packed with `DEFAULT_MAX_ROWS` rows,
+ * whose overflow is what "Show all films" gives a poster. The timeline and the Depth view's poster cap both come from here.
+ */
+export function packTrackLanes<F extends PackableFilm>(
+  trackLanes: readonly { films: readonly F[] }[],
+  lanes: readonly { films: readonly ConnectableFilm[] }[],
+  priorityIds: ReadonlySet<number>,
+  base: Pick<PackOptions, "pxPerYear" | "axisStartYear" | "pad">,
+  today: string,
+): { quietIds: Set<number>; optionsFor: (index: number) => PackOptions; capped: PackedFilm<F>[][] } {
+  // While something is connected, the films that are not get a smaller card (and so pack tighter).
+  // Always the people's lanes: the combined track is one lane, and cannot tell what is shared.
+  const quietIds = quietFilmIds(lanes, today);
+  // Connector lines run through the poster rows of the lanes below their first node.
+  const obstacles = laneObstacles(trackLanes, base, today);
+  const optionsFor = (index: number): PackOptions => ({ ...base, priorityIds, quietIds, obstacles: obstacles[index] });
+  const capped = trackLanes.map((lane, index) => packFilms(lane.films, { ...optionsFor(index), maxRows: DEFAULT_MAX_ROWS }));
+  return { quietIds, optionsFor, capped };
+}
+
 // ---- Lane geometry ---------------------------------------------------------
 
 /**

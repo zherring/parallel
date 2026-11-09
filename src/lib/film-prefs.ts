@@ -30,7 +30,7 @@ export function effectiveTrackMode(mode: TrackMode, lanesEnabled: boolean = LANE
 export interface FilmPrefs {
   /** Count the credits that are not the person's work (a cameo, a thank-you), see `MINOR_TOGGLE_LABEL`. */
   includeMinor: boolean;
-  /** Give every film of the flat timeline a poster, adding rows as needed. (The Depth view always does.) */
+  /** Give every film a poster, adding rows as needed: on the flat timeline, and in the Depth view, which has no poster for the films the timeline's row cap leaves as nodes (see `postersLeftOut`). */
   showAll: boolean;
   /** How the flat timeline draws several people. */
   trackMode: TrackMode;

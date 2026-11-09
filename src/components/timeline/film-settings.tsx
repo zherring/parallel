@@ -14,16 +14,11 @@ interface FilmSettingsProps {
   onIncludeMinorChange: (checked: boolean) => void;
   /** The sentence to announce, politely, after the minor-credits checkbox changes (e.g. "Showing 43 films together"). */
   message: string;
-  /**
-   * "Show all films" is already the case where the films are drawn (the Depth view gives every film a poster): it is then
-   * shown on and cannot be changed, with this as its hint in place of the usual one.
-   */
-  showAllLocked?: string;
 }
 
 /** Native, independently controlled checkboxes shared by either placement of the gear. */
 export function FilmSettingsOptions({
-  showAll, onShowAllChange, includeMinor, onIncludeMinorChange, message, showAllLocked, posterHintId,
+  showAll, onShowAllChange, includeMinor, onIncludeMinorChange, message, posterHintId,
 }: FilmSettingsProps & { posterHintId: string }) {
   // The live region is always in the DOM, so that it exists before its text changes; the text
   // waits for a change to the minor-credits checkbox, whose effect is usually out of sight.
@@ -31,10 +26,10 @@ export function FilmSettingsOptions({
   return (
     <div className="space-y-3">
       <label className="flex cursor-pointer items-start gap-2.5">
-        <input type="checkbox" aria-label="Show all films" aria-describedby={posterHintId} checked={showAllLocked ? true : showAll} disabled={Boolean(showAllLocked)} onChange={(event) => onShowAllChange(event.target.checked)} className="mt-0.5 size-4 shrink-0 cursor-pointer accent-accent-green disabled:cursor-default" />
+        <input type="checkbox" aria-label="Show all films" aria-describedby={posterHintId} checked={showAll} onChange={(event) => onShowAllChange(event.target.checked)} className="mt-0.5 size-4 shrink-0 cursor-pointer accent-accent-green" />
         <span>
           <span className="text-strong">Show all films</span>
-          <span id={posterHintId} className="mt-0.5 block text-xs text-muted">{showAllLocked ?? "Give every film a poster, adding rows as needed."}</span>
+          <span id={posterHintId} className="mt-0.5 block text-xs text-muted">Give every film a poster, adding rows as needed.</span>
         </span>
       </label>
       <label className="flex cursor-pointer items-start gap-2.5">
@@ -63,7 +58,7 @@ interface FilmSettingsPopupProps extends FilmSettingsProps {
 
 /** Both film-display preferences in a small, non-modal pop-up; checkbox changes keep it open. */
 export function FilmSettings({
-  showAll, onShowAllChange, includeMinor, onIncludeMinorChange, message, showAllLocked,
+  showAll, onShowAllChange, includeMinor, onIncludeMinorChange, message,
   label = "Film settings", buttonClassName, scrollable = true, before, after,
 }: FilmSettingsPopupProps) {
   const [open, setOpen] = useState(false);
@@ -163,7 +158,6 @@ export function FilmSettings({
             includeMinor={includeMinor}
             onIncludeMinorChange={onIncludeMinorChange}
             message={message}
-            showAllLocked={showAllLocked}
             posterHintId={`${panelId}-posters`}
           />
           {after}

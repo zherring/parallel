@@ -37,6 +37,19 @@ async function openDepth(page: Page, search = "") {
   await expect.poll(async () => Number(await rail(page).getAttribute("aria-valuenow"))).toBeGreaterThan(0);
 }
 
+/**
+ * "Show all films" on, in the gear, as a visitor turns it on. The scene is otherwise only the films the flat timeline gives a poster card
+ * (see `postersLeftOut`), which, on the fixture's pile of own films around the collaborations of 2000 to 2002, leaves some of them out: the
+ * tests of how a poster looks or is laid out, which look at the fixture's own films by id, want them all.
+ */
+async function showAllFilms(page: Page) {
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const sheet = page.getByRole("dialog", { name: "Settings", exact: true });
+  await sheet.getByRole("checkbox", { name: "Show all films", exact: true }).check();
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
+}
+
 test("the scene opens scrolled to the first collaboration", async ({ page }) => {
   await openDepth(page);
   const region = scene(page);
@@ -207,13 +220,14 @@ test("a page of one person has its posters at the front, big and sharp", async (
   await page.goto("/p/90000001-scroll-alpha?view=depth");
   const region = scene(page);
   await expect(region).toBeVisible();
+  await showAllFilms(page);
 
   // One layer, at the screen plane, with no soft copy of any poster and nothing blurred.
   await expect(region.locator("ol")).toHaveCount(1);
   expect(await region.locator("ol").evaluate((list) => list.style.transform)).toBe("translateZ(0px)");
   const posters = region.locator("[data-poster]");
+  await expect.poll(() => posters.count()).toBeGreaterThan(20);
   const count = await posters.count();
-  expect(count).toBeGreaterThan(20);
   await expect(region.locator("[data-poster] img")).toHaveCount(count);
   const images = await region.locator("[data-poster] img").evaluateAll((all) =>
     all.map((image) => ({ source: image.getAttribute("data-src"), filter: getComputedStyle(image).filter, opacity: getComputedStyle(image).opacity })),
@@ -236,6 +250,7 @@ test("a page of one person has its posters at the front, big and sharp", async (
 
 test("a linked period dims the posters outside it", async ({ page }) => {
   await openDepth(page, "&from=2000&to=2001");
+  await showAllFilms(page);
   const region = scene(page);
 
   // 1990 is outside 2000-2001 (opacity fades in over a moment); 2000 is inside. The dimming is the whole opacity: it wins over the
@@ -519,6 +534,7 @@ const scrollToCentre = async (page: Page, id: number) => {
 
 test("background posters rest at 0.8 for the best-known film and fade, blur and recede as the film gets more obscure", async ({ page }) => {
   await openDepth(page);
+  await showAllFilms(page);
   const [famous, middling, obscure, nothing] = await Promise.all([1000, 1005, 1010, 1014].map((id) => lookOf(page, id)));
 
   // The best-known background film of the page: 0.8 at rest, about 1px of blur, on its layer's plane (320px back, factor 1000/1320).
@@ -1443,16 +1459,17 @@ test("the flat Timeline's layout control reaches Focus, with the period", async 
   await expect(page).toHaveURL(/\?from=2000&to=2001&view=depth$/);
 });
 
-test("the gear opens the flat page's settings and Share: Show all films is already on, and the period is in Share", async ({ page }) => {
+test("the gear opens the flat page's settings and Share: Show all films is off, as on the flat page, and the period is in Share", async ({ page }) => {
   await openDepth(page);
   await settingsGear(page).click();
   const sheet = settingsSheet(page);
   await expect(sheet).toBeVisible();
 
-  // Every film has a poster here, so "Show all films" is shown on and cannot be turned off.
+  // "Show all films" is the flat page's checkbox, with its words and its hint, off to begin with and free to change: both settings are off.
   const showAll = sheet.getByRole("checkbox", { name: "Show all films", exact: true });
-  await expect(showAll).toBeChecked();
-  await expect(showAll).toBeDisabled();
+  await expect(showAll).not.toBeChecked();
+  await expect(showAll).toBeEnabled();
+  await expect(showAll).toHaveAccessibleDescription("Give every film a poster, adding rows as needed.");
   await expect(minorToggle(page)).not.toBeChecked();
   // The views and the layout control are on the bar from `sm`: the sheet has them for a phone only.
   await expect(sheet.getByRole("navigation", { name: "Views", exact: true })).toBeHidden();
@@ -1476,6 +1493,8 @@ test("the gear opens the flat page's settings and Share: Show all films is alrea
 
 test("turning on minor credits in the gear adds them as background posters, faint and far back, and turning it off takes them away", async ({ page }) => {
   await openDepth(page);
+  // Every film, so that the count of what the minor toggle adds is the minor films alone (the cap's own effect is the tests' below).
+  await showAllFilms(page);
   const posters = scene(page).locator("button[data-film]");
   const before = await posters.count();
   const centreBefore = await scene(page).evaluate((scroller) => scroller.scrollTop + scroller.clientHeight / 2);
@@ -1505,6 +1524,101 @@ test("turning on minor credits in the gear adds them as background posters, fain
   await minorToggle(page).uncheck();
   await expect.poll(() => posters.count()).toBe(before);
   await expect(scene(page).locator('[data-poster="1100"]')).toHaveCount(0);
+});
+
+/** The ids of the posters in the scene. */
+const posterIds = async (page: Page) =>
+  (await scene(page).locator("[data-poster]").evaluateAll((all) => all.map((poster) => Number((poster as HTMLElement).dataset.poster)))).sort((a, b) => a - b);
+
+/** On the flat timeline: every film's id, and those it leaves as a bare node (no poster card) while "Show all films" is off. */
+async function flatFilms(page: Page) {
+  const track = page.getByRole("region", { name: "Film timeline. Scroll sideways to see more years.", exact: true });
+  const ids = (selector: string) =>
+    track.locator(selector).evaluateAll((all) => [...new Set(all.map((element) => Number(element.getAttribute("data-film"))))].sort((a, b) => a - b));
+  return { all: await ids("[data-film]"), nodes: await ids("[data-film-node]") };
+}
+
+test("with Show all films off, Focus has a poster for the films the flat timeline gives a card and none for the ones it leaves as nodes, with minor credits off or on", async ({ page }) => {
+  // The flat page first: its films, and the ones it leaves as nodes, with the minor credits off and on.
+  await page.goto(PEOPLE_PATH);
+  await expect(page.getByRole("button", { name: "Combined timeline", exact: true })).toHaveAttribute("aria-pressed", "true");
+  const flatOff = await flatFilms(page);
+  await page.getByRole("button", { name: "Film settings", exact: true }).click();
+  const flatDialog = page.getByRole("dialog", { name: "Film settings", exact: true });
+  await expect(flatDialog.getByRole("checkbox", { name: "Show all films", exact: true })).not.toBeChecked();
+  await flatDialog.getByRole("checkbox", { name: /Show shorts, music videos, cameos and uncredited/ }).check();
+  await page.keyboard.press("Escape");
+  await expect.poll(async () => (await flatFilms(page)).all.length).toBe(flatOff.all.length + MINOR_FILM_COUNT);
+  const flatOn = await flatFilms(page);
+  // The fixture is built to have some of each: films that fit the two rows and films that do not.
+  expect(flatOff.nodes.length).toBeGreaterThan(0);
+  expect(flatOff.nodes.length).toBeLessThan(flatOff.all.length);
+  expect(flatOn.nodes.length).toBeGreaterThan(flatOff.nodes.length);
+
+  // Focus, with both settings carried over (the minor credits on, Show all films off): a poster for every film that has a card there.
+  await layoutGroup(page).getByRole("button", { name: "Focus view", exact: true }).click();
+  await expect(scene(page)).toBeVisible();
+  const withCard = (flat: { all: number[]; nodes: number[] }) => flat.all.filter((id) => !flat.nodes.includes(id));
+  await expect.poll(() => posterIds(page)).toEqual(withCard(flatOn));
+
+  // Minor credits off: the same, against the flat page's own set with them off.
+  await settingsGear(page).click();
+  await minorToggle(page).uncheck();
+  await expect.poll(() => posterIds(page)).toEqual(withCard(flatOff));
+
+  // Show all films on: every film of the page. On with the minor credits on, too.
+  await settingsSheetShowAll(page).check();
+  await expect.poll(() => posterIds(page)).toEqual(flatOff.all);
+  await minorToggle(page).check();
+  await expect.poll(() => posterIds(page)).toEqual(flatOn.all);
+
+  // And off again, back to the films that have a card.
+  await settingsSheetShowAll(page).uncheck();
+  await expect.poll(() => posterIds(page)).toEqual(withCard(flatOn));
+});
+
+const settingsSheetShowAll = (page: Page) => settingsSheet(page).getByRole("checkbox", { name: "Show all films", exact: true });
+
+test("Show all films in Focus changes the number of posters, never the films made together, and keeps the year at the middle of the screen", async ({ page }) => {
+  await openDepth(page);
+  const posters = scene(page).locator("[data-poster]");
+  const togetherIds = async () =>
+    (await scene(page).locator("ol").first().locator("[data-poster]").evaluateAll((all) => all.map((poster) => (poster as HTMLElement).dataset.poster))).sort();
+  const fewer = await posters.count();
+  const together = await togetherIds();
+  const centreBefore = await scene(page).evaluate((scroller) => scroller.scrollTop + scroller.clientHeight / 2);
+
+  await settingsGear(page).click();
+  await expect(settingsSheetShowAll(page)).not.toBeChecked();
+  await settingsSheetShowAll(page).check();
+  await expect.poll(() => posters.count()).toBeGreaterThan(fewer);
+  // The films made together keep their posters either way: they are placed first, ahead of the cap.
+  expect(await togetherIds()).toEqual(together);
+  // The sheet stays open, and the year in the middle of the screen stays there.
+  await expect(settingsSheet(page)).toBeVisible();
+  const centreAfter = await scene(page).evaluate((scroller) => scroller.scrollTop + scroller.clientHeight / 2);
+  expect(Math.abs(centreAfter - centreBefore)).toBeLessThan(2);
+
+  await settingsSheetShowAll(page).uncheck();
+  await expect.poll(() => posters.count()).toBe(fewer);
+});
+
+test("Show all films is shared with the flat page, as the minor credits are", async ({ page }) => {
+  await openDepth(page);
+  await settingsGear(page).click();
+  await settingsSheetShowAll(page).check();
+  await page.keyboard.press("Escape");
+  await layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true }).click();
+  await page.getByRole("button", { name: "Film settings", exact: true }).click();
+  const flatDialog = page.getByRole("dialog", { name: "Film settings", exact: true });
+  await expect(flatDialog.getByRole("checkbox", { name: "Show all films", exact: true })).toBeChecked();
+  // Off here: Focus has it off too.
+  await flatDialog.getByRole("checkbox", { name: "Show all films", exact: true }).uncheck();
+  await page.keyboard.press("Escape");
+  await layoutGroup(page).getByRole("button", { name: "Focus view", exact: true }).click();
+  await expect(scene(page)).toBeVisible();
+  await settingsGear(page).click();
+  await expect(settingsSheetShowAll(page)).not.toBeChecked();
 });
 
 test("a setting made in the gear is there on the flat page, and the other way round", async ({ page }) => {
@@ -1644,6 +1758,7 @@ test("until its image arrives a poster is the dark surface tinted with its perso
     await page.goto(`${PEOPLE_PATH}?view=depth`, { waitUntil: "domcontentloaded" });
     await expect(scene(page)).toBeVisible();
     await expect.poll(async () => Number(await rail(page).getAttribute("aria-valuenow"))).toBeGreaterThan(0);
+    await showAllFilms(page);
     // A jump (as along the rail) to posters whose images were not asked for before it.
     await scrollToCentre(page, 1011);
 
