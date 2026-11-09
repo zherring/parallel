@@ -12,6 +12,21 @@
 /** One track for everyone, or one lane each (the timeline as it was). */
 export type TrackMode = "combined" | "separate";
 
+/**
+ * Whether the separate-lanes layout is on offer. It is parked for now: the layout control shows Focus and Combined only, and
+ * the flat timeline is always the one combined track (see `effectiveTrackMode`). The lanes themselves (the timeline's lane
+ * rendering, the people column, `TrackMode`) are all still here: set this to `true` to bring the option back.
+ */
+export const LANES_ENABLED = false;
+
+/**
+ * The track mode the flat timeline is drawn in: the one asked for, unless lanes are parked (`LANES_ENABLED`), when whatever was
+ * asked for ("separate" held from before, say) is the combined track.
+ */
+export function effectiveTrackMode(mode: TrackMode, lanesEnabled: boolean = LANES_ENABLED): TrackMode {
+  return lanesEnabled ? mode : "combined";
+}
+
 export interface FilmPrefs {
   /** Count the credits that are not the person's work (a cameo, a thank-you), see `MINOR_TOGGLE_LABEL`. */
   includeMinor: boolean;

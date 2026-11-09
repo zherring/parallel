@@ -20,6 +20,7 @@ import { voiceClippings } from "@/lib/clippings-view";
 import { toggleHidden } from "@/lib/combined-track";
 import type { PairCritics } from "@/lib/critics";
 import { depthSearch } from "@/lib/depth-url";
+import { effectiveTrackMode } from "@/lib/film-prefs";
 import { personRows } from "@/lib/film-rows";
 import { hasClippingsTab, headlineCount, quoteIdsOf, showingMessage } from "@/lib/films-view";
 import { laneSummary, removePersonHref } from "@/lib/lanes";
@@ -76,7 +77,9 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     () => (clippings ? voiceClippings(clippings, timelines.map((t) => t.person)) : null),
     [clippings, timelines],
   );
-  const combined = multi && trackMode === "combined";
+  // Lanes are parked (see `LANES_ENABLED`): whatever track mode is held, the flat timeline is the one combined track.
+  const shownTrackMode = effectiveTrackMode(trackMode);
+  const combined = multi && shownTrackMode === "combined";
 
   // The server sends the default (non-minor) lists; recompute only when the toggle is on.
   const sharedNow = useMemo(
@@ -250,7 +253,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       combined={combined}
       showAll={showAll}
       settingsControl={settingsControl}
-      layoutToggle={<LayoutToggle layout={multi ? trackMode : "combined"} several={multi} onChange={handleLayoutChange} />}
+      layoutToggle={<LayoutToggle layout={multi ? shownTrackMode : "combined"} several={multi} onChange={handleLayoutChange} />}
       sidebarExpanded={panelLayout === "stack"}
       sidebar={
         // The people column belongs to both layouts: the eye and the details stay where they were

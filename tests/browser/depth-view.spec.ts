@@ -1372,11 +1372,11 @@ test("the bar has the views beside the pill, with Timeline current, and the layo
   expect(toggleBox.x + toggleBox.width).toBeLessThan(gearBox.x);
   expect(gearBox.x + gearBox.width).toBeLessThanOrEqual(railBox.x - 8);
 
-  // Focus is the layout this page is in; the other two leave for the flat timeline.
-  await expect(layoutGroup(page).getByRole("button")).toHaveCount(3);
+  // Focus is the layout this page is in; Combined leaves for the flat timeline. (Lanes are parked: see `LANES_ENABLED`.)
+  await expect(layoutGroup(page).getByRole("button")).toHaveCount(2);
   await expect(layoutGroup(page).getByRole("button", { name: "Focus view", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true })).toHaveAttribute("aria-pressed", "false");
-  await expect(layoutGroup(page).getByRole("button", { name: "Separate lanes", exact: true })).toHaveAttribute("aria-pressed", "false");
+  await expect(layoutGroup(page).getByRole("button", { name: "Separate lanes", exact: true })).toHaveCount(0);
 });
 
 test("the Table link lands on the table, with the people and the period", async ({ page }) => {
@@ -1410,7 +1410,10 @@ test("the layout control round-trips Focus, Combined, Focus, and the period goes
   await expect(page.locator("html")).toHaveAttribute("data-view", "depth");
 });
 
-test("Lanes opens the flat timeline in separate lanes, and leaving it for Focus and coming back to Combined puts the lanes away", async ({ page }) => {
+// Lanes are parked (`LANES_ENABLED` in `src/lib/film-prefs.ts` is false): the layout control offers Focus and Combined only, and the flat
+// timeline is always the one combined track. The test below is the lanes round trip for when the flag is turned on; it is skipped, not
+// deleted, because the browser cannot flip a build-time constant. (The unit tests turn the option on with `LayoutToggle`'s `lanes` prop.)
+test.skip("Lanes opens the flat timeline in separate lanes, and leaving it for Focus and coming back to Combined puts the lanes away (parked with the lanes: LANES_ENABLED)", async ({ page }) => {
   await openDepth(page);
   await layoutGroup(page).getByRole("button", { name: "Separate lanes", exact: true }).click();
   await expect(layoutGroup(page).getByRole("button", { name: "Separate lanes", exact: true })).toHaveAttribute("aria-pressed", "true");
@@ -1421,6 +1424,15 @@ test("Lanes opens the flat timeline in separate lanes, and leaving it for Focus 
   await expect(scene(page)).toBeVisible();
   await layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true }).click();
   await expect(layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("there is no Lanes option, in the Focus bar or on the flat timeline, and Combined is what the flat timeline opens in", async ({ page }) => {
+  await openDepth(page);
+  await expect(layoutGroup(page).getByRole("button", { name: "Separate lanes", exact: true })).toHaveCount(0);
+  await layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true }).click();
+  await expect(layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(layoutGroup(page).getByRole("button")).toHaveCount(2);
+  await expect(layoutGroup(page).getByRole("button", { name: "Separate lanes", exact: true })).toHaveCount(0);
 });
 
 test("the flat Timeline's layout control reaches Focus, with the period", async ({ page }) => {
@@ -1707,7 +1719,7 @@ test.describe("on a phone", () => {
     // The layout control, with its words, then the settings and Share.
     await expect(sheet.getByRole("button", { name: "Focus view", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(sheet.getByRole("button", { name: "Combined timeline", exact: true })).toBeVisible();
-    await expect(sheet.getByRole("button", { name: "Separate lanes", exact: true })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: "Separate lanes", exact: true })).toHaveCount(0);
     await expect(minorToggle(page)).toBeVisible();
     await expect(sheet.getByRole("button", { name: "Share", exact: true })).toBeVisible();
 
@@ -1735,9 +1747,9 @@ test.describe("on a phone", () => {
     expect(last.y + last.height).toBeLessThanOrEqual(844);
     await expect(sheet.getByRole("combobox", { name: "From year", exact: true })).toBeVisible();
 
-    await sheet.getByRole("button", { name: "Separate lanes", exact: true }).tap();
+    await sheet.getByRole("button", { name: "Combined timeline", exact: true }).tap();
     await expect(page.getByRole("tab", { name: "Timeline", exact: true })).toHaveAttribute("aria-selected", "true");
-    await expect(layoutGroup(page).getByRole("button", { name: "Separate lanes", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(scene(page)).toHaveCount(0);
   });
 

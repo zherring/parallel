@@ -2,7 +2,7 @@
 
 import { Focus, Layers, Rows2 } from "lucide-react";
 import type { ReactNode } from "react";
-import type { TrackMode } from "@/lib/film-prefs";
+import { LANES_ENABLED, type TrackMode } from "@/lib/film-prefs";
 import { cn } from "./cn";
 
 /** How the timeline of a page of films is drawn: the Depth view ("focus"), one track for everyone, or one lane each. */
@@ -45,8 +45,10 @@ const SOLO_COMBINED: Option = { ...OPTIONS.combined, label: "Timeline", ariaLabe
 
 interface LayoutToggleProps {
   layout: Layout;
-  /** Several people: Focus, Combined and Lanes. One person: Focus and the flat Timeline (carried as "combined"). */
+  /** Several people: Focus and Combined (and Lanes, when they are on offer). One person: Focus and the flat Timeline (carried as "combined"). */
   several: boolean;
+  /** Whether the Lanes option is offered to several people; the parked default is `LANES_ENABLED` (off). A test turns it on. */
+  lanes?: boolean;
   onChange: (layout: Layout) => void;
   /** Words beside the icons, for where there is room (the Depth view's settings sheet). */
   labelled?: boolean;
@@ -54,13 +56,13 @@ interface LayoutToggleProps {
 }
 
 /**
- * The timeline's layout as one small segmented control: Focus (the Depth view), Combined (one track for everyone) and Lanes
- * (one lane each). Each option is an icon button with a title and an aria-label, and the current one is pressed. It floats over
+ * The timeline's layout as one small segmented control: Focus (the Depth view) and Combined (one track for everyone), and Lanes
+ * (one lane each) where they are on offer (parked for now, see `LANES_ENABLED`). Each option is an icon button with a title and an aria-label, and the current one is pressed. It floats over
  * the flat timeline's top-right corner and sits in the top right of the Depth view; choosing a layout other than the one
  * the page is in is for the page to act on (`onChange`): the flat page navigates to Focus, the Depth view to the flat timeline.
  */
-export function LayoutToggle({ layout, several, onChange, labelled = false, className }: LayoutToggleProps) {
-  const layouts: readonly Layout[] = several ? ["focus", "combined", "separate"] : ["focus", "combined"];
+export function LayoutToggle({ layout, several, lanes = LANES_ENABLED, onChange, labelled = false, className }: LayoutToggleProps) {
+  const layouts: readonly Layout[] = several && lanes ? ["focus", "combined", "separate"] : ["focus", "combined"];
   return (
     <div role="group" aria-label="Timeline layout" className={cn("inline-flex shrink-0 items-center gap-0.5 rounded-md bg-canvas p-0.5", className)}>
       {layouts.map((id) => {

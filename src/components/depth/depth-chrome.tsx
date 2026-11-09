@@ -20,11 +20,11 @@ interface DepthChromeProps {
   scrollerRef: RefObject<HTMLDivElement | null>;
   /** The views the page offers, in order: Timeline and Table, and Clippings for a pair that has quotes or critics (see `availableViews`). */
   views: readonly View[];
-  /** Several people: Combined and Lanes are different layouts. One person's page has the flat timeline alone. */
+  /** Several people: Focus and Combined (Lanes too, if it is on offer, see `LANES_ENABLED`). One person's page has the flat timeline alone. */
   several: boolean;
   includeMinor: boolean;
   onIncludeMinorChange: (include: boolean) => void;
-  /** Chooses how the flat timeline draws several people, before the page moves to it. */
+  /** Chooses how the flat timeline draws several people, before the page moves to it (Combined, while Lanes are parked). */
   onTrackModeChange: (mode: TrackMode) => void;
   /** What the settings announce, politely, after the minor credits are turned on or off ("Showing 43 films together"). */
   settingsMessage: string;
@@ -84,7 +84,7 @@ function ViewLinks({ views, hrefFor, className, compact = false }: ViewLinksProp
 
 /**
  * The Depth view's controls, a bar fixed to the top of the screen: the people pill with the page's views beside it at the
- * left, and at the right, clear of the year rail, the layout control (Focus, Combined, Lanes) and a gear. The bar is a
+ * left, and at the right, clear of the year rail, the layout control (Focus, Combined) and a gear. The bar is a
  * sibling of the scroller, never inside it (perspective would turn `fixed` into `absolute`), and takes no pointer events
  * of its own: only what is in it does, so the scene is draggable up to the controls' edges.
  *

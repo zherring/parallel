@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_FILM_PREFS, NO_HELD_PREFS, prefsFor, updatePrefs, type HeldPrefs } from "@/lib/film-prefs";
+import { DEFAULT_FILM_PREFS, LANES_ENABLED, NO_HELD_PREFS, effectiveTrackMode, prefsFor, updatePrefs, type HeldPrefs } from "@/lib/film-prefs";
 
 const PAGE = "1+2";
 const OTHER = "1+2+3";
@@ -48,5 +48,18 @@ describe("updatePrefs", () => {
     const frozen = JSON.stringify(held);
     updatePrefs(held, PAGE, { includeMinor: false });
     expect(JSON.stringify(held)).toBe(frozen);
+  });
+});
+
+describe("effectiveTrackMode", () => {
+  it("is the combined track whatever was held while the lanes are parked", () => {
+    expect(LANES_ENABLED).toBe(false);
+    expect(effectiveTrackMode("combined")).toBe("combined");
+    expect(effectiveTrackMode("separate")).toBe("combined");
+  });
+
+  it("honours the mode asked for once the lanes are turned on", () => {
+    expect(effectiveTrackMode("separate", true)).toBe("separate");
+    expect(effectiveTrackMode("combined", true)).toBe("combined");
   });
 });
