@@ -44,3 +44,45 @@ export function retryDelayMs(
 export function retryFits(delayMs: number, remainingMs: number): boolean {
   return delayMs + MIN_ATTEMPT_MS <= remainingMs;
 }
+
+/** Codes Node puts on the error when the connection to the server (not our code) fails. */
+const CONNECTION_CODES = new Set([
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ECONNABORTED",
+  "ETIMEDOUT",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "EPIPE",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "ENETDOWN",
+]);
+/** undici codes that mean the call itself was wrong or was cancelled by us, not that the connection failed. */
+const NOT_A_CONNECTION_FAILURE = new Set([
+  "UND_ERR_ABORTED",
+  "UND_ERR_INVALID_ARG",
+  "UND_ERR_INVALID_RETURN_VALUE",
+  "UND_ERR_NOT_SUPPORTED",
+]);
+
+/**
+ * Whether `error`, thrown by fetch or while reading a body, is the connection to the server
+ * failing, which is worth retrying: "timeout" for a connect/headers/body timeout, "network" for
+ * any other (reset, refused, DNS, socket closed). undici hides the real error in `cause` of a
+ * `TypeError: fetch failed`, so the cause chain is searched for a known `code`. Null for anything
+ * else (a bad URL or header, a bug of ours): those must surface as themselves, not as an outage.
+ */
+export function classifyConnectionError(error: unknown): "timeout" | "network" | null {
+  let current: unknown = error;
+  for (let depth = 0; depth < 4 && current instanceof Error; depth++) {
+    const code = (current as { code?: unknown }).code;
+    if (typeof code === "string") {
+      const connection =
+        CONNECTION_CODES.has(code) || (code.startsWith("UND_ERR_") && !NOT_A_CONNECTION_FAILURE.has(code));
+      if (connection) return code === "ETIMEDOUT" || code.endsWith("_TIMEOUT") ? "timeout" : "network";
+    }
+    current = current.cause;
+  }
+  return null;
+}

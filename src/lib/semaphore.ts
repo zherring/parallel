@@ -11,16 +11,6 @@ export class Semaphore {
     if (!Number.isInteger(limit) || limit < 1) throw new RangeError("Semaphore limit must be a positive integer");
   }
 
-  /** Tasks running right now. */
-  get inFlight(): number {
-    return this.active;
-  }
-
-  /** Tasks waiting for a slot. */
-  get queued(): number {
-    return this.waiting.length;
-  }
-
   /** Runs `task` once a slot is free and gives the slot back when it settles, however it settles. */
   async run<T>(task: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     await this.acquire(signal);

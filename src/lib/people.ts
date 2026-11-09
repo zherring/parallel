@@ -15,7 +15,8 @@ export async function loadPeople(
   if (!parsed) notFound();
 
   try {
-    const timelines = await Promise.all(parsed.ids.map(getPersonMovieCredits));
+    const peopleOnPage = parsed.ids.length;
+    const timelines = await Promise.all(parsed.ids.map((id) => getPersonMovieCredits(id, { peopleOnPage })));
     const canonical = buildPeopleSlug(timelines.map((t) => t.person));
     return { timelines, canonical, isCanonical: decodeURIComponent(slug) === canonical };
   } catch (error) {

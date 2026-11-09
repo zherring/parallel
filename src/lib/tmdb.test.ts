@@ -9,7 +9,7 @@ import {
   getMovieMetrics,
   getPersonMovieCredits,
   getShortMovieIds,
-  resetTmdbClientState,
+  __resetTmdbClientStateForTests,
   searchPeople,
   searchPeopleWithPopularity,
 } from "@/lib/tmdb";
@@ -20,13 +20,17 @@ const fetchMock = vi.fn<typeof fetch>();
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers });
 
+/** What undici throws when the connection fails: a bare TypeError, the real error (and its code) in `cause`. */
+const networkError = (code = "ECONNRESET") =>
+  new TypeError("fetch failed", { cause: Object.assign(new Error(`read ${code}`), { code }) });
+
 const lastCall = (n = 0) => {
   const [url, init] = fetchMock.mock.calls[n];
   return { url: new URL(String(url)), init: init as RequestInit & { next?: { revalidate: number } } };
 };
 
 beforeEach(() => {
-  resetTmdbClientState();
+  __resetTmdbClientStateForTests();
   vi.stubGlobal("fetch", fetchMock);
   vi.stubEnv("TMDB_READ_ACCESS_TOKEN", TOKEN);
   vi.useFakeTimers();
@@ -148,7 +152,7 @@ describe("searchPeopleWithPopularity", () => {
   });
 
   it("turns a network error that outlasts the retries into a 502 TmdbError", async () => {
-    fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+    fetchMock.mockRejectedValue(networkError());
     const promise = searchPeopleWithPopularity("x").catch((e: unknown) => e);
     await vi.runAllTimersAsync();
     const error = await promise;
@@ -202,7 +206,7 @@ describe("getShortMovieIds", () => {
     expect([pageOf(0), pageOf(1), pageOf(2)]).toEqual([1, 2, 3]);
   });
 
-  it("requests the remaining pages concurrently, not one after another", async () => {
+  it("requests the remaining pages together, two at a time (the short-film lane), not one after another", async () => {
     let pending = 0;
     let peak = 0;
     fetchMock.mockImplementation(async (input) => {
@@ -214,7 +218,7 @@ describe("getShortMovieIds", () => {
       return discoverPage([page], 4);
     });
     await getShortMovieIds(1);
-    expect(peak).toBe(3);
+    expect(peak).toBe(2);
   });
 
   it("stops at 10 pages even when TMDB reports more", async () => {
@@ -226,6 +230,21 @@ describe("getShortMovieIds", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(10);
     expect(ids).toEqual(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]));
+  });
+
+  it("reads up to 3 pages per person when more than 2 people are being loaded, 10 otherwise", async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const page = Number(new URL(String(input)).searchParams.get("page"));
+      return discoverPage([page], 500);
+    });
+
+    for (const [peopleOnPage, pages] of [[1, 10], [2, 10], [3, 3], [4, 3]] as const) {
+      fetchMock.mockClear();
+      __resetTmdbClientStateForTests();
+      const ids = await getShortMovieIds(1, { peopleOnPage });
+      expect(fetchMock, `${peopleOnPage} people`).toHaveBeenCalledTimes(pages);
+      expect(ids.size).toBe(pages);
+    }
   });
 
   it("degrades to an empty set when the first page fails, without throwing or leaking the token", async () => {
@@ -242,7 +261,7 @@ describe("getShortMovieIds", () => {
 
   it("degrades to an empty set on a network error", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+    fetchMock.mockRejectedValue(networkError());
     const promise = getShortMovieIds(1);
     await vi.runAllTimersAsync();
     await expect(promise).resolves.toEqual(new Set());
@@ -272,6 +291,21 @@ describe("getShortMovieIds", () => {
 });
 
 describe("getPersonMovieCredits", () => {
+  it("passes how many people are on the page on to the short-movie lookup", async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = new URL(String(input));
+      if (url.pathname.includes("discover")) return json({ page: 1, total_pages: 50, results: [] });
+      return json(url.pathname.endsWith("movie_credits") ? { cast: [], crew: [] } : { id: 1, name: "A" });
+    });
+    await getPersonMovieCredits(1, { peopleOnPage: 4 });
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes("/discover/"))).toHaveLength(3);
+
+    fetchMock.mockClear();
+    __resetTmdbClientStateForTests();
+    await getPersonMovieCredits(2);
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes("/discover/"))).toHaveLength(10);
+  });
+
   afterEach(() => vi.restoreAllMocks());
 
   const credits = {

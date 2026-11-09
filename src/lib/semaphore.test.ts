@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { Semaphore } from "@/lib/semaphore";
 
+/** Whether `semaphore` has a free slot right now: a task started on it runs at once. */
+async function hasFreeSlot(semaphore: Semaphore): Promise<boolean> {
+  let started = false;
+  const probe = semaphore.run(async () => void (started = true));
+  await tick();
+  const free = started;
+  if (!free) probe.catch(() => {});
+  return free;
+}
+
 /** A task that stays running until `finish` is called. */
 function gate<T = void>() {
   let finish!: (value: T) => void;
@@ -35,8 +45,7 @@ describe("Semaphore", () => {
     );
 
     await tick();
-    expect(semaphore.inFlight).toBe(3);
-    expect(semaphore.queued).toBe(7);
+    expect(running).toBe(3);
 
     for (const g of gates) {
       g.finish();
@@ -45,8 +54,8 @@ describe("Semaphore", () => {
     }
     await Promise.all(done);
     expect(peak).toBe(3);
-    expect(semaphore.inFlight).toBe(0);
-    expect(semaphore.queued).toBe(0);
+    // Every slot was given back.
+    expect(await hasFreeSlot(semaphore)).toBe(true);
   });
 
   it("starts waiting tasks in arrival order", async () => {
@@ -67,7 +76,6 @@ describe("Semaphore", () => {
   it("gives the slot back when a task throws, and passes the error on", async () => {
     const semaphore = new Semaphore(1);
     await expect(semaphore.run(() => Promise.reject(new Error("boom")))).rejects.toThrow("boom");
-    expect(semaphore.inFlight).toBe(0);
     await expect(semaphore.run(async () => "after")).resolves.toBe("after");
   });
 
@@ -81,25 +89,28 @@ describe("Semaphore", () => {
     const running = semaphore.run(() => holder.promise);
 
     const controller = new AbortController();
-    const abandoned = semaphore.run(async () => "never", controller.signal).catch((e: unknown) => e);
+    let abandonedRan = false;
+    const abandoned = semaphore
+      .run(async () => void (abandonedRan = true), controller.signal)
+      .catch((e: unknown) => e);
     const patient = semaphore.run(async () => "patient");
     await tick();
-    expect(semaphore.queued).toBe(2);
 
     controller.abort(new Error("gave up"));
     expect(await abandoned).toEqual(new Error("gave up"));
-    expect(semaphore.queued).toBe(1);
 
     holder.finish();
     await running;
     await expect(patient).resolves.toBe("patient");
-    expect(semaphore.inFlight).toBe(0);
+    // The abandoned task never ran, and its place in line did not take or leak a slot.
+    expect(abandonedRan).toBe(false);
+    expect(await hasFreeSlot(semaphore)).toBe(true);
   });
 
   it("rejects at once, without taking a slot, for a signal that has already aborted", async () => {
     const semaphore = new Semaphore(1);
     const reason = new Error("already");
     await expect(semaphore.run(async () => "x", AbortSignal.abort(reason))).rejects.toBe(reason);
-    expect(semaphore.inFlight).toBe(0);
+    expect(await hasFreeSlot(semaphore)).toBe(true);
   });
 });

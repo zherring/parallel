@@ -15,7 +15,12 @@ import type { CollaboratorSuggestions, PersonTimeline } from "@/lib/types";
 
 /** Candidates whose filmographies are fetched to be counted exactly. */
 const VERIFY_CANDIDATES = GRAPH_CANDIDATES;
-/** TMDB requests in flight at once (each filmography is a few requests of its own). */
+/**
+ * Filmographies (and film credits) loaded at once. This bounds the fan-out, not the wire: the
+ * TMDB client's own limiter holds the requests on the wire to six. Without it all 16 candidates
+ * would ask at once, and with every request's 12s deadline running from the moment it is asked
+ * for, the ones at the back of the queue would run out of time before they were ever sent.
+ */
 const CONCURRENCY = 6;
 /** The live fallback looks at the person's best-known films only. */
 const LIVE_FILMS = 25;
@@ -107,8 +112,10 @@ async function compute(personId: number): Promise<SuggestionResult> {
   const source = fromGraph ? "graph" : "live";
   const candidateIds = fromGraph ?? (await liveCandidates(subject, today));
 
-  // The same filmographies the pair page loads, so the counts match what a click shows.
-  const settled = await mapLimited(candidateIds, CONCURRENCY, (id) => getPersonMovieCredits(id));
+  // The same filmographies the pair page loads, so the counts match what a click shows (but with
+  // the short-movie lookup capped at 3 pages each: it is 16 people at once, see getShortMovieIds).
+  const peopleOnPage = candidateIds.length + 1;
+  const settled = await mapLimited(candidateIds, CONCURRENCY, (id) => getPersonMovieCredits(id, { peopleOnPage }));
   const timelines = fulfilledOrThrow(settled);
   const results = suggestFromTimelines(subject, timelines, { today });
   return { suggestions: { source, results }, complete: timelines.length === candidateIds.length };
