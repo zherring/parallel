@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEPTH_VIEW, flatSearch, isDepthView, redirectSearch, withDepth } from "@/lib/depth-url";
+import { DEPTH_VIEW, flatSearch, isDepthView, withDepth } from "@/lib/depth-url";
 
 describe("isDepthView", () => {
   it("is true for view=depth only", () => {
@@ -17,26 +17,6 @@ describe("isDepthView", () => {
     expect(isDepthView(["depth", "table"])).toBe(true);
     expect(isDepthView(["table", "depth"])).toBe(false);
     expect(isDepthView([])).toBe(false);
-  });
-});
-
-describe("redirectSearch", () => {
-  it("is empty for a query with nothing to carry", () => {
-    expect(redirectSearch({})).toBe("");
-    expect(redirectSearch({ view: "table", sort: "year", utm_source: "x" })).toBe("");
-    expect(redirectSearch({ from: "abc", to: "xyz" })).toBe("");
-  });
-
-  it("carries the period in its canonical order, as it always did", () => {
-    expect(redirectSearch({ from: "1970", to: "1980" })).toBe("?from=1970&to=1980");
-    expect(redirectSearch({ from: "1980", to: "1970" })).toBe("?from=1970&to=1980");
-    expect(redirectSearch({ to: "1980" })).toBe("?to=1980");
-  });
-
-  it("carries view=depth, after the period, and nothing else", () => {
-    expect(redirectSearch({ view: "depth" })).toBe("?view=depth");
-    expect(redirectSearch({ view: "depth", from: "1970", to: "1980", sort: "year" })).toBe("?from=1970&to=1980&view=depth");
-    expect(redirectSearch({ view: ["depth", "table"] })).toBe("?view=depth");
   });
 });
 

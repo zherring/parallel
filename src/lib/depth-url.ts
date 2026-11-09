@@ -4,12 +4,11 @@
  * client's links must agree on lives here, pure.
  *
  * Depth is a view of the page, not one of its tabs (see `DEPTH_VIEW` in `films-view`): a link to it that is
- * redirected to its canonical slug keeps `view=depth` and the period, and the links the Depth view itself writes
- * (a person removed, "Flat timeline") keep or drop it as they need to.
+ * redirected to its canonical slug keeps `view=depth` like any view (see `viewParams`), and the links the Depth view
+ * itself writes (a person removed, a switch to the flat page) keep or drop it as they need to.
  */
 
 import { DEPTH_VIEW, VIEW_PARAM, searchWithView } from "@/lib/films-view";
-import { parsePeriodParams, rawPeriodSearch } from "@/lib/period";
 
 export { DEPTH_VIEW };
 
@@ -18,17 +17,6 @@ type ParamValue = string | string[] | undefined | null;
 /** Whether `?view=` names the Depth view; a repeated parameter uses the first. */
 export function isDepthView(value: ParamValue): boolean {
   return (Array.isArray(value) ? value[0] : value) === DEPTH_VIEW;
-}
-
-/**
- * The query (with its "?", or "" for none) a redirect to the canonical slug carries: the period, in its canonical
- * spelling, and `view=depth` when the link asked for it. Every other parameter is dropped.
- */
-export function redirectSearch(query: Record<string, ParamValue>): string {
-  const params = new URLSearchParams(rawPeriodSearch(parsePeriodParams(query)));
-  if (isDepthView(query[VIEW_PARAM])) params.set(VIEW_PARAM, DEPTH_VIEW);
-  const text = params.toString();
-  return text ? `?${text}` : "";
 }
 
 /**

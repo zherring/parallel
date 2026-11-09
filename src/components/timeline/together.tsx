@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
+import type { VoicedClippings } from "@/lib/clippings";
+import type { PairCritics } from "@/lib/critics";
 import { sharedRows } from "@/lib/film-rows";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import type { PairShared } from "@/lib/shared";
@@ -8,6 +10,7 @@ import type { SharedFilm } from "@/lib/types";
 import type { PersonRef } from "@/lib/lanes";
 import { detailsButtonClass, linkClass, tmdbMovieUrl } from "./film-links";
 import { FilmsSection } from "./films-section";
+import type { BioPerson } from "./person-bio";
 
 interface TogetherProps {
   people: PersonRef[];
@@ -29,6 +32,12 @@ interface TogetherProps {
   timeline: ReactNode;
   settingsControl: ReactNode;
   onSelect: (id: number, trigger: HTMLElement) => void;
+  /** The quotes the two people of the page have about each other, when it has any (see `FilmsSection`). */
+  clippings?: VoicedClippings | null;
+  /** What the critics have written about the collaboration, when there is any: the Clippings tab's critics' quotes and "More reading" (see `FilmsSection`). */
+  critics?: PairCritics | null;
+  /** The page's people, for the names in the Clippings tab (see `FilmsSection`). */
+  bioPeople?: readonly BioPerson[];
 }
 
 const joinNames = (names: string[]) => new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(names);
@@ -46,6 +55,9 @@ export function Together({
   timeline,
   settingsControl,
   onSelect,
+  clippings,
+  critics,
+  bioPeople,
 }: TogetherProps) {
   const rows = useMemo(() => sharedRows(shared, people), [shared, people]);
   const nameById = new Map(people.map((p) => [p.id, p.name]));
@@ -73,6 +85,9 @@ export function Together({
         </>
       }
       onSelect={onSelect}
+      clippings={clippings}
+      critics={critics}
+      bioPeople={bioPeople}
     >
       {pairwise.length > 0 && (
         <details className="mt-6 rounded-lg border border-border bg-surface">

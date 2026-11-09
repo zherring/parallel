@@ -23,6 +23,14 @@ interface PersonBioProps {
   flow?: boolean;
   /** Use the person's name as the modal opener, without a teaser. Works even when no biography is available. */
   nameTrigger?: boolean;
+  /** With `nameTrigger`: what the opener says in place of the full name ("Spielberg"); the dialog still opens on the full name. */
+  label?: string;
+}
+
+/** A person of the page with the roles their biography dialog gives under the name: what a name outside the people column needs to open it. */
+export interface BioPerson {
+  person: PersonSummary;
+  roles: string;
 }
 
 /**
@@ -34,7 +42,7 @@ interface PersonBioProps {
  * the teaser shrinks line by line, down to just the button. The full text is only rendered
  * while the dialog is open.
  */
-export function PersonBio({ person, roles, flow = false, nameTrigger = false }: PersonBioProps) {
+export function PersonBio({ person, roles, flow = false, nameTrigger = false, label }: PersonBioProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const wasOpen = useRef(false);
@@ -62,9 +70,9 @@ export function PersonBio({ person, roles, flow = false, nameTrigger = false }: 
           // region's name, and a label would name both "Biography of ...". The title is only a description.
           title={`Biography of ${person.name}`}
           onClick={() => setOpen(true)}
-          className="cursor-pointer rounded text-left hover:underline"
+          className="cursor-pointer rounded text-left text-strong underline-offset-2 hover:underline"
         >
-          {person.name}
+          {label ?? person.name}
         </button>
         {open && createPortal(<BioDialog person={person} roles={roles} onClose={() => setOpen(false)} />, document.body)}
       </>
@@ -82,7 +90,7 @@ export function PersonBio({ person, roles, flow = false, nameTrigger = false }: 
           type="button"
           aria-haspopup="dialog"
           onClick={() => setOpen(true)}
-          className="mt-0.5 inline-flex h-6 cursor-pointer items-center rounded-md text-xs font-medium text-accent-blue hover:underline"
+          className="mt-0.5 inline-flex h-6 cursor-pointer items-center rounded-md text-xs font-medium text-strong underline-offset-2 hover:underline"
         >
           More<span className="sr-only"> about {person.name}</span>
         </button>
@@ -101,7 +109,7 @@ export function PersonBio({ person, roles, flow = false, nameTrigger = false }: 
         type="button"
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
-        className="flex h-6 w-full cursor-pointer items-center justify-center rounded-md border border-border bg-surface text-[10px] leading-none text-body hover:border-muted hover:text-strong sm:inline-flex sm:w-auto sm:-translate-x-1.5 sm:justify-start sm:border-transparent sm:bg-transparent sm:px-1.5 sm:text-xs sm:font-medium sm:text-accent-blue sm:hover:border-transparent sm:hover:text-accent-blue sm:hover:underline"
+        className="flex h-6 w-full cursor-pointer items-center justify-center rounded-md border border-border bg-surface text-[10px] leading-none text-strong underline-offset-2 hover:border-muted sm:inline-flex sm:w-auto sm:-translate-x-1.5 sm:justify-start sm:border-transparent sm:bg-transparent sm:px-1.5 sm:text-xs sm:font-medium sm:hover:border-transparent sm:hover:underline"
       >
         <span className="sm:hidden">
           Bio<span className="sr-only"> of {person.name}</span>
@@ -190,7 +198,15 @@ function BioDialog({ person, roles, onClose }: PersonBioProps & { onClose: () =>
                 tabIndex={-1}
                 className="break-words text-xl font-semibold leading-tight text-strong outline-none!"
               >
-                {person.name}
+                <a
+                  href={tmdbPersonUrl(person.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`${person.name} on TMDB (opens in a new tab)`}
+                  className="rounded text-strong underline-offset-2 hover:underline"
+                >
+                  {person.name}
+                </a>
               </h2>
               {roles && <p className="mt-1 text-sm text-body">{roles}</p>}
               {life && <p className="mt-0.5 text-xs text-muted">{life}</p>}
@@ -211,7 +227,7 @@ function BioDialog({ person, roles, onClose }: PersonBioProps & { onClose: () =>
               href={tmdbPersonUrl(person.id)}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded text-accent-blue underline-offset-2 hover:underline"
+              className="rounded text-strong underline-offset-2 hover:underline"
             >
               Read more on TMDB
               <span aria-hidden="true"> ↗</span>

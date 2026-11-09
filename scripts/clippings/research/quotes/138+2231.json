@@ -1,0 +1,97 @@
+{
+  "pair": [
+    "Quentin Tarantino",
+    "Samuel L. Jackson"
+  ],
+  "tmdb_ids": [
+    138,
+    2231
+  ],
+  "clippings": [
+    {
+      "speaker": "Samuel L. Jackson",
+      "about": "Quentin Tarantino",
+      "film": "Jackie Brown",
+      "said_year": 2000,
+      "publication": "Fresh Air",
+      "via": "WUSF",
+      "quote": "But Quentin would say, no, take your time. And I'd do it again. I'd count to, like, five, and he'd say, no, no, no. … Which consequently led me to that almost, you know, 20-second pause in that film that he left in it. … But Quentin trusts audiences like I do.",
+      "title": "Celebrating movie icons: Samuel Jackson",
+      "date": "2000",
+      "url": "https://www.wusf.org/2024-09-02/celebrating-movie-icons-samuel-jackson",
+      "context": "Terry Gross interview recorded in 2000, rebroadcast 2024-09-02; Jackson recalls shooting the Jackie Brown van scene.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Samuel L. Jackson",
+      "about": "Quentin Tarantino",
+      "film": "Django Unchained",
+      "said_year": 2012,
+      "publication": "Deadline",
+      "via": null,
+      "quote": "He knows the movies that we like. I tend to go on location with about 30 Hong Kong films — I have a lot of Asian crime films in my trailer just to pass the time. Every time he’d pass my trailer he’d ask, ‘what are you watching now?’ and we’ll talk about it. We had long conversations about those movies. We tend to watch the same kind of bullshit. Entertainment.",
+      "title": "Samuel L. Jackson Lets Loose On ‘Django’, Tarantino, Slavery, Oscars And Golden Globes – Interview",
+      "date": "2012-12-28",
+      "url": "https://deadline.com/2012/12/samuel-l-jackson-lets-loose-on-django-tarantino-slavery-oscars-and-golden-globes-interview-394728/",
+      "context": "Deadline interview during the Django Unchained release, on shared taste in genre movies.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Samuel L. Jackson",
+      "about": "Quentin Tarantino",
+      "film": "The Hateful Eight",
+      "said_year": 2015,
+      "publication": "TheWrap",
+      "via": null,
+      "quote": "We are the constant — we’re the base flavor for that bouillabaisse he makes, we’re the tomato consommé or whatever.",
+      "title": "‘Hateful Eight’ Star Samuel L. Jackson Says He’s the Base in Quentin Tarantino’s Bouillabaisse",
+      "date": "2015-12-24",
+      "url": "https://www.thewrap.com/hateful-eight-star-samuel-l-jackson-says-hes-the-base-in-quentin-tarantinos-bouillabaisse",
+      "context": "Q&A on what it takes to be the right actor for Tarantino films, around The Hateful Eight release.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Quentin Tarantino",
+      "about": "Samuel L. Jackson",
+      "film": "The Hateful Eight",
+      "said_year": 2015,
+      "publication": "Eye For Film",
+      "via": null,
+      "quote": "I love him because nobody says my dialogue quite the way Sam Jackson does. It's not poetry but it's poetic. It's not song, but it's musical and he sings it. It's not stand-up comedy but it has a comedic rhythm…",
+      "title": "Pieces of eight",
+      "date": "2015-12-23",
+      "url": "https://www.eyeforfilm.co.uk/feature/2015-12-23-tim-roth-and-quentin-tarantino-in-conversation-on-the-hateful-eight-feature-story-by-anne-katrin-titze",
+      "context": "Tarantino chatting with the writer after The Hateful Eight press conference.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Quentin Tarantino",
+      "about": "Samuel L. Jackson",
+      "film": "The Hateful Eight",
+      "said_year": 2015,
+      "publication": "Variety",
+      "via": null,
+      "quote": "Not only has it become easy to write for him, it’s become hard not to write for him.",
+      "title": "Quentin Tarantino Defends Violence in ‘Hateful Eight,’ No Cell Phone Policy; Reveals Why Samuel L. Jackson Is His Muse",
+      "date": "2015-12-24",
+      "url": "https://variety.com/video/quentin-tarantino-hateful-eight-violence-samuel-l-jackson/",
+      "context": "Variety 'Contenders Conversations' interview on The Hateful Eight; caption quotes Tarantino on Jackson.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Quentin Tarantino",
+      "about": "Samuel L. Jackson",
+      "film": "The Hateful Eight",
+      "said_year": 2015,
+      "publication": "ScreenAnarchy",
+      "via": null,
+      "quote": "I remember after I gave Sam Jackson the first draft of the script, I go to him, I go, \"What's your favourite part of it?\" He goes, \"I like when I start figuring shit out, and I turn into Hercule Négrô.\"",
+      "title": "Interview: THE HATEFUL EIGHT Los Angeles And New York Press Conferences",
+      "date": "2016-01",
+      "url": "https://screenanarchy.com/2016/01/interview-the-hateful-eight-la-ny-press-conferences.html",
+      "context": "Tarantino at Hateful Eight press events (Dec 2015), as transcribed by ScreenAnarchy.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Tarantino-on-Jackson was the thinner direction: most open results were aggregator paraphrases (Far Out, Cheat Sheet), skipped; NPR transcript page timed out in WebFetch but the same Fresh Air text was read via WUSF."
+}

@@ -1,12 +1,14 @@
 /**
- * The two views of a page's films, "Timeline" and "Table", as tabs of one section: which view a
+ * The views of a page's films, "Timeline" and "Table" (and, for a pair with curated quotes, critics
+ * or reading, "Clippings"), as tabs of one section: which view a
  * URL selects, how a tab change is written back to the URL, how the view is carried when the
  * visitor adds a person, the film count of the headline and the tab keys. Pure, so the rules are
  * testable and the server and the browser agree on them.
  *
  * The URL carries the view as `?view=table`. Timeline is the default and is left out, except where
  * leaving it out would be read as Table: a sorted-table link (`?sort=...&dir=...`, with no `view`)
- * opens the Table, so choosing Timeline on such a URL writes `view=timeline` to say so.
+ * opens the Table, so choosing Timeline on such a URL writes `view=timeline` to say so. A link to one quote
+ * (`?quote=<id>`, with an id the page has) opens the Clippings without saying so.
  */
 
 import { DIR_PARAM, SORT_PARAM } from "@/lib/films-table";
@@ -14,7 +16,7 @@ import { filmCountLabel } from "@/lib/format";
 import { nextTabIndex } from "@/lib/tabs";
 
 /** The views, in tab order. The first one is the default (and what the server always renders). */
-export const VIEWS = ["timeline", "table"] as const;
+export const VIEWS = ["timeline", "table", "clippings"] as const;
 export type View = (typeof VIEWS)[number];
 
 export const DEFAULT_VIEW: View = "timeline";
@@ -22,7 +24,47 @@ export const DEFAULT_VIEW: View = "timeline";
 export const VIEW_LABELS: Record<View, string> = {
   timeline: "Timeline",
   table: "Table",
+  clippings: "Clippings",
 };
+
+/** The views every page has; Clippings is added for a pair that has something for it, see `availableViews`. */
+export const BASE_VIEWS: readonly View[] = ["timeline", "table"];
+
+/**
+ * Whether a page has anything for the Clippings tab: any quote of the pair about each other (`clippings`), any critic's
+ * quote or any piece of reading about the collaboration (`critics`). Any one alone is enough; the tab then shows only
+ * what there is.
+ */
+export function hasClippingsTab(
+  clippings: { clippings: readonly unknown[] } | null | undefined,
+  critics: { critics: readonly unknown[]; reading: readonly unknown[] } | null | undefined,
+): boolean {
+  return (clippings?.clippings.length ?? 0) > 0 || (critics?.critics.length ?? 0) > 0 || (critics?.reading.length ?? 0) > 0;
+}
+
+/**
+ * The ids of every quote a page's Clippings has, the artists' and the critics': what a `?quote=` link can name.
+ * Empty for a page without quotes.
+ */
+export function quoteIdsOf(
+  clippings: { clippings: readonly { id: string }[] } | null | undefined,
+  critics: { critics: readonly { id: string }[] } | null | undefined,
+): string[] {
+  return [...(clippings?.clippings ?? []).map((c) => c.id), ...(critics?.critics ?? []).map((c) => c.id)];
+}
+
+/** The views a page offers as tabs: Clippings only when the page has something for it, see `hasClippingsTab`. */
+export function availableViews(clippingsTab: boolean): readonly View[] {
+  return clippingsTab ? VIEWS : BASE_VIEWS;
+}
+
+/**
+ * The view to show for what the URL selected: the same, unless the page does not offer it (a
+ * `?view=clippings` link to a pair with neither quotes nor critics), when it is the default.
+ */
+export function resolveView(view: View, available: readonly View[]): View {
+  return available.includes(view) ? view : DEFAULT_VIEW;
+}
 
 export const VIEW_PARAM = "view";
 
@@ -33,31 +75,79 @@ export const VIEW_PARAM = "view";
  */
 export const DEPTH_VIEW = "depth";
 
+/** The quote a link to the Clippings opens on (`?view=clippings&quote=<id>`, see `quoteLinkSearch`). It belongs to that view alone. */
+export const QUOTE_PARAM = "quote";
+
 /** Whether the query names a sort: the table's own `?sort=` and `&dir=`. */
 function hasSortParams(params: URLSearchParams): boolean {
   return params.has(SORT_PARAM) || params.has(DIR_PARAM);
 }
 
+type ParamValue = string | string[] | undefined;
+
 /**
- * The view a query string selects. `view=table` and `view=timeline` say so outright; without a
- * (known) `view`, a query that carries a sort means the visitor was looking at the table, so a
- * sorted link opens it; anything else is the default. `search` is `window.location.search`, with
- * or without the leading "?".
+ * The query as `URLSearchParams`: the `searchParams` of a page (the first of a repeated parameter, a parameter with no
+ * value left out), a query string with or without its "?", or the `URLSearchParams` themselves.
  */
-export function parseView(search: string): View {
-  const params = new URLSearchParams(search);
+function paramsOf(source: string | URLSearchParams | Record<string, ParamValue>): URLSearchParams {
+  if (typeof source === "string") return new URLSearchParams(source);
+  if (source instanceof URLSearchParams) return source;
+  const params = new URLSearchParams();
+  for (const [name, value] of Object.entries(source)) {
+    const first = Array.isArray(value) ? value[0] : value;
+    if (typeof first === "string") params.set(name, first);
+  }
+  return params;
+}
+
+/**
+ * The view a query selects. `view=table`, `view=timeline` and `view=clippings` say so outright; without a (known)
+ * `view`, a `quote` that is one of the page's (`quoteIds`: a link to one quote, see `quoteLinkSearch`) means the Clippings,
+ * where the quote is, and a query that carries a sort means the visitor was looking at the table, so a sorted link
+ * opens it; anything else is the default. The page's own quotes are what make a `quote` count: one it does not have
+ * is ignored, as the page and its preview card ignore it. `search` is `window.location.search` (with or without the
+ * leading "?"), or the page's `searchParams`.
+ */
+export function parseView(
+  search: string | URLSearchParams | Record<string, ParamValue>,
+  quoteIds: Iterable<string> = [],
+): View {
+  const params = paramsOf(search);
   const named = VIEWS.find((view) => view === params.get(VIEW_PARAM));
   if (named) return named;
+  const quote = params.get(QUOTE_PARAM)?.trim();
+  if (quote) for (const id of quoteIds) if (id === quote) return "clippings";
   return hasSortParams(params) ? "table" : DEFAULT_VIEW;
+}
+
+/** What a redirect to another spelling of a page's address carries of the view: `view`, the table's `sort` and `dir`, and `quote`. Others are not the view's. */
+const VIEW_PARAMS = [VIEW_PARAM, SORT_PARAM, DIR_PARAM, QUOTE_PARAM] as const;
+
+/**
+ * Those of the view's own parameters (see `VIEW_PARAMS`) that a `searchParams` object has, with a value, in that order and
+ * as written (the first of a repeated one): for a redirect to the canonical address of a page, which must open on
+ * the same view, sort and quote as the address it replaces.
+ */
+export function viewParams(query: Record<string, ParamValue>): URLSearchParams {
+  const all = paramsOf(query);
+  const params = new URLSearchParams();
+  for (const name of VIEW_PARAMS) {
+    const value = all.get(name);
+    if (value) params.set(name, value);
+  }
+  return params;
 }
 
 /**
  * The query string (with its "?", or "" when it is empty) after switching to `view`: every other
  * parameter is kept. Table writes `view=table`; Timeline writes nothing, unless a sort is in the
  * query, where it writes `view=timeline` so the sort does not pull the visitor back to the table.
+ * A quote (`quote=<id>`) belongs to the Clippings alone, so any other view drops it: the address bar
+ * then no longer names a quote that is not on screen (and a copied link does not unfurl as one).
  */
 export function searchWithView(search: string, view: View): string {
   const params = new URLSearchParams(search);
+  if (view !== "clippings") params.delete(QUOTE_PARAM);
   if (view !== DEFAULT_VIEW) params.set(VIEW_PARAM, view);
   else if (hasSortParams(params)) params.set(VIEW_PARAM, view);
   else params.delete(VIEW_PARAM);
@@ -69,11 +159,12 @@ export function searchWithView(search: string, view: View): string {
  * `href` for a navigation to another page of people (a person added from a search, a chip or a
  * film's cast), carrying the view the visitor is on: `currentSearch` is the query of the page they
  * leave. Only the Table and the Depth view need carrying (Timeline is what a page without `view`
- * opens), and the sort does not travel, since the films it ordered are not the films of the new page.
+ * opens; the Clippings are the pair's own), and the sort does not travel, since the films it ordered are not the films of the new page.
  */
 export function carryView(href: string, currentSearch: string): string {
   const carried = new URLSearchParams(currentSearch).get(VIEW_PARAM) === DEPTH_VIEW ? DEPTH_VIEW : parseView(currentSearch);
-  if (carried === DEFAULT_VIEW) return href;
+  // Timeline is what a page without `view` opens; the Clippings belong to the pair they are about, so they stay behind.
+  if (carried !== DEPTH_VIEW && carried !== "table") return href;
   const hash = href.indexOf("#");
   const path = hash === -1 ? href : href.slice(0, hash);
   const rest = hash === -1 ? "" : href.slice(hash);
@@ -82,11 +173,20 @@ export function carryView(href: string, currentSearch: string): string {
 
 /**
  * The view to move to for a key pressed on a tab: ArrowLeft and ArrowRight wrap around, Home and
- * End jump to the first and last. null for any other key.
+ * End jump to the first and last. null for any other key. `available` is the tabs on offer, in order.
  */
-export function viewForKey(key: string, current: View): View | null {
-  const index = nextTabIndex(key, VIEWS.indexOf(current), VIEWS.length);
-  return index === null ? null : VIEWS[index];
+export function viewForKey(key: string, current: View, available: readonly View[] = BASE_VIEWS): View | null {
+  const index = nextTabIndex(key, available.indexOf(current), available.length);
+  return index === null ? null : available[index];
+}
+
+/**
+ * Whether the view is about the page's films (Timeline, Table) rather than the clippings. The films'
+ * own controls go with it: Export (the CSV is the table), the minor-credits checkbox, the note on
+ * where the numbers come from and the empty-state message. Share stays on every view, since it links to the page.
+ */
+export function isFilmView(view: View): boolean {
+  return view !== "clippings";
 }
 
 /**

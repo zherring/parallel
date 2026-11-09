@@ -1,0 +1,97 @@
+{
+  "pair": [
+    "Wes Anderson",
+    "Bill Murray"
+  ],
+  "tmdb_ids": [
+    5655,
+    1532
+  ],
+  "clippings": [
+    {
+      "speaker": "Wes Anderson",
+      "about": "Bill Murray",
+      "quote": "And then when I met him I thought that he had all kinds of things that we could sort of draw on for the character and kind of tap into. Like he'd never played -- he never had a family in a movie before. And he's got five kids and he's been a father for 17 years or something.",
+      "film": "Rushmore",
+      "said_year": 1999,
+      "publication": "Fresh Air",
+      "via": null,
+      "title": "Film Director and Writer Wes Anderson",
+      "date": "1999-02-24",
+      "url": "https://freshair.com/segments/film-director-and-writer-wes-anderson",
+      "context": "Anderson tells Terry Gross how he and Owen Wilson wrote the part of Mr. Blume with Murray in mind.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Wes Anderson",
+      "about": "Bill Murray",
+      "quote": "He's a very physical guy, a very physical actor. … He might not have the build of a 'Die Hard'-era Bruce Willis, but he has the same desire. And I was always excited by the idea of him doing a shootout in a Speedo, robe and flip-flops.",
+      "film": "The Life Aquatic with Steve Zissou",
+      "said_year": 2004,
+      "publication": "Newhouse News Service",
+      "via": "The Spokesman-Review",
+      "title": "Murray was a fish out of water making 'The Life Aquatic'",
+      "date": "2004-12-24",
+      "url": "https://spokesman.com/stories/2004/dec/24/murray-was-a-fish-out-of-water-making-the-life",
+      "context": "Anderson on casting Murray as Steve Zissou, quoted in a Newhouse profile of the film's release.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Wes Anderson",
+      "about": "Bill Murray",
+      "quote": "My experience with Bill is so extensive. Bill was such a great supporter of me from the very beginning … he's really part of my family. You know, he's my daughter's godfather. In fact, he actually baptized her. He's the one who splashed the water.",
+      "film": null,
+      "said_year": 2023,
+      "publication": "IndieWire",
+      "via": null,
+      "title": "Wes Anderson Stands by Bill Murray Amid Misconduct Claims: 'He Is Really Part of My Family'",
+      "date": "2023-06-12",
+      "url": "https://www.indiewire.com/news/breaking-news/wes-anderson-bill-murray-misconduct-claims-1234873835/",
+      "context": "Anderson, interviewed ahead of Asteroid City, on his bond with Murray after misconduct allegations against the actor.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Bill Murray",
+      "about": "Wes Anderson",
+      "quote": "When I read Rushmore, I figured the writing was so specific that whoever wrote it knew exactly what they were going to shoot. I never have a problem with guys who make a movie that misses as long as they make the movie they want to make. That's usually the hard part.",
+      "film": "Rushmore",
+      "said_year": 1999,
+      "publication": "Interview",
+      "via": null,
+      "title": "New Again: Bill Murray",
+      "date": "1999",
+      "url": "https://interviewmagazine.com/film/new-again-bill-murray",
+      "context": "Murray answers Anderson's questions in a joint conversation for Interview magazine (reprinted 2014; the reprint says it first ran in the February 2000 issue).",
+      "secondhand": false
+    },
+    {
+      "speaker": "Bill Murray",
+      "about": "Wes Anderson",
+      "quote": "I sure as hell wouldn't leave the country and go over there with (just) anybody. You gotta have some faith in who you're with.",
+      "film": "The Life Aquatic with Steve Zissou",
+      "said_year": 2004,
+      "publication": "Scripps Howard News Service",
+      "via": "Deseret News",
+      "title": "Murray's confidence in director led him to do 'Life Aquatic'",
+      "date": "2004-12-24",
+      "url": "https://www.deseret.com/2004/12/24/19868168/murray-s-confidence-in-director-led-him-to-do-life-aquatic/",
+      "context": "Murray at a New York press conference explaining why he trusted Anderson enough to shoot in Italy.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Bill Murray",
+      "about": "Wes Anderson",
+      "quote": "He was just a kid, but he was also a guy who knew what the hell he was doing and what he wanted to do, right from the beginning. … We had a good relationship, I felt like I was looking out for him and I still am. I like him, he's my friend.",
+      "film": "Rushmore",
+      "said_year": 2021,
+      "publication": "The Talks",
+      "via": null,
+      "title": "Bill Murray: \"It's more intake than output\"",
+      "date": "2021-11-17",
+      "url": "https://the-talks.com/interview/bill-murray/",
+      "context": "Murray recalls meeting Anderson in Houston on the Rushmore shoot; the two parts are answers to consecutive questions.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Rolling Stone (tollbit redirect) and Texas Monthly (403) were blocked and skipped; the Interview piece is dated 1999 from a search snippet and Rushmore Academy listing, while the reprint says February 2000."
+}

@@ -9,6 +9,20 @@ vi.mock("@/lib/people", async () => {
   return { loadPeople: stubLoadPeople };
 });
 
+// The pair of the stub has quotes of its own (see `QUOTE_DATA`), as four real pairs have in clippings.json.
+vi.mock("@/lib/clippings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/clippings")>();
+  const { QUOTE_DATA: data } = await import("@/lib/test-people");
+  return { ...actual, getPairClippingSet: (ids: readonly number[]) => actual.pairClippingsFrom(data, ids) };
+});
+
+// ... and critics of its own (see `CRITIC_DATA`), as two real pairs have in essays.json.
+vi.mock("@/lib/critics", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/critics")>();
+  const { CRITIC_DATA: data } = await import("@/lib/test-people");
+  return { ...actual, getPairCritics: (ids: readonly number[]) => actual.pairCriticsFrom(data, ids) };
+});
+
 // The page hands the people to a client component; it is not what these tests are about.
 vi.mock("@/components/people-view", () => ({ PeopleView: function PeopleView() {} }));
 vi.mock("@/components/depth/depth-view", () => ({ DepthView: function DepthView() {} }));
@@ -85,6 +99,149 @@ describe("generateMetadata", () => {
   });
 });
 
+describe("generateMetadata with a quote in the link", () => {
+  const SHORT = { view: "clippings", quote: "short-one" };
+  const QUOTE_IMAGE = (id: string) => ({ url: `/p/${PAIR_SLUG}/og?quote=${id}`, width: 1200, height: 630 });
+
+  it("points og:image and twitter:image at the quote's card", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, SHORT));
+    expect(meta.openGraph?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("short-one"))]);
+    expect(meta.twitter?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("short-one"))]);
+  });
+
+  it("titles the link with the quote and who said it, and describes who said it about whom and where", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, SHORT));
+    expect(meta.title).toBe("\u201cWalter could make a telephone book funny.\u201d \u2014 Jack Lemmon");
+    expect(meta.openGraph?.title).toBe(meta.title);
+    expect(meta.twitter?.title).toBe(meta.title);
+    // said in 1998, in an article of 2001: the older year
+    expect(meta.description).toBe("Jack Lemmon on Walter Matthau \u00b7 Example Times, 1998");
+    expect(meta.openGraph?.description).toBe(meta.description);
+  });
+
+  it("cuts a long quote in the title, and says the year of the original when no year was said", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, { quote: "long-one" }));
+    const title = String(meta.title);
+    expect(title.startsWith("\u201cJack never stopped working.")).toBe(true);
+    expect(title.endsWith("\u2026\u201d \u2014 Walter Matthau")).toBe(true);
+    expect(Array.from(title).length).toBeLessThan(120);
+    expect(meta.description).toBe("Walter Matthau on Jack Lemmon \u00b7 Example Times, 1975");
+  });
+
+  it("keeps the plain page as canonical, and the link as the page's own url", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, SHORT));
+    expect(meta.openGraph?.url).toBe(`/p/${PAIR_SLUG}?view=clippings&quote=short-one`);
+    expect(meta.alternates?.canonical).toBe(`/p/${PAIR_SLUG}`);
+  });
+
+  it("does not need the clippings view in the link, and takes the first of a repeated parameter", async () => {
+    const bare = await generateMetadata(props(PAIR_SLUG, { quote: "short-one" }));
+    expect(bare.openGraph?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("short-one"))]);
+    const twice = await generateMetadata(props(PAIR_SLUG, { quote: ["long-one", "short-one"] }));
+    expect(twice.openGraph?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("long-one"))]);
+  });
+
+  it("wins over a period in the same link", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, { ...SHORT, from: "1970", to: "1980" }));
+    expect(meta.openGraph?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("short-one"))]);
+    expect(meta.openGraph?.url).toBe(`/p/${PAIR_SLUG}?view=clippings&quote=short-one`);
+  });
+
+  // The page opens a valid quote on the Clippings with or without `view=clippings` (see `parseView`), so the card is
+  // promised for both; a link that names another view opens that view, so it promises no quote.
+  it.each([
+    ["the table", { view: "table", quote: "short-one" }],
+    ["the timeline", { view: "timeline", quote: "short-one" }],
+    ["a critic's quote on the table", { view: "table", quote: "critic-short" }],
+  ])("is the plain page's metadata when the link names %s as well", async (_name, query) => {
+    const meta = await generateMetadata(props(PAIR_SLUG, query));
+    expect(meta.title).toBe("Jack Lemmon & Walter Matthau: films made together");
+    expect(meta.openGraph).not.toHaveProperty("images");
+    expect(meta.openGraph?.url).toBe(`/p/${PAIR_SLUG}`);
+  });
+
+  it("opens a quote on the Clippings even when the link also carries a sort, if it names no view", async () => {
+    const sorted = await generateMetadata(props(PAIR_SLUG, { sort: "rating", quote: "short-one" }));
+    expect(sorted.openGraph?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("short-one"))]);
+  });
+
+  it.each([
+    ["an id the pair does not have", { quote: "nope" }],
+    ["an empty id", { quote: "" }],
+    ["an id of another case", { quote: "SHORT-ONE" }],
+    ["no id", { view: "clippings" }],
+  ])("is the plain page's metadata, with no image of its own, for %s", async (_name, query) => {
+    const meta = await generateMetadata(props(PAIR_SLUG, query));
+    expect(meta.title).toBe("Jack Lemmon & Walter Matthau: films made together");
+    expect(meta.openGraph).not.toHaveProperty("images");
+    expect(meta.twitter).not.toHaveProperty("images");
+    expect(meta.openGraph?.url).toBe(`/p/${PAIR_SLUG}`);
+  });
+
+  it("reads a period when the id is not a quote of the pair", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, { quote: "nope", from: "1970", to: "1980" }));
+    expect(meta.openGraph?.images).toEqual([expect.objectContaining({ url: `/p/${PAIR_SLUG}/og?from=1970&to=1980` })]);
+  });
+});
+
+describe("generateMetadata with a critic's quote in the link", () => {
+  const SHORT = { view: "clippings", quote: "critic-short" };
+  const QUOTE_IMAGE = (id: string) => ({ url: `/p/${PAIR_SLUG}/og?quote=${id}`, width: 1200, height: 630 });
+
+  it("points og:image and twitter:image at the critic's card", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, SHORT));
+    expect(meta.openGraph?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("critic-short"))]);
+    expect(meta.twitter?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("critic-short"))]);
+  });
+
+  it("titles the link with the quote and the critic, and describes who wrote it about whom and where", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, SHORT));
+    expect(meta.title).toBe("\u201cThe odd couple, in every sense.\u201d \u2014 Pat Critic");
+    expect(meta.openGraph?.title).toBe(meta.title);
+    expect(meta.twitter?.title).toBe(meta.title);
+    expect(meta.description).toBe("Pat Critic on Lemmon & Matthau \u00b7 Example Review, 1999");
+    expect(meta.openGraph?.description).toBe(meta.description);
+  });
+
+  it("credits the publication for a piece that is not signed, and cuts a long quote", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, { quote: "critic-unsigned" }));
+    const title = String(meta.title);
+    expect(title.endsWith("\u2026\u201d \u2014 Kirkus Reviews")).toBe(true);
+    expect(meta.description).toBe("Kirkus Reviews on Lemmon & Matthau \u00b7 Kirkus Reviews, 2025");
+  });
+
+  it("keeps the plain page as canonical, and the link as the page's own url", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, SHORT));
+    expect(meta.openGraph?.url).toBe(`/p/${PAIR_SLUG}?view=clippings&quote=critic-short`);
+    expect(meta.alternates?.canonical).toBe(`/p/${PAIR_SLUG}`);
+  });
+
+  it("wins over a period in the same link", async () => {
+    const meta = await generateMetadata(props(PAIR_SLUG, { ...SHORT, from: "1970", to: "1980" }));
+    expect(meta.openGraph?.images).toEqual([expect.objectContaining(QUOTE_IMAGE("critic-short"))]);
+  });
+
+  it("does not take an artist's id for a critic's, or the reverse", async () => {
+    // Each id is looked up among its own kind only: "short-one" is a clipping, "critic-short" a critic, and neither answers to the other's lookup.
+    const clipping = await generateMetadata(props(PAIR_SLUG, { quote: "short-one" }));
+    expect(String(clipping.title)).toContain("\u2014 Jack Lemmon");
+    const critic = await generateMetadata(props(PAIR_SLUG, { quote: "critic-short" }));
+    expect(String(critic.title)).toContain("\u2014 Pat Critic");
+    const crossed = await generateMetadata(props(PAIR_SLUG, { quote: "critic-short-one" }));
+    expect(crossed.openGraph).not.toHaveProperty("images");
+  });
+
+  it.each([
+    ["an id the pair does not have", { quote: "critic-nope" }],
+    ["an id of another case", { quote: "CRITIC-SHORT" }],
+    ["the id without its prefix", { quote: "short" }],
+  ])("is the plain page's metadata, with no image of its own, for %s", async (_name, query) => {
+    const meta = await generateMetadata(props(PAIR_SLUG, query));
+    expect(meta.title).toBe("Jack Lemmon & Walter Matthau: films made together");
+    expect(meta.openGraph).not.toHaveProperty("images");
+  });
+});
+
 describe("the page", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -104,10 +261,10 @@ describe("the page", () => {
     expect(await redirectsTo("3151+6837", { from: "1980", to: "1970" })).toBe(`/p/${PAIR_SLUG}?from=1970&to=1980`);
   });
 
-  it("drops what is not a year, and leaves out every other parameter", async () => {
+  it("drops what is not a year, and leaves out parameters that are not the page's", async () => {
     expect(await redirectsTo("3151+6837", { from: "abc", to: "1980" })).toBe(`/p/${PAIR_SLUG}?to=1980`);
     expect(await redirectsTo("3151+6837", { from: "1700", to: "3000" })).toBe(`/p/${PAIR_SLUG}`);
-    expect(await redirectsTo("3151+6837", { from: "1970", to: "1980", view: "table" })).toBe(`/p/${PAIR_SLUG}?from=1970&to=1980`);
+    expect(await redirectsTo("3151+6837", { from: "1970", to: "1980", utm_source: "newsletter" })).toBe(`/p/${PAIR_SLUG}?from=1970&to=1980`);
   });
 
   it("takes the first of a repeated parameter", async () => {
@@ -122,9 +279,39 @@ describe("the page", () => {
     expect(await redirectsTo("3151+6837", { view: ["depth", "table"] })).toBe(`/p/${PAIR_SLUG}?view=depth`);
   });
 
-  it("still drops view=table and any view it does not know", async () => {
-    expect(await redirectsTo("3151+6837", { view: "table" })).toBe(`/p/${PAIR_SLUG}`);
-    expect(await redirectsTo("3151+6837", { view: "grid", from: "1970" })).toBe(`/p/${PAIR_SLUG}?from=1970`);
+  describe("carries the view and the quote through that redirect", () => {
+    it("keeps a link to a quote opening on it", async () => {
+      expect(await redirectsTo("3151+6837", { view: "clippings", quote: "short-one" })).toBe(`/p/${PAIR_SLUG}?view=clippings&quote=short-one`);
+      expect(await redirectsTo("3151+6837", { quote: "critic-short" })).toBe(`/p/${PAIR_SLUG}?quote=critic-short`);
+    });
+
+    it("keeps the view alone, and the table's sort and direction", async () => {
+      expect(await redirectsTo("3151+6837", { view: "clippings" })).toBe(`/p/${PAIR_SLUG}?view=clippings`);
+      expect(await redirectsTo("3151+6837", { view: "table" })).toBe(`/p/${PAIR_SLUG}?view=table`);
+      expect(await redirectsTo("3151+6837", { sort: "rating", dir: "desc" })).toBe(`/p/${PAIR_SLUG}?sort=rating&dir=desc`);
+      expect(await redirectsTo("3151-wrong+6837-words", { dir: "asc", sort: "year", view: "timeline" })).toBe(
+        `/p/${PAIR_SLUG}?view=timeline&sort=year&dir=asc`,
+      );
+    });
+
+    it("puts the period first, in canonical order, and the rest in a fixed order", async () => {
+      expect(await redirectsTo("3151+6837", { quote: "short-one", view: "clippings", to: "1970", from: "1980" })).toBe(
+        `/p/${PAIR_SLUG}?from=1970&to=1980&view=clippings&quote=short-one`,
+      );
+    });
+
+    it("takes the first of a repeated parameter, and leaves out an empty one", async () => {
+      expect(await redirectsTo("3151+6837", { view: ["clippings", "table"], quote: ["short-one", "long-one"] })).toBe(
+        `/p/${PAIR_SLUG}?view=clippings&quote=short-one`,
+      );
+      expect(await redirectsTo("3151+6837", { view: "", quote: "", sort: "" })).toBe(`/p/${PAIR_SLUG}`);
+    });
+
+    it("writes an id as a URL does, so that it reads back as the same id", async () => {
+      const to = await redirectsTo("3151+6837", { view: "clippings", quote: "a b&c=d" });
+      expect(to).toBe(`/p/${PAIR_SLUG}?view=clippings&quote=a+b%26c%3Dd`);
+      expect(new URLSearchParams(to!.split("?")[1]).get("quote")).toBe("a b&c=d");
+    });
   });
 
   describe("which view it renders", () => {
@@ -148,6 +335,8 @@ describe("the page", () => {
       ["no query", {}],
       ["the table", { view: "table" }],
       ["the timeline", { view: "timeline" }],
+      ["the clippings", { view: "clippings" }],
+      ["a link to one quote", { quote: "short-one" }],
       ["a view it does not know", { view: "grid" }],
     ])("is the usual page for %s", async (_name, query) => {
       expect((await rendered(query)).type).toBe(PeopleView);

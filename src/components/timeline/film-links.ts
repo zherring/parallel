@@ -3,4 +3,4 @@
 export const tmdbMovieUrl = (id: number) => `https://www.themoviedb.org/movie/${id}`;
 
 export const linkClass = "font-medium text-strong underline-offset-2 hover:underline";
-export const detailsButtonClass = "rounded text-sm text-accent-blue underline-offset-2 hover:underline";
+export const detailsButtonClass = "rounded text-sm text-strong underline-offset-2 hover:underline";

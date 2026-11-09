@@ -1,0 +1,97 @@
+{
+  "pair": [
+    "Richard Linklater",
+    "Ethan Hawke"
+  ],
+  "tmdb_ids": [
+    564,
+    569
+  ],
+  "clippings": [
+    {
+      "speaker": "Richard Linklater",
+      "about": "Ethan Hawke",
+      "quote": "Ethan’s blessed because – I knew he could do it – he’s got a quick neural firing. He has that verbal ability. Not every actor has that.",
+      "film": "Blue Moon",
+      "said_year": 2025,
+      "publication": "Dazed",
+      "via": null,
+      "title": "Richard Linklater and Ethan Hawke on jealousy, creativity and Blue Moon",
+      "date": "2025-12-02",
+      "url": "https://www.dazeddigital.com/film-tv/article/69192/1/richard-linklater-ethan-hawke-on-jealousy-creativity-blue-moon-interview-2025",
+      "context": "Joint interview, asked whether an actor has to feel able to produce Lorenz Hart's words himself.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Richard Linklater",
+      "about": "Ethan Hawke",
+      "quote": "In all the things we’ve done, [the parts have] often been an extension of Ethan, or we’re in the real world. This was something else we hadn’t done before, and it was really difficult. … I had to see Ethan Hawke drain away and be replaced by this sad, yearning, open wound of a human, five-foot-tall human.",
+      "film": "Blue Moon",
+      "said_year": 2026,
+      "publication": "Deadline",
+      "via": null,
+      "title": "Ethan Hawke And Richard Linklater On Reuniting For Their ’40s Broadway Ballad ‘Blue Moon’",
+      "date": "2026-01-09",
+      "url": "https://deadline.com/2026/01/ethan-hawke-and-richard-linklater-on-reuniting-for-blue-moon-1236677388/",
+      "context": "Joint Deadline interview on directing Hawke against type as Lorenz Hart.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Richard Linklater",
+      "about": "Ethan Hawke",
+      "quote": "As young as Ethan was, he was fully formed at 23",
+      "film": "Before Sunrise",
+      "said_year": 2025,
+      "publication": "TheWrap",
+      "via": null,
+      "title": "Richard Linklater Made Ethan Hawke Relearn Acting for ‘Blue Moon’: ‘He Robbed Me of Everything’",
+      "date": "2025-09-07",
+      "url": "https://www.thewrap.com/richard-linklater-ethan-hawke-interview-blue-moon/",
+      "context": "Joking about their first film together, at a joint TIFF 2025 interview with Sharon Waxman.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Ethan Hawke",
+      "about": "Richard Linklater",
+      "quote": "I needed permission. One of the great experiences of my life was Before Sunrise. Because Rick kind of gives himself permission to do all those interesting things that a lot of people don't do. It's no coincidence that after Before Sunrise, I wrote my first novel.",
+      "film": "Before Sunrise",
+      "said_year": 2014,
+      "publication": "The Globe and Mail",
+      "via": null,
+      "title": "Ethan Hawke: ‘What the Before trilogy is to romantic love, Boyhood does for growing up’",
+      "date": "2014-07-16",
+      "url": "https://www.theglobeandmail.com/arts/film/what-the-before-trilogy-is-to-romantic-love-boyhood-does-for-growing-up-ethan-hawke/article19630247/",
+      "context": "Boyhood-era interview (Geoff Pevere), asked whether Linklater's experimentalism shaped his own direction.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Ethan Hawke",
+      "about": "Richard Linklater",
+      "quote": "If you’re directed by the same person several times, they kind of know your entire arsenal, your whole toolkit. And Rick was basically like, ‘I don’t want you to use any tool you’ve ever used before.’ He robbed me of my vanity. He robbed me of everything.",
+      "film": "Blue Moon",
+      "said_year": 2025,
+      "publication": "TheWrap",
+      "via": null,
+      "title": "Richard Linklater Made Ethan Hawke Relearn Acting for ‘Blue Moon’: ‘He Robbed Me of Everything’",
+      "date": "2025-09-07",
+      "url": "https://www.thewrap.com/richard-linklater-ethan-hawke-interview-blue-moon/",
+      "context": "Joint TIFF 2025 interview on Linklater pushing him out of his usual toolkit for Blue Moon.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Ethan Hawke",
+      "about": "Richard Linklater",
+      "quote": "Rick was the most supportive person at the Training Day premiere. He was the first person who really made me believe that the movie was special.",
+      "film": "Training Day",
+      "said_year": 2025,
+      "publication": "Dazed",
+      "via": null,
+      "title": "Richard Linklater and Ethan Hawke on jealousy, creativity and Blue Moon",
+      "date": "2025-12-02",
+      "url": "https://www.dazeddigital.com/film-tv/article/69192/1/richard-linklater-ethan-hawke-on-jealousy-creativity-blue-moon-interview-2025",
+      "context": "Asked about professional jealousy between them; recalls Linklater's support for a film he did not direct.",
+      "secondhand": false
+    }
+  ],
+  "notes": "All six quotes grep-verified against raw fetched HTML; Backstage (403) and Dallas News (ad-wall) skipped, NPR 2013 timed out. Linklater-about-Hawke quotes exist only for 2025-26 press; older ones were thin."
+}

@@ -18,6 +18,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Agent worktrees and local Claude Code files (the workflow script is plain JS run by Claude Code).
+    ".claude/**",
   ]),
 ]);
 
