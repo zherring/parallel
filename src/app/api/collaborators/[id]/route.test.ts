@@ -249,6 +249,25 @@ describe("GET /api/collaborators/[id]: partial TMDB failure", () => {
     expect((await body(res)).results.map((r) => r.id)).toEqual([10, 12]);
   });
 
+  it("sends a short shared-cache lifetime for an incomplete list and the hour-long one once it is complete", async () => {
+    failing.add(11);
+    const partial = await get(String(SUBJECT));
+    expect(partial.status).toBe(200);
+    expect(partial.headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=60");
+    expect((await body(partial)).results.map((r) => r.id)).toEqual([10, 12]);
+
+    // Served from the few-minutes memory, it is still marked incomplete.
+    const remembered = await get(String(SUBJECT));
+    expect(remembered.headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=60");
+
+    // Once the list heals, it gets the full header again.
+    failing.delete(11);
+    resetSuggestionCache();
+    const healed = await get(String(SUBJECT));
+    expect(healed.headers.get("Cache-Control")).toBe("public, s-maxage=3600, stale-while-revalidate=86400");
+    expect((await body(healed)).results.map((r) => r.id)).toEqual([10, 11, 12]);
+  });
+
   it("remembers an incomplete list only for a few minutes (see collaborators.test.ts), then tries again", async () => {
     failing.add(11);
     await get(String(SUBJECT));

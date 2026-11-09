@@ -30,7 +30,13 @@ const finished = new TtlCache<number, CollaboratorSuggestions>(CACHE_SIZE, CACHE
 /** Lists some of whose candidates could not be loaded, for a few minutes. */
 const partial = new TtlCache<number, CollaboratorSuggestions>(CACHE_SIZE, PARTIAL_TTL_MS);
 /** Lists being computed right now, so a burst of requests for one person does the work once. */
-const running = new Map<number, Promise<CollaboratorSuggestions>>();
+const running = new Map<number, Promise<SuggestionResult>>();
+
+/** A list, and whether every candidate made it into it (false: some filmographies failed to load). */
+export interface SuggestionResult {
+  suggestions: CollaboratorSuggestions;
+  complete: boolean;
+}
 
 /** Forgets every remembered list (for tests). */
 export function resetSuggestionCache(): void {
@@ -93,7 +99,7 @@ async function liveCandidates(subject: PersonTimeline, today: string): Promise<n
   );
 }
 
-async function compute(personId: number): Promise<{ suggestions: CollaboratorSuggestions; complete: boolean }> {
+async function compute(personId: number): Promise<SuggestionResult> {
   const subject = await getPersonMovieCredits(personId);
   const today = todayIso();
 
@@ -118,15 +124,25 @@ async function compute(personId: number): Promise<{ suggestions: CollaboratorSug
  * and is remembered for a few minutes only, after which the next request tries again.
  */
 export function suggestCollaborators(personId: number): Promise<CollaboratorSuggestions> {
-  const remembered = finished.get(personId) ?? partial.get(personId);
-  if (remembered) return Promise.resolve(remembered);
+  return suggestCollaboratorsChecked(personId).then(({ suggestions }) => suggestions);
+}
+
+/**
+ * Same as `suggestCollaborators`, but also says whether the list is complete, for the API route:
+ * it lets a shared cache keep a complete list for an hour and an incomplete one for a minute.
+ */
+export function suggestCollaboratorsChecked(personId: number): Promise<SuggestionResult> {
+  const done = finished.get(personId);
+  if (done) return Promise.resolve({ suggestions: done, complete: true });
+  const incomplete = partial.get(personId);
+  if (incomplete) return Promise.resolve({ suggestions: incomplete, complete: false });
 
   let pending = running.get(personId);
   if (!pending) {
     pending = compute(personId)
-      .then(({ suggestions, complete }) => {
-        (complete ? finished : partial).set(personId, suggestions);
-        return suggestions;
+      .then((result) => {
+        (result.complete ? finished : partial).set(personId, result.suggestions);
+        return result;
       })
       .finally(() => running.delete(personId));
     running.set(personId, pending);

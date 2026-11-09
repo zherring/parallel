@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_RETRY_WAIT_MS, parseRetryAfterMs, retryDelayMs } from "@/lib/retry";
+import { MAX_RETRY_WAIT_MS, MIN_ATTEMPT_MS, parseRetryAfterMs, retryDelayMs, retryFits } from "@/lib/retry";
 
 const NOW = Date.parse("2026-11-09T12:00:00Z");
 
@@ -47,5 +47,21 @@ describe("retryDelayMs", () => {
   it("falls back to backoff for an unusable Retry-After", () => {
     expect(retryDelayMs(1, "0", NOW, () => 0.5)).toBe(500);
     expect(retryDelayMs(1, "garbage", NOW, () => 0.5)).toBe(500);
+  });
+});
+
+describe("retryFits", () => {
+  it("needs the wait plus a minimum attempt (1s) to fit before the deadline", () => {
+    expect(MIN_ATTEMPT_MS).toBe(1000);
+    expect(retryFits(500, 1500)).toBe(true);
+    expect(retryFits(500, 1499)).toBe(false);
+    expect(retryFits(10_000, 11_000)).toBe(true);
+    expect(retryFits(10_000, 10_999)).toBe(false);
+  });
+
+  it("never fits once the deadline has passed", () => {
+    expect(retryFits(0, 999)).toBe(false);
+    expect(retryFits(375, 0)).toBe(false);
+    expect(retryFits(375, -50)).toBe(false);
   });
 });

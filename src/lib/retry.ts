@@ -1,6 +1,12 @@
 /** The longest a single retry waits, however long Retry-After asks for. */
 export const MAX_RETRY_WAIT_MS = 10_000;
 
+/**
+ * The least time a retry is worth: a retry whose wait leaves less than this before the request's
+ * deadline is not made, since an attempt given less would only time out.
+ */
+export const MIN_ATTEMPT_MS = 1_000;
+
 /** Waits before the 2nd and the 3rd attempt when TMDB gave no Retry-After. */
 const BACKOFF_MS = [500, 1500] as const;
 /** Backoff is spread over +/-25% so clients that failed together do not retry together. */
@@ -32,4 +38,9 @@ export function retryDelayMs(
   if (asked !== null) return Math.min(Math.ceil(asked), MAX_RETRY_WAIT_MS);
   const base = BACKOFF_MS[Math.min(Math.max(attempt, 1), BACKOFF_MS.length) - 1];
   return Math.round(base * (1 - JITTER + 2 * JITTER * random()));
+}
+
+/** Whether a retry that waits `delayMs` first still leaves MIN_ATTEMPT_MS before the deadline `remainingMs` away. */
+export function retryFits(delayMs: number, remainingMs: number): boolean {
+  return delayMs + MIN_ATTEMPT_MS <= remainingMs;
 }

@@ -174,14 +174,15 @@ describe("retries", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
-  it("spends at most 10 seconds waiting: a retry that would not fit the budget is not made", async () => {
+  it("gives up after about 12 seconds in all: a retry that would not fit before the deadline is not made", async () => {
     fetchMock.mockImplementation(async () => json({}, 429, { "Retry-After": "6" }));
     const result = settle(getFilmCredits(1));
 
     await vi.advanceTimersByTimeAsync(5999);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
-    // 6s waited; a second 6s wait would make 12s, so this failure is final.
+    // 6s have passed; another 6s wait would end exactly at the 12s deadline with no time left for
+    // the attempt itself, so this failure is final.
     const outcome = await result;
     expect((outcome as { error: TmdbError }).error).toMatchObject({ name: "TmdbError", status: 429 });
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -189,7 +190,23 @@ describe("retries", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("makes the third attempt when both waits together fit the budget", async () => {
+  it("retries only if the wait plus a 1s minimum attempt still fits before the deadline", async () => {
+    // 6s lost to the first wait, so 6s are left: 5s + 1s fits exactly, 5.5s + 1s does not.
+    for (const [secondWait, attempts] of [["5", 3], ["5.5", 2]] as const) {
+      resetTmdbClientState();
+      fetchMock.mockReset();
+      fetchMock
+        .mockResolvedValueOnce(json({}, 429, { "Retry-After": "6" }))
+        .mockResolvedValueOnce(json({}, 429, { "Retry-After": secondWait }))
+        .mockResolvedValue(credits());
+      const result = settle(getFilmCredits(1));
+      await vi.advanceTimersByTimeAsync(11_000);
+      await result;
+      expect(fetchMock, `second wait ${secondWait}s`).toHaveBeenCalledTimes(attempts);
+    }
+  });
+
+  it("makes the third attempt when both waits together fit before the deadline", async () => {
     fetchMock.mockImplementation(async () => json({}, 429, { "Retry-After": "5" }));
     const result = settle(getFilmCredits(1));
 
@@ -243,6 +260,104 @@ describe("timeout", () => {
     const outcome = await result;
     expect((outcome as { error: TmdbError }).error).toMatchObject({ name: "TmdbError", status: 504 });
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  describe("with timers the fake clock drives", () => {
+    /** AbortSignal.timeout runs on a timer fake timers cannot see; this one aborts on the fake clock. */
+    function fakeAbortSignalTimeout() {
+      const asked: number[] = [];
+      vi.spyOn(AbortSignal, "timeout").mockImplementation((ms: number) => {
+        asked.push(ms);
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(new DOMException("The operation timed out", "TimeoutError")), ms);
+        return controller.signal;
+      });
+      return asked;
+    }
+
+    /** A fetch that never answers on its own and fails the way a real one does when its signal aborts. */
+    const hangUntilAborted = () =>
+      fetchMock.mockImplementation(
+        (_url, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+          }),
+      );
+
+    it("fails by about 12 seconds when every attempt times out, with the last attempt cut short", async () => {
+      const asked = fakeAbortSignalTimeout();
+      hangUntilAborted();
+      const result = settle(getFilmCredits(1));
+
+      await vi.advanceTimersByTimeAsync(11_999);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(1);
+
+      // 8s, then the ~500ms backoff, then what is left of the 12s: 3.5s.
+      const outcome = await result;
+      expect((outcome as { error: TmdbError }).error).toMatchObject({ name: "TmdbError", status: 504 });
+      expect(asked.filter((ms) => ms <= 8000)).toEqual([8000, 3500]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      // No third attempt (it would not fit), and the failure is remembered (for 45s).
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      await expect(getFilmCredits(1)).rejects.toMatchObject({ status: 504 });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("counts the wait for a limiter slot: a request still queued at 12 seconds gives up without being sent", async () => {
+      fakeAbortSignalTimeout();
+      const hung: Array<() => void> = [];
+      fetchMock.mockImplementation(
+        () => new Promise<Response>((resolve) => hung.push(() => resolve(credits()))), // ignores its signal
+      );
+      for (let id = 1; id <= 6; id++) void getFilmCredits(id);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fetchMock).toHaveBeenCalledTimes(6);
+
+      const queued = settle(getFilmCredits(7));
+      await vi.advanceTimersByTimeAsync(11_999);
+      expect(fetchMock).toHaveBeenCalledTimes(6);
+      await vi.advanceTimersByTimeAsync(1);
+
+      const outcome = await queued;
+      expect((outcome as { error: TmdbError }).error).toMatchObject({ name: "TmdbError", status: 504 });
+      expect(fetchMock).toHaveBeenCalledTimes(6);
+
+      // TMDB was never asked about it, so nothing is remembered against it.
+      fetchMock.mockImplementation(async () => credits());
+      for (const release of hung.splice(0)) release();
+      await vi.advanceTimersByTimeAsync(0);
+      await expect(getFilmCredits(7)).resolves.toEqual({ cast: [], crew: [] });
+    });
+
+    it("keeps a retry that waited in the queue inside the same 12 seconds", async () => {
+      fakeAbortSignalTimeout();
+      // Request 1 fails at once and wants 5s; meanwhile six hung requests keep every slot busy.
+      let first = true;
+      fetchMock.mockImplementation((input) => {
+        const id = Number(new URL(String(input)).pathname.split("/")[3]);
+        if (id === 1 && first) {
+          first = false;
+          return Promise.resolve(json({}, 429, { "Retry-After": "5" }));
+        }
+        return new Promise<Response>(() => {});
+      });
+      const retried = settle(getFilmCredits(1));
+      await vi.advanceTimersByTimeAsync(0);
+      for (let id = 2; id <= 7; id++) void getFilmCredits(id);
+      await vi.advanceTimersByTimeAsync(5000);
+      // Back from its wait at 5s, request 1 has to queue behind the six hung ones...
+      expect(fetchMock).toHaveBeenCalledTimes(7);
+
+      await vi.advanceTimersByTimeAsync(6_999);
+      expect(fetchMock).toHaveBeenCalledTimes(7);
+      await vi.advanceTimersByTimeAsync(1);
+      // ...and at the 12s mark it is over, though only 5s of its own wait were spent.
+      const outcome = await retried;
+      expect((outcome as { error: TmdbError }).error).toMatchObject({ name: "TmdbError", status: 504 });
+    });
   });
 
   it("does not retry or remember a call its own caller gave up on", async () => {

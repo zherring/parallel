@@ -1,6 +1,6 @@
 import "server-only";
 import { normalizeFilmDetails, normalizeMovieCredits, normalizePerson } from "@/lib/normalize";
-import { retryDelayMs } from "@/lib/retry";
+import { retryDelayMs, retryFits } from "@/lib/retry";
 import { Semaphore } from "@/lib/semaphore";
 import type {
   RawDiscoverMovies,
@@ -24,10 +24,13 @@ const MAX_KNOWN_FOR_TITLES = 3;
 const MAX_CONCURRENT_REQUESTS = 6;
 /** One try plus two retries, on 429, 5xx, network errors and timeouts. */
 const MAX_ATTEMPTS = 3;
-/** One attempt (headers and body) is given up on after this long. */
+/** One attempt (headers and body) is given up on after this long, or sooner if the deadline is closer. */
 const ATTEMPT_TIMEOUT_MS = 8000;
-/** Total time one request may spend waiting between its attempts; past it the failure is thrown. */
-const RETRY_BUDGET_MS = 10_000;
+/**
+ * The most time one request takes in all, from the moment it is asked for: waiting for a limiter
+ * slot, every attempt and every wait between attempts. Past it the failure is thrown.
+ */
+const REQUEST_DEADLINE_MS = 12_000;
 /** A 404 is remembered this long: the id does not exist, asking again will not change that. */
 const NOT_FOUND_TTL_MS = 10 * 60 * 1000;
 /** A request that still failed after its retries is remembered this long, so a bad spell is not hammered. */
@@ -92,13 +95,24 @@ export function resetTmdbClientState(): void {
 type Attempt =
   | { kind: "ok"; text: string }
   | { kind: "http"; status: number; retryAfter: string | null }
-  | { kind: "error"; status: number };
+  /** `unsent`: the deadline passed while waiting for a limiter slot, so TMDB was never asked. */
+  | { kind: "error"; status: number; unsent: boolean };
+
+/** When a request must be finished by, and a signal that aborts then (to leave the limiter's queue). */
+interface Deadline {
+  at: number;
+  expired: AbortSignal;
+}
 
 /**
  * One try. It holds one of the limiter's slots from the moment it starts until the body has been
  * read, and gives it back before anything sleeps. A response the Next data cache serves comes
  * back within a millisecond or so, so cache hits pass through the limiter without waiting on TMDB.
- * Throws only when the caller's own `signal` aborted; every other failure is returned.
+ *
+ * The wait for a slot counts toward the request's `deadline`: a request still queued when it
+ * passes leaves the queue without being sent. Once it has a slot, the attempt gets
+ * min(ATTEMPT_TIMEOUT_MS, time left). Throws only when the caller's own `signal` aborted; every
+ * other failure is returned.
  */
 async function attemptOnce(
   url: URL,
@@ -106,11 +120,15 @@ async function attemptOnce(
   revalidate: number,
   token: string,
   signal: AbortSignal | undefined,
+  deadline: Deadline,
 ): Promise<Attempt> {
   let timeout: AbortSignal | undefined;
+  let sent = false;
   try {
+    const queueSignal = signal ? AbortSignal.any([signal, deadline.expired]) : deadline.expired;
     return await client().limiter.run(async (): Promise<Attempt> => {
-      timeout = AbortSignal.timeout(ATTEMPT_TIMEOUT_MS);
+      sent = true;
+      timeout = AbortSignal.timeout(Math.min(ATTEMPT_TIMEOUT_MS, Math.max(1, deadline.at - Date.now())));
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "User-Agent": USER_AGENT },
         next: { revalidate },
@@ -119,20 +137,23 @@ async function attemptOnce(
       if (res.ok) return { kind: "ok", text: await res.text() };
       await res.body?.cancel().catch(() => {});
       return { kind: "http", status: res.status, retryAfter: res.headers.get("retry-after") };
-    }, signal);
+    }, queueSignal);
   } catch (error) {
     if (signal?.aborted) throw new TmdbError(504, `TMDB request to ${path} timed out`);
     const timedOut = timeout?.aborted || (error instanceof Error && error.name === "TimeoutError");
-    return { kind: "error", status: timedOut ? 504 : 502 };
+    return { kind: "error", status: timedOut ? 504 : 502, unsent: !sent };
   }
 }
 
 /**
  * The body of a successful response to `url`, after up to MAX_ATTEMPTS tries. 429, 5xx, network
  * errors and timeouts are retried: after the wait Retry-After asks for (up to 10s), else after
- * ~500ms, then ~1500ms. The waits together stay within RETRY_BUDGET_MS; a retry that would not fit
- * is not made. Other 4xx are final. A 404, and a request that is still failing once it is out of
- * tries, are remembered so the next ask fails at once.
+ * ~500ms, then ~1500ms. The whole request, from this call on, is held to REQUEST_DEADLINE_MS:
+ * time queued for a limiter slot, attempts and waits all count, each attempt is cut off at
+ * min(ATTEMPT_TIMEOUT_MS, time left), and a retry is made only if its wait plus MIN_ATTEMPT_MS
+ * still fits. Other 4xx are final. A 404, and a request that is still failing once it is out of
+ * tries or time, are remembered so the next ask fails at once (not one that never got a slot:
+ * TMDB was not asked, so nothing is known about it).
  */
 async function requestText(
   url: URL,
@@ -143,10 +164,13 @@ async function requestText(
 ): Promise<string> {
   const { notFound, unavailable } = client();
   const key = url.toString();
-  let waited = 0;
+  const deadline: Deadline = {
+    at: Date.now() + REQUEST_DEADLINE_MS,
+    expired: AbortSignal.timeout(REQUEST_DEADLINE_MS),
+  };
 
   for (let attempt = 1; ; attempt++) {
-    const outcome = await attemptOnce(url, path, revalidate, token, signal);
+    const outcome = await attemptOnce(url, path, revalidate, token, signal, deadline);
     if (outcome.kind === "ok") return outcome.text;
 
     const retryable = outcome.kind === "error" || outcome.status === 429 || outcome.status >= 500;
@@ -166,11 +190,10 @@ async function requestText(
     }
 
     const delay = retryDelayMs(attempt, outcome.kind === "http" ? outcome.retryAfter : null, Date.now());
-    if (attempt >= MAX_ATTEMPTS || waited + delay > RETRY_BUDGET_MS) {
-      unavailable.set(key, failure);
+    if (attempt >= MAX_ATTEMPTS || !retryFits(delay, deadline.at - Date.now())) {
+      if (!(outcome.kind === "error" && outcome.unsent)) unavailable.set(key, failure);
       throw new TmdbError(failure.status, failure.message);
     }
-    waited += delay;
     await sleep(delay);
   }
 }
