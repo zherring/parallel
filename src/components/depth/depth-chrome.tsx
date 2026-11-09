@@ -38,8 +38,8 @@ interface DepthChromeProps {
 
 /**
  * The Depth view's page bar (`PeopleBar`, the same one the flat pages have), with what is the Depth view's about it: the Timeline is the page it is on
- * (the Focus layout is the Timeline's), the Table and Clippings are links to the flat page on that view, with the people and the period, and the layout
- * control is in the bar (on the flat Timeline it is inside the panel).
+ * (the Focus layout is the Timeline's), the Table and Clippings are links to the flat page on that view, with the people and the period, and the bar has
+ * the layout control (the flat Timeline's has it too), clear of the year rail on the right.
  *
  * Choosing a layout other than Focus, or a view other than Timeline, leaves for the flat page (a client-side navigation to the same address
  * without `view=depth`, or with the view): the people and the period go along, and the display preferences are held for the flat page to read
@@ -101,6 +101,7 @@ export function DepthChrome({
       view="timeline"
       hrefFor={hrefFor}
       layoutToggle={layoutToggle}
+      rail
       showAll={showAll}
       onShowAllChange={onShowAllChange}
       includeMinor={includeMinor}

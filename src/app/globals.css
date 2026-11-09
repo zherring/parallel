@@ -103,6 +103,59 @@ body:has([data-people-bar]) > header {
 }
 
 /*
+ * Moving between a flat view and the Depth view is a navigation, and the page bar (src/components/people-bar.tsx) is a different one on each
+ * side of it: the gear sits where its view puts it (at the right edge on the flat pages, clear of the year rail on the Depth view) and the layout
+ * control comes with the Timeline and Focus. React's <ViewTransition> (it starts on a navigation, see Next's "View transitions" guide) pairs
+ * the two gears by name (and the two layout controls), and the browser glides each from the old place to the new; a layout control that is
+ * only on one side fades in or out. Nothing else is named: the root is not captured (`view-transition-name: none`), so the page itself, the Depth
+ * scene included, changes at once as it always has, live, with no cross-fade over it, and the bar's other items, which are in the same place on
+ * both sides, are simply the new page's. The glide is the people pill's spring (`springEasing` in src/components/landing/hero-motion.ts) over 360ms;
+ * the pair's two images cross-fade linearly, so that the overlap does not flash.
+ */
+:root {
+  view-transition-name: none;
+  --bar-spring: linear(0, 0.04, 0.139, 0.273, 0.419, 0.563, 0.695, 0.809, 0.902, 0.973, 1.024, 1.057, 1.076, 1.083, 1.082, 1.075, 1.064, 1.052, 1.04, 1.029, 1.019, 1.01, 1.004, 0.999, 0.996, 0.994, 0.993, 0.993, 0.994, 0.994, 1);
+}
+/* The page stays usable under a transition. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(.bar-glide) {
+  animation-duration: 360ms;
+  animation-timing-function: var(--bar-spring, cubic-bezier(0.34, 1.5, 0.64, 1));
+}
+::view-transition-old(.bar-glide),
+::view-transition-new(.bar-glide) {
+  animation-timing-function: linear;
+}
+::view-transition-new(.bar-control-in) {
+  animation: 240ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both bar-control-in;
+}
+::view-transition-old(.bar-control-out) {
+  animation: 140ms ease-in both bar-control-out;
+}
+@keyframes bar-control-in {
+  from {
+    opacity: 0;
+    translate: 10px 0;
+  }
+}
+@keyframes bar-control-out {
+  to {
+    opacity: 0;
+    translate: 10px 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+
+/*
  * The Depth view (?view=depth) is a full-viewport scene: the site's footer leaves the page too, and the tab order, once it mounts
  * (src/components/depth/depth-view.tsx sets the attribute). The flat views keep it: it is at the bottom of the page.
  */

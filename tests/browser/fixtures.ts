@@ -91,9 +91,9 @@ export async function openPeople(page: Page, search = "") {
   await page.goto(`${PEOPLE_PATH}${search}`);
   const layout = page.getByRole("button", { name: "Combined timeline", exact: true });
   await expect(layout).toHaveAttribute("aria-pressed", "true");
-  const gear = page.getByRole("button", { name: "Film settings", exact: true });
+  const gear = page.getByRole("button", { name: "Settings", exact: true });
   await gear.click();
-  await expect(page.getByRole("dialog", { name: "Film settings", exact: true })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Settings", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
 }
 

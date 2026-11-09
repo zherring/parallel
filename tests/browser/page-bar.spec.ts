@@ -3,7 +3,9 @@ import type { Locator, Page } from "next/experimental/testmode/playwright";
 
 /**
  * The page bar of a `/p/` page is the same on every view: the flat Timeline, Table and Clippings, and the Depth view (Focus). These tests measure
- * it, so that moving between the views moves nothing in it, and check what goes with it: the headline under it (the page's `h1`, on every view)
+ * it. The home pill, the people pill and the views are in the same place on all four; the gear is where its view puts it (at the right edge on
+ * the flat views, left of the year rail on Focus) with the layout control before it on the Timeline and Focus; between a flat view and Focus they
+ * glide (a view transition), and the tests watch that happen. They check what goes with the bar too: the headline under it (the page's `h1`, on every view)
  * and what is no longer on the page (the site's header, the title row's Add a person field, the row of Export and Share: Export and Share are
  * in the gear).
  *
@@ -57,6 +59,7 @@ const scene = (page: Page) => page.getByRole("region", { name: "Film timeline. S
 const settingsGear = (page: Page) => page.getByRole("button", { name: "Settings", exact: true });
 const settingsSheet = (page: Page) => page.getByRole("dialog", { name: "Settings", exact: true });
 const headline = (page: Page) => page.getByRole("heading", { level: 1 });
+const depthViews = (page: Page) => page.getByRole("navigation", { name: "Views", exact: true });
 
 /** Opens a view of the pair and waits until it is live (the flat page reads its view from the address bar once hydrated). */
 async function openView(page: Page, view: ViewName) {
@@ -84,8 +87,18 @@ async function measureBar(page: Page) {
       ["Timeline", "Table", "Clippings"].map((name) => box(root.locator(`[role="tab"], nav[aria-label="Views"] a`).filter({ hasText: name }))),
     ),
     gear: await box(root.getByRole("button", { name: "Settings", exact: true })),
+    // The layout control (Focus, Combined): on the Timeline and Focus, not on the Table and Clippings, and not on a phone (its sheet has it).
+    layout: await box(root.getByRole("group", { name: "Timeline layout", exact: true })),
   };
 }
+
+type BarBoxes = Awaited<ReturnType<typeof measureBar>>;
+/** The bar's items that are in the same place on every view: all but the gear and the layout control, which are where their view puts them. */
+const fixedItems = ({ gear, layout, ...rest }: BarBoxes) => {
+  void gear;
+  void layout;
+  return rest;
+};
 
 for (const [label, viewport] of [
   ["desktop", { width: 1440, height: 900 }],
@@ -94,11 +107,15 @@ for (const [label, viewport] of [
   test.describe(`at ${viewport.width}px`, () => {
     test.use({ viewport, hasTouch: label === "phone", isMobile: label === "phone" });
 
-    test("the bar's items are in the same place and size on the Timeline, the Table, the Clippings and Focus", async ({ page }) => {
-      const measured = {} as Record<ViewName, Awaited<ReturnType<typeof measureBar>>>;
+    test("the home pill, the people and the views are in the same place and size on the Timeline, the Table, the Clippings and Focus; the gear is at the right edge on the flat views and left of the rail on Focus", async ({ page }) => {
+      const measured = {} as Record<ViewName, BarBoxes>;
+      let rail: Box | null = null;
       for (const view of Object.keys(VIEWS) as ViewName[]) {
         await openView(page, view);
+        // The Table and Clippings have no layout control (a flat page shows it out of sight, faded, until the page has settled).
+        if (view === "table" || view === "clippings") await expect(bar(page).getByRole("group", { name: "Timeline layout", exact: true })).toBeHidden();
         measured[view] = await measureBar(page);
+        if (view === "focus") rail = round(await page.locator("[data-depth-rail]").boundingBox());
       }
 
       const timeline = measured.timeline;
@@ -107,15 +124,50 @@ for (const [label, viewport] of [
       expect(timeline.gear).not.toBeNull();
       expect(timeline.home === null).toBe(label === "phone");
       expect(timeline.tabs === null).toBe(label === "phone");
-      for (const view of ["table", "clippings", "focus"] as const) expect(measured[view], `the bar on ${view}`).toEqual(timeline);
+      // Every item but the gear and the layout control is identical on all four views.
+      for (const view of ["table", "clippings", "focus"] as const) expect(fixedItems(measured[view]), `the bar on ${view}`).toEqual(fixedItems(timeline));
       // The bar spans the screen and its items are over the top of the page, clear of the edges.
       expect(timeline.bar!.x).toBe(0);
       expect(timeline.bar!.width).toBe(viewport.width);
       expect(timeline.people!.x).toBeGreaterThanOrEqual(8);
-      expect(timeline.gear!.x + timeline.gear!.width).toBeLessThan(viewport.width - 16);
+
+      // The flat views share their boxes, the gear's too: at the right edge, with the gutter the home pill has at the left. (A phone has no home pill: its first item
+      // is the people pill, whose outline starts at the same 12px, with its button inside that, so the gutter is the bar's own.)
+      for (const view of ["table", "clippings"] as const) expect(measured[view].gear, `the gear on ${view}`).toEqual(timeline.gear);
+      const leftGutter = label === "phone" ? 12 : timeline.home!.x;
+      expect(leftGutter).toBe(12);
+      for (const view of ["timeline", "table", "clippings"] as const) {
+        const gear = measured[view].gear!;
+        expect(viewport.width - (gear.x + gear.width), `the gear's right gutter on ${view}`).toBe(leftGutter);
+      }
+
+      // On Focus it is left of the year rail, with room to spare, and the same size and height as on the flat views.
+      const focusGear = measured.focus.gear!;
+      expect(rail).not.toBeNull();
+      expect(rail!.x - (focusGear.x + focusGear.width)).toBeGreaterThanOrEqual(8);
+      expect(focusGear.x).toBeLessThan(timeline.gear!.x);
+      expect({ y: focusGear.y, width: focusGear.width, height: focusGear.height }).toEqual({ y: timeline.gear!.y, width: timeline.gear!.width, height: timeline.gear!.height });
+
+      // The layout control: before the gear on the Timeline and on Focus, the same size and height, and not on the Table and Clippings. Not on a phone's bar at all.
+      if (label === "phone") {
+        for (const view of Object.keys(VIEWS) as ViewName[]) expect(measured[view].layout, `the layout control on ${view}`).toBeNull();
+      } else {
+        expect(measured.table.layout).toBeNull();
+        expect(measured.clippings.layout).toBeNull();
+        for (const view of ["timeline", "focus"] as const) {
+          const toggle = measured[view].layout!;
+          expect(toggle, `the layout control on ${view}`).not.toBeNull();
+          expect(measured[view].gear!.x - (toggle.x + toggle.width), `the gap between the layout control and the gear on ${view}`).toBe(8);
+        }
+        expect({ y: measured.focus.layout!.y, width: measured.focus.layout!.width, height: measured.focus.layout!.height }).toEqual({
+          y: timeline.layout!.y,
+          width: timeline.layout!.width,
+          height: timeline.layout!.height,
+        });
+      }
     });
 
-    test("switching the flat page's views moves nothing in the bar", async ({ page }) => {
+    test("switching the flat page's views moves nothing in the bar: the gear stays, and the layout control fades in and out", async ({ page }) => {
       await openView(page, "timeline");
       const before = await measureBar(page);
       for (const view of ["table", "clippings", "timeline"] as const) {
@@ -128,7 +180,42 @@ for (const [label, viewport] of [
           await bar(page).getByRole("tab", { name: TAB_NAME[view], exact: true }).click();
         }
         await expect(page.getByRole("tabpanel").and(page.locator(`[id$="-panel-${view}"]`))).toBeVisible();
-        expect(await measureBar(page), `the bar on ${view}`).toEqual(before);
+        // The layout control is the Timeline's: it fades out for the Table and Clippings and back in for the Timeline (and is out of the way and inert while it is out).
+        if (label === "desktop") {
+          const layout = bar(page).getByRole("group", { name: "Timeline layout", exact: true });
+          if (view === "timeline") await expect(layout).toBeVisible();
+          else await expect(layout).toBeHidden();
+        }
+        const now = await measureBar(page);
+        expect(now.gear, `the gear on ${view}`).toEqual(before.gear);
+        expect(fixedItems(now), `the bar on ${view}`).toEqual(fixedItems(before));
+        if (view === "timeline") expect(now.layout).toEqual(before.layout);
+      }
+    });
+
+    test("one gear and one layout control, in the bar: the flat Timeline has none of its own inside the timeline", async ({ page }) => {
+      for (const view of ["timeline", "table", "clippings", "focus"] as const) {
+        await openView(page, view);
+        // One gear on the page, and it is the bar's; the timeline panel's own (the "Film settings" one, in a group over its corner) is gone.
+        await expect(page.getByRole("button", { name: "Settings", exact: true })).toHaveCount(1);
+        await expect(bar(page).getByRole("button", { name: "Settings", exact: true })).toHaveCount(1);
+        await expect(page.getByRole("button", { name: "Film settings" })).toHaveCount(0);
+        await expect(page.getByRole("group", { name: "Timeline settings", exact: true })).toHaveCount(0);
+
+        // The layout control is the Timeline's and Focus's, once, in the bar; the Table and Clippings have only the gear. (On a phone the bar has not room: see the sheet below.)
+        const onPage = page.getByRole("group", { name: "Timeline layout", exact: true });
+        const inBar = bar(page).getByRole("group", { name: "Timeline layout", exact: true });
+        const expected = label === "desktop" && (view === "timeline" || view === "focus") ? 1 : 0;
+        await expect(onPage, `the layout control on ${view}`).toHaveCount(expected);
+        await expect(inBar, `the layout control in the bar on ${view}`).toHaveCount(expected);
+
+        if (label === "phone") {
+          // The sheet has it on the Timeline and Focus, and not on the Table and Clippings, which are not about the layout.
+          await settingsGear(page).tap();
+          await expect(settingsSheet(page).getByRole("group", { name: "Timeline layout", exact: true })).toHaveCount(view === "timeline" || view === "focus" ? 1 : 0);
+          await page.keyboard.press("Escape");
+          await expect(settingsSheet(page)).toBeHidden();
+        }
       }
     });
 
@@ -363,7 +450,7 @@ test.describe("Export and Share are in the gear on every view", () => {
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test("the gear's sheet holds the views, the settings, Share, Export and the way home, on the flat page too", async ({ page }) => {
+  test("the gear's sheet holds the views, the layout, the settings, Share, Export and the way home, on the flat page too", async ({ page }) => {
     await openView(page, "timeline");
     await settingsGear(page).tap();
     const sheet = settingsSheet(page);
@@ -374,8 +461,9 @@ test.describe("on a phone", () => {
     await expect(sheet.getByRole("button", { name: "Share", exact: true })).toBeVisible();
     await expect(sheet.getByRole("button", { name: "Export List as CSV", exact: true })).toBeVisible();
     await expect(sheet.getByRole("link", { name: "Parallel home", exact: true })).toHaveAttribute("href", "/");
-    // The flat timeline keeps the layout control inside its panel: it is not in the sheet (that is the Focus view's).
-    await expect(sheet.getByRole("button", { name: "Combined timeline", exact: true })).toHaveCount(0);
+    // The Timeline's layout control is in the sheet, as Focus's is (the bar has no room for it on a phone): Combined is the one pressed, here.
+    await expect(sheet.getByRole("button", { name: "Combined timeline", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(sheet.getByRole("button", { name: "Focus view", exact: true })).toHaveAttribute("aria-pressed", "false");
 
     // The sheet fits the screen.
     const box = (await sheet.boundingBox())!;
@@ -388,5 +476,197 @@ test.describe("on a phone", () => {
     await expect(page.locator('[role="tab"][id$="-tab-table"]')).toHaveAttribute("aria-selected", "true");
     await expect(sheet).toBeHidden();
     expect(new URL(page.url()).searchParams.get("view")).toBe("table");
+  });
+});
+
+// ---- moving between a flat view and Focus: the gear and the layout control glide -------------------------------------------------
+
+/** What a frame of a view transition looked like: the animations the browser was running on its pseudo-elements, and where the two named groups were. */
+type VtSample = { running: { pseudo: string; duration: number }[]; gearX: number | null; layoutX: number | null };
+
+/**
+ * Runs in the page (it is serialized: nothing outside it is in reach): from now on, every frame, notes the animations running on the view transition's
+ * pseudo-elements (`document.getAnimations()` includes them) and the x of the gear's and the layout control's groups, which is where the browser draws
+ * them for as long as the transition runs (the real elements are held back, so their own boxes say nothing: they are at their new place from the start).
+ */
+function sampleViewTransitions() {
+  const w = window as unknown as { __vt?: { samples: VtSample[]; stop: boolean } };
+  // A page that is sampling already (this is a second go, after a navigation within it): that one stops, and this starts afresh.
+  if (w.__vt) w.__vt.stop = true;
+  const state = { samples: [] as VtSample[], stop: false };
+  w.__vt = state;
+  const groupX = (name: string) => {
+    const transform = getComputedStyle(document.documentElement, `::view-transition-group(${name})`).transform;
+    return transform && transform !== "none" ? new DOMMatrix(transform).m41 : null;
+  };
+  const frame = () => {
+    const running = document.getAnimations().flatMap((animation) => {
+      const effect = animation.effect as KeyframeEffect | null;
+      const pseudo = effect?.pseudoElement;
+      if (!effect || !pseudo || !pseudo.startsWith("::view-transition") || animation.playState === "finished") return [];
+      return [{ pseudo, duration: Number(effect.getComputedTiming().duration) }];
+    });
+    state.samples.push({ running, gearX: groupX("people-bar-gear"), layoutX: groupX("people-bar-layout") });
+    if (!state.stop) requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+
+const startSampling = (page: Page) => page.evaluate(sampleViewTransitions);
+/** Waits until the glide has been seen (the sampler saw a lasting animation) and is over (none is running now). */
+const transitionsDone = (page: Page) =>
+  expect
+    .poll(() =>
+      page.evaluate(() => {
+        const w = window as unknown as { __vt: { samples: VtSample[] } };
+        const seen = w.__vt.samples.some((sample) => sample.running.some((animation) => animation.duration > 0));
+        const now = document.getAnimations().some(
+          (animation) => (animation.effect as KeyframeEffect | null)?.pseudoElement?.startsWith("::view-transition") && animation.playState !== "finished",
+        );
+        return seen && !now;
+      }),
+    )
+    .toBe(true);
+async function stopSampling(page: Page): Promise<VtSample[]> {
+  return page.evaluate(() => {
+    const w = window as unknown as { __vt: { samples: VtSample[]; stop: boolean } };
+    w.__vt.stop = true;
+    return w.__vt.samples;
+  });
+}
+/** The animations that moved or faded something: a real duration, not the zero-length ones the root's group has, or reduced motion leaves. */
+const lasting = (samples: VtSample[]) => samples.flatMap((sample) => sample.running).filter((animation) => animation.duration > 0);
+/** Whether the x ever was strictly between the two ends (the glide is on its way), by more than a pixel at each end. */
+const wasBetween = (xs: (number | null)[], from: number, to: number) =>
+  xs.some((x) => x !== null && x > Math.min(from, to) + 1 && x < Math.max(from, to) - 1);
+
+/** The pseudo-element names (`people-bar-gear`...) of the animations that lasted. */
+const animatedNames = (samples: VtSample[]) =>
+  [...new Set(lasting(samples).map((animation) => /\(([^)]*)\)/.exec(animation.pseudo)?.[1] ?? animation.pseudo))].sort();
+
+test.describe("moving between a flat view and Focus", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+  // The layout control of the bar (Focus is the one to press to leave for the scene) and the way back (Combined).
+  const toFocus = (page: Page) => bar(page).getByRole("button", { name: "Focus view", exact: true });
+  const toCombined = (page: Page) => bar(page).getByRole("button", { name: "Combined timeline", exact: true });
+
+  test("the gear and the layout control glide from the flat Timeline to Focus and back, and nothing else in the bar animates", async ({ page }) => {
+    await openView(page, "timeline");
+    const flat = await measureBar(page);
+
+    await startSampling(page);
+    await toFocus(page).click();
+    await expect(scene(page)).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("data-view", "depth");
+    // Past the whole glide (360ms), as long as the browser runs it.
+    await transitionsDone(page);
+    const forth = await stopSampling(page);
+    const focus = await measureBar(page);
+
+    // The gear and the layout control were drawn on the way: between where they were and where they are (the flat Timeline's, Focus's).
+    expect(focus.gear!.x).toBeLessThan(flat.gear!.x);
+    expect(wasBetween(forth.map((sample) => sample.gearX), flat.gear!.x, focus.gear!.x)).toBe(true);
+    expect(wasBetween(forth.map((sample) => sample.layoutX), flat.layout!.x, focus.layout!.x)).toBe(true);
+    // For 360ms, as the people pill's heads move; and they are all that moved: the home pill, the people pill and the views are not named, so they are the new page's at once.
+    expect(lasting(forth).some((animation) => animation.pseudo === "::view-transition-group(people-bar-gear)" && animation.duration === 360)).toBe(true);
+    expect(animatedNames(forth)).toEqual(["people-bar-gear", "people-bar-layout"]);
+    // And no cross-fade of the page: the root has no image pair (the scene is not captured, so it is never in the middle of a fade).
+    expect(forth.flatMap((sample) => sample.running).filter((animation) => /\(root\)/.test(animation.pseudo) && animation.duration > 0)).toEqual([]);
+    expect(fixedItems(focus)).toEqual(fixedItems(flat));
+
+    // And back: Combined leaves for the flat Timeline, and they glide right.
+    await startSampling(page);
+    await toCombined(page).click();
+    await expect(scene(page)).toHaveCount(0);
+    await expect(bar(page).getByRole("tab", { name: "Timeline", exact: true })).toHaveAttribute("aria-selected", "true");
+    await transitionsDone(page);
+    const back = await stopSampling(page);
+    expect(wasBetween(back.map((sample) => sample.gearX), focus.gear!.x, flat.gear!.x)).toBe(true);
+    expect(wasBetween(back.map((sample) => sample.layoutX), focus.layout!.x, flat.layout!.x)).toBe(true);
+    expect(animatedNames(back)).toEqual(["people-bar-gear", "people-bar-layout"]);
+    expect(await measureBar(page)).toEqual(flat);
+  });
+
+  test("from Focus to the Table the gear glides right and the layout control, which the Table has not, fades out", async ({ page }) => {
+    await openView(page, "focus");
+    const focus = await measureBar(page);
+
+    await startSampling(page);
+    await depthViews(page).getByRole("link", { name: "Table", exact: true }).click();
+    await expect(page.locator('[role="tab"][id$="-tab-table"]')).toHaveAttribute("aria-selected", "true");
+    await transitionsDone(page);
+    const samples = await stopSampling(page);
+    const table = await measureBar(page);
+
+    expect(table.gear!.x).toBeGreaterThan(focus.gear!.x);
+    expect(wasBetween(samples.map((sample) => sample.gearX), focus.gear!.x, table.gear!.x)).toBe(true);
+    // The control has no place on the Table to glide to: the old one fades out where it was.
+    expect(table.layout).toBeNull();
+    expect(lasting(samples).some((animation) => animation.pseudo === "::view-transition-old(people-bar-layout)")).toBe(true);
+    expect(fixedItems(table)).toEqual(fixedItems(focus));
+  });
+
+  test("with reduced motion the gear is at its new place at once: nothing runs for any time", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await openView(page, "timeline");
+    const flat = await measureBar(page);
+
+    await startSampling(page);
+    await toFocus(page).click();
+    await expect(scene(page)).toBeVisible();
+    await page.waitForTimeout(700);
+    const samples = await stopSampling(page);
+    const focus = await measureBar(page);
+
+    expect(focus.gear!.x).toBeLessThan(flat.gear!.x);
+    expect(lasting(samples)).toEqual([]);
+    // Never drawn anywhere but where it ended up (a group at the old place, or on its way, would show here).
+    for (const sample of samples) {
+      if (sample.gearX !== null) expect(sample.gearX).toBeCloseTo(focus.gear!.x, 0);
+      if (sample.layoutX !== null) expect(sample.layoutX).toBeCloseTo(focus.layout!.x, 0);
+    }
+  });
+
+  for (const view of ["timeline", "focus"] as const) {
+    test(`the first load of the ${view} page animates nothing`, async ({ page }) => {
+      await page.addInitScript(sampleViewTransitions);
+      await openView(page, view);
+      await page.waitForTimeout(900);
+      const samples = await stopSampling(page);
+      expect(samples.length).toBeGreaterThan(10);
+      expect(lasting(samples)).toEqual([]);
+      for (const sample of samples) expect([sample.gearX, sample.layoutX]).toEqual([null, null]);
+    });
+  }
+});
+
+test.describe("on a phone: from the flat Timeline to Focus through the sheet", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("the gear glides there and back, 24px each way", async ({ page }) => {
+    await openView(page, "timeline");
+    const flat = await measureBar(page);
+
+    await startSampling(page);
+    await settingsGear(page).tap();
+    await settingsSheet(page).getByRole("button", { name: "Focus view", exact: true }).tap();
+    await expect(scene(page)).toBeVisible();
+    await transitionsDone(page);
+    const forth = await stopSampling(page);
+    const focus = await measureBar(page);
+    expect(flat.gear!.x - focus.gear!.x).toBe(24);
+    expect(wasBetween(forth.map((sample) => sample.gearX), flat.gear!.x, focus.gear!.x)).toBe(true);
+    expect(animatedNames(forth)).toEqual(["people-bar-gear"]);
+    expect(fixedItems(focus)).toEqual(fixedItems(flat));
+
+    await startSampling(page);
+    await settingsGear(page).tap();
+    await settingsSheet(page).getByRole("button", { name: "Combined timeline", exact: true }).tap();
+    await expect(scene(page)).toHaveCount(0);
+    await expect(page.locator('[role="tab"][id$="-tab-timeline"]')).toHaveAttribute("aria-selected", "true");
+    await transitionsDone(page);
+    const back = await stopSampling(page);
+    expect(wasBetween(back.map((sample) => sample.gearX), focus.gear!.x, flat.gear!.x)).toBe(true);
+    expect(await measureBar(page)).toEqual(flat);
   });
 });

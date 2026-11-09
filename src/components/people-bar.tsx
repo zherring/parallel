@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, ViewTransition, type ReactNode, type RefObject } from "react";
 import { PeoplePill, type PillPerson } from "@/components/depth/people-pill";
 import { HomeLink } from "@/components/home-link";
 import { Wordmark } from "@/components/wordmark";
@@ -28,10 +28,21 @@ interface PeopleBarProps {
    */
   panels?: { idBase: string; onSelect: (view: View) => void };
   /**
-   * The layout control (Focus, Combined), for the view that has it in the bar: the Depth view. The flat Timeline has it inside its panel
-   * (where it was, see `Timeline`), so the bar does not. `labelled` is the sheet's wider one, with its words.
+   * The layout control (Focus, Combined), for the views that have it in the bar: the Timeline, flat and Depth (Focus). `labelled` is the
+   * sheet's wider one, with its words. The flat page passes it on every view and says on which it applies (`layoutShown`).
    */
   layoutToggle?: (labelled: boolean) => ReactNode;
+  /**
+   * Whether the layout control applies to the view the page is on (the flat Table and Clippings are not about the timeline's layout). The
+   * flat page keeps the control mounted, out of sight and inert, on those, so that choosing between the Timeline and the other views fades it
+   * in and out in place instead of making it jump. The Depth view's is always shown.
+   */
+  layoutShown?: boolean;
+  /**
+   * The Depth view's year rail is at the right edge (3.75rem wide, 28px on a phone), and the gear, with the layout control before it, sits clear of it.
+   * Without a rail (the flat pages) the gear hugs the right edge, with the same gutter the home pill has at the left.
+   */
+  rail?: boolean;
   /** "Show all films", as on the flat page. */
   showAll: boolean;
   onShowAllChange: (showAll: boolean) => void;
@@ -58,18 +69,21 @@ const STEPS_ASIDE =
 
 /**
  * The page bar of a `/p/` page, fixed to the top of the screen, the same on every view (the flat Timeline, Table and Clippings, and the Depth
- * view) in the same place and size, so that moving between views moves nothing in it: a small pill home (the site's header is hidden on these
- * pages, see globals.css), the people pill and the page's views beside it at the left, and at the right, clear of the Depth view's year rail
- * (the flat pages leave the same room), the gear, and in front of it, on the Depth view, the layout control (Focus, Combined). The Depth view
- * puts the bar before its scroller, never inside it (perspective would turn `fixed` into `absolute`); the bar takes no pointer events of its
- * own, only what is in it does, so the scene is draggable up to the controls' edges.
+ * view): a small pill home (the site's header is hidden on these pages, see globals.css), the people pill and the page's views beside it at the
+ * left, and at the right the gear, and in front of it, on the Depth view, the layout control (Focus, Combined). Everything at the left is in the
+ * same place and size on every view. The gear is where its view puts it: on the Depth view clear of the year rail (`rail`), with the layout
+ * control before it; on the flat pages, which have no rail, at the right edge, with the gutter the home pill has at the left. Between the flat
+ * views it does not move; between a flat view and the Depth view it glides (and the layout control comes and goes), as a view transition: the
+ * bar is a different one on each page, so the gear and the control are named for React to pair them up across the navigation (see `ViewTransition`
+ * and the `bar-` rules in globals.css). The Depth view puts the bar before its scroller, never inside it (perspective would turn `fixed` into
+ * `absolute`); the bar takes no pointer events of its own, only what is in it does, so the scene is draggable up to the controls' edges.
  *
  * The gear opens the film settings (Show all films and Include minor credits), Share (with its Period choice) and Export (the list as a CSV
  * file), on every view alike. On a phone there is no room for the home pill, the views and the layout control on the bar, so the bar holds
  * the pill's heads and the gear alone, and the gear's sheet holds the views, the layout control and the way home too.
  *
- * The bar is as wide as the screen (`w-screen`, not the page: a flat page with a scrollbar of its own is narrower than the screen,
- * which would move the gear) and sits over the page at `z-30`, under the panels and dialogs.
+ * The bar is as wide as the page's viewport (`inset-x-0`: a flat page with a scrollbar of its own ends the bar at the scrollbar, where the gear's
+ * gutter is measured from; the Depth view's scroller hides its own) and sits over the page at `z-30`, under the panels and dialogs.
  */
 export function PeopleBar({
   people,
@@ -79,6 +93,8 @@ export function PeopleBar({
   hrefFor,
   panels,
   layoutToggle,
+  layoutShown = true,
+  rail = false,
   showAll,
   onShowAllChange,
   includeMinor,
@@ -90,8 +106,17 @@ export function PeopleBar({
 }: PeopleBarProps) {
   const [status, setStatus] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /**
+   * Whether the layout control fades when it comes or goes in place. Off until the page has settled: the flat page reads its view from the
+   * address bar once it has hydrated (a link to `?view=table` is the Timeline's HTML first), and that is not a change to animate.
+   */
+  const [settled, setSettled] = useState(false);
 
   useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setSettled(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
   /** What Share and Export report (a link copied, a file downloaded), in the sheet, for a few seconds; a live region, so it is also spoken. */
   const announce = useCallback((message: string) => {
     clearTimeout(timer.current);
@@ -105,7 +130,7 @@ export function PeopleBar({
   return (
     <div
       data-people-bar
-      className="group/bar pointer-events-none fixed left-0 top-0 z-30 flex w-screen items-start justify-between gap-3 px-3 pt-3"
+      className="group/bar pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-3 pt-3"
     >
       {backdrop && (
         <div aria-hidden="true" className="absolute inset-x-0 top-0 -z-10 h-[4.5rem] bg-gradient-to-b from-canvas via-canvas/90 to-transparent" />
@@ -145,60 +170,80 @@ export function PeopleBar({
           />
         )}
       </div>
-      {/* Left of the year rail (3.75rem wide, 28px on a phone) with a gap: nothing here is ever over it. The flat pages have no rail and leave the room. */}
-      <div className={cn("pointer-events-auto mr-[3.75rem] mt-2 flex shrink-0 items-center gap-2 max-sm:mr-6 max-sm:mt-1.5", STEPS_ASIDE)}>
-        {layoutToggle && <div className="max-sm:hidden">{layoutToggle(false)}</div>}
-        <FilmSettings
-          label="Settings"
-          buttonClassName={cn("size-[34px]", FLOATING)}
-          scrollable={false}
-          showAll={showAll}
-          onShowAllChange={onShowAllChange}
-          includeMinor={includeMinor}
-          onIncludeMinorChange={onIncludeMinorChange}
-          message={settingsMessage}
-          before={
-            <div className="sm:hidden">
-              <h2 className={sectionTitle}>Views</h2>
-              {/* Choosing a view on the flat page leaves the sheet over it: it closes (see `FilmSettings`). */}
-              <div data-close-sheet>
-                <ViewLinks
-                  views={views}
-                  view={view}
-                  hrefFor={hrefFor}
-                  onSelect={panels?.onSelect}
-                  className="grid auto-cols-fr grid-flow-col gap-0.5 rounded-md bg-surface p-0.5"
-                />
-              </div>
-              {layoutToggle && (
-                <>
-                  <h2 className={cn(sectionTitle, "mt-3")}>Layout</h2>
-                  {layoutToggle(true)}
-                </>
+      {/*
+        At the right edge, or, on the Depth view, left of the year rail (3.75rem wide, 28px on a phone) with a gap: nothing there is ever over it.
+        The cluster takes no pointer events itself, so that the layout control, out of sight on the Table and Clippings, does not shield what is under it.
+      */}
+      <div className={cn("pointer-events-none mt-2 flex shrink-0 items-center gap-2 max-sm:mt-1.5", rail && "mr-[3.75rem] max-sm:mr-6", STEPS_ASIDE)}>
+        {layoutToggle && (
+          <ViewTransition name="people-bar-layout" share="bar-glide" enter="bar-control-in" exit="bar-control-out" default="none">
+            <div
+              inert={!layoutShown}
+              className={cn(
+                "pointer-events-auto max-sm:hidden",
+                settled && "transition-[opacity,visibility] duration-200 motion-reduce:transition-none",
+                !layoutShown && "invisible opacity-0",
               )}
-              <hr className="my-3 border-border" />
+            >
+              {layoutToggle(false)}
             </div>
-          }
-          after={
-            <div className="mt-3 border-t border-border pt-3">
-              <h2 className={sectionTitle}>{exports ? "Share and export" : "Share"}</h2>
-              <div className="flex flex-col gap-2">
-                <ShareMenu input={share} onStatus={announce} className="w-full" />
-                {exports && <ExportButton {...exportList} onStatus={announce} className="w-full" />}
-              </div>
-              <p role="status" aria-live="polite" className="mt-2 min-h-4 text-xs text-muted">
-                {status}
-              </p>
-              {/* On a phone the bar has no home pill (see above): the way home is here, last. */}
-              <div className="mt-3 border-t border-border pt-3 sm:hidden">
-                <HomeLink className="flex h-9 items-center gap-1.5 rounded-md bg-surface px-3 no-underline hover:bg-border">
-                  <Wordmark className="text-base" />
-                  <span className="text-sm text-muted">home</span>
-                </HomeLink>
-              </div>
-            </div>
-          }
-        />
+          </ViewTransition>
+        )}
+        <ViewTransition name="people-bar-gear" share="bar-glide" default="none">
+          <div className="pointer-events-auto flex shrink-0">
+            <FilmSettings
+              label="Settings"
+              buttonClassName={cn("size-[34px]", FLOATING)}
+              scrollable={false}
+              showAll={showAll}
+              onShowAllChange={onShowAllChange}
+              includeMinor={includeMinor}
+              onIncludeMinorChange={onIncludeMinorChange}
+              message={settingsMessage}
+              before={
+                <div className="sm:hidden">
+                  <h2 className={sectionTitle}>Views</h2>
+                  {/* Choosing a view on the flat page leaves the sheet over it: it closes (see `FilmSettings`). */}
+                  <div data-close-sheet>
+                    <ViewLinks
+                      views={views}
+                      view={view}
+                      hrefFor={hrefFor}
+                      onSelect={panels?.onSelect}
+                      className="grid auto-cols-fr grid-flow-col gap-0.5 rounded-md bg-surface p-0.5"
+                    />
+                  </div>
+                  {layoutToggle && layoutShown && (
+                    <>
+                      <h2 className={cn(sectionTitle, "mt-3")}>Layout</h2>
+                      {layoutToggle(true)}
+                    </>
+                  )}
+                  <hr className="my-3 border-border" />
+                </div>
+              }
+              after={
+                <div className="mt-3 border-t border-border pt-3">
+                  <h2 className={sectionTitle}>{exports ? "Share and export" : "Share"}</h2>
+                  <div className="flex flex-col gap-2">
+                    <ShareMenu input={share} onStatus={announce} className="w-full" />
+                    {exports && <ExportButton {...exportList} onStatus={announce} className="w-full" />}
+                  </div>
+                  <p role="status" aria-live="polite" className="mt-2 min-h-4 text-xs text-muted">
+                    {status}
+                  </p>
+                  {/* On a phone the bar has no home pill (see above): the way home is here, last. */}
+                  <div className="mt-3 border-t border-border pt-3 sm:hidden">
+                    <HomeLink className="flex h-9 items-center gap-1.5 rounded-md bg-surface px-3 no-underline hover:bg-border">
+                      <Wordmark className="text-base" />
+                      <span className="text-sm text-muted">home</span>
+                    </HomeLink>
+                  </div>
+                </div>
+              }
+            />
+          </div>
+        </ViewTransition>
       </div>
     </div>
   );

@@ -1573,8 +1573,8 @@ test("with Show all films off, Focus has a poster for the films the flat timelin
   await page.goto(PEOPLE_PATH);
   await expect(page.getByRole("button", { name: "Combined timeline", exact: true })).toHaveAttribute("aria-pressed", "true");
   const flatOff = await flatFilms(page);
-  await page.getByRole("button", { name: "Film settings", exact: true }).click();
-  const flatDialog = page.getByRole("dialog", { name: "Film settings", exact: true });
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const flatDialog = page.getByRole("dialog", { name: "Settings", exact: true });
   await expect(flatDialog.getByRole("checkbox", { name: "Show all films", exact: true })).not.toBeChecked();
   await flatDialog.getByRole("checkbox", { name: /Show shorts, music videos, cameos and uncredited/ }).check();
   await page.keyboard.press("Escape");
@@ -1639,8 +1639,8 @@ test("Show all films is shared with the flat page, as the minor credits are", as
   await settingsSheetShowAll(page).check();
   await page.keyboard.press("Escape");
   await layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true }).click();
-  await page.getByRole("button", { name: "Film settings", exact: true }).click();
-  const flatDialog = page.getByRole("dialog", { name: "Film settings", exact: true });
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const flatDialog = page.getByRole("dialog", { name: "Settings", exact: true });
   await expect(flatDialog.getByRole("checkbox", { name: "Show all films", exact: true })).toBeChecked();
   // Off here: Focus has it off too.
   await flatDialog.getByRole("checkbox", { name: "Show all films", exact: true }).uncheck();
@@ -1658,9 +1658,9 @@ test("a setting made in the gear is there on the flat page, and the other way ro
   await page.keyboard.press("Escape");
   await layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true }).click();
 
-  const flatSettings = page.getByRole("button", { name: "Film settings", exact: true });
+  const flatSettings = page.getByRole("button", { name: "Settings", exact: true });
   await flatSettings.click();
-  const flatDialog = page.getByRole("dialog", { name: "Film settings", exact: true });
+  const flatDialog = page.getByRole("dialog", { name: "Settings", exact: true });
   await expect(flatDialog.getByRole("checkbox", { name: /Show shorts, music videos, cameos and uncredited/ })).toBeChecked();
   // Turn it off here; Focus has it off too.
   await flatDialog.getByRole("checkbox", { name: /Show shorts, music videos, cameos and uncredited/ }).uncheck();
@@ -1976,6 +1976,9 @@ test.describe("on a phone", () => {
 
     await sheet.getByRole("button", { name: "Combined timeline", exact: true }).tap();
     await expect(scene(page)).toHaveCount(0);
+    // The flat Timeline's bar has no room for the control on a phone either: it is in the sheet, with Combined pressed.
+    await expect(layoutGroup(page)).toBeHidden();
+    await settingsGear(page).tap();
     await expect(layoutGroup(page).getByRole("button", { name: "Combined timeline", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(scene(page)).toHaveCount(0);
   });

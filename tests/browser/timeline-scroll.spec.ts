@@ -29,7 +29,7 @@ test("the first Timeline visit from Table initializes the Combined baseline", as
 
 test("manual zoom preserves vertical exploration with Show all films enabled", async ({ page }) => {
   await openPeople(page);
-  await page.getByRole("button", { name: "Film settings", exact: true }).click();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("checkbox", { name: "Show all films", exact: true }).check();
   await page.keyboard.press("Escape");
   const track = timeline(page);

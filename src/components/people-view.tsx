@@ -4,9 +4,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { FilmPanel } from "@/components/film-panel/film-panel";
 import { PageHeadline } from "@/components/page-headline";
-import { PeopleBar } from "@/components/people-bar";
+import { FLOATING, PeopleBar } from "@/components/people-bar";
 import { FilmsSection } from "@/components/timeline/films-section";
-import { FilmSettings } from "@/components/timeline/film-settings";
 import { PeoplePanel, type PanelLayout, type PanelPerson } from "@/components/timeline/people-panel";
 import type { BioPerson } from "@/components/timeline/person-bio";
 import { LayoutToggle, type Layout } from "@/components/timeline/layout-toggle";
@@ -278,13 +277,14 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     </p>
   );
 
-  const settingsControl = (
-    <FilmSettings
-      showAll={showAll}
-      onShowAllChange={handleShowAllChange}
-      includeMinor={includeMinor}
-      onIncludeMinorChange={handleIncludeMinorChange}
-      message={showingMessage(multi ? sharedNow.length : soloRows.length, multi)}
+  // The layout control, in the page bar on the Timeline (the Depth view's bar has it too, see `DepthChrome`), left of the gear.
+  const layoutToggle = (labelled: boolean) => (
+    <LayoutToggle
+      layout={multi ? shownTrackMode : "combined"}
+      several={multi}
+      onChange={handleLayoutChange}
+      labelled={labelled}
+      className={labelled ? "w-full" : FLOATING}
     />
   );
 
@@ -295,8 +295,8 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       lanes={visibleLanes}
       combined={combined}
       showAll={showAll}
-      settingsControl={settingsControl}
-      layoutToggle={<LayoutToggle layout={multi ? shownTrackMode : "combined"} several={multi} onChange={handleLayoutChange} />}
+      // The settings and the layout control are the page bar's: the Timeline has none of its own.
+      settingsControl={null}
       sidebarExpanded={panelLayout === "stack"}
       sidebar={
         // The people column belongs to both layouts: the eye and the details stay where they were
@@ -338,6 +338,8 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         view={view}
         hrefFor={hrefFor}
         panels={{ idBase: headingId, onSelect: selectView }}
+        layoutToggle={layoutToggle}
+        layoutShown={view === "timeline"}
         showAll={showAll}
         onShowAllChange={handleShowAllChange}
         includeMinor={includeMinor}
