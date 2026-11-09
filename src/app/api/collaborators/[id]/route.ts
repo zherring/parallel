@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api-error";
 import { suggestCollaboratorsChecked } from "@/lib/collaborators";
 
+// Seconds this function may run. Set explicitly because the platform's default may be shorter than
+// the 12s a TMDB request is given (REQUEST_DEADLINE_MS in src/lib/tmdb.ts), which would then never
+// fire. Keep it above that with room to render; src/app/max-duration.test.ts checks.
+export const maxDuration = 20;
+
 const PERSON_ID = /^[1-9]\d{0,9}$/;
 const COMPLETE_CACHE = "public, s-maxage=3600, stale-while-revalidate=86400";
 const PARTIAL_CACHE = "public, s-maxage=60, stale-while-revalidate=60";

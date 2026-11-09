@@ -700,17 +700,18 @@ describe("a page's time budget", () => {
     expect(all.map((r) => r.status)).toEqual(["rejected", "rejected", "rejected", "rejected"]);
   });
 
-  it("bounds a person's whole short-film lookup, page after page, to 12 seconds", async () => {
+  it("gives a person's whole short-film lookup, page after page, 3 seconds, whatever the 12 second deadline says", async () => {
     fakeAbortSignalTimeout();
-    // Page 1 is slow but arrives; the pages it unlocks then hang. Without a budget over the whole
-    // lookup they would get another 12 seconds of their own, and the page would wait 23.
+    // Page 1 arrives; the pages it unlocks then hang. Without a budget over the whole lookup they
+    // would each get the full 12 seconds.
     fetchMock.mockImplementation((input, init) =>
       pageOf(input) === 1
-        ? new Promise<Response>((resolve) => setTimeout(() => resolve(discoverPage([7], 10)), 11_000))
+        ? new Promise<Response>((resolve) => setTimeout(() => resolve(discoverPage([7], 10)), 2000))
         : new Promise<Response>((_resolve, reject) => {
             init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
           }),
     );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const started = Date.now();
     let settledAt = -1;
     const lookup = getShortMovieIds(1).then((ids) => {
@@ -718,30 +719,146 @@ describe("a page's time budget", () => {
       return ids;
     });
 
-    await vi.advanceTimersByTimeAsync(11_999);
+    await vi.advanceTimersByTimeAsync(2999);
     expect(settledAt).toBe(-1);
     await vi.advanceTimersByTimeAsync(1);
 
+    // What it had by then, not an error and not an empty set.
     await expect(lookup).resolves.toEqual(new Set([7]));
-    expect(settledAt).toBe(12_000);
+    expect(settledAt).toBe(3000);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain("cut short");
+  });
+
+  it("resolves with the ids it has at 3 seconds even if TMDB's requests ignore their abort signals", async () => {
+    fakeAbortSignalTimeout();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    fetchMock.mockImplementation((input) =>
+      pageOf(input) === 1
+        ? Promise.resolve(discoverPage([7], 10))
+        : new Promise<Response>(() => {}), // never answers, never aborts
+    );
+    const started = Date.now();
+    let settledAt = -1;
+    const lookup = getShortMovieIds(1).then((ids) => {
+      settledAt = Date.now() - started;
+      return ids;
+    });
+    await vi.advanceTimersByTimeAsync(3000);
+    await expect(lookup).resolves.toEqual(new Set([7]));
+    expect(settledAt).toBe(3000);
+  });
+
+  it("does not hold a person's page up for the lookup: critical calls ready at 500ms, discover hanging, resolves at ~3000ms", async () => {
+    fakeAbortSignalTimeout();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    fetchMock.mockImplementation((input, init) => {
+      const { pathname } = new URL(String(input));
+      if (pathname.includes("/discover/")) {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+        });
+      }
+      const body = pathname.endsWith("/movie_credits") ? { cast: [], crew: [] } : { id: 1, name: "Someone" };
+      return new Promise<Response>((resolve) => setTimeout(() => resolve(json(body)), 500));
+    });
+    const started = Date.now();
+    let settledAt = -1;
+    const timeline = getPersonMovieCredits(1).then((t) => {
+      settledAt = Date.now() - started;
+      return t;
+    });
+
+    await vi.advanceTimersByTimeAsync(2999);
+    expect(settledAt).toBe(-1);
+    await vi.advanceTimersByTimeAsync(1);
+
+    const result = await timeline;
+    expect(settledAt).toBe(3000);
+    expect(result.person.name).toBe("Someone");
+    // Marked, so what is built from it is not kept for long.
+    expect(result.shortsIncomplete).toBe(true);
+  });
+
+  it("marks a timeline whose lookup lost a page, but not one that finished", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const serve = (failPage2: boolean) =>
+      fetchMock.mockImplementation(async (input) => {
+        const { pathname } = new URL(String(input));
+        if (pathname.includes("/discover/")) {
+          return pageOf(input) === 2 && failPage2 ? json({}, 404) : discoverPage([pageOf(input)], 2);
+        }
+        return json(pathname.endsWith("/movie_credits") ? { cast: [], crew: [] } : { id: 1, name: "Someone" });
+      });
+
+    serve(true);
+    expect((await getPersonMovieCredits(1)).shortsIncomplete).toBe(true);
+
+    __resetTmdbClientStateForTests();
+    serve(false);
+    const whole = await getPersonMovieCredits(1);
+    expect(whole.shortsIncomplete).toBeUndefined();
+    expect("shortsIncomplete" in whole).toBe(false);
   });
 
   it("does not remember the pages a spent lookup cut off as TMDB failures", async () => {
     fakeAbortSignalTimeout();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     fetchMock.mockImplementation((input, init) =>
       pageOf(input) === 1
-        ? new Promise<Response>((resolve) => setTimeout(() => resolve(discoverPage([7], 3)), 11_000))
+        ? new Promise<Response>((resolve) => setTimeout(() => resolve(discoverPage([7], 3)), 2000))
         : new Promise<Response>((_resolve, reject) => {
             init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
           }),
     );
     const first = getShortMovieIds(1);
-    await vi.advanceTimersByTimeAsync(12_000);
+    await vi.advanceTimersByTimeAsync(3000);
     await first;
 
-    // The caller's budget ran out, which says nothing about TMDB: asking again goes through.
+    // The lookup's budget ran out, which says nothing about TMDB: asking again goes through.
     fetchMock.mockImplementation(async (input) => discoverPage([pageOf(input)], 3));
     await expect(getShortMovieIds(1)).resolves.toEqual(new Set([1, 2, 3]));
+  });
+
+  it("cuts a long Retry-After short when the caller's deadline passes, instead of sleeping through it", async () => {
+    fakeAbortSignalTimeout();
+    fetchMock.mockImplementation(async () => json({}, 429, { "Retry-After": "10" }));
+    const controller = new AbortController();
+    const started = Date.now();
+    let settledAt = -1;
+    const result = settle(searchPeopleWithPopularity("x", controller.signal)).then((outcome) => {
+      settledAt = Date.now() - started;
+      return outcome;
+    });
+    await vi.advanceTimersByTimeAsync(1500);
+    controller.abort();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(settledAt).toBe(1500);
+    expect(((await result) as { error: TmdbError }).error).toMatchObject({ name: "TmdbError", status: 504 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not send an attempt that gets its slot after the deadline, nor remember the URL as failing", async () => {
+    // Real AbortSignal.timeout here: only the clock says the deadline has passed, as in the instant
+    // between a slot being granted and the queue's own deadline signal firing.
+    const hung: Array<() => void> = [];
+    fetchMock.mockImplementation(() => new Promise<Response>((resolve) => hung.push(() => resolve(credits()))));
+    for (let id = 1; id <= 6; id++) void getFilmCredits(id);
+    await vi.advanceTimersByTimeAsync(0);
+    const late = settle(getFilmCredits(7));
+    await vi.advanceTimersByTimeAsync(12_000);
+    expect(fetchMock).toHaveBeenCalledTimes(6);
+
+    for (const release of hung.splice(0)) release(); // a slot goes to request 7, 12s late
+    await vi.advanceTimersByTimeAsync(0);
+    expect(((await late) as { error: TmdbError }).error).toMatchObject({ name: "TmdbError", status: 504 });
+    expect(fetchMock).toHaveBeenCalledTimes(6); // no 1ms attempt
+
+    fetchMock.mockImplementation(async () => credits());
+    await expect(getFilmCredits(7)).resolves.toEqual({ cast: [], crew: [] }); // not remembered
   });
 });
 
@@ -823,8 +940,9 @@ describe("short-film lane", () => {
     expect(wire.peakTotal).toBeLessThanOrEqual(6);
   });
 
-  it("counts the wait in the lane against the 12 second deadline too", async () => {
+  it("counts the wait in the lane against the lookup's 3 second budget too", async () => {
     fakeAbortSignalTimeout();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     // Two lookups hang on the wire for good (and ignore their signals); a third waits in the lane.
     const hung: Array<() => void> = [];
     fetchMock.mockImplementation(() => new Promise<Response>((resolve) => hung.push(() => resolve(discoverBody(1)))));
@@ -834,7 +952,7 @@ describe("short-film lane", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
     const third = getShortMovieIds(3);
-    await vi.advanceTimersByTimeAsync(12_000);
+    await vi.advanceTimersByTimeAsync(3000);
     // Its lookup is over (it never throws) and TMDB was never asked about it.
     await expect(third).resolves.toEqual(new Set());
     expect(fetchMock).toHaveBeenCalledTimes(2);

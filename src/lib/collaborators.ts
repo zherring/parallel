@@ -118,7 +118,12 @@ async function compute(personId: number): Promise<SuggestionResult> {
   const settled = await mapLimited(candidateIds, CONCURRENCY, (id) => getPersonMovieCredits(id, { peopleOnPage }));
   const timelines = fulfilledOrThrow(settled);
   const results = suggestFromTimelines(subject, timelines, { today });
-  return { suggestions: { source, results }, complete: timelines.length === candidateIds.length };
+  // Incomplete too when a short-film lookup was cut short: the counts then include a few shorts.
+  const complete =
+    timelines.length === candidateIds.length &&
+    !subject.shortsIncomplete &&
+    timelines.every((timeline) => !timeline.shortsIncomplete);
+  return { suggestions: { source, results }, complete };
 }
 
 /**
@@ -127,16 +132,10 @@ async function compute(personId: number): Promise<SuggestionResult> {
  * their best-known films), each one then counted exactly from the two filmographies and made
  * varied by role. Throws a TmdbError when TMDB cannot answer (404 for an unknown person).
  *
- * Remembered for a few hours; when some candidates could not be loaded the list is incomplete
- * and is remembered for a few minutes only, after which the next request tries again.
- */
-export function suggestCollaborators(personId: number): Promise<CollaboratorSuggestions> {
-  return suggestCollaboratorsChecked(personId).then(({ suggestions }) => suggestions);
-}
-
-/**
- * Same as `suggestCollaborators`, but also says whether the list is complete, for the API route:
- * it lets a shared cache keep a complete list for an hour and an incomplete one for a minute.
+ * Remembered for a few hours; when some candidates could not be loaded (or a short-film lookup
+ * was cut short) the list is incomplete and is remembered for a few minutes only, after which the
+ * next request tries again. `complete` says which, so the API route can give a shared cache the
+ * same two lifetimes.
  */
 export function suggestCollaboratorsChecked(personId: number): Promise<SuggestionResult> {
   const done = finished.get(personId);

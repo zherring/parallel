@@ -31,8 +31,14 @@ const ATTEMPT_TIMEOUT_MS = 8000;
 /**
  * The most time one request takes in all, from the moment it is asked for: waiting for a limiter
  * slot, every attempt and every wait between attempts. Past it the failure is thrown.
+ *
+ * It has to stay well under the `maxDuration` (20 seconds) exported by every page and route that
+ * can reach TMDB: if the platform ends the function first, this deadline never fires and the
+ * visitor gets a platform timeout instead of our error. The 8 seconds in between are for what
+ * runs after TMDB answers (or after the deadline: the error response, or rendering a page). Keep
+ * the two in step; `src/app/max-duration.test.ts` checks them.
  */
-const REQUEST_DEADLINE_MS = 12_000;
+export const REQUEST_DEADLINE_MS = 12_000;
 /** A 404 is remembered this long: the id does not exist, asking again will not change that. */
 const NOT_FOUND_TTL_MS = 10 * 60 * 1000;
 /** A request that still failed after its retries is remembered this long, so a bad spell is not hammered. */
@@ -49,8 +55,12 @@ const MAX_DISCOVER_PAGES = 10;
 const FULL_REFINEMENT_MAX_PEOPLE = 2;
 /** ...only this many discover pages are read per person (60 short movies), not MAX_DISCOVER_PAGES. */
 const CROWDED_DISCOVER_PAGES = 3;
-/** The whole short-film lookup of one person, its chained page requests included, gives up after this long. */
-const REFINEMENT_BUDGET_MS = REQUEST_DEADLINE_MS;
+/**
+ * The whole short-film lookup of one person, its chained page requests included, gives up after
+ * this long, whatever REQUEST_DEADLINE_MS says: the lookup only sharpens a page, so a slow TMDB must
+ * not keep the page waiting for it.
+ */
+const REFINEMENT_BUDGET_MS = 3000;
 
 export class TmdbError extends Error {
   constructor(
@@ -62,7 +72,21 @@ export class TmdbError extends Error {
   }
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+/** Waits `ms`; false (at once) if `signal` aborts first, so a caller that gave up is not kept waiting. */
+function sleep(ms: number, signal?: AbortSignal): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (signal?.aborted) return resolve(false);
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve(false);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve(true);
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
 
 interface Failure {
   status: number;
@@ -186,8 +210,11 @@ async function attemptOnce(call: Call, deadline: Deadline, bypassCache: boolean)
     const queueSignal = signal ? AbortSignal.any([signal, deadline.expired]) : deadline.expired;
     const send = () =>
       limiter.run(async (): Promise<Attempt> => {
+        // A slot that came too late is no use: do not send an attempt that has no time to finish.
+        const left = deadline.at - Date.now();
+        if (left <= 0) return { kind: "error", cause: "queue" };
         sent = true;
-        timeout = AbortSignal.timeout(Math.min(ATTEMPT_TIMEOUT_MS, Math.max(1, deadline.at - Date.now())));
+        timeout = AbortSignal.timeout(Math.min(ATTEMPT_TIMEOUT_MS, left));
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "User-Agent": USER_AGENT },
           ...(bypassCache ? { cache: "no-store" as const } : { next: { revalidate } }),
@@ -272,7 +299,10 @@ async function requestText(call: Call): Promise<string> {
       throw new TmdbError(failure.status, failure.message);
     }
 
-    // The Next data cache keeps 200s, so a cached unreadable body would come back on every retry.
+    // The Next data cache keeps 200s, so a cached unreadable body would come back on every retry:
+    // the retries skip it. That heals this request, but the bad 200 itself stays in the data cache
+    // until it revalidates (on purpose: there is no API to evict one entry, and revalidating the
+    // path would throw away every good one with it).
     if (outcome.kind === "error" && outcome.cause === "unreadable") bypassCache = true;
 
     const delay = retryDelayMs(attempt, outcome.kind === "http" ? outcome.retryAfter : null, Date.now());
@@ -280,7 +310,8 @@ async function requestText(call: Call): Promise<string> {
       if (!(outcome.kind === "error" && outcome.cause === "queue")) unavailable.set(key, failure);
       throw new TmdbError(failure.status, failure.message);
     }
-    await sleep(delay);
+    // The caller's own deadline cuts a wait short too (a long Retry-After must not outlast it).
+    if (!(await sleep(delay, call.signal))) throw new TmdbError(504, `TMDB request to ${call.path} timed out`);
   }
 }
 
@@ -390,16 +421,44 @@ export async function getPerson(id: number): Promise<PersonSummary> {
  * up, it is kept out of the way of the requests the page does need:
  * - Its requests wait in their own lane, two at a time (see `attemptOnce`), however many people
  *   and pages are asked for.
- * - The whole lookup, page after page, gives up after REFINEMENT_BUDGET_MS.
+ * - The whole lookup, page after page, is given REFINEMENT_BUDGET_MS (3 seconds). When that runs
+ *   out it resolves at once with the pages it has by then (maybe none), whatever TMDB is doing.
  * - With more than two people in the request (`peopleOnPage`: a 3 or 4 person page, the
  *   collaborator suggestions' fan-out) it reads 3 pages per person (60 short movies), not 10.
+ *
+ * A lookup that is cut short, or that lost a page, leaves some shorts counting as ordinary
+ * credits on that render. Nothing derived from it is kept for long: the Next data cache holds raw
+ * TMDB responses only (and only the pages that did arrive), the next request asks for the missing
+ * ones again, and `getPersonMovieCredits` marks the timeline `shortsIncomplete` so the caches
+ * downstream (collaborator suggestions, OG cards) keep it briefly.
  */
 export async function getShortMovieIds(
   personId: number,
-  { peopleOnPage = 1 }: { peopleOnPage?: number } = {},
+  options: { peopleOnPage?: number } = {},
 ): Promise<Set<number>> {
+  return (await lookUpShortMovies(personId, options)).ids;
+}
+
+/** The short-movie ids found, and whether the lookup got everything it set out to read. */
+async function lookUpShortMovies(
+  personId: number,
+  { peopleOnPage = 1 }: { peopleOnPage?: number } = {},
+): Promise<{ ids: Set<number>; complete: boolean }> {
   const maxPages = peopleOnPage > FULL_REFINEMENT_MAX_PEOPLE ? CROWDED_DISCOVER_PAGES : MAX_DISCOVER_PAGES;
   const budget = AbortSignal.timeout(REFINEMENT_BUDGET_MS);
+  // Registered before any request is made, so it runs first when the budget ends.
+  let cutShort = false;
+  const outOfTime = new Promise<void>((resolve) =>
+    budget.addEventListener(
+      "abort",
+      () => {
+        cutShort = true;
+        resolve();
+      },
+      { once: true },
+    ),
+  );
+
   const query = (page: number) =>
     tmdbGet<RawDiscoverMovies>(
       "/discover/movie",
@@ -418,24 +477,40 @@ export async function getShortMovieIds(
     );
 
   const ids = new Set<number>();
+  let complete = true;
   const collect = (data: RawDiscoverMovies) => {
     for (const movie of data.results ?? []) ids.add(movie.id);
   };
 
-  try {
-    const first = await query(1);
-    collect(first);
+  const pages = (async () => {
+    try {
+      const first = await query(1);
+      collect(first);
 
-    const pages = Math.min(first.total_pages ?? 1, maxPages);
-    const rest = await Promise.allSettled(
-      Array.from({ length: Math.max(0, pages - 1) }, (_, i) => query(i + 2)),
-    );
-    for (const result of rest) if (result.status === "fulfilled") collect(result.value);
-  } catch (error) {
-    const status = error instanceof TmdbError ? ` (status ${error.status})` : "";
-    console.warn(`TMDB short-movie lookup failed for person ${personId}${status}`);
+      const count = Math.min(first.total_pages ?? 1, maxPages);
+      const rest = await Promise.allSettled(
+        Array.from({ length: Math.max(0, count - 1) }, (_, i) => query(i + 2)),
+      );
+      for (const result of rest) {
+        if (result.status === "fulfilled") collect(result.value);
+        else complete = false;
+      }
+    } catch (error) {
+      complete = false;
+      if (!cutShort) {
+        const status = error instanceof TmdbError ? ` (status ${error.status})` : "";
+        console.warn(`TMDB short-movie lookup failed for person ${personId}${status}`);
+      }
+    }
+  })();
+
+  await Promise.race([pages, outOfTime]);
+  if (cutShort) {
+    complete = false;
+    console.warn(`TMDB short-movie lookup for person ${personId} cut short after ${REFINEMENT_BUDGET_MS}ms`);
   }
-  return ids;
+  // A copy: a page that arrives after the race was decided must not change what was returned.
+  return { ids: new Set(ids), complete };
 }
 
 /**
@@ -447,12 +522,16 @@ export async function getPersonMovieCredits(
   id: number,
   options: { peopleOnPage?: number } = {},
 ): Promise<PersonTimeline> {
-  const [person, credits, shortMovieIds] = await Promise.all([
+  const [person, credits, shorts] = await Promise.all([
     getPerson(id),
     tmdbGet<RawMovieCredits>(`/person/${id}/movie_credits`, DAY),
-    getShortMovieIds(id, options),
+    lookUpShortMovies(id, options),
   ]);
-  return { person, films: normalizeMovieCredits(credits, shortMovieIds) };
+  return {
+    person,
+    films: normalizeMovieCredits(credits, shorts.ids),
+    ...(shorts.complete ? {} : { shortsIncomplete: true as const }),
+  };
 }
 
 /**

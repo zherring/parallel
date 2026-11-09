@@ -4,6 +4,11 @@ import { awardsFor } from "@/lib/awards";
 import { getMovieMetrics } from "@/lib/tmdb";
 import type { FilmMetrics } from "@/lib/types";
 
+// Seconds this function may run. Set explicitly because the platform's default may be shorter than
+// the 12s a TMDB request is given (REQUEST_DEADLINE_MS in src/lib/tmdb.ts), which would then never
+// fire. Keep it above that with room to render; src/app/max-duration.test.ts checks.
+export const maxDuration = 20;
+
 const MOVIE_ID = /^[1-9]\d{0,9}$/;
 
 /**

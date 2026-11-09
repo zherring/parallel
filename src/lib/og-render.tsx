@@ -35,6 +35,8 @@ import type { PersonTimeline } from "@/lib/types";
  * not change that in production, and in `next dev` it pins the first render of a card.)
  */
 export const OG_CACHE_CONTROL = "public, s-maxage=86400, stale-while-revalidate=604800";
+/** For a card drawn from a timeline whose short-film lookup was cut short (`shortsIncomplete`): its counts may be off, so it is kept for a minute only. */
+export const OG_PARTIAL_CACHE_CONTROL = "public, s-maxage=60, stale-while-revalidate=60";
 
 /** A TMDB image as a data URI; null when TMDB has none or it cannot be fetched. */
 export async function loadImage(path: string | null): Promise<string | null> {
@@ -248,7 +250,13 @@ export async function renderPairOgImage({ timelines, period = null }: PairOgImag
 
   return new ImageResponse(
     <OgCardView card={card} avatars={avatars} posterImages={posterImages} hasLane={hasLane} place={place} fan={fan} fanLeft={fanLeft} />,
-    { ...OG_SIZE, fonts, headers: { "Cache-Control": OG_CACHE_CONTROL } },
+    {
+      ...OG_SIZE,
+      fonts,
+      headers: {
+        "Cache-Control": timelines.some((t) => t.shortsIncomplete) ? OG_PARTIAL_CACHE_CONTROL : OG_CACHE_CONTROL,
+      },
+    },
   );
 }
 
