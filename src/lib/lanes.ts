@@ -24,17 +24,6 @@ export function canAddPerson(count: number): boolean {
   return count < MAX_LANES;
 }
 
-/** "David Fincher" -> "DF"; at most two letters. */
-export function initials(name: string): string {
-  const letters = name
-    .split(/\s+/)
-    .map((part) => part.replace(/[^\p{L}\p{N}]/gu, "")[0])
-    .filter(Boolean);
-  if (letters.length === 0) return "?";
-  const picked = letters.length > 2 ? [letters[0], letters[letters.length - 1]] : letters;
-  return picked.join("").toUpperCase();
-}
-
 function yearOf(date: string | null): number | null {
   const match = date ? /^(\d{4})/.exec(date) : null;
   return match ? Number(match[1]) : null;

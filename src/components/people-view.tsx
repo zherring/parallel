@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { FilmPanel } from "@/components/film-panel/film-panel";
-import { PersonPanel, type PersonPanelEntry } from "@/components/person-panel/person-panel";
+import { PersonPanel } from "@/components/person-panel/person-panel";
 import { PersonSearch } from "@/components/person-search/person-search";
 import { useRememberPressed } from "@/components/side-panel/side-panel";
 import { FilmsSection } from "@/components/timeline/films-section";
@@ -26,7 +26,7 @@ import { personColorCss } from "@/lib/person-colors";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import { pageHeading } from "@/lib/short-name";
 import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms, type PairShared } from "@/lib/shared";
-import { filmIdOf, openFilm, openPerson, personIdOf, type PanelTarget } from "@/lib/side-panel";
+import { filmIdOf, openFilm, openPerson, personIdOf, type PanelTarget, type PersonPanelAccess } from "@/lib/side-panel";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
 interface Props {
@@ -60,7 +60,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   const [panel, setPanel] = useState<PanelTarget | null>(null);
   // Once for every panel: each hands focus back to the control that opened it, which this remembers.
   useRememberPressed();
-  const triggerRef = useRef<HTMLElement | null>(null);
   const timelineRef = useRef<TimelineHandle>(null);
   const [view] = useViewTab(hasClippingsTab(clippings, critics), quoteIdsOf(clippings, critics));
   const [urlPeriod, setPeriod] = useUrlPeriod();
@@ -137,12 +136,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     [lanes, includeMinor, hiddenIds, people],
   );
 
-  // The names in the Clippings tab open the same person panel as the people column, with the same roles.
-  const personEntries: PersonPanelEntry[] = useMemo(
-    () => panelPeople.map(({ person, roles }) => ({ person, roles })),
-    [panelPeople],
-  );
-
   // Hiding someone changes the axis (it spans the films shown): keep the year in the middle where it is.
   const handleToggleVisible = useCallback(
     (personId: number) => {
@@ -180,23 +173,25 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     setIncludeMinor(next);
   }, []);
 
-  const handleSelect = useCallback((id: number, trigger: HTMLElement) => {
-    triggerRef.current = trigger;
+  const handleSelect = useCallback((id: number) => {
     setPanel(openFilm(id));
   }, []);
 
-  const handleOpenPerson = useCallback((id: number, trigger: HTMLElement) => {
-    triggerRef.current = trigger;
+  const handleOpenPerson = useCallback((id: number) => {
     setPanel(openPerson(id));
   }, []);
 
-  const handleClose = useCallback(() => {
-    setPanel(null);
-    const trigger = triggerRef.current;
-    triggerRef.current = null;
-    // Put focus back where the keyboard user left off.
-    if (trigger?.isConnected) requestAnimationFrame(() => trigger.focus({ preventScroll: true }));
-  }, []);
+  // The names in the Clippings tab open the same person panel as the people column, with the same roles.
+  const personPanel: PersonPanelAccess = useMemo(
+    () => ({
+      entries: panelPeople.map(({ person, roles }) => ({ person, roles })),
+      open: handleOpenPerson,
+    }),
+    [panelPeople, handleOpenPerson],
+  );
+
+  // The shell hands focus back to the opener itself (see SidePanel); this only closes.
+  const handleClose = useCallback(() => setPanel(null), []);
 
   // The years of the films a shared link is about (the ones its preview card shows): the Share menu's Period
   // choices, and what the page's own `?from=&to=` is resolved against, so the server and the browser agree.
@@ -327,8 +322,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
           onSelect={handleSelect}
           clippings={voicedClippings}
           critics={critics}
-          personEntries={personEntries}
-          onOpenPerson={handleOpenPerson}
+          personPanel={personPanel}
         />
       ) : (
         <FilmsSection
@@ -354,7 +348,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
 
       <FilmPanel filmId={filmIdOf(panel)} peopleInView={people} onClose={handleClose} />
       <PersonPanel
-        entry={personEntries.find((entry) => entry.person.id === personIdOf(panel)) ?? null}
+        entry={personPanel.entries.find((entry) => entry.person.id === personIdOf(panel)) ?? null}
         peopleInView={people}
         onClose={handleClose}
       />

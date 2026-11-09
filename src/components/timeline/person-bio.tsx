@@ -2,13 +2,11 @@
 
 import { useMemo } from "react";
 import { bioSnippet } from "@/lib/biography";
+import type { OpenPerson } from "@/lib/side-panel";
 import type { PersonSummary } from "@/lib/types";
 
 /** Teaser length; the header clamps it to as many lines as the lane has room for. */
 const SNIPPET_CHARS = 150;
-
-/** Opens a person's details in the slide-out panel; `trigger` is the control to hand focus back to when it closes. */
-export type OpenPerson = (personId: number, trigger: HTMLElement) => void;
 
 interface PersonBioProps {
   person: PersonSummary;
@@ -44,7 +42,7 @@ export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, l
         // A title, not an aria-label: the button is the content of its row's heading and of a lane
         // region's name, and a label would name both "Details for ...". The title is only a description.
         title={`Details for ${person.name}`}
-        onClick={(event) => onOpen(person.id, event.currentTarget)}
+        onClick={() => onOpen(person.id)}
         className="cursor-pointer rounded text-left text-strong underline-offset-2 hover:underline"
       >
         {label ?? person.name}
@@ -61,7 +59,7 @@ export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, l
         <button
           type="button"
           aria-haspopup="dialog"
-          onClick={(event) => onOpen(person.id, event.currentTarget)}
+          onClick={() => onOpen(person.id)}
           className="mt-0.5 inline-flex h-6 cursor-pointer items-center rounded-md text-xs font-medium text-strong underline-offset-2 hover:underline"
         >
           More<span className="sr-only"> about {person.name}</span>
@@ -78,7 +76,7 @@ export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, l
       <button
         type="button"
         aria-haspopup="dialog"
-        onClick={(event) => onOpen(person.id, event.currentTarget)}
+        onClick={() => onOpen(person.id)}
         className="flex h-6 w-full cursor-pointer items-center justify-center rounded-md border border-border bg-surface text-[10px] leading-none text-strong underline-offset-2 hover:border-muted sm:inline-flex sm:w-auto sm:-translate-x-1.5 sm:justify-start sm:border-transparent sm:bg-transparent sm:px-1.5 sm:text-xs sm:font-medium sm:hover:border-transparent sm:hover:underline"
       >
         <span className="sm:hidden">

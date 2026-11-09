@@ -1,3 +1,5 @@
+import type { PersonSummary } from "@/lib/types";
+
 /**
  * What the slide-out panel on a people page shows. There is one panel: opening a person's details
  * while a film's are open (or the other way round) replaces them, and none is open when the state is null.
@@ -15,4 +17,25 @@ export function filmIdOf(target: PanelTarget | null): number | null {
 /** The person the panel shows, or null when it is closed or shows a film. */
 export function personIdOf(target: PanelTarget | null): number | null {
   return target?.kind === "person" ? target.id : null;
+}
+
+/** A person of the page with the roles the person panel gives under the name. */
+export interface PersonPanelEntry {
+  person: PersonSummary;
+  roles: string;
+}
+
+/**
+ * Opens a person's details in the slide-out panel. The shell remembers the control that opened the panel and
+ * hands focus back to it when the panel closes, so the opener does not have to.
+ */
+export type OpenPerson = (personId: number) => void;
+
+/**
+ * Everything a component outside the people column needs to turn a person's name into a button: the people
+ * of the page, matched to a name by TMDB id, and the opener. They only work together, so they travel together.
+ */
+export interface PersonPanelAccess {
+  entries: readonly PersonPanelEntry[];
+  open: OpenPerson;
 }

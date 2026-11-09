@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { tmdbImage } from "@/lib/images";
-import { initials } from "@/lib/lanes";
+import { initials } from "@/lib/person-labels";
 import type { PersonSummary } from "@/lib/types";
-import { PersonBio, type OpenPerson } from "./person-bio";
-
+import type { OpenPerson } from "@/lib/side-panel";
+import { PersonBio } from "./person-bio";
 interface LaneHeaderProps {
   person: PersonSummary;
   /** Union of the person's roles across the films shown, e.g. "Director, Writer". */

@@ -1,7 +1,8 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { PersonContent, PersonPanel, type PersonPanelEntry } from "./person-panel";
+import type { PersonPanelEntry } from "@/lib/side-panel";
+import { PersonContent } from "./person-panel";
 
 const entry: PersonPanelEntry = {
   person: {
@@ -66,11 +67,5 @@ describe("PersonContent", () => {
 
   it("leaves that link out on the person's own page", () => {
     expect(content({}, [pair[0]])).not.toContain('href="/p/');
-  });
-});
-
-describe("PersonPanel", () => {
-  it("renders nothing while closed", () => {
-    expect(renderToStaticMarkup(createElement(PersonPanel, { entry: null, peopleInView: pair, onClose: () => {} }))).toBe("");
   });
 });

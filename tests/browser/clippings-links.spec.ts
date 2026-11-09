@@ -1,6 +1,6 @@
 import { test, expect } from "next/experimental/testmode/playwright";
 
-test("both attribution names and source links stay white on desktop and mobile", async ({ page, next }) => {
+test("attribution names stay white, and a name opens the person panel on the right", async ({ page, next }) => {
   next.onFetch((request) => {
     const url = new URL(request.url);
     if (url.hostname !== "api.themoviedb.org") return "abort";

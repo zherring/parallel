@@ -1,7 +1,8 @@
 "use client";
 
 import Link, { useLinkStatus } from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { Portrait } from "@/components/portrait";
 import { SidePanel } from "@/components/side-panel/side-panel";
 import { Spinner } from "@/components/spinner";
 import { lifeLine, splitParagraphs } from "@/lib/biography";
@@ -9,13 +10,7 @@ import { tmdbPersonUrl } from "@/lib/film-people";
 import { tmdbImage } from "@/lib/images";
 import { peopleHref } from "@/lib/lanes";
 import { initials } from "@/lib/person-labels";
-import type { PersonSummary } from "@/lib/types";
-
-/** A person of the page with the roles the panel gives under the name: what a name outside the people column needs to open the panel. */
-export interface PersonPanelEntry {
-  person: PersonSummary;
-  roles: string;
-}
+import type { PersonPanelEntry } from "@/lib/side-panel";
 
 export interface PersonPanelProps {
   /** The person to show, with the roles the page gives them; null keeps the panel closed. */
@@ -50,8 +45,6 @@ export function PersonContent({
 }) {
   const { person, roles } = entry;
   const photo = tmdbImage(person.profilePath, "w342");
-  // The url that failed, not a flag, so the next person's photo gets its own chance.
-  const [failedPhoto, setFailedPhoto] = useState<string | null>(null);
   const life = lifeLine(person);
   const paragraphs = useMemo(() => splitParagraphs(person.biography ?? ""), [person.biography]);
   // Their own timeline; nowhere new to go from the page that is already theirs alone.
@@ -61,26 +54,7 @@ export function PersonContent({
   return (
     <>
       <div className="flex gap-4">
-        <div className="relative aspect-[2/3] w-28 shrink-0 overflow-hidden rounded-md border border-border bg-surface sm:w-32">
-          {/* The initials stay underneath: they show while the photo loads, and when TMDB has none or it fails. */}
-          <span
-            aria-hidden="true"
-            className="absolute inset-0 flex select-none items-center justify-center text-3xl font-medium text-muted"
-          >
-            {initials(person.name)}
-          </span>
-          {photo && photo !== failedPhoto && (
-            <img
-              src={photo}
-              alt={`Photo of ${person.name}`}
-              width={342}
-              height={513}
-              decoding="async"
-              onError={() => setFailedPhoto(photo)}
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          )}
-        </div>
+        <Portrait src={photo} alt={`Photo of ${person.name}`} fallback={initials(person.name)} />
         <div className="min-w-0 flex-1">
           <h2 id={titleId} className="break-words text-xl font-semibold leading-tight text-strong">
             <a
@@ -137,8 +111,14 @@ export function PersonContent({
 function LinkArrow() {
   const { pending } = useLinkStatus();
   return (
-    <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center">
-      {pending ? <Spinner className="h-3.5 w-3.5" /> : "→"}
-    </span>
+    <>
+      <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center">
+        {pending ? <Spinner className="h-3.5 w-3.5" /> : "→"}
+      </span>
+      {/* A persistent live region (the text changes, the element does not): the arrow is decorative, the wait is not. */}
+      <span role="status" aria-live="polite" className="sr-only">
+        {pending ? "Loading their timeline" : ""}
+      </span>
+    </>
   );
 }

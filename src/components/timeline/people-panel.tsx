@@ -8,7 +8,8 @@ import { filmCountLabel } from "@/lib/format";
 import { personColor } from "@/lib/person-colors";
 import type { PersonSummary } from "@/lib/types";
 import { cn } from "./cn";
-import { PersonBio, type OpenPerson } from "./person-bio";
+import type { OpenPerson } from "@/lib/side-panel";
+import { PersonBio } from "./person-bio";
 
 /** Condense: one compact row per person, opened one by one. Stack: every person's full panel, one under the other. */
 export type PanelLayout = "condense" | "stack";

@@ -75,7 +75,7 @@ import { FilmPopover, useFilmPopover, type PopoverTarget } from "./film-popover"
 import { LaneAvatars } from "./lane-avatars";
 import { LaneHeader } from "./lane-header";
 import { MinimapBar } from "./minimap";
-import type { OpenPerson } from "./person-bio";
+import type { OpenPerson } from "@/lib/side-panel";
 import { isSenderPeriod } from "./use-period";
 import { scrollBehavior } from "./scroll-behavior";
 import { useDragPan } from "./use-drag-pan";
