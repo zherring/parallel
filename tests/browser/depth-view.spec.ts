@@ -641,7 +641,9 @@ test("the pointer near a poster brings it to full opacity and sharpness, whateve
   expect((await drawnAs(page, "1014")).pinned).toBe(true);
 });
 
-test("keyboard focus brightens a background poster too, and reduced motion applies it at once and keeps it where it is", async ({ page }) => {
+test("keyboard focus brightens a background poster too, and reduced motion applies it at once and keeps it where it is", async ({ page, browserName }) => {
+  // Safari's Tab key skips buttons unless the visitor has turned that on (Option+Tab otherwise): there is no keyboard focus to show.
+  test.skip(browserName === "webkit", "Tab does not focus buttons in Safari by default");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await openDepth(page);
   const poster = scene(page).locator('button[data-layer="1"]').first();
@@ -1036,7 +1038,9 @@ test("the hover card of a film made together opens below its label and covers ne
   expect(overlap(cardRect, film.poster)).toBe(false);
 });
 
-test("keyboard focus brightens the title of a film made together too", async ({ page }) => {
+test("keyboard focus brightens the title of a film made together too", async ({ page, browserName }) => {
+  // Safari's Tab key skips buttons unless the visitor has turned that on (Option+Tab otherwise): there is no keyboard focus to show.
+  test.skip(browserName === "webkit", "Tab does not focus buttons in Safari by default");
   await openDepth(page);
   const poster = scene(page).getByRole("button", { name: FIRST_SHARED });
   expect((await captionOf(page, "100"))!.titleAlpha).toBeCloseTo(0.9, 2);

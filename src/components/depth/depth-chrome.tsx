@@ -32,8 +32,11 @@ interface DepthChromeProps {
   share: ShareInput;
 }
 
-/** The look of the bar's controls over the scene: the pill's own (a hairline, the page's colour, a little see-through, blurred). */
-const FLOATING = "border border-border bg-canvas/80 backdrop-blur-md supports-[backdrop-filter]:bg-canvas/70";
+/**
+ * The look of the bar's controls over the scene: a hairline and the page's colour, a little see-through. Not blurred behind, as the pill is:
+ * a backdrop filter over a scene that moves on every frame is the costliest thing a browser can be asked to do there (Safari most of all).
+ */
+const FLOATING = "border border-border bg-canvas/90";
 /** Steps out of the way while the people pill is open: its field and card take the room the bar's controls would be in. */
 const STEPS_ASIDE =
   "transition-[opacity,visibility] duration-150 motion-reduce:transition-none group-has-[[data-people-pill][data-open]]/bar:invisible group-has-[[data-people-pill][data-open]]/bar:opacity-0";

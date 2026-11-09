@@ -129,6 +129,10 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
       data-poster={film.id}
       className={cn(
         "pointer-events-none absolute",
+        // Each poster is its own compositing layer from the start, and never swapped for another while it fades or a transition runs: Safari
+        // promotes and demotes the layers of a 3D scene as their opacity changes, which shows as a flash. Nothing here is turned over, so the
+        // back face is never wanted, and hiding it is what keeps the layer (the posters have no `will-change`: that would be churn, not a fix).
+        "[backface-visibility:hidden]",
         // A poster the focus field drives has no opacity transition: the field already eases it (a weight per frame), and a transition
         // started on every one of those frames, for every poster in view, added about a tenth to a frame's main-thread time (a page of three, 4x CPU throttle). The dimming of a period fades.
         (!soft || dimmed) && "transition-[opacity,filter] duration-150 motion-reduce:transition-none",
