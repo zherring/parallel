@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { PeoplePill, type PillPerson } from "@/components/depth/people-pill";
+import { HomeLink } from "@/components/home-link";
+import { Wordmark } from "@/components/wordmark";
 import { cn } from "@/components/timeline/cn";
 import { FilmSettings } from "@/components/timeline/film-settings";
 import { LayoutToggle, type Layout } from "@/components/timeline/layout-toggle";
@@ -86,14 +88,14 @@ function ViewLinks({ views, hrefFor, className, compact = false }: ViewLinksProp
 }
 
 /**
- * The Depth view's controls, a bar fixed to the top of the screen: the people pill with the page's views beside it at the
- * left, and at the right, clear of the year rail, the layout control (Focus, Combined) and a gear. The bar is a
+ * The Depth view's controls, a bar fixed to the top of the screen: a small pill home (the site's header is hidden here), the
+ * people pill and the page's views beside it at the left, and at the right, clear of the year rail, the layout control (Focus, Combined) and a gear. The bar is a
  * sibling of the scroller, never inside it (perspective would turn `fixed` into `absolute`), and takes no pointer events
  * of its own: only what is in it does, so the scene is draggable up to the controls' edges.
  *
  * The gear opens the flat page's film settings (Show all films, which Focus always does; Include minor credits) and Share, the
- * flat page's menu with its Period choice. On a phone there is no room for the views and the layout control on the bar, so the
- * bar holds the pill's heads and the gear alone, and the gear's sheet holds the views and the layout control too.
+ * flat page's menu with its Period choice. On a phone there is no room for the home pill, the views and the layout control on the
+ * bar, so the bar holds the pill's heads and the gear alone, and the gear's sheet holds the views, the layout control and the way home too.
  *
  * Choosing a layout other than Focus, or a view other than Timeline, leaves for the flat page (a client-side navigation to the
  * same address without `view=depth`, or with the view): the people and the period go along, and the display preferences are held
@@ -160,6 +162,20 @@ export function DepthChrome({
   return (
     <div data-depth-chrome className="group/bar pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-3 pt-3">
       <div className="flex min-w-0 items-start gap-3">
+        {/*
+          The way home, now that the site's header is gone: a small pill of its own, before the people pill. It does not step aside for the
+          open pill, whose field and card start at the people pill's own left edge, clear of it. Not on a phone: there the open card is as wide
+          as the screen less the margins (it would run off the right edge with this before it), and the heads should have the room, so the
+          gear's sheet holds the link instead.
+        */}
+        <HomeLink
+          className={cn(
+            "pointer-events-auto mt-2 inline-flex h-[34px] shrink-0 items-center rounded-full px-3.5 no-underline transition-colors hover:bg-surface motion-reduce:transition-none max-sm:hidden",
+            FLOATING,
+          )}
+        >
+          <Wordmark className="text-base" />
+        </HomeLink>
         <PeoplePill people={people} scrollerRef={scrollerRef} />
         <ViewLinks
           views={views}
@@ -197,6 +213,13 @@ export function DepthChrome({
               <p role="status" aria-live="polite" className="mt-2 min-h-4 text-xs text-muted">
                 {status}
               </p>
+              {/* On a phone the bar has no home pill (see above): the way home is here, last. */}
+              <div className="mt-3 border-t border-border pt-3 sm:hidden">
+                <HomeLink className="flex h-9 items-center gap-1.5 rounded-md bg-surface px-3 no-underline hover:bg-border">
+                  <Wordmark className="text-base" />
+                  <span className="text-sm text-muted">home</span>
+                </HomeLink>
+              </div>
             </div>
           }
         />

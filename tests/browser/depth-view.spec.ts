@@ -1555,6 +1555,67 @@ test("a page of one person offers Focus and the flat Timeline, and nothing about
   await expect(scene(page)).toHaveCount(0);
 });
 
+const homeLink = (page: Page) => page.getByRole("link", { name: "Parallel home", exact: true });
+
+test("the home pill is the first thing in the bar: a small link to the landing page, before the people pill, on its level, and it stays when the pill opens", async ({ page }) => {
+  await openDepth(page);
+  const home = homeLink(page);
+  await expect(home).toBeVisible();
+  await expect(home).toHaveAttribute("href", "/");
+  // The app's wordmark, in a pill of its own: "Parallel" with the two green l's.
+  await expect(home).toHaveText("Parallel");
+  await expect(home.locator(".text-accent-green")).toHaveText("ll");
+  const homeBox = (await home.boundingBox())!;
+  // Pill-shaped: the corners are rounded past half the height.
+  expect(await home.evaluate((el) => parseFloat(getComputedStyle(el).borderTopLeftRadius))).toBeGreaterThanOrEqual(homeBox.height / 2);
+  const pillBox = (await pill(page).boundingBox())!;
+  // At the far left of the bar, then the people pill (the open card hangs from the pill's own left edge), nothing between or over.
+  expect(homeBox.x).toBeLessThanOrEqual(16);
+  expect(homeBox.x + homeBox.width).toBeLessThan(pillBox.x);
+  expect(Math.abs(homeBox.y + homeBox.height / 2 - (pillBox.y + pillBox.height / 2))).toBeLessThan(4);
+  expect(homeBox.height).toBeLessThan(pillBox.height);
+
+  // It does not sit under the open pill's field and card, so it has no need to step aside.
+  await pill(page).click();
+  await expect(pillSearch(page)).toBeVisible();
+  await expect(home).toBeVisible();
+  const field = (await pillSearch(page).boundingBox())!;
+  expect(field.x).toBeGreaterThan(homeBox.x + homeBox.width);
+  const card = (await peopleCard(page).boundingBox())!;
+  expect(card.x).toBeGreaterThan(homeBox.x + homeBox.width);
+});
+
+for (const width of [640, 768, 1024, 1440]) {
+  test(`the bar's controls never overlap, home pill included, at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await openDepth(page);
+    const boxes = new Map<string, { x: number; y: number; width: number; height: number }>();
+    for (const [name, locator] of [
+      ["home", homeLink(page)],
+      ["pill", pill(page)],
+      ["views", depthViews(page)],
+      ["layout", layoutGroup(page)],
+      ["gear", settingsGear(page)],
+      ["rail", page.locator("[data-depth-rail]")],
+    ] as const) {
+      await expect(locator).toBeVisible();
+      boxes.set(name, (await locator.boundingBox())!);
+    }
+    const names = [...boxes.keys()];
+    for (const [i, a] of names.entries()) {
+      for (const b of names.slice(i + 1)) {
+        const [boxA, boxB] = [boxes.get(a)!, boxes.get(b)!];
+        const apart = boxA.x + boxA.width <= boxB.x || boxB.x + boxB.width <= boxA.x || boxA.y + boxA.height <= boxB.y || boxB.y + boxB.height <= boxA.y;
+        expect(apart, `${a} and ${b} overlap`).toBe(true);
+      }
+    }
+    // Left to right: home, people, views, then the layout control and the gear, clear of the rail; and the page does not scroll sideways.
+    const order = ["home", "pill", "views", "layout", "gear", "rail"].map((name) => boxes.get(name)!.x);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+  });
+}
+
 test("while the pill is open the bar's other controls step aside: nothing is under its field", async ({ page }) => {
   await openDepth(page);
   await expect(depthViews(page)).toBeVisible();
@@ -1733,6 +1794,24 @@ test.describe("on a phone", () => {
     // A tap on Table goes to the table.
     await views.getByRole("link", { name: "Table", exact: true }).tap();
     await expect(page.getByRole("tab", { name: "Table", exact: true })).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("the bar has no home pill, to leave the heads their room: the way home is a link in the gear's sheet", async ({ page }) => {
+    await openDepth(page);
+    // Not on the bar: the home pill would push the open card off the right edge, and crowd the heads.
+    await expect(homeLink(page)).toBeHidden();
+    await expect(page.locator("[data-depth-chrome]").getByRole("link", { name: "Parallel home", exact: true })).toBeHidden();
+
+    await settingsGear(page).tap();
+    const sheet = settingsSheet(page);
+    const home = sheet.getByRole("link", { name: "Parallel home", exact: true });
+    await expect(home).toBeVisible();
+    await expect(home).toHaveAttribute("href", "/");
+    const box = (await home.boundingBox())!;
+    const sheetBox = (await sheet.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(sheetBox.x);
+    expect(box.x + box.width).toBeLessThanOrEqual(sheetBox.x + sheetBox.width);
+    expect(sheetBox.y + sheetBox.height).toBeLessThanOrEqual(844);
   });
 
   test("the layout control in the sheet leaves for the flat timeline, and Share's menu opens in full inside it", async ({ page }) => {
