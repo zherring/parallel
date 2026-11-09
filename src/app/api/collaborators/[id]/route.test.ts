@@ -249,12 +249,19 @@ describe("GET /api/collaborators/[id]: partial TMDB failure", () => {
     expect((await body(res)).results.map((r) => r.id)).toEqual([10, 12]);
   });
 
-  it("does not remember an incomplete list, so the next request tries again", async () => {
+  it("remembers an incomplete list only for a few minutes (see collaborators.test.ts), then tries again", async () => {
     failing.add(11);
     await get(String(SUBJECT));
     failing.delete(11);
-    const data = await body(await get(String(SUBJECT)));
-    expect(data.results.map((r) => r.id)).toEqual([10, 11, 12]);
+
+    // Within those minutes the shorter list is served without asking TMDB again...
+    const again = await body(await get(String(SUBJECT)));
+    expect(again.results.map((r) => r.id)).toEqual([10, 12]);
+
+    // ...and once it is forgotten the full list comes back.
+    resetSuggestionCache();
+    const healed = await body(await get(String(SUBJECT)));
+    expect(healed.results.map((r) => r.id)).toEqual([10, 11, 12]);
   });
 
   it("answers 502 when every candidate fails: an outage is not an empty list", async () => {

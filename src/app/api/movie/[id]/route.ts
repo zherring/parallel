@@ -11,7 +11,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
 
   try {
-    return NextResponse.json(await getFilmDetails(Number(id)));
+    return NextResponse.json(await getFilmDetails(Number(id)), {
+      headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" },
+    });
   } catch (error) {
     return apiError(error);
   }

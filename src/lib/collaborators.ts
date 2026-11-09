@@ -21,16 +21,21 @@ const CONCURRENCY = 6;
 const LIVE_FILMS = 25;
 
 const CACHE_TTL_MS = 3 * 60 * 60 * 1000;
+/** A list that is missing candidates is kept only briefly: long enough to spare TMDB, short enough to heal. */
+const PARTIAL_TTL_MS = 5 * 60 * 1000;
 const CACHE_SIZE = 200;
 
 /** Finished lists, for a few hours. TMDB's own responses are cached for a day by the fetch cache. */
 const finished = new TtlCache<number, CollaboratorSuggestions>(CACHE_SIZE, CACHE_TTL_MS);
+/** Lists some of whose candidates could not be loaded, for a few minutes. */
+const partial = new TtlCache<number, CollaboratorSuggestions>(CACHE_SIZE, PARTIAL_TTL_MS);
 /** Lists being computed right now, so a burst of requests for one person does the work once. */
 const running = new Map<number, Promise<CollaboratorSuggestions>>();
 
 /** Forgets every remembered list (for tests). */
 export function resetSuggestionCache(): void {
   finished.clear();
+  partial.clear();
   running.clear();
 }
 
@@ -109,18 +114,18 @@ async function compute(personId: number): Promise<{ suggestions: CollaboratorSug
  * their best-known films), each one then counted exactly from the two filmographies and made
  * varied by role. Throws a TmdbError when TMDB cannot answer (404 for an unknown person).
  *
- * Remembered for a few hours, except when some candidates could not be loaded: that list is
- * incomplete, so the next request tries again.
+ * Remembered for a few hours; when some candidates could not be loaded the list is incomplete
+ * and is remembered for a few minutes only, after which the next request tries again.
  */
 export function suggestCollaborators(personId: number): Promise<CollaboratorSuggestions> {
-  const remembered = finished.get(personId);
+  const remembered = finished.get(personId) ?? partial.get(personId);
   if (remembered) return Promise.resolve(remembered);
 
   let pending = running.get(personId);
   if (!pending) {
     pending = compute(personId)
       .then(({ suggestions, complete }) => {
-        if (complete) finished.set(personId, suggestions);
+        (complete ? finished : partial).set(personId, suggestions);
         return suggestions;
       })
       .finally(() => running.delete(personId));

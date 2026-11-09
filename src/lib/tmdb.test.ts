@@ -9,6 +9,7 @@ import {
   getMovieMetrics,
   getPersonMovieCredits,
   getShortMovieIds,
+  resetTmdbClientState,
   searchPeople,
   searchPeopleWithPopularity,
 } from "@/lib/tmdb";
@@ -25,6 +26,7 @@ const lastCall = (n = 0) => {
 };
 
 beforeEach(() => {
+  resetTmdbClientState();
   vi.stubGlobal("fetch", fetchMock);
   vi.stubEnv("TMDB_READ_ACCESS_TOKEN", TOKEN);
   vi.useFakeTimers();
@@ -110,23 +112,27 @@ describe("searchPeopleWithPopularity", () => {
     expect(results[2].popularity).toBe(3);
   });
 
-  it("uses the same request as searchPeople and passes the abort signal to fetch", async () => {
+  it("uses the same request as searchPeople and ties the caller's abort signal to fetch", async () => {
+    const controller = new AbortController();
     fetchMock.mockResolvedValueOnce(json({ results: [] }));
-    const signal = new AbortController().signal;
-    await searchPeopleWithPopularity("speil", signal);
+    await searchPeopleWithPopularity("speil", controller.signal);
 
     const { url, init } = lastCall();
     expect(url.pathname).toBe("/3/search/person");
     expect(url.searchParams.get("query")).toBe("speil");
     expect(url.searchParams.get("include_adult")).toBe("false");
     expect(init.next).toEqual({ revalidate: 3600 });
-    expect(init.signal).toBe(signal);
+    // The caller's signal is combined with the per-attempt timeout, so aborting it aborts the fetch.
+    const sent = init.signal as AbortSignal;
+    expect(sent.aborted).toBe(false);
+    controller.abort();
+    expect(sent.aborted).toBe(true);
   });
 
-  it("does not add a signal to the request when none is given", async () => {
+  it("always sends a signal, so a request never hangs without a timeout", async () => {
     fetchMock.mockResolvedValueOnce(json({ results: [] }));
     await searchPeopleWithPopularity("x");
-    expect("signal" in lastCall().init).toBe(false);
+    expect(lastCall().init.signal).toBeInstanceOf(AbortSignal);
   });
 
   it("fails with a 504 TmdbError when the signal aborts the request", async () => {
@@ -141,10 +147,15 @@ describe("searchPeopleWithPopularity", () => {
     expect((error as TmdbError).status).toBe(504);
   });
 
-  it("rethrows other network errors unchanged", async () => {
-    const failure = new TypeError("fetch failed");
-    fetchMock.mockRejectedValueOnce(failure);
-    await expect(searchPeopleWithPopularity("x")).rejects.toBe(failure);
+  it("turns a network error that outlasts the retries into a 502 TmdbError", async () => {
+    fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+    const promise = searchPeopleWithPopularity("x").catch((e: unknown) => e);
+    await vi.runAllTimersAsync();
+    const error = await promise;
+
+    expect(error).toBeInstanceOf(TmdbError);
+    expect((error as TmdbError).status).toBe(502);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });
 
@@ -224,7 +235,7 @@ describe("getShortMovieIds", () => {
     await vi.runAllTimersAsync();
 
     await expect(promise).resolves.toEqual(new Set());
-    expect(fetchMock).toHaveBeenCalledTimes(2); // one retry, same as every other call
+    expect(fetchMock).toHaveBeenCalledTimes(3); // two retries, same as every other call
     expect(warn).toHaveBeenCalledTimes(1);
     expect(String(warn.mock.calls[0])).not.toContain(TOKEN);
   });
@@ -232,7 +243,9 @@ describe("getShortMovieIds", () => {
   it("degrades to an empty set on a network error", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     fetchMock.mockRejectedValue(new TypeError("fetch failed"));
-    await expect(getShortMovieIds(1)).resolves.toEqual(new Set());
+    const promise = getShortMovieIds(1);
+    await vi.runAllTimersAsync();
+    await expect(promise).resolves.toEqual(new Set());
   });
 
   it("degrades to an empty set on a malformed response", async () => {
@@ -362,7 +375,7 @@ describe("errors and retries", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("retries once after a 429 and succeeds", async () => {
+  it("retries after a 429 and succeeds", async () => {
     fetchMock
       .mockResolvedValueOnce(json({}, 429))
       .mockResolvedValueOnce(json({ results: [] }));
@@ -385,7 +398,7 @@ describe("errors and retries", () => {
     await expect(promise).resolves.toEqual([]);
   });
 
-  it("retries once on 5xx, then throws a TmdbError", async () => {
+  it("retries a 5xx twice, then throws a TmdbError", async () => {
     fetchMock.mockResolvedValue(json({}, 503));
     const promise = searchPeople("x").catch((e: unknown) => e);
     await vi.runAllTimersAsync();
@@ -393,7 +406,7 @@ describe("errors and retries", () => {
 
     expect(error).toBeInstanceOf(TmdbError);
     expect((error as TmdbError).status).toBe(503);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("does not retry a 404 and surfaces its status", async () => {
