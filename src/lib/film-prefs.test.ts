@@ -6,7 +6,7 @@ const OTHER = "1+2+3";
 
 describe("prefsFor", () => {
   it("is the defaults for a page nothing was chosen on", () => {
-    expect(prefsFor(NO_HELD_PREFS, PAGE)).toEqual({ includeMinor: false, showAll: false, trackMode: "combined" });
+    expect(prefsFor(NO_HELD_PREFS, PAGE)).toEqual({ includeMinor: false, showAll: true, trackMode: "combined" });
     expect(prefsFor(NO_HELD_PREFS, PAGE)).toBe(DEFAULT_FILM_PREFS);
   });
 
@@ -21,20 +21,22 @@ describe("updatePrefs", () => {
   it("changes only what the patch names", () => {
     let held: HeldPrefs = updatePrefs(NO_HELD_PREFS, PAGE, { trackMode: "separate" });
     held = updatePrefs(held, PAGE, { includeMinor: true });
-    expect(prefsFor(held, PAGE)).toEqual({ includeMinor: true, showAll: false, trackMode: "separate" });
+    expect(prefsFor(held, PAGE)).toEqual({ includeMinor: true, showAll: true, trackMode: "separate" });
   });
 
   it("returns the very same object when nothing changes", () => {
     expect(updatePrefs(NO_HELD_PREFS, PAGE, {})).toBe(NO_HELD_PREFS);
     expect(updatePrefs(NO_HELD_PREFS, PAGE, { includeMinor: false, trackMode: "combined" })).toBe(NO_HELD_PREFS);
-    const held = updatePrefs(NO_HELD_PREFS, PAGE, { showAll: true });
-    expect(updatePrefs(held, PAGE, { showAll: true })).toBe(held);
+    const held = updatePrefs(NO_HELD_PREFS, PAGE, { showAll: false });
+    expect(updatePrefs(held, PAGE, { showAll: false })).toBe(held);
+    // Showing every film is what a page starts with: choosing it is no change.
+    expect(updatePrefs(NO_HELD_PREFS, PAGE, { showAll: true })).toBe(NO_HELD_PREFS);
   });
 
   it("starts a different page over from the defaults, forgetting the first page's choices", () => {
-    const held = updatePrefs(NO_HELD_PREFS, PAGE, { includeMinor: true, showAll: true, trackMode: "separate" });
-    const other = updatePrefs(held, OTHER, { showAll: true });
-    expect(prefsFor(other, OTHER)).toEqual({ includeMinor: false, showAll: true, trackMode: "combined" });
+    const held = updatePrefs(NO_HELD_PREFS, PAGE, { includeMinor: true, showAll: false, trackMode: "separate" });
+    const other = updatePrefs(held, OTHER, { showAll: false });
+    expect(prefsFor(other, OTHER)).toEqual({ includeMinor: false, showAll: false, trackMode: "combined" });
     expect(prefsFor(other, PAGE)).toBe(DEFAULT_FILM_PREFS);
   });
 

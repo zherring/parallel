@@ -31,13 +31,17 @@ export function effectiveTrackMode(mode: TrackMode, lanesEnabled: boolean = LANE
 export interface FilmPrefs {
   /** Count the credits that are not the person's work (a cameo, a thank-you), see `MINOR_TOGGLE_LABEL`. */
   includeMinor: boolean;
-  /** Give every film a poster, adding rows as needed: on the flat timeline, and in the Depth view, which has no poster for the films the timeline's row cap leaves as nodes (see `postersLeftOut`). */
+  /**
+   * Give every film a poster, adding rows as needed: on the flat timeline, and in the Depth view. On to begin with: the pages open on every film. Off, the
+   * timeline caps its rows (see `DEFAULT_MAX_ROWS`) and leaves the films past the cap as bare nodes, and the Depth view has no poster for those (see
+   * `postersLeftOut`).
+   */
   showAll: boolean;
   /** How the flat timeline draws several people. */
   trackMode: TrackMode;
 }
 
-export const DEFAULT_FILM_PREFS: FilmPrefs = { includeMinor: false, showAll: false, trackMode: "combined" };
+export const DEFAULT_FILM_PREFS: FilmPrefs = { includeMinor: false, showAll: true, trackMode: "combined" };
 
 /** What is held: the preferences, and the key of the page (its people) they were chosen on. */
 export interface HeldPrefs {
