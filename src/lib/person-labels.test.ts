@@ -34,5 +34,6 @@ describe("initials", () => {
     expect(initials("송강호")).toBe("송");
     expect(initials("Éric Rohmer")).toBe("ÉR");
     expect(initials("   ")).toBe("?");
+    expect(initials("")).toBe("?");
   });
 });

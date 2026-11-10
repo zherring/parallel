@@ -2,11 +2,12 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { FilmPanel } from "@/components/film-panel/film-panel";
+import { PersonPanel } from "@/components/person-panel/person-panel";
 import { PersonSearch } from "@/components/person-search/person-search";
+import { useRememberPressed } from "@/components/side-panel/side-panel";
 import { FilmsSection } from "@/components/timeline/films-section";
 import { FilmSettings } from "@/components/timeline/film-settings";
 import { PeoplePanel, type PanelLayout, type PanelPerson } from "@/components/timeline/people-panel";
-import type { BioPerson } from "@/components/timeline/person-bio";
 import { TrackModeToggle, type TrackMode } from "@/components/timeline/track-mode-toggle";
 import { useUrlPeriod } from "@/components/timeline/use-period";
 import { useViewTab } from "@/components/timeline/use-view-tab";
@@ -25,6 +26,7 @@ import { personColorCss } from "@/lib/person-colors";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import { pageHeading } from "@/lib/short-name";
 import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms, type PairShared } from "@/lib/shared";
+import { filmIdOf, openFilm, openPerson, personIdOf, type PanelTarget, type PersonPanelAccess } from "@/lib/side-panel";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
 interface Props {
@@ -54,8 +56,10 @@ export function PeopleView(props: Props) {
 function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critics }: Props) {
   const [includeMinor, setIncludeMinor] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const triggerRef = useRef<HTMLElement | null>(null);
+  // The one slide-out panel: a film's details or a person's, never both.
+  const [panel, setPanel] = useState<PanelTarget | null>(null);
+  // Once for every panel: each hands focus back to the control that opened it, which this remembers.
+  useRememberPressed();
   const timelineRef = useRef<TimelineHandle>(null);
   const [view] = useViewTab(hasClippingsTab(clippings, critics), quoteIdsOf(clippings, critics));
   const [urlPeriod, setPeriod] = useUrlPeriod();
@@ -132,12 +136,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     [lanes, includeMinor, hiddenIds, people],
   );
 
-  // The names in the Clippings tab open the same biography dialog as the people column, with the same roles.
-  const bioPeople: BioPerson[] = useMemo(
-    () => panelPeople.map(({ person, roles }) => ({ person, roles })),
-    [panelPeople],
-  );
-
   // Hiding someone changes the axis (it spans the films shown): keep the year in the middle where it is.
   const handleToggleVisible = useCallback(
     (personId: number) => {
@@ -175,18 +173,25 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     setIncludeMinor(next);
   }, []);
 
-  const handleSelect = useCallback((id: number, trigger: HTMLElement) => {
-    triggerRef.current = trigger;
-    setSelectedId(id);
+  const handleSelect = useCallback((id: number) => {
+    setPanel(openFilm(id));
   }, []);
 
-  const handleClose = useCallback(() => {
-    setSelectedId(null);
-    const trigger = triggerRef.current;
-    triggerRef.current = null;
-    // Put focus back where the keyboard user left off.
-    if (trigger?.isConnected) requestAnimationFrame(() => trigger.focus({ preventScroll: true }));
+  const handleOpenPerson = useCallback((id: number) => {
+    setPanel(openPerson(id));
   }, []);
+
+  // The names in the Clippings tab open the same person panel as the people column, with the same roles.
+  const personPanel: PersonPanelAccess = useMemo(
+    () => ({
+      entries: panelPeople.map(({ person, roles }) => ({ person, roles })),
+      open: handleOpenPerson,
+    }),
+    [panelPeople, handleOpenPerson],
+  );
+
+  // The shell hands focus back to the opener itself (see SidePanel); this only closes.
+  const handleClose = useCallback(() => setPanel(null), []);
 
   // The years of the films a shared link is about (the ones its preview card shows): the Share menu's Period
   // choices, and what the page's own `?from=&to=` is resolved against, so the server and the browser agree.
@@ -252,6 +257,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
                 openIds={openIds}
                 onToggleOpen={handleToggleOpen}
                 onToggleVisible={handleToggleVisible}
+                onOpenPerson={handleOpenPerson}
               />
             )
           : undefined
@@ -259,8 +265,9 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       people={people}
       includeMinor={includeMinor}
       today={today}
-      selectedId={selectedId}
+      selectedId={filmIdOf(panel)}
       onSelect={handleSelect}
+      onOpenPerson={handleOpenPerson}
       period={period}
       periodSpan={periodSpan}
       periodYears={filmYears}
@@ -315,7 +322,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
           onSelect={handleSelect}
           clippings={voicedClippings}
           critics={critics}
-          bioPeople={bioPeople}
+          personPanel={personPanel}
         />
       ) : (
         <FilmsSection
@@ -339,7 +346,12 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         />
       )}
 
-      <FilmPanel filmId={selectedId} peopleInView={people} onClose={handleClose} />
+      <FilmPanel filmId={filmIdOf(panel)} peopleInView={people} onClose={handleClose} />
+      <PersonPanel
+        entry={personPanel.entries.find((entry) => entry.person.id === personIdOf(panel)) ?? null}
+        peopleInView={people}
+        onClose={handleClose}
+      />
     </div>
   );
 }

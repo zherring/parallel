@@ -8,6 +8,7 @@ import { filmCountLabel } from "@/lib/format";
 import { personColor } from "@/lib/person-colors";
 import type { PersonSummary } from "@/lib/types";
 import { cn } from "./cn";
+import type { OpenPerson } from "@/lib/side-panel";
 import { PersonBio } from "./person-bio";
 
 /** Condense: one compact row per person, opened one by one. Stack: every person's full panel, one under the other. */
@@ -38,6 +39,8 @@ interface PeoplePanelProps {
   openIds: ReadonlySet<number>;
   onToggleOpen: (personId: number) => void;
   onToggleVisible: (personId: number) => void;
+  /** A person's name or More button was pressed: open their details in the slide-out panel. */
+  onOpenPerson: OpenPerson;
 }
 
 const iconButtonClass =
@@ -58,6 +61,7 @@ export function PeoplePanel({
   openIds,
   onToggleOpen,
   onToggleVisible,
+  onOpenPerson,
 }: PeoplePanelProps) {
   const stacked = layout === "stack";
   const visibleCount = people.filter((entry) => entry.visible).length;
@@ -100,6 +104,7 @@ export function PeoplePanel({
             onlyVisible={entry.visible && visibleCount === 1}
             onToggleOpen={onToggleOpen}
             onToggleVisible={onToggleVisible}
+            onOpenPerson={onOpenPerson}
           />
         ))}
       </ul>
@@ -121,9 +126,10 @@ interface PersonRowProps {
   onlyVisible: boolean;
   onToggleOpen: (personId: number) => void;
   onToggleVisible: (personId: number) => void;
+  onOpenPerson: OpenPerson;
 }
 
-function PersonRow({ entry, open, onlyVisible, onToggleOpen, onToggleVisible }: PersonRowProps) {
+function PersonRow({ entry, open, onlyVisible, onToggleOpen, onToggleVisible, onOpenPerson }: PersonRowProps) {
   const { person, slot, roles, facts, filmCount, visible, removeHref } = entry;
   const detailsId = useId();
   const color = personColor(slot);
@@ -131,7 +137,7 @@ function PersonRow({ entry, open, onlyVisible, onToggleOpen, onToggleVisible }: 
   return (
     <li className="border-b border-border last:border-b-0">
       <div className="relative">
-        {/* Three separate targets: row/portrait unfurls, name opens the bio, eye hides. No nested controls. */}
+        {/* Three separate targets: row/portrait unfurls, name opens the person panel, eye hides. No nested controls. */}
         <button
           type="button"
           aria-expanded={open}
@@ -158,7 +164,7 @@ function PersonRow({ entry, open, onlyVisible, onToggleOpen, onToggleVisible }: 
           <div className={cn("min-w-0 flex-1", !visible && "opacity-60")}>
             <h3 id={`person-${person.id}`} title={person.name} className="line-clamp-2 break-words text-sm font-semibold leading-tight text-strong">
               <span className="pointer-events-auto relative inline-block max-w-full align-top">
-                <PersonBio person={person} roles={roles} nameTrigger />
+                <PersonBio person={person} onOpen={onOpenPerson} nameTrigger />
               </span>
             </h3>
             <p className="mt-0.5 text-xs tabular-nums text-muted">
@@ -183,7 +189,7 @@ function PersonRow({ entry, open, onlyVisible, onToggleOpen, onToggleVisible }: 
         <div id={detailsId} className={cn("px-3.5 pb-3", !visible && "opacity-60")}>
           {roles && <p className="text-xs leading-snug text-body">{roles}</p>}
           {facts && <p className="mt-1.5 text-xs leading-snug text-muted">{facts}</p>}
-          <PersonBio person={person} roles={roles} flow />
+          <PersonBio person={person} onOpen={onOpenPerson} flow />
           <div className="mt-1 flex justify-end">
             <Link
               href={removeHref}

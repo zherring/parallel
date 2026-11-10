@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_LANES, canAddPerson, initials, laneFacts, laneSummary, peopleHref, removePersonHref, yearSpan } from "@/lib/lanes";
+import { MAX_LANES, canAddPerson, laneFacts, laneSummary, peopleHref, removePersonHref, yearSpan } from "@/lib/lanes";
 import { parsePeopleSlug } from "@/lib/slug";
 import type { Credit, Film } from "@/lib/types";
 
@@ -42,20 +42,6 @@ describe("canAddPerson", () => {
     expect(canAddPerson(1)).toBe(true);
     expect(canAddPerson(3)).toBe(true);
     expect(canAddPerson(4)).toBe(false);
-  });
-});
-
-describe("initials", () => {
-  it("uses first and last initial", () => {
-    expect(initials("David Fincher")).toBe("DF");
-    expect(initials("Philip Seymour Hoffman")).toBe("PH");
-  });
-
-  it("handles single names, accents and empties", () => {
-    expect(initials("Zendaya")).toBe("Z");
-    expect(initials("Éric Rohmer")).toBe("ÉR");
-    expect(initials("  ")).toBe("?");
-    expect(initials("")).toBe("?");
   });
 });
 

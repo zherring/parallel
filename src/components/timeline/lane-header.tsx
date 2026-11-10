@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { tmdbImage } from "@/lib/images";
-import { initials } from "@/lib/lanes";
+import { initials } from "@/lib/person-labels";
 import type { PersonSummary } from "@/lib/types";
+import type { OpenPerson } from "@/lib/side-panel";
 import { PersonBio } from "./person-bio";
-
 interface LaneHeaderProps {
   person: PersonSummary;
   /** Union of the person's roles across the films shown, e.g. "Director, Writer". */
@@ -22,6 +22,8 @@ interface LaneHeaderProps {
    * under the sticky header, cannot show through the one-pixel row between two lanes.
    */
   divider: boolean;
+  /** The More button was pressed: open the person's details in the slide-out panel. */
+  onOpenPerson: OpenPerson;
 }
 
 function Avatar({ person }: { person: PersonSummary }) {
@@ -54,6 +56,7 @@ export function LaneHeader({
   soloHref,
   removeHref,
   divider,
+  onOpenPerson,
 }: LaneHeaderProps) {
   const details = [roles, facts].filter(Boolean).join(". ");
 
@@ -99,7 +102,7 @@ export function LaneHeader({
       {facts && <p className="mt-2 hidden shrink-0 text-xs leading-snug text-muted sm:block">{facts}</p>}
       {span && <p className="mt-1 shrink-0 text-center text-[10px] tabular-nums text-muted sm:hidden">{span}</p>}
 
-      <PersonBio person={person} roles={roles} />
+      <PersonBio person={person} onOpen={onOpenPerson} />
 
     </div>
   );
