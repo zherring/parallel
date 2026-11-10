@@ -57,7 +57,7 @@ function linksOf({ filmsHref, clippingsHref, onFilms, onClippings }: SectionLink
 
 /**
  * The page's top-level navigation at the left edge, under the page bar: Films and Quotes, as text on a thin vertical line that drops from the bar's
- * home circle, the current one marked by a short green tick on the line and bright text, the other muted. Only for a page that has Quotes (the caller
+ * home square, the current one marked by a short green tick on the line and bright text, the other muted. Only for a page that has Quotes (the caller
  * leaves it out otherwise, and a page without Quotes has no Films-alone version of it), and not on a phone, where the gear's sheet has the same
  * two links (`SectionTabs`). The Films link goes to the films view last used. They are links, not tabs: Films is three views, one of which (Focus) is
  * another page render.

@@ -1305,8 +1305,8 @@ test("the open pill is the app's usual search field, boxed, with the close butto
   await expect(page.getByRole("combobox")).toHaveCount(1);
   await expect(card.getByText("Green: made together", { exact: true })).toBeVisible();
 
-  // The field is the flat page's own: a box with a border, a surface fill, `rounded-md`, the search icon and the placeholder.
-  const box = search.locator("xpath=ancestor::div[contains(@class, 'rounded-md')][1]");
+  // The field is the flat page's own: a box with a border, a surface fill, the bar's radius (6px), the search icon and the placeholder.
+  const box = search.locator("xpath=ancestor::div[@data-search-box][1]");
   const style = await box.evaluate((element) => {
     const css = getComputedStyle(element);
     return { border: css.borderTopWidth, radius: css.borderTopLeftRadius, background: css.backgroundColor, icon: element.querySelectorAll("svg").length, rounded: css.borderTopLeftRadius };
@@ -1405,7 +1405,7 @@ test("opening the pill focuses the search, and typing in it does not close the p
     return document.elementFromPoint(x + width / 2, y + height / 2)?.closest('[role="option"]')?.textContent ?? null;
   });
   expect(hit).toContain("Scroll Gamma");
-  const field = (await search.locator("xpath=ancestor::div[contains(@class, 'rounded-md')][1]").boundingBox())!;
+  const field = (await search.locator("xpath=ancestor::div[@data-search-box][1]").boundingBox())!;
   const firstOption = (await page.getByRole("option").first().boundingBox())!;
   expect(firstOption.y).toBeGreaterThanOrEqual(field.y + field.height);
   // As wide as the field, which is as wide as the card less the close button.
@@ -1527,7 +1527,7 @@ const settingsGear = (page: Page) => page.getByRole("button", { name: "Settings"
 const settingsSheet = (page: Page) => page.getByRole("dialog", { name: "Settings", exact: true });
 const minorToggle = (page: Page) => settingsSheet(page).getByRole("checkbox", { name: /Show shorts, music videos, cameos and uncredited/ });
 
-test("the bar has the home circle, the people and the count, and the view switcher and the gear at the right, clear of the rail", async ({ page }) => {
+test("the bar has the home square, the people and the count, and the view switcher and the gear at the right, clear of the rail", async ({ page }) => {
   await openDepth(page);
   // The fixture pair has no quotes, so no Films | Quotes nav at all (not in the bar, and not down the left edge, which pages that have Quotes have).
   await expect(page.locator('nav[aria-label="Sections"]')).toHaveCount(0);
@@ -1833,7 +1833,7 @@ test("a page of one person has the same switcher, and nothing about lanes", asyn
 
 const homeLink = (page: Page) => page.getByRole("link", { name: "Parallel home", exact: true });
 
-test("the home circle is the first thing in the bar: a round link to the landing page with the wordmark's green ll, before the people pill, as tall as it, and it stays when the pill opens", async ({ page }) => {
+test("the home square is the first thing in the bar: a rounded square link to the landing page with the wordmark's green ll, before the people pill, as tall as it, and it stays when the pill opens", async ({ page }) => {
   await openDepth(page);
   const home = homeLink(page);
   await expect(home).toBeVisible();
@@ -1843,9 +1843,9 @@ test("the home circle is the first thing in the bar: a round link to the landing
   expect((await home.evaluate((el) => (el as HTMLElement).innerText)).trim()).toBe("ll");
   await expect(home.locator(".text-accent-green")).toHaveText("ll");
   const homeBox = (await home.boundingBox())!;
-  // A circle: as wide as it is tall, the corners rounded past half the height.
+  // A rounded square: as wide as it is tall, with the bar's one corner radius (6px), not a circle.
   expect(homeBox.width).toBe(homeBox.height);
-  expect(await home.evaluate((el) => parseFloat(getComputedStyle(el).borderTopLeftRadius))).toBeGreaterThanOrEqual(homeBox.height / 2);
+  expect(await home.evaluate((el) => parseFloat(getComputedStyle(el).borderTopLeftRadius))).toBe(6);
   const pillBox = (await pill(page).boundingBox())!;
   // At the far left of the bar, then the people pill (the open card hangs from the pill's own left edge), nothing between or over.
   expect(homeBox.x).toBeLessThanOrEqual(16);
@@ -2023,12 +2023,12 @@ test.describe("on a phone", () => {
     expect(cardBox.x).toBeGreaterThanOrEqual(0);
     expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(390);
     await expect(pillSearch(page)).toBeFocused();
-    // The bar spans the card's width, with the field boxed (`rounded-md`, a border) and the close button, a square of its own, outside it.
+    // The bar spans the card's width, with the field boxed (the bar's radius, a border) and the close button, a square of its own, outside it.
     await expect.poll(async () => (await openBar(page).boundingBox())!.width).toBeCloseTo(cardBox.width, 0);
     const barBox = (await openBar(page).boundingBox())!;
     expect(barBox.x).toBeGreaterThanOrEqual(0);
     expect(barBox.x + barBox.width).toBeLessThanOrEqual(390);
-    const box = pillSearch(page).locator("xpath=ancestor::div[contains(@class, 'rounded-md')][1]");
+    const box = pillSearch(page).locator("xpath=ancestor::div[@data-search-box][1]");
     const field = (await box.boundingBox())!;
     const close = (await pillClose(page).boundingBox())!;
     expect(field.x).toBeGreaterThanOrEqual(barBox.x);
@@ -2088,7 +2088,7 @@ test.describe("on a phone", () => {
     await expect(scene(page)).toHaveCount(0);
   });
 
-  test("the home circle is on the bar of a phone too, as tall as the heads' pill; it steps aside for the open pill, whose card stays on the screen, and the sheet has the way home with its name", async ({ page }) => {
+  test("the home square is on the bar of a phone too, as tall as the heads' pill; it steps aside for the open pill, whose card stays on the screen, and the sheet has the way home with its name", async ({ page }) => {
     await openDepth(page);
     const barHome = page.locator("[data-people-bar]").getByRole("link", { name: "Parallel home", exact: true });
     await expect(barHome).toBeVisible();
@@ -2099,7 +2099,7 @@ test.describe("on a phone", () => {
     expect(homeBox.x).toBe(12);
     expect(homeBox.x + homeBox.width).toBeLessThan(capsuleBox.x);
 
-    // The open pill's field and card are as wide as the screen less the margins, so they start at the bar's edge, over the circle's place: it steps
+    // The open pill's field and card are as wide as the screen less the margins, so they start at the bar's edge, over the square's place: it steps
     // aside for them, and they do not run off the right edge.
     await pill(page).tap();
     await expect(peopleCard(page)).toBeVisible();
@@ -2229,3 +2229,42 @@ test.describe("on a phone", () => {
     await expectLabelsClear(page);
   });
 });
+
+for (const [width, height] of [[1440, 900], [1600, 900], [1920, 1080]] as const) {
+  test(`the rail's year readout never meets the gear or the switcher, at the top, the middle or the bottom of the scene, ${width}px wide`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await openDepth(page);
+    // The fixture's scene is short, so the rail's window is tall and its middle (where the readout is) never gets near the top. A long scene (a real
+    // filmography is several thousand px of it) has a small window: the worst case is the smallest one, which is its 12px minimum.
+    const rects = (shrink: boolean) =>
+      page.evaluate((small) => {
+        if (small) document.querySelector<HTMLElement>('[role="scrollbar"][aria-label="Timeline position"]')!.style.height = "0%";
+        const rect = (element: Element | null) => {
+          const box = element!.getBoundingClientRect();
+          return { left: box.left, top: box.top, right: box.right, bottom: box.bottom };
+        };
+        return {
+          // The chip with the year in it, which hangs out left of the rail, level with the middle of the rail's window.
+          readout: rect(document.querySelector("[data-rail-readout]")!.parentElement),
+          gear: rect(document.querySelector('[data-people-bar] button[aria-label="Settings"]')),
+          switcher: rect(document.querySelector('[data-people-bar] nav[aria-label="Films view"]')),
+          track: rect(document.querySelector("[data-depth-rail] > div")),
+        };
+      }, shrink);
+    const meets = (a: { left: number; top: number; right: number; bottom: number }, b: typeof a) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+
+    for (const where of ["top", "middle", "bottom"] as const) {
+      await scene(page).evaluate((scroller, at) => {
+        scroller.scrollTop = at === "top" ? 0 : at === "middle" ? (scroller.scrollHeight - scroller.clientHeight) / 2 : scroller.scrollHeight;
+      }, where);
+      await page.waitForTimeout(150);
+      for (const shrink of [true, false]) {
+        const { readout, gear, switcher, track } = await rects(shrink);
+        expect(meets(readout, gear), `${width} ${where} ${shrink ? "long scene" : "short scene"}: readout ${JSON.stringify(readout)} gear ${JSON.stringify(gear)}`).toBe(false);
+        expect(meets(readout, switcher), `${width} ${where}: switcher`).toBe(false);
+        // The rail itself starts under the bar, so that nothing of it (its labels, its window, the readout) is level with the gear.
+        expect(track.top, `${width} ${where} ${shrink ? "long scene" : "short scene"}: the rail starts under the bar`).toBeGreaterThanOrEqual(gear.bottom);
+      }
+    }
+  });
+}

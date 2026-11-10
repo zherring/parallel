@@ -134,7 +134,7 @@ export function FilmSettings({
         aria-controls={open ? panelId : undefined}
         title={label}
         onClick={() => setOpen((previous) => !previous)}
-        className={cn("inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md bg-canvas text-muted hover:bg-surface hover:text-strong", buttonClassName)}
+        className={cn("inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-(--bar-radius) bg-canvas text-muted hover:bg-surface hover:text-strong", buttonClassName)}
       >
         <Settings aria-hidden="true" className="size-4" />
       </button>

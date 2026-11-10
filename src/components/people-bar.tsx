@@ -63,7 +63,7 @@ export const FLOATING = "border border-border bg-canvas/90";
 /** Steps out of the way while the people pill is open: its field and card take the room the bar's controls would be in. */
 const STEPS_ASIDE =
   "transition-[opacity,visibility] duration-150 motion-reduce:transition-none group-has-[[data-people-pill][data-open]]/bar:invisible group-has-[[data-people-pill][data-open]]/bar:opacity-0";
-/** The same, on a phone only: the home circle stays beside the open pill there is room for it (the pill's field and card cover its place on a phone, see `PeoplePill`). */
+/** The same, on a phone only: the home square stays beside the open pill there is room for it (the pill's field and card cover its place on a phone, see `PeoplePill`). */
 const STEPS_ASIDE_ON_PHONE =
   "max-sm:transition-[opacity,visibility] max-sm:duration-150 max-sm:motion-reduce:transition-none max-sm:group-has-[[data-people-pill][data-open]]/bar:invisible max-sm:group-has-[[data-people-pill][data-open]]/bar:opacity-0";
 
@@ -137,15 +137,15 @@ export function PeopleBar({
       )}
       <div className="flex min-w-0 items-start gap-3">
         {/*
-          The way home, now that the site's header is gone: a round button with the wordmark's green "ll" alone, before the people pill. On a
+          The way home, now that the site's header is gone: a rounded square (the bar's radius) with the wordmark's green "ll" alone, before the people pill. On a
           desktop it does not step aside for the open pill, whose field and card start at the people pill's own left edge, clear of it. On a phone
-          it is there too (it is only as wide as it is tall), and the open pill's field and card, which are as wide as the screen less the margins,
+          it is there too (it is square), and the open pill's field and card, which are as wide as the screen less the margins,
           are drawn over its place, so it steps aside for them (see `PeoplePill`); the gear's sheet has the link too, with the name.
         */}
         <HomeLink
           title="Parallel home"
           className={cn(
-            "pointer-events-auto inline-flex size-(--bar-h) shrink-0 items-center justify-center rounded-full no-underline transition-colors hover:bg-surface motion-reduce:transition-none",
+            "pointer-events-auto inline-flex size-(--bar-h) shrink-0 items-center justify-center rounded-(--bar-radius) no-underline transition-colors hover:bg-surface motion-reduce:transition-none",
             FLOATING,
             STEPS_ASIDE_ON_PHONE,
           )}
@@ -162,8 +162,8 @@ export function PeopleBar({
         />
       </div>
       {/*
-        The page's sections, Films and Quotes, down the left edge under the home circle (the bar's first control), on a thin line that drops from the
-        circle's middle: out of the bar's row, so the bar's footprint does not depend on it. Only for a page that has Quotes, and not on a phone (the gear's sheet
+        The page's sections, Films and Quotes, down the left edge under the home square (the bar's first control), on a thin line that drops from the
+        square's middle: out of the bar's row, so the bar's footprint does not depend on it. Only for a page that has Quotes, and not on a phone (the gear's sheet
         has them). It is in the bar so that it steps aside for the open people pill, whose card is over its place. The page's content clears it (`PeopleView`).
       */}
       {clippings && (

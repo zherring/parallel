@@ -3,7 +3,7 @@ import { PAIR, expect, pairTest } from "./almodovar";
 import { bar, scene, storedFilmsView } from "./fixtures";
 
 /**
- * Films and Quotes are a vertical nav at the left edge, under the bar's home circle, not links in the bar's row: a thin line drops from the circle's
+ * Films and Quotes are a vertical nav at the left edge, under the bar's home square, not links in the bar's row: a thin line drops from the square's
  * middle, with the two as text on it, the current one marked by a green tick and bright text. It is on every view of a page that has Quotes (this
  * pair, Almodóvar and Cruz, has; the Scroll fixtures, in together-pill.spec.ts, have none and no nav), from the `sm` breakpoint up, and floats
  * over the page: the flat views' content clears it, and over Focus' scene it takes no pointer events but on its links.
@@ -46,14 +46,14 @@ const box = async (locator: ReturnType<typeof nav>) => (await locator.boundingBo
 test.describe("at 1440px", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test("it is down the left edge under the home circle, the line dropping from the circle's middle, in the same place on every view", async ({ page }) => {
+  test("it is down the left edge under the home square, the line dropping from the square's middle, in the same place on every view", async ({ page }) => {
     const boxes: unknown[] = [];
     for (const view of ALL_VIEWS) {
       await open(page, view);
       await expect(nav(page), view).toBeVisible();
       await expect(nav(page).getByRole("link"), view).toHaveText(["Films", "Quotes"]);
       const [navBox, homeBox] = [await box(nav(page)), await box(home(page))];
-      // Under the circle, a little clear of it, with the line (the nav's own left edge) at the circle's middle.
+      // Under the square, a little clear of it, with the line (the nav's own left edge) at the square's middle.
       expect(navBox.y, view).toBeGreaterThanOrEqual(homeBox.y + homeBox.height + 4);
       expect(navBox.y, view).toBeLessThan(homeBox.y + homeBox.height + 16);
       expect(Math.abs(navBox.x - (homeBox.x + homeBox.width / 2)), view).toBeLessThanOrEqual(1);
@@ -161,7 +161,7 @@ test.describe("at 1440px", () => {
     // Right of "Films", inside the nav's own box, and on the line: the scene's.
     expect(await under(navBox.x + navBox.width - 2, filmsBox.y + filmsBox.height / 2)).toEqual({ inNav: false, inScene: true });
     expect(await under(navBox.x + 0.01, filmsBox.y + filmsBox.height + 1)).toEqual({ inNav: false, inScene: true });
-    // And left of the line, under the circle: the scene's, too.
+    // And left of the line, under the square: the scene's, too.
     expect(await under(navBox.x - 10, filmsBox.y + filmsBox.height / 2)).toEqual({ inNav: false, inScene: true });
   });
 

@@ -31,7 +31,7 @@ export function TogetherCount({ several, count, className, pillClassName }: Toge
       role="img"
       aria-label={label}
       data-together-pill
-      className={cn("inline-flex h-(--bar-h) shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3 text-sm max-sm:gap-1.5 max-sm:px-2.5", pillClassName, className)}
+      className={cn("inline-flex h-(--bar-h) shrink-0 items-center gap-2 whitespace-nowrap rounded-(--bar-radius) px-3 text-sm max-sm:gap-1.5 max-sm:px-2.5", pillClassName, className)}
     >
       <span
         aria-hidden="true"

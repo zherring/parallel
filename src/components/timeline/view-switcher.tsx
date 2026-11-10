@@ -55,9 +55,9 @@ export function ViewSwitcher({ view, hrefFor, onClickFor, labelled = false, clas
   return (
     <nav
       aria-label="Films view"
-      // In the bar it is as tall as the bar's other controls (`--bar-h`, see `PeopleBar`), its three links square in what is left of that; in the phone's
+      // In the bar it is as tall as the bar's other controls (`--bar-h`, see `PeopleBar`), its three links square in what is left of that (the box's corner radius is the bar's, the active link's is that less the padding, `--switcher-pad`); in the phone's
       // sheet, with its words, a row of 28px links.
-      className={cn("inline-flex shrink-0 items-center rounded-md", labelled ? "gap-0.5 p-0.5" : "h-(--bar-h) gap-1 p-1.5", className)}
+      className={cn("inline-flex shrink-0 items-center", labelled ? "gap-0.5 rounded-md p-0.5" : "h-(--bar-h) gap-1 rounded-(--bar-radius) p-(--switcher-pad) [--switcher-pad:0.25rem]", className)}
     >
       {FILMS_VIEWS.map((id) => {
         const option = OPTIONS[id];
@@ -72,8 +72,9 @@ export function ViewSwitcher({ view, hrefFor, onClickFor, labelled = false, clas
             title={option.title}
             onClick={onClickFor?.(id)}
             className={cn(
-              "inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded text-sm font-medium no-underline transition-colors motion-reduce:transition-none",
-              labelled ? "h-7 min-w-7 flex-1 px-2.5" : "aspect-square h-full",
+              "inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 text-sm font-medium no-underline transition-colors motion-reduce:transition-none",
+              // In the bar the active segment is concentric with the box: its radius is the box's less the padding between them.
+              labelled ? "h-7 min-w-7 flex-1 rounded px-2.5" : "aspect-square h-full rounded-[max(0px,calc(var(--bar-radius)-var(--switcher-pad)))]",
               current ? "bg-border text-strong" : "text-muted hover:bg-surface hover:text-strong",
             )}
           >

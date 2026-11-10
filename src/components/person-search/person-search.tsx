@@ -390,8 +390,10 @@ export function PersonSearch({
   return (
     <div className="relative w-full">
       <div
+        data-search-box
         onMouseDown={chipsMode ? focusFromField : undefined}
-        className={`flex items-start gap-2.5 rounded-md border border-border bg-surface transition-colors focus-within:border-accent-green focus-within:ring-2 focus-within:ring-accent-green/50 ${
+        // `--search-radius` is the host's to set (the open people pill gives it the page bar's radius, `--bar-radius`); the usual box is `rounded-md`.
+        className={`flex items-start gap-2.5 rounded-[var(--search-radius,var(--radius-md))] border border-border bg-surface transition-colors focus-within:border-accent-green focus-within:ring-2 focus-within:ring-accent-green/50 ${
           hero
             ? `min-h-14 py-[7px] text-lg ${chipsMode ? "px-3 sm:px-4" : "px-4"}`
             : "min-h-9 px-3 py-[3px] text-sm"

@@ -294,7 +294,9 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
           if (event.target === event.currentTarget) endDrag(event);
         }}
         // The bottom minimap's bar turned on its side: a rounded surface with a border, the years along it.
-        className="pointer-events-auto absolute inset-y-2 left-0 right-1 cursor-pointer touch-none select-none rounded-md border border-border bg-surface"
+        // Starts below the page bar (as the bar's controls are left of the rail, only the readout, which hangs out to the left, could meet them: the window's
+        // middle is never nearer the top than half its height under this).
+        className="pointer-events-auto absolute bottom-2 left-0 right-1 top-[calc(0.75rem+var(--bar-h)+0.5rem)] cursor-pointer touch-none select-none rounded-md border border-border bg-surface"
       >
         <div aria-hidden className="pointer-events-none absolute inset-0">
           {marks.map((mark) => (

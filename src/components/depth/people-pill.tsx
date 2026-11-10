@@ -291,7 +291,7 @@ export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillP
           // box stays where it is, so the heads have their places to fly back to.
           className={cn(
             // As tall as the bar's other controls (`--bar-h`, set by `PeopleBar`: 50px, 46px on a phone), which it is the measure of.
-            "flex h-(--bar-h) w-fit max-w-full items-center rounded-full border border-border bg-canvas/80 p-1 backdrop-blur-md supports-[backdrop-filter]:bg-canvas/70",
+            "flex h-(--bar-h) w-fit max-w-full items-center rounded-(--bar-radius) border border-border bg-canvas/80 p-1 backdrop-blur-md supports-[backdrop-filter]:bg-canvas/70",
             phase === "open" && "opacity-0",
           )}
         >
@@ -304,7 +304,8 @@ export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillP
             onClick={toggle}
             // Open, it is out of the Tab order (the field and the close button are the way in and out) but still the one that holds focus once closed.
             tabIndex={phase === "open" ? -1 : undefined}
-            className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-full py-1 pl-2 pr-2 hover:bg-surface/60 max-sm:pl-1.5"
+            // Concentric with the capsule: its radius less the capsule's 4px of padding.
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-[max(0px,calc(var(--bar-radius)-0.25rem))] py-1 pl-2 pr-2 hover:bg-surface/60 max-sm:pl-1.5"
           >
             <span className="flex shrink-0 items-center -space-x-1 pl-1">
               {people.map((entry) => {
@@ -341,9 +342,9 @@ export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillP
           <div
             data-pill-open
             inert={phase !== "open"}
-            // On a phone the bar has the home circle before the pill, and the field (as wide as the card, nearly the screen) would run off the right edge from
-            // the pill's own edge: it starts at the bar's own (over the circle's place, which steps aside), as does the card below.
-            className="absolute left-0 top-0 z-10 flex h-full w-[min(22rem,calc(100vw-3rem))] items-center gap-2 max-sm:-left-[calc(var(--bar-h)+0.75rem)]"
+            // On a phone the bar has the home square before the pill, and the field (as wide as the card, nearly the screen) would run off the right edge from
+            // the pill's own edge: it starts at the bar's own (over the square's place, which steps aside), as does the card below.
+            className="absolute left-0 top-0 z-10 flex h-full w-[min(22rem,calc(100vw-3rem))] items-center gap-2 [--search-radius:var(--bar-radius)] max-sm:-left-[calc(var(--bar-h)+0.75rem)]"
           >
             <div className="min-w-0 flex-1">
               <PersonSearch
@@ -360,7 +361,7 @@ export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillP
               aria-label="Close people"
               title="Close"
               onClick={() => close(true)}
-              className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-md border border-border bg-surface text-muted transition-colors hover:bg-border hover:text-strong"
+              className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-(--bar-radius) border border-border bg-surface text-muted transition-colors hover:bg-border hover:text-strong"
             >
               <X aria-hidden="true" className="size-4" />
             </button>
@@ -381,7 +382,7 @@ export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillP
           <div
             aria-hidden
             data-panel-bg
-            className="absolute inset-0 origin-top-left rounded-2xl border border-border bg-canvas/90 shadow-xl shadow-black/40 backdrop-blur-md"
+            className="absolute inset-0 origin-top-left rounded-(--bar-radius) border border-border bg-canvas/90 shadow-xl shadow-black/40 backdrop-blur-md"
           />
           <div className="relative p-2">
             <ul className="m-0 list-none p-0">
