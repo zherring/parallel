@@ -108,8 +108,6 @@ interface TimelineProps {
   combined?: boolean;
   /** Shared with both layouts and the table's settings gear: give every film a poster. */
   showAll: boolean;
-  /** The page has the section nav (Films | Quotes) floating over its left edge from `sm`: the combined track starts 7rem in, clear of it. */
-  startInset?: boolean;
   /**
    * Everyone on the page, in URL order: the remove links, and their palette slots (see
    * `personSlots`), which colour the combined track and, in the separate layout, each lane's films
@@ -193,7 +191,6 @@ export function Timeline({
   lanes,
   combined = false,
   showAll,
-  startInset = false,
   people,
   includeMinor,
   today,
@@ -778,14 +775,13 @@ export function Timeline({
     <div ref={rootRef} className="flex h-full flex-col">
       {/*
         The track's left spacer (--lane-head) is the width of the lane headers, which the timeline has where a lane has a person to
-        name (one person's page, and the separate lanes that are parked). The combined track is everyone's and has none; with the section nav
-        floating over the page's left edge (`startInset`, from `sm`) it has 7rem of empty track instead, so that the earliest film starts clear of
-        it. The same inset tells the scroll/zoom and minimap math how much of the viewport is unobstructed.
+        name (one person's page, and the separate lanes that are parked). The combined track is everyone's and has none. The same width tells
+        the scroll/zoom and minimap math how much of the viewport is unobstructed.
       */}
       <div
         className={cn(
           "relative isolate flex min-h-0 flex-1 flex-col",
-          isCombined ? (startInset ? "[--lane-head:0px] sm:[--lane-head:7rem]" : "[--lane-head:0px]") : "[--lane-head:84px] sm:[--lane-head:224px]",
+          isCombined ? "[--lane-head:0px]" : "[--lane-head:84px] sm:[--lane-head:224px]",
         )}
       >
         {layout.legend.length > 0 && (

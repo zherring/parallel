@@ -75,23 +75,23 @@ export const VIEW_PARAM = "view";
 export const DEPTH_VIEW = "depth";
 
 /**
- * The page's top level is two sections, Films and (for a pair that has quotes or critics) Clippings. Films has three views of the same
- * films: the flat Timeline, Focus (the Depth view, `?view=depth`) and the Table. The view switcher in the page bar chooses between them,
- * and the Films tab goes to the one the visitor used last (see `films-view-pref`).
+ * The page's views of its films are three: Films (the Depth view, `?view=depth`: the films as a scene in depth), the flat Timeline and the Table. The
+ * segmented control in the page bar chooses between them, in this order, and a pair that has quotes has a fourth view, the Quotes, a link of its own beside
+ * them. The address and the code still say `depth`; what a person reads is "Films".
  */
-export const FILMS_VIEWS = ["timeline", DEPTH_VIEW, "table"] as const;
+export const FILMS_VIEWS = [DEPTH_VIEW, "timeline", "table"] as const;
 export type FilmsView = (typeof FILMS_VIEWS)[number];
 
 export const FILMS_VIEW_LABELS: Record<FilmsView, string> = {
+  depth: "Films",
   timeline: "Timeline",
-  depth: "Focus",
   table: "Table",
 };
 
-/** Every view a `/p/` page can be on: the three of Films, and the Clippings. */
+/** Every view a `/p/` page can be on: the three films views, and the Clippings (the Quotes). */
 export type PageView = FilmsView | "clippings";
 
-/** Whether the view is one of Films' (Timeline, Focus, Table) rather than the Clippings. */
+/** Whether the view is one of the films views (Films, Timeline, Table) rather than the Clippings (the Quotes). */
 export function isFilmsView(view: PageView): view is FilmsView {
   return view !== "clippings";
 }

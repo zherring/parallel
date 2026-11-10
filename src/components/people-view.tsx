@@ -1,16 +1,14 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { PillPerson } from "@/components/depth/people-pill";
 import { FilmPanel } from "@/components/film-panel/film-panel";
 import { PageHeadline } from "@/components/page-headline";
-import { cn } from "@/components/timeline/cn";
 import { PeopleBar } from "@/components/people-bar";
 import { FilmsSection } from "@/components/timeline/films-section";
 import type { BioPerson } from "@/components/timeline/person-bio";
 import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
-import { recordFilmsView } from "@/components/timeline/use-films-view-pref";
 import { useFilmsTable } from "@/components/timeline/use-films-table";
 import { useUrlPeriod } from "@/components/timeline/use-period";
 import { useViewTab } from "@/components/timeline/use-view-tab";
@@ -24,7 +22,7 @@ import type { PairCritics } from "@/lib/critics";
 import { pageViewHref } from "@/lib/depth-url";
 import { effectiveTrackMode } from "@/lib/film-prefs";
 import { personRows, sharedRows } from "@/lib/film-rows";
-import { hasClippingsTab, parseView, quoteIdsOf, showingMessage, type PageView } from "@/lib/films-view";
+import { hasClippingsTab, quoteIdsOf, showingMessage, type PageView } from "@/lib/films-view";
 import { laneSummary, removePersonHref } from "@/lib/lanes";
 import { periodLabel, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss } from "@/lib/person-colors";
@@ -68,12 +66,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   const clippingsTab = hasClippingsTab(clippings, critics);
   const quoteIds = useMemo(() => quoteIdsOf(clippings, critics), [clippings, critics]);
   const [view, setView] = useViewTab(clippingsTab, quoteIds);
-  // Visiting a films view records it, by any means (a link, a typed address, the bar): the Films tab goes to the one last used. From the address bar itself,
-  // as `useViewTab` reads it: after a client-side navigation to this page the render before the effect can still hold the address it came from.
-  useEffect(() => {
-    const visited = parseView(window.location.search, quoteIds);
-    if (visited !== "clippings") recordFilmsView(visited);
-  }, [view, quoteIds]);
   /** Counts up each time the visitor chooses a view: the films section brings the page back to its top (see `FilmsSection`). */
   const [revealTick, setRevealTick] = useState(0);
   const [urlPeriod, setPeriod] = useUrlPeriod();
@@ -236,7 +228,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       lanes={visibleLanes}
       combined={combined}
       showAll={showAll}
-      startInset={clippingsTab}
       people={people}
       includeMinor={includeMinor}
       today={today}
@@ -264,7 +255,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         view={view}
         hrefFor={hrefFor}
         onSelect={selectView}
-        filmCount={rows.length}
         showAll={showAll}
         onShowAllChange={handleShowAllChange}
         includeMinor={includeMinor}
@@ -280,11 +270,8 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         (about 4rem tall, over the top of the page).
       */}
       <PageHeadline people={people} count={rows.length} />
-      {/*
-        As wide as the page, with the bar's own gutter (12px): the Timeline spans it, and the Table and Quotes keep a reading column (see `FilmsSection`). A page
-        that has Quotes has the section nav at the left edge from `sm` (see `PeopleBar`: it is about 100px wide), which the content clears with 7rem of padding.
-      */}
-      <div className={cn("w-full min-w-0 px-3 pb-8 pt-[4.5rem]", clippingsTab && "sm:pl-28")}>
+      {/* As wide as the page, with the bar's own gutter (12px): the Timeline spans it, and the Table and Quotes keep a reading column (see `FilmsSection`). */}
+      <div className="w-full min-w-0 px-3 pb-8 pt-[4.5rem]">
         {/* The combined timeline's colours, as custom properties (src/lib/person-colors.ts): the hover card is in a portal. */}
         {multi && <style>{personColorCss()}</style>}
 

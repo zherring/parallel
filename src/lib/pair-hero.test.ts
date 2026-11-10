@@ -104,7 +104,7 @@ describe("pickHeroNote: the fallback chain", () => {
     expect(withQuotes).toBeDefined();
     expect(withoutQuotes).toBeDefined();
     const noteFor = (ids: number[]) =>
-      pickHeroNote({ clippings: getPairClippingSet(ids), description: null, blurb: blurbOf.get(pairingKey({ people: ids.map((id) => ({ id })) })) ?? null });
+      pickHeroNote({ clippings: getPairClippingSet(ids), description: null, blurb: blurbOf.get(pairingKey({ people: ids.map((id) => ({ id, name: "" })) })) ?? null });
     expect(noteFor(withQuotes!.people.map((p) => p.id))?.kind).toBe("quote");
     expect(noteFor(withoutQuotes!.people.map((p) => p.id))).toEqual({ kind: "blurb", text: withoutQuotes!.blurb });
     expect(noteFor([1, 2])).toBeNull();

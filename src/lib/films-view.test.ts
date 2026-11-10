@@ -34,10 +34,14 @@ describe("VIEWS", () => {
 });
 
 describe("FILMS_VIEWS", () => {
-  it("is Timeline, Focus and Table, in the order of the switcher; Focus is the Depth view", () => {
-    expect(FILMS_VIEWS).toEqual(["timeline", "depth", "table"]);
-    expect(FILMS_VIEWS[1]).toBe(DEPTH_VIEW);
-    expect(FILMS_VIEW_LABELS).toEqual({ timeline: "Timeline", depth: "Focus", table: "Table" });
+  it("is Films, Timeline and Table, in the order of the switcher; Films is the Depth view", () => {
+    expect(FILMS_VIEWS).toEqual(["depth", "timeline", "table"]);
+    expect(FILMS_VIEWS[0]).toBe(DEPTH_VIEW);
+    expect(FILMS_VIEW_LABELS).toEqual({ depth: "Films", timeline: "Timeline", table: "Table" });
+  });
+
+  it("never says Focus: the Depth view is Films to a person", () => {
+    expect(Object.values(FILMS_VIEW_LABELS)).not.toContain("Focus");
   });
 
   it("are the views of Films, and the Clippings are not one of them", () => {
