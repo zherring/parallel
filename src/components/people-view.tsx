@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PillPerson } from "@/components/depth/people-pill";
 import { FilmPanel } from "@/components/film-panel/film-panel";
 import { PageHeadline } from "@/components/page-headline";
+import { cn } from "@/components/timeline/cn";
 import { PeopleBar } from "@/components/people-bar";
 import { FilmsSection } from "@/components/timeline/films-section";
 import type { BioPerson } from "@/components/timeline/person-bio";
@@ -278,8 +279,11 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         (about 4rem tall, over the top of the page).
       */}
       <PageHeadline people={people} count={rows.length} />
-      {/* As wide as the page, with the bar's own gutter (12px): the Timeline spans it, and the Table and Clippings keep a reading column (see `FilmsSection`). */}
-      <div className="w-full min-w-0 px-3 pb-8 pt-[4.5rem]">
+      {/*
+        As wide as the page, with the bar's own gutter (12px): the Timeline spans it, and the Table and Quotes keep a reading column (see `FilmsSection`). A page
+        that has Quotes has the section nav at the left edge from `sm` (see `PeopleBar`: it is about 100px wide), which the content clears with 7rem of padding.
+      */}
+      <div className={cn("w-full min-w-0 px-3 pb-8 pt-[4.5rem]", clippingsTab && "sm:pl-28")}>
         {/* The combined timeline's colours, as custom properties (src/lib/person-colors.ts): the hover card is in a portal. */}
         {multi && <style>{personColorCss()}</style>}
 

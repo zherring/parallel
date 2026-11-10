@@ -10,7 +10,7 @@ import { ExportButton, type ExportList } from "@/components/timeline/export-butt
 import { FilmSettings } from "@/components/timeline/film-settings";
 import { ShareMenu } from "@/components/timeline/share-menu";
 import { useFilmsViewPref } from "@/components/timeline/use-films-view-pref";
-import { SectionTabs, inPlace } from "@/components/timeline/view-tabs";
+import { SectionNav, SectionTabs, inPlace } from "@/components/timeline/view-tabs";
 import { ViewSwitcher } from "@/components/timeline/view-switcher";
 import { DEPTH_VIEW, isFilmsView, type PageView } from "@/lib/films-view";
 import type { ShareInput } from "@/lib/share";
@@ -154,24 +154,29 @@ export function PeopleBar({
           <WordmarkMark className="text-2xl" />
         </HomeLink>
         <PeoplePill people={people} scrollerRef={scrollerRef} onToggleVisible={onToggleVisible} />
-        {/* Right after the people: how many films they made together (or, for one person, how many films). It steps aside with the tabs for the open pill. */}
+        {/* Right after the people: how many films they made together (or, for one person, how many films). It steps aside for the open pill, as the section nav does. */}
         <TogetherCount
           several={people.length > 1}
           count={filmCount}
           className={STEPS_ASIDE}
           pillClassName={FLOATING}
         />
-        <SectionTabs
-          clippings={clippings}
+      </div>
+      {/*
+        The page's sections, Films and Quotes, down the left edge under the home circle (the bar's first control), on a thin line that drops from the
+        circle's middle: out of the bar's row, so the bar's footprint does not depend on it. Only for a page that has Quotes, and not on a phone (the gear's sheet
+        has them). It is in the bar so that it steps aside for the open people pill, whose card is over its place. The page's content clears it (`PeopleView`).
+      */}
+      {clippings && (
+        <SectionNav
           section={section}
           filmsHref={hrefFor(filmsView)}
           clippingsHref={hrefFor("clippings")}
           onFilms={clickFor(filmsView)}
           onClippings={clickFor("clippings")}
-          compact
-          className={cn("pointer-events-auto mt-1.5 inline-flex shrink-0 rounded-md p-0.5 max-sm:hidden", FLOATING, STEPS_ASIDE)}
+          className={cn("absolute left-[calc(0.75rem+var(--bar-h)/2)] top-[calc(0.75rem+var(--bar-h)+0.5rem)] max-sm:hidden", STEPS_ASIDE)}
         />
-      </div>
+      )}
       {/*
         At the right edge, or, on the Depth view, left of the year rail (3.75rem wide, 28px on a phone) with a gap: nothing there is ever over it.
         The cluster takes no pointer events itself, so that what is between its controls does not shield what is under it.
@@ -200,7 +205,6 @@ export function PeopleBar({
                   <div data-close-sheet className="flex flex-col gap-2">
                     {clippings && (
                       <SectionTabs
-                        clippings
                         section={section}
                         filmsHref={hrefFor(filmsView)}
                         clippingsHref={hrefFor("clippings")}

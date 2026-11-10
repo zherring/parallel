@@ -3,15 +3,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { FilmsView, PageView } from "@/lib/films-view";
 import { ViewSwitcher } from "./view-switcher";
-import { SectionTabs, inPlace, isPlainClick } from "./view-tabs";
+import { SectionNav, SectionTabs, inPlace, isPlainClick } from "./view-tabs";
 
 const hrefFor = (view: FilmsView) => `/p/a?view=${view}`;
 const switcher = (props: Partial<Parameters<typeof ViewSwitcher>[0]> = {}) =>
   renderToStaticMarkup(createElement(ViewSwitcher, { view: "timeline", hrefFor, ...props }));
-const tabs = (props: Partial<Parameters<typeof SectionTabs>[0]> = {}) =>
-  renderToStaticMarkup(
-    createElement(SectionTabs, { clippings: true, section: "films", filmsHref: "/p/a", clippingsHref: "/p/a?view=clippings", ...props }),
-  );
+const SECTION_PROPS = { section: "films", filmsHref: "/p/a", clippingsHref: "/p/a?view=clippings" } as const;
+const tabs = (props: Partial<Parameters<typeof SectionTabs>[0]> = {}) => renderToStaticMarkup(createElement(SectionTabs, { ...SECTION_PROPS, ...props }));
+const nav = (props: Partial<Parameters<typeof SectionNav>[0]> = {}) => renderToStaticMarkup(createElement(SectionNav, { ...SECTION_PROPS, ...props }));
 
 /** The links of some markup, as [label, current, href]. */
 const linksOf = (html: string) =>
@@ -70,36 +69,65 @@ describe("ViewSwitcher", () => {
   });
 });
 
+describe("SectionNav", () => {
+  it("is Films and Quotes as text links on a vertical line, in a nav named Sections", () => {
+    const html = nav();
+    expect(html).toContain('<nav aria-label="Sections"');
+    expect(html).toContain("border-l");
+    const links = linksOf(html);
+    expect(links.map((link) => link.href)).toEqual(["/p/a", "/p/a?view=clippings"]);
+    expect(html).toContain(">Films<");
+    expect(html).toContain(">Quotes<");
+    // Text, not icons.
+    expect(html).not.toMatch(/<svg\b/);
+    // What a person reads is Quotes; the address and the code say clippings.
+    expect(html).not.toContain("Clippings");
+  });
+
+  it("marks the current section with a green tick on the line and bright text, and the other is muted", () => {
+    const films = nav({ section: "films" });
+    expect(linksOf(films).map((link) => link.current)).toEqual([true, false]);
+    expect(films.match(/bg-accent-green/g)).toHaveLength(1);
+    expect(films.indexOf("bg-accent-green")).toBeLessThan(films.indexOf(">Films<") + 1);
+    expect(films).toContain("text-strong");
+    expect(films).toContain("text-muted");
+    const quotes = nav({ section: "clippings" });
+    expect(linksOf(quotes).map((link) => link.current)).toEqual([false, true]);
+    expect(quotes.match(/bg-accent-green/g)).toHaveLength(1);
+    // The tick is before the Quotes text, after the Films one.
+    expect(quotes.indexOf("bg-accent-green")).toBeGreaterThan(quotes.indexOf(">Films<"));
+  });
+
+  it("takes no pointer events but on its links, so that what is under it stays draggable", () => {
+    const html = nav();
+    expect(html).toMatch(/<nav [^>]*pointer-events-none/);
+    expect(html.match(/pointer-events-auto/g)).toHaveLength(2);
+  });
+
+  it("goes where the Films href says: the view last used", () => {
+    expect(linksOf(nav({ filmsHref: "/p/a?view=depth" }))[0].href).toBe("/p/a?view=depth");
+  });
+});
+
 describe("SectionTabs", () => {
-  it("is Films and Quotes for a page that has them, Films current on the Timeline, Focus and Table", () => {
-    const links = linksOf(tabs());
+  it("is Films and Quotes with their icons, Films current on the Timeline, Focus and Table", () => {
+    const html = tabs();
+    const links = linksOf(html);
     expect(links.map((link) => link.href)).toEqual(["/p/a", "/p/a?view=clippings"]);
     expect(links.map((link) => link.current)).toEqual([true, false]);
-    expect(tabs()).toContain('<nav aria-label="Sections"');
-    expect(tabs()).toContain(">Films<");
-    expect(tabs()).toContain(">Quotes<");
+    expect(html).toContain('<nav aria-label="Sections"');
+    expect(html).toContain(">Films<");
+    expect(html).toContain(">Quotes<");
+    expect(html.match(/<svg\b/g)).toHaveLength(2);
+    expect(html).not.toContain("Clippings");
   });
 
   it("marks Quotes current on the Quotes", () => {
     expect(linksOf(tabs({ section: "clippings" })).map((link) => link.current)).toEqual([false, true]);
   });
 
-  it("is Films alone for a page without Quotes, so that the bar is the same size on every page", () => {
-    const html = tabs({ clippings: false });
-    expect(linksOf(html)).toHaveLength(1);
-    expect(html).toContain(">Films<");
-    expect(html).not.toContain("Quotes");
-    expect(linksOf(html)[0].current).toBe(true);
-  });
-
   it("goes where the Films href says: the view last used", () => {
     expect(linksOf(tabs({ filmsHref: "/p/a?view=depth" }))[0].href).toBe("/p/a?view=depth");
-  });
-
-  it("keeps the words for a screen reader when the bar has no room for them (compact)", () => {
-    const html = tabs({ compact: true });
-    expect(html).toContain('class="max-lg:sr-only">Films<');
-    expect(tabs()).not.toContain("max-lg:sr-only");
   });
 });
 
