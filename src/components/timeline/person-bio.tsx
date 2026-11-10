@@ -32,7 +32,7 @@ interface PersonBioProps {
   portrait?: ReactNode;
 }
 
-/** A person of the page with the roles their biography dialog gives under the name: what a name outside the people column needs to open it. */
+/** A person of the page with the roles their biography dialog gives under the name: what a name outside the people pill needs to open it. */
 export interface BioPerson {
   person: PersonSummary;
   roles: string;

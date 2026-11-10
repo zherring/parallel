@@ -3,7 +3,7 @@
  * acts as a scrollbar for the timeline's horizontal scroller.
  *
  * Everything is in "track" coordinates: x = 0 is the left edge of the axis track, which sits
- * to the right of the sticky lane header, or the spacer for the floating People panel. The
+ * to the right of the sticky lane header (none on the combined track). The
  * unobstructed part of the track is the scroller's clientWidth minus that inset (`viewport`),
  * and the whole track is its scrollWidth minus the inset (`track`). With that, scrollLeft runs from 0 to
  * `track - viewport` and the viewport window on the bar is `scrollLeft / track` wide

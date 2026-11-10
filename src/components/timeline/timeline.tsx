@@ -13,7 +13,6 @@ import {
   type FocusEvent,
   type KeyboardEvent,
   type PointerEvent,
-  type ReactNode,
   type Ref,
 } from "react";
 import { combineLanes, combinedMinimapFilms, describeCombined } from "@/lib/combined-track";
@@ -108,14 +107,6 @@ interface TimelineProps {
   combined?: boolean;
   /** Shared with both layouts and the table's settings gear: give every film a poster. */
   showAll: boolean;
-  /** The gear containing the poster-row and minor-credit preferences. */
-  settingsControl: ReactNode;
-  /** The layout toggle, fixed over the track's top-right corner rather than scrolling with the films. */
-  layoutToggle?: ReactNode;
-  /** The people column: floating over the timeline on desktop, above it below md, in both layouts. */
-  sidebar?: ReactNode;
-  /** Dock a fully expanded people panel flush to the timeline instead of floating it with an inset. */
-  sidebarExpanded?: boolean;
   /**
    * Everyone on the page, in URL order: the remove links, and their palette slots (see
    * `personSlots`), which colour the combined track and, in the separate layout, each lane's films
@@ -199,10 +190,6 @@ export function Timeline({
   lanes,
   combined = false,
   showAll,
-  settingsControl,
-  layoutToggle,
-  sidebar,
-  sidebarExpanded = false,
   people,
   includeMinor,
   today,
@@ -373,7 +360,7 @@ export function Timeline({
     [accents, colored, entries, isCombined, lanes, membership, slots],
   );
 
-  // The People panel's rows say the same of each person; the combined lane stands for no one, so it has none.
+  // What each lane header says of its person; the combined lane stands for no one, so it has none.
   const laneInfo = useMemo(
     () => (isCombined ? [] : trackLanes.map((lane) => laneSummary(lane.films, lane.person, includeMinor))),
     [isCombined, trackLanes, includeMinor],
@@ -785,42 +772,24 @@ export function Timeline({
   return (
     <div ref={rootRef}>
       {/*
-        --chrome: what sits above the timeline (the site header, the title row and the tabs row), plus the pinned
-        bar below it. The scroller is as tall as what is left of the viewport, so that the year axis at its bottom edge shows
+        --chrome: what sits above the timeline (the page's top, which clears the page bar, and the line for the period note), plus the
+        pinned bar below it. The scroller is as tall as what is left of the viewport, so that the year axis at its bottom edge shows
         right above the bar when the page is at the top, instead of under it (but never shorter than 26rem; a phone scrolls
         the page instead).
 
-        On desktop the people column and timeline share a grid cell: the expanded panel docks flush to the
-        edges, while the compact panel floats with an inset. The track's left spacer (--lane-head) is scrollable, not
-        sticky, so the earliest films can be reached clear of the panel and later films pass underneath it.
-        The same inset tells the scroll/zoom and minimap math how much of the viewport is unobstructed.
-        Below md the panel sits above the track. (The contents are not indented further to keep merges small.)
+        The track's left spacer (--lane-head) is the width of the lane headers, which the timeline has where a lane has a person to
+        name (one person's page, and the separate lanes that are parked): the combined track is everyone's and has none, so its films
+        have the whole width of the box. The same inset tells the scroll/zoom and minimap math how much of the viewport is unobstructed.
       */}
-      <div className={cn(sidebar ? "flex flex-col gap-3 md:grid md:grid-cols-[minmax(0,1fr)] md:gap-0" : "contents", "[--chrome:15.5rem]")}>
-      {sidebar && (
-        <div className={cn(
-          "min-w-0 md:pointer-events-none md:z-[65] md:col-start-1 md:row-start-1 md:grid md:w-[17rem]",
-          !sidebarExpanded && "md:m-3",
-        )}>
-          {sidebar}
-        </div>
-      )}
       <div
         className={cn(
-          "relative isolate",
-          sidebar ? "flex w-full min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-canvas [--lane-head:0px] md:col-start-1 md:row-start-1 md:h-[clamp(26rem,calc(100dvh-var(--chrome)),1100px)]" : "[--lane-head:84px] sm:[--lane-head:224px]",
-          sidebar ? (sidebarExpanded ? "md:[--lane-head:17rem]" : "md:[--lane-head:18.5rem]") : undefined,
+          "relative isolate [--chrome:12.5rem]",
+          isCombined ? "[--lane-head:0px]" : "[--lane-head:84px] sm:[--lane-head:224px]",
         )}
       >
-        {(settingsControl || layoutToggle) && (
-          <div role="group" aria-label="Timeline settings" className="absolute right-2 top-2 z-[70] flex items-center gap-1 rounded-md bg-canvas/90">
-            {layoutToggle}
-            {settingsControl}
-          </div>
-        )}
         {layout.legend.length > 0 && (
-          // The legend belongs to the track, not the People panel's sizing or position.
-          <div className={cn("relative z-[65] shrink-0 pl-3 pr-3 pt-2", sidebar ? "md:pl-[var(--lane-head)]" : undefined)}>
+          // The legend belongs to the track, not to the lane headers' width.
+          <div className="relative z-[65] shrink-0 px-3 pt-2">
             <ConnectionLegend
               entries={layout.legend}
               names={layout.names}
@@ -851,11 +820,11 @@ export function Timeline({
           onKeyDown={handleKeyDown}
           className={cn(
             "max-h-[clamp(26rem,calc(100dvh-var(--chrome)),1100px)] cursor-grab overflow-auto overscroll-x-contain [scroll-padding-left:var(--lane-head)] [scroll-padding-bottom:44px] [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin] data-[panning]:select-none [&[data-panning]_*]:cursor-grabbing! [&_[data-lane-head]]:cursor-auto",
-            sidebar ? "min-h-0 flex-1" : "rounded-lg border border-border bg-canvas",
+            "rounded-lg border border-border bg-canvas",
           )}
         >
           <div className="relative flex min-h-full min-w-full flex-col" style={{ width: `calc(var(--lane-head) + ${width}px)` }}>
-            {/* Keep the films and their SVG together above the bottom-aligned year axis when the sidebar is taller. */}
+            {/* Keep the films and their SVG together above the bottom-aligned year axis when the box is taller than they are. */}
             <div className="relative mt-auto shrink-0">
             {/*
               Lane lines, connectors and nodes: pure geometry from the layout, drawn over the poster
@@ -985,13 +954,13 @@ export function Timeline({
               return (
                 <Fragment key={person.id}>
                   <section
-                    // With a people column the panel's row names the lane (both layouts); without one, the lane header does.
+                    // The lane header names a lane with a person; the combined track's one lane is everyone's, and is labelled as that.
                     aria-labelledby={isCombined ? undefined : `person-${person.id}`}
                     aria-label={isCombined ? "Films of everyone shown" : undefined}
                     className="flex"
                     style={{ height: boxes[laneIndex].height }}
                   >
-                    {!sidebar && !isCombined && info && (
+                    {!isCombined && info && (
                       <LaneHeader
                         person={person}
                         roles={info.roles}
@@ -1002,7 +971,6 @@ export function Timeline({
                         divider={laneIndex < trackLanes.length - 1}
                       />
                     )}
-                    {(sidebar || isCombined) && <div aria-hidden className="w-[var(--lane-head)] shrink-0" />}
                     <div
                       className={cn(
                         "relative shrink-0",
@@ -1055,7 +1023,7 @@ export function Timeline({
             >
               <div
                 ref={cornerRef}
-                className={cn("w-[var(--lane-head)] shrink-0", !sidebar && "sticky left-0 z-50 border-r border-border bg-canvas")}
+                className={cn("w-[var(--lane-head)] shrink-0", !isCombined && "sticky left-0 z-50 border-r border-border bg-canvas")}
               />
               <div aria-hidden className="relative shrink-0" style={{ width }}>
                 {layout.ticks.map((tick) => (
@@ -1086,7 +1054,7 @@ export function Timeline({
           aria-hidden
           className={cn(
             "pointer-events-none absolute inset-y-px z-[60] w-10 bg-linear-to-r from-canvas to-transparent transition-opacity duration-150 motion-reduce:transition-none",
-            sidebar ? "left-px" : "left-[calc(var(--lane-head)+1px)]",
+            "left-[calc(var(--lane-head)+1px)]",
             edges.left ? "opacity-100" : "opacity-0",
           )}
         />
@@ -1097,7 +1065,6 @@ export function Timeline({
             edges.right ? "opacity-100" : "opacity-0",
           )}
         />
-      </div>
       </div>
 
       {/* After the timeline, so that the pinned bar follows the lanes in reading and tab order. */}

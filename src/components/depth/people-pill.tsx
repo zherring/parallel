@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, Eye, EyeOff, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { REDUCED_MOTION, useMediaQuery } from "@/components/depth/use-media";
@@ -13,7 +13,7 @@ import { filmCountLabel, joinNames } from "@/lib/format";
 import { personColor } from "@/lib/person-colors";
 import type { PersonSummary } from "@/lib/types";
 
-/** One person of the page as the pill shows them (the people column's `PanelPerson` has all of it, and is one). */
+/** One person of the page as the pill shows them. */
 export interface PillPerson {
   /** The person, with the biography their name opens. */
   person: PersonSummary;
@@ -25,10 +25,17 @@ export interface PillPerson {
   filmCount: number;
   /** The page without them. */
   removeHref: string;
+  /** Their films are on the timeline (the eye); only meaningful where the pill has `onToggleVisible`. A person is shown unless this says false. */
+  visible?: boolean;
 }
 
 interface PeoplePillProps {
   people: readonly PillPerson[];
+  /**
+   * Shows or hides a person's films: the eye in each row, where the view has films to hide (the flat Timeline of several people). Without it
+   * the rows have no eye, and nobody is dimmed. Hiding the last person on the track is refused (that eye is disabled): it is never empty.
+   */
+  onToggleVisible?: (personId: number) => void;
   /** The scene's scroller: scrolling it more than `SCROLL_CLOSE_PX` closes the panel. None on the flat pages, where the window is what scrolls. */
   scrollerRef?: RefObject<HTMLDivElement | null>;
 }
@@ -67,8 +74,8 @@ function headRects(root: ParentNode, attribute: string): Map<string, DOMRect> {
 
 /**
  * The people on the page, folded into a pill at the top left: their overlapping heads (in their colours) and names,
- * with no logo. Tapping the heads opens a floating card: each person's row, with a way to remove them, and the key to the green.
- * The way back to the flat timeline is the layout control and the views, in `PeopleBar`, which also holds the pill's place. The heads fly apart into their rows when it opens and fly back together when it closes (a FLIP animation
+ * with no logo. Tapping the heads opens a floating card: each person's row, with a way to remove them and, on the flat Timeline of several people, an
+ * eye that shows or hides their films (what the timeline's people column, now gone, had), and the key to the green. The views are in `PeopleBar`, which also holds the pill's place. The heads fly apart into their rows when it opens and fly back together when it closes (a FLIP animation
  * with the hero's spring, on the compositor; none for reduced motion). While it is open the pill's outline fades away and, in
  * its place, the app's usual search field to add someone (focused) takes the card's width, with a close button of its own,
  * a square icon just to its right.
@@ -82,7 +89,7 @@ function headRects(root: ParentNode, attribute: string): Map<string, DOMRect> {
  * It is laid out by `PeopleBar` (a fixed bar, a sibling of the Depth view's scroller, never inside it: perspective would turn `fixed` into
  * `absolute`); while it is open it has `data-open`, which the bar's other controls look for to step aside.
  */
-export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
+export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillProps) {
   const reduced = useMediaQuery(REDUCED_MOTION);
 
   const panelId = useId();
@@ -100,6 +107,10 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
   const peopleInView = useMemo(() => people.map(({ person }) => ({ id: person.id, name: person.name })), [people]);
   const names = joinNames(people.map(({ person }) => person.name));
   const single = people.length === 1;
+  /** The eyes are on offer here; a person is on the track unless theirs is off. Without them nobody is hidden. */
+  const hideable = onToggleVisible !== undefined;
+  const isVisible = (entry: PillPerson) => !hideable || entry.visible !== false;
+  const visibleCount = people.filter(isVisible).length;
 
   const open = () => {
     const root = rootRef.current;
@@ -295,22 +306,28 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
             className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-full py-1 pl-2 pr-2 hover:bg-surface/60 max-sm:pl-1.5"
           >
             <span className="flex shrink-0 items-center -space-x-1 pl-1">
-              {people.map(({ person, slot }) => (
-                <span
-                  key={person.id}
-                  data-pill-head={person.id}
-                  // The heads are in the panel's rows while it is open (they fly there); this is where they come back to.
-                  className={cn("relative inline-flex rounded-full", shown && "opacity-0")}
-                >
-                  <PersonAvatar
-                    name={person.name}
-                    profilePath={person.profilePath}
-                    size={32}
-                    ringColor={personColor(slot)}
-                    className="max-sm:size-7!"
-                  />
-                </span>
-              ))}
+              {people.map((entry) => {
+                const { person, slot } = entry;
+                const visible = isVisible(entry);
+                return (
+                  <span
+                    key={person.id}
+                    data-pill-head={person.id}
+                    // The heads are in the panel's rows while it is open (they fly there); this is where they come back to.
+                    className={cn("relative inline-flex rounded-full", shown && "opacity-0")}
+                  >
+                    <PersonAvatar
+                      name={person.name}
+                      profilePath={person.profilePath}
+                      size={32}
+                      // A hidden person keeps a faint ring, so their colour is still how you find them again; their head is faint too, closed, so that
+                      // the pill says someone's films are off the timeline.
+                      ringColor={visible ? personColor(slot) : `color-mix(in srgb, ${personColor(slot)} 35%, transparent)`}
+                      className={cn("max-sm:size-7!", !visible && "opacity-50 grayscale")}
+                    />
+                  </span>
+                );
+              })}
             </span>
             <span className="hidden min-w-0 max-w-[18rem] truncate text-sm font-medium text-strong sm:block">{names}</span>
             <ChevronDown aria-hidden="true" className="hidden size-4 shrink-0 text-muted sm:block" />
@@ -365,40 +382,71 @@ export function PeoplePill({ people, scrollerRef }: PeoplePillProps) {
           />
           <div className="relative p-2">
             <ul className="m-0 list-none p-0">
-              {people.map(({ person, slot, roles, filmCount, removeHref }) => (
-                <li key={person.id} className="flex items-center gap-3 rounded-xl px-2 py-2">
-                  <span data-row-head={person.id} className="inline-flex shrink-0 origin-top-left">
-                    {/* The portrait opens the biography, as the name does (and as the people column's rows open it from their name). */}
-                    <PersonBio
-                      person={person}
-                      roles={roles}
-                      portrait={<PersonAvatar name={person.name} profilePath={person.profilePath} size={40} ringColor={personColor(slot)} />}
-                    />
-                  </span>
-                  <div data-fade className="min-w-0 flex-1">
-                    {/* As the people column writes a row: the name (up to two lines, the whole of it on hover) opening the biography, the roles in full, the film count. */}
-                    <p title={person.name} className="line-clamp-2 break-words text-sm font-semibold leading-tight text-strong">
-                      <span className="relative inline-block max-w-full align-top">
-                        <PersonBio person={person} roles={roles} nameTrigger />
-                      </span>
-                    </p>
-                    {roles && <p className="mt-0.5 text-xs leading-snug text-body">{roles}</p>}
-                    <p className="mt-0.5 text-xs tabular-nums text-muted">{filmCountLabel(filmCount)}</p>
-                  </div>
-                  <Link
-                    data-fade
-                    href={removeHref}
-                    prefetch={false}
-                    aria-label={`Remove ${person.name}`}
-                    title={`Remove ${person.name} from the page`}
-                    className="shrink-0 rounded-md px-2 py-1.5 text-xs text-muted hover:bg-surface hover:text-strong"
-                  >
-                    Remove
-                  </Link>
-                </li>
-              ))}
+              {people.map((entry) => {
+                const { person, slot, roles, filmCount, removeHref } = entry;
+                const visible = isVisible(entry);
+                // The last person on the track cannot be hidden: it would be empty.
+                const onlyVisible = visible && visibleCount === 1;
+                return (
+                  <li key={person.id} className="flex items-center gap-3 rounded-xl px-2 py-2">
+                    <span data-row-head={person.id} className="inline-flex shrink-0 origin-top-left">
+                      {/* The portrait opens the biography, as the name does (and as the Clippings' names do). */}
+                      <PersonBio
+                        person={person}
+                        roles={roles}
+                        portrait={
+                          <PersonAvatar
+                            name={person.name}
+                            profilePath={person.profilePath}
+                            size={40}
+                            // A hidden person keeps a faint ring, so their colour is still how you find them again.
+                            ringColor={visible ? personColor(slot) : `color-mix(in srgb, ${personColor(slot)} 35%, transparent)`}
+                            className={cn(!visible && "opacity-50 grayscale")}
+                          />
+                        }
+                      />
+                    </span>
+                    <div data-fade className={cn("min-w-0 flex-1", !visible && "opacity-60")}>
+                      {/* The name (up to two lines, the whole of it on hover) opening the biography, the roles in full, the film count. */}
+                      <p title={person.name} className="line-clamp-2 break-words text-sm font-semibold leading-tight text-strong">
+                        <span className="relative inline-block max-w-full align-top">
+                          <PersonBio person={person} roles={roles} nameTrigger />
+                        </span>
+                      </p>
+                      {roles && <p className="mt-0.5 text-xs leading-snug text-body">{roles}</p>}
+                      <p className="mt-0.5 text-xs tabular-nums text-muted">{visible ? filmCountLabel(filmCount) : `${filmCountLabel(filmCount)}, hidden`}</p>
+                    </div>
+                    {onToggleVisible && (
+                      // The eye that shows or hides this person's films on the timeline (the people column's had one, which the pill took over): pressed while their films are shown.
+                      <button
+                        data-fade
+                        type="button"
+                        aria-pressed={visible}
+                        aria-label={`Show ${person.name}'s films on the timeline`}
+                        title={onlyVisible ? "At least one person has to stay on the timeline" : visible ? "Hide their films" : "Show their films"}
+                        disabled={onlyVisible}
+                        onClick={() => onToggleVisible(person.id)}
+                        className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-surface hover:text-strong disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted"
+                      >
+                        {visible ? <Eye aria-hidden="true" className="size-4" /> : <EyeOff aria-hidden="true" className="size-4" />}
+                      </button>
+                    )}
+                    <Link
+                      data-fade
+                      href={removeHref}
+                      prefetch={false}
+                      aria-label={`Remove ${person.name}`}
+                      title={`Remove ${person.name} from the page`}
+                      className="shrink-0 rounded-md px-2 py-1.5 text-xs text-muted hover:bg-surface hover:text-strong"
+                    >
+                      Remove
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
-            {people.length > 1 && (
+            {/* Only while two or more people are on the track: with one left, nothing is made together on screen. */}
+            {people.length > 1 && visibleCount > 1 && (
               <p data-fade className="flex items-center gap-1.5 px-2 pb-2 pt-1 text-xs text-muted">
                 {/* A small poster in the ring the films made together have in the scene: a crisp green edge, no glow. */}
                 <span aria-hidden className="h-3.5 w-2.5 shrink-0 rounded-[2px] border-2 border-lit" />

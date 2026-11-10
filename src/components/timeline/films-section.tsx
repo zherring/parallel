@@ -6,10 +6,17 @@ import type { PairCritics } from "@/lib/critics";
 import type { TableRow } from "@/lib/film-rows";
 import { hasClippingsTab, isFilmView, quoteIdsOf, showsPeriodNote, type View } from "@/lib/films-view";
 import { ClippingsPanel } from "./clippings-panel";
+import { cn } from "./cn";
 import { FilmsTable } from "./films-table";
 import type { BioPerson } from "./person-bio";
 import type { FilmsTableModel } from "./use-films-table";
 import { useViewTab } from "./use-view-tab";
+
+/**
+ * The Table and the Clippings are read in a column (72rem wide, with the gutter the page has), centred; the Timeline is as wide as the page: its
+ * years have all the room there is.
+ */
+const COLUMN = "mx-auto w-full max-w-[70.5rem] px-1";
 
 /** The id of a view's panel: the page's links to the views (see `PeopleBar`) are what choose which is shown. */
 export const viewPanelId = (headingId: string, view: View) => `${headingId}-panel-${view}`;
@@ -87,6 +94,8 @@ export function FilmsSection({
   }, [revealTick]);
 
   const hidden = (panel: View) => view !== panel;
+  // What goes with the panels lines up with the one on show.
+  const aligned = view === "timeline" ? undefined : COLUMN;
 
   return (
     <section ref={sectionRef} aria-labelledby={headingId}>
@@ -95,7 +104,11 @@ export function FilmsSection({
       </h2>
       <div className="min-h-5 min-w-0 text-sm text-body">{note && showsPeriodNote(view) && note}</div>
 
-      {rows.length === 0 && isFilmView(view) && <p className="mt-4 max-w-xl text-body">{empty}</p>}
+      {rows.length === 0 && isFilmView(view) && (
+        <div className={aligned}>
+          <p className="mt-4 max-w-xl text-body">{empty}</p>
+        </div>
+      )}
 
       <div
         id={viewPanelId(headingId, "timeline")}
@@ -107,18 +120,18 @@ export function FilmsSection({
         {timeline}
       </div>
 
-      <div id={viewPanelId(headingId, "table")} hidden={hidden("table")} className="mt-2">
+      <div id={viewPanelId(headingId, "table")} hidden={hidden("table")} className={cn("mt-2", COLUMN)}>
         {rows.length === 0 ? <p className="text-sm text-muted">There are no films to list.</p> : <FilmsTable caption={caption} table={table} onSelect={onSelect} />}
         {children}
       </div>
 
       {clippingsTab && (
-        <div id={viewPanelId(headingId, "clippings")} hidden={hidden("clippings")} className="mt-2">
+        <div id={viewPanelId(headingId, "clippings")} hidden={hidden("clippings")} className={cn("mt-2", COLUMN)}>
           <ClippingsPanel pair={clippings} critics={critics} active={view === "clippings"} bioPeople={bioPeople} />
         </div>
       )}
 
-      <div hidden={!isFilmView(view)} className="mt-5">
+      <div hidden={!isFilmView(view)} className={cn("mt-5", aligned)}>
         {rows.length > 0 && (
           <p className="text-xs text-muted">
             Rating and box office from TMDB: the audience score, and the worldwide gross with how many times it covered

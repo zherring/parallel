@@ -2,11 +2,11 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PillPerson } from "@/components/depth/people-pill";
 import { FilmPanel } from "@/components/film-panel/film-panel";
 import { PageHeadline } from "@/components/page-headline";
 import { PeopleBar } from "@/components/people-bar";
 import { FilmsSection } from "@/components/timeline/films-section";
-import { PeoplePanel, type PanelLayout, type PanelPerson } from "@/components/timeline/people-panel";
 import type { BioPerson } from "@/components/timeline/person-bio";
 import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
 import { recordFilmsView } from "@/components/timeline/use-films-view-pref";
@@ -76,11 +76,8 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   /** Counts up each time the visitor chooses a view: the films section brings the page back to its top (see `FilmsSection`). */
   const [revealTick, setRevealTick] = useState(0);
   const [urlPeriod, setPeriod] = useUrlPeriod();
-  // Starts with one shared track; separating changes only how the people's films are drawn.
+  // The people whose eye (in the people pill) is off: their films are not on the timeline. Everyone is shown to begin with.
   const [hiddenIds, setHiddenIds] = useState<ReadonlySet<number>>(() => new Set());
-  const [openIds, setOpenIds] = useState<ReadonlySet<number>>(() => new Set());
-  // Full-height docking is an explicit choice of the top control, not a side effect of opening the last row.
-  const [panelLayout, setPanelLayout] = useState<PanelLayout>("condense");
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
   const multi = timelines.length > 1;
@@ -134,30 +131,26 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     [timelines, includeMinor],
   );
 
-  // Combined: the people whose eye is on, and what the people column says of everyone.
+  // Combined: the people whose eye is on.
   const visibleLanes = useMemo(() => lanes.filter((lane) => !hiddenIds.has(lane.person.id)), [lanes, hiddenIds]);
-  // A person's palette slot is their lane's position (the URL order, see `personSlots`).
-  const panelPeople: PanelPerson[] = useMemo(
+  // The people pill's rows. A person's palette slot is their lane's position (the URL order, see `personSlots`).
+  const pillPeople: PillPerson[] = useMemo(
     () =>
-      lanes.map(({ person, films }, index) => {
-        const { roles, facts } = laneSummary(films, person, includeMinor);
-        return {
-          person,
-          slot: index,
-          roles,
-          facts,
-          filmCount: films.length,
-          visible: !hiddenIds.has(person.id),
-          removeHref: removePersonHref(people, person.id),
-        };
-      }),
+      lanes.map(({ person, films }, index) => ({
+        person,
+        slot: index,
+        roles: laneSummary(films, person, includeMinor).roles,
+        filmCount: films.length,
+        removeHref: removePersonHref(people, person.id),
+        visible: !hiddenIds.has(person.id),
+      })),
     [lanes, includeMinor, hiddenIds, people],
   );
 
-  // The names in the Clippings tab open the same biography dialog as the people column, with the same roles.
+  // The names in the Clippings tab open the same biography dialog as the people pill's rows, with the same roles.
   const bioPeople: BioPerson[] = useMemo(
-    () => panelPeople.map(({ person, roles }) => ({ person, roles })),
-    [panelPeople],
+    () => pillPeople.map(({ person, roles }) => ({ person, roles })),
+    [pillPeople],
   );
 
   // Hiding someone changes the axis (it spans the films shown): keep the year in the middle where it is.
@@ -168,24 +161,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     },
     [people],
   );
-  const handleToggleOpen = useCallback((personId: number) => {
-    // Leaving the docked column adds the floating inset to --lane-head. Preserve the year
-    // under the viewport's centre before that width changes, even for an individual caret.
-    if (panelLayout === "stack") timelineRef.current?.rememberCenter();
-    setPanelLayout("condense");
-    setOpenIds((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(personId)) next.add(personId);
-      return next;
-    });
-  }, [panelLayout]);
-
-  const handlePanelLayoutChange = useCallback((layout: PanelLayout) => {
-    timelineRef.current?.rememberCenter();
-    setPanelLayout(layout);
-    setOpenIds(new Set(layout === "stack" ? people.map((person) => person.id) : []));
-  }, [people]);
-
   // Filtering can change the axis; keep the year in the middle before updating either view.
   const handleIncludeMinorChange = useCallback((next: boolean) => {
     timelineRef.current?.rememberCenter();
@@ -260,25 +235,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       lanes={visibleLanes}
       combined={combined}
       showAll={showAll}
-      // The settings and the layout control are the page bar's: the Timeline has none of its own.
-      settingsControl={null}
-      sidebarExpanded={panelLayout === "stack"}
-      sidebar={
-        // The people column belongs to both layouts: the eye and the details stay where they were
-        // when the track switches between combined and separate.
-        multi
-          ? (
-              <PeoplePanel
-                people={panelPeople}
-                layout={panelLayout}
-                onLayoutChange={handlePanelLayoutChange}
-                openIds={openIds}
-                onToggleOpen={handleToggleOpen}
-                onToggleVisible={handleToggleVisible}
-              />
-            )
-          : undefined
-      }
       people={people}
       includeMinor={includeMinor}
       today={today}
@@ -298,7 +254,10 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         top the page's content clears (`pt-[4.5rem]`). The site's header is hidden on these pages (globals.css). It is before the page's content, so first in the tab order.
       */}
       <PeopleBar
-        people={panelPeople}
+        people={pillPeople}
+        // The eyes are the pill's, where the films they show and hide are: the Timeline of several people (the Table and Clippings list films the
+        // eyes do not change, and Focus draws them all).
+        onToggleVisible={multi && view === "timeline" ? handleToggleVisible : undefined}
         clippings={clippingsTab}
         view={view}
         hrefFor={hrefFor}
@@ -319,7 +278,8 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         (about 4rem tall, over the top of the page).
       */}
       <PageHeadline people={people} count={rows.length} />
-      <div className="mx-auto w-full min-w-0 max-w-6xl px-4 pb-8 pt-[4.5rem]">
+      {/* As wide as the page, with the bar's own gutter (12px): the Timeline spans it, and the Table and Clippings keep a reading column (see `FilmsSection`). */}
+      <div className="w-full min-w-0 px-3 pb-8 pt-[4.5rem]">
         {/* The combined timeline's colours, as custom properties (src/lib/person-colors.ts): the hover card is in a portal. */}
         {multi && <style>{personColorCss()}</style>}
 

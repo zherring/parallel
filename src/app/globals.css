@@ -104,10 +104,9 @@ body:has([data-people-bar]) > header {
 
 /*
  * Moving between a flat view and the Depth view is a navigation, and the page bar (src/components/people-bar.tsx) is a different one on each
- * side of it: the gear sits where its view puts it (at the right edge on the flat pages, clear of the year rail on the Depth view) and the layout
- * control comes with the Timeline and Focus. React's <ViewTransition> (it starts on a navigation, see Next's "View transitions" guide) pairs
- * the two gears by name (and the two layout controls), and the browser glides each from the old place to the new; a layout control that is
- * only on one side fades in or out. Nothing else is named: the root is not captured (`view-transition-name: none`), so the page itself, the Depth
+ * side of it: the gear and the view switcher, before it, sit where their view puts them (at the right edge on the flat pages, clear of the year rail
+ * on the Depth view). React's <ViewTransition> (it starts on a navigation, see Next's "View transitions" guide) pairs the two gears by name (and
+ * the two switchers, which are on every view), and the browser glides each from the old place to the new. Nothing else is named: the root is not captured (`view-transition-name: none`), so the page itself, the Depth
  * scene included, changes at once as it always has, live, with no cross-fade over it, and the bar's other items, which are in the same place on
  * both sides, are simply the new page's. The glide is the people pill's spring (`springEasing` in src/components/landing/hero-motion.ts) over 360ms;
  * the pair's two images cross-fade linearly, so that the overlap does not flash.
@@ -127,24 +126,6 @@ body:has([data-people-bar]) > header {
 ::view-transition-old(.bar-glide),
 ::view-transition-new(.bar-glide) {
   animation-timing-function: linear;
-}
-::view-transition-new(.bar-control-in) {
-  animation: 240ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both bar-control-in;
-}
-::view-transition-old(.bar-control-out) {
-  animation: 140ms ease-in both bar-control-out;
-}
-@keyframes bar-control-in {
-  from {
-    opacity: 0;
-    translate: 10px 0;
-  }
-}
-@keyframes bar-control-out {
-  to {
-    opacity: 0;
-    translate: 10px 0;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*),

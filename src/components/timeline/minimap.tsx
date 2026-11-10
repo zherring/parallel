@@ -87,7 +87,7 @@ const toExtent = (band: { left: number; right: number }, width: number): Extent 
 interface MinimapBarProps {
   /** The timeline's scrolling container; the minimap reads and writes its scrollLeft. */
   scrollerRef: RefObject<HTMLDivElement | null>;
-  /** The axis's left spacer: the sticky lane header or room reserved for the floating People panel. */
+  /** The axis's left spacer: the sticky lane header (none on the combined track, which is everyone's). */
   cornerRef: RefObject<HTMLDivElement | null>;
   /** id of the scroller, for aria-controls. */
   scrollerId: string;

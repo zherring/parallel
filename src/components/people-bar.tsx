@@ -36,6 +36,8 @@ interface PeopleBarProps {
    * Without a rail (the flat pages) the gear hugs the right edge, with the same gutter the home pill has at the left.
    */
   rail?: boolean;
+  /** Shows or hides a person's films: the eye in the people pill's rows, on the views that have films to hide (see `PeoplePill`). None: no eyes. */
+  onToggleVisible?: (personId: number) => void;
   /** The films the page lists (the headline's count, the table's rows): what the pill after the people says, "30 films made together" for a pair. */
   filmCount: number;
   /** "Show all films", as on the flat page. */
@@ -91,6 +93,7 @@ export function PeopleBar({
   hrefFor,
   onSelect,
   rail = false,
+  onToggleVisible,
   filmCount,
   showAll,
   onShowAllChange,
@@ -143,7 +146,7 @@ export function PeopleBar({
         >
           <Wordmark className="text-base" />
         </HomeLink>
-        <PeoplePill people={people} scrollerRef={scrollerRef} />
+        <PeoplePill people={people} scrollerRef={scrollerRef} onToggleVisible={onToggleVisible} />
         {/* Right after the people: how many films they made together (or, for one person, how many films). It steps aside with the tabs for the open pill. */}
         <TogetherCount
           several={people.length > 1}
