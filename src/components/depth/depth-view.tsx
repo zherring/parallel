@@ -200,6 +200,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
         people={pillPeople}
         scrollerRef={scrollerRef}
         clippings={clippingsTab}
+        filmCount={rows.length}
         showAll={showAll}
         onShowAllChange={handleShowAllChange}
         includeMinor={includeMinor}

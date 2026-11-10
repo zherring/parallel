@@ -303,6 +303,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         view={view}
         hrefFor={hrefFor}
         onSelect={selectView}
+        filmCount={rows.length}
         showAll={showAll}
         onShowAllChange={handleShowAllChange}
         includeMinor={includeMinor}

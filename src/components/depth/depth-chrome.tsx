@@ -16,6 +16,8 @@ interface DepthChromeProps {
   scrollerRef: RefObject<HTMLDivElement | null>;
   /** Whether the page has a Clippings view: a pair that has quotes or critics (see `hasClippingsTab`). */
   clippings: boolean;
+  /** The films the page lists, as the flat page counts them (the headline's count): what the bar's pill says they made together. */
+  filmCount: number;
   /** "Show all films", as on the flat page: off, the films the flat timeline leaves as bare nodes have no poster here (see `postersLeftOut`). */
   showAll: boolean;
   onShowAllChange: (showAll: boolean) => void;
@@ -42,6 +44,7 @@ export function DepthChrome({
   people,
   scrollerRef,
   clippings,
+  filmCount,
   showAll,
   onShowAllChange,
   includeMinor,
@@ -63,6 +66,7 @@ export function DepthChrome({
       people={people}
       scrollerRef={scrollerRef}
       clippings={clippings}
+      filmCount={filmCount}
       view={DEPTH_VIEW}
       hrefFor={hrefFor}
       rail

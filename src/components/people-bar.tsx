@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, ViewTransition, type RefObject } from "react";
 import { PeoplePill, type PillPerson } from "@/components/depth/people-pill";
 import { HomeLink } from "@/components/home-link";
+import { TogetherCount } from "@/components/together-count";
 import { Wordmark } from "@/components/wordmark";
 import { cn } from "@/components/timeline/cn";
 import { ExportButton, type ExportList } from "@/components/timeline/export-button";
@@ -35,6 +36,8 @@ interface PeopleBarProps {
    * Without a rail (the flat pages) the gear hugs the right edge, with the same gutter the home pill has at the left.
    */
   rail?: boolean;
+  /** The films the page lists (the headline's count, the table's rows): what the pill after the people says, "30 films made together" for a pair. */
+  filmCount: number;
   /** "Show all films", as on the flat page. */
   showAll: boolean;
   onShowAllChange: (showAll: boolean) => void;
@@ -61,8 +64,8 @@ const STEPS_ASIDE =
 
 /**
  * The page bar of a `/p/` page, fixed to the top of the screen, the same on every view (the flat Timeline, Table and Clippings, and the Depth
- * view): a small pill home (the site's header is hidden on these pages, see globals.css), the people pill and the page's two sections, Films and
- * Clippings, beside it at the left, and at the right the view switcher (Timeline, Focus, Table) and the gear. Everything at the left is in the
+ * view): a small pill home (the site's header is hidden on these pages, see globals.css), the people pill, the count of the films they made
+ * together (`TogetherCount`) and the page's two sections, Films and Clippings, beside it at the left, and at the right the view switcher (Timeline, Focus, Table) and the gear. Everything at the left is in the
  * same place and size on every view, and so is everything at the right but for what the Depth view's rail asks of it: the gear, with the switcher
  * before it, sits clear of the year rail on Focus (`rail`), and at the right edge on the flat pages, with the gutter the home pill has at the left.
  * Between the flat views they do not move; between a flat view and Focus they glide, as a view transition: the bar is a different one on each page,
@@ -88,6 +91,7 @@ export function PeopleBar({
   hrefFor,
   onSelect,
   rail = false,
+  filmCount,
   showAll,
   onShowAllChange,
   includeMinor,
@@ -140,6 +144,13 @@ export function PeopleBar({
           <Wordmark className="text-base" />
         </HomeLink>
         <PeoplePill people={people} scrollerRef={scrollerRef} />
+        {/* Right after the people: how many films they made together (or, for one person, how many films). It steps aside with the tabs for the open pill. */}
+        <TogetherCount
+          several={people.length > 1}
+          count={filmCount}
+          className={cn("mt-2 max-sm:mt-1.5", STEPS_ASIDE)}
+          pillClassName={FLOATING}
+        />
         <SectionTabs
           clippings={clippings}
           section={section}
