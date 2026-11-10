@@ -295,7 +295,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     <>
       {/*
         The page bar, the same on every view of the page, and the Depth view's too (see `PeopleBar`): fixed to the top of the screen, over the page, whose
-        top the headline's block clears. The site's header is hidden on these pages (globals.css). It is before the headline, so first in the tab order.
+        top the page's content clears (`pt-[4.5rem]`). The site's header is hidden on these pages (globals.css). It is before the page's content, so first in the tab order.
       */}
       <PeopleBar
         people={panelPeople}
@@ -314,11 +314,12 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         backdrop
       />
       {/*
-        The headline: the names and, muted, the film count the table lists (it follows the checkbox, like the table does; the server renders the
-        default, the checkbox off, so the first client render matches). At the top left under the bar, as in the Depth view, and in the flow of the page.
+        The headline, for screen readers and search engines only (sr-only): the names and the film count the table lists (it follows the checkbox, like
+        the table does; the server renders the default, the checkbox off, so the first client render matches). The page's content starts under the bar
+        (about 4rem tall, over the top of the page).
       */}
       <PageHeadline people={people} count={rows.length} />
-      <div className="mx-auto w-full min-w-0 max-w-6xl px-4 pb-8">
+      <div className="mx-auto w-full min-w-0 max-w-6xl px-4 pb-8 pt-[4.5rem]">
         {/* The combined timeline's colours, as custom properties (src/lib/person-colors.ts): the hover card is in a portal. */}
         {multi && <style>{personColorCss()}</style>}
 

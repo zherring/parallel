@@ -209,6 +209,8 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
         share={share}
         exportList={exportList}
       />
+      {/* The page's h1, for screen readers and search engines only (sr-only): outside the scene, which has nothing of it to place. */}
+      <PageHeadline people={people} count={rows.length} />
       {/* Beneath the scroller, which is transparent: a mote is never drawn over a poster. */}
       <DustMotes scrollerRef={scrollerRef} />
       <DepthScene
@@ -224,7 +226,6 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
         selectedId={selectedId}
         today={today}
         onSelect={handleSelect}
-        headline={<PageHeadline people={people} count={rows.length} />}
       />
       <YearRail
         scrollerRef={scrollerRef}

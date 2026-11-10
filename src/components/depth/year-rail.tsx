@@ -141,7 +141,7 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
     if (typeof ResizeObserver !== "undefined") {
       observer = new ResizeObserver(schedule);
       observer.observe(scroller);
-      // The track (the scene's tall element), not the scroller's first child: the headline is before it.
+      // The track (the scene's tall element), found by its mark rather than as the scroller's first child.
       const track = scroller.querySelector("[data-depth-track]");
       if (track) observer.observe(track);
     }
