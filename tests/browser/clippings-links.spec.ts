@@ -22,7 +22,7 @@ test("both attribution names and source links stay white on desktop and mobile",
   });
 
   await page.goto("/p/309-pedro-almodovar+955-penelope-cruz?view=clippings");
-  await expect(page.getByRole("navigation", { name: "Sections", exact: true }).getByRole("link", { name: "Clippings", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("navigation", { name: "Sections", exact: true }).getByRole("link", { name: "Quotes", exact: true })).toHaveAttribute("aria-current", "page");
   const quote = page.locator("#quote-i-was-so-happy-that-he");
   const speaker = quote.getByRole("button", { name: "Penélope Cruz", exact: true });
   const subject = quote.getByRole("button", { name: "Pedro Almodóvar", exact: true });

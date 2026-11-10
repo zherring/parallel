@@ -50,7 +50,7 @@ test("the combined track has no left column: the timeline is as wide as the page
   await expect.poll(async () => (await scrollState(track)).inset).toBe(0);
   const viewport = page.viewportSize()!;
   const box = (await track.boundingBox())!;
-  // The page's own gutter (12px, the bar's), both sides: the Table and Clippings are the ones with a reading column.
+  // The page's own gutter (12px, the bar's), both sides: the Table and Quotes are the ones with a reading column.
   expect(Math.round(box.x)).toBe(12);
   expect(Math.round(viewport.width - (box.x + box.width))).toBe(12);
 });

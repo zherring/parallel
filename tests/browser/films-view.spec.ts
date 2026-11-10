@@ -3,9 +3,9 @@ import { PAIR, expect, test } from "./almodovar";
 import { FILMS_VIEW_KEY, bar, clippingsTab, filmsTab, scene, storedFilmsView, viewLink, type FilmsViewName } from "./fixtures";
 
 /**
- * The page's top level is Films and Clippings; Films has three views (the Timeline, Focus and the Table), chosen with the bar's switcher, and its tab
+ * The page's top level is Films and Quotes; Films has three views (the Timeline, Focus and the Table), chosen with the bar's switcher, and its tab
  * goes to the one last used. These specs are about that: the memory (in `localStorage`, `parallel:films-view`), and the switcher from every view.
- * The pair is Almodóvar and Cruz, who have Clippings; every test gets a fresh browser context, so a view recorded in one is never there in the next:
+ * The pair is Almodóvar and Cruz, who have Quotes; every test gets a fresh browser context, so a view recorded in one is never there in the next:
  * a new visitor.
  */
 
@@ -34,7 +34,7 @@ async function open(page: Page, view: FilmsViewName | "clippings", search = QUER
 }
 
 for (const start of ["timeline", "depth", "table"] as const) {
-  test(`the Films tab remembers the ${start} view across the Clippings and back, with the period`, async ({ page }) => {
+  test(`the Films tab remembers the ${start} view across the Quotes and back, with the period`, async ({ page }) => {
     await open(page, start, `?${PERIOD}${start === "timeline" ? "" : `&view=${start}`}`);
 
     await clippingsTab(page).click();
@@ -42,7 +42,7 @@ for (const start of ["timeline", "depth", "table"] as const) {
     await expect(filmsTab(page)).not.toHaveAttribute("aria-current", /.+/);
     await expect(scene(page)).toHaveCount(0);
     expect(params(page)).toEqual({ from: "2001", to: "2005", view: "clippings" });
-    // The Clippings are not a films view: nothing was recorded by being there, and the Films tab points back at the one that was.
+    // The Quotes are not a films view: nothing was recorded by being there, and the Films tab points back at the one that was.
     expect(await storedFilmsView(page)).toBe(start);
     await expect(filmsTab(page)).toHaveAttribute("href", withPeriod(start).replace(`${PAIR}`, new URL(page.url()).pathname));
 
@@ -62,7 +62,7 @@ for (const start of ["timeline", "depth", "table"] as const) {
 }
 
 test("the Films tab goes to the view last used, and it is read from storage after the page loads (a plain, fresh visitor gets the Timeline)", async ({ page }) => {
-  // A new visitor: the Films tab is the page's own address, the Timeline, and visiting the Clippings records nothing.
+  // A new visitor: the Films tab is the page's own address, the Timeline, and visiting the Quotes records nothing.
   await open(page, "clippings");
   await expect(filmsTab(page)).toHaveAttribute("href", PAIR);
   expect(await storedFilmsView(page)).toBeNull();
@@ -77,7 +77,7 @@ test("the Films tab goes to the view last used, and it is read from storage afte
   }
 });
 
-test("visiting a films view records it, by any means: the address, the switcher and the Films tab; the Clippings and an unknown value do not", async ({ page }) => {
+test("visiting a films view records it, by any means: the address, the switcher and the Films tab; the Quotes and an unknown value do not", async ({ page }) => {
   // By a typed address.
   await open(page, "table");
   expect(await storedFilmsView(page)).toBe("table");
@@ -97,7 +97,7 @@ test("visiting a films view records it, by any means: the address, the switcher 
   await expect(viewLink(page, "table")).toHaveAttribute("aria-current", "page");
   await expect.poll(() => storedFilmsView(page)).toBe("table");
 
-  // The Clippings are no films view.
+  // The Quotes are no films view.
   await clippingsTab(page).click();
   await expect(clippingsTab(page)).toHaveAttribute("aria-current", "page");
   expect(await storedFilmsView(page)).toBe("table");
@@ -163,7 +163,7 @@ for (const start of STARTS) {
   for (const target of TARGETS) {
     test(`the switcher goes from the ${start === "depth" ? "Focus" : start} view to ${target === "depth" ? "Focus" : target}, and keeps the period`, async ({ page }) => {
       await open(page, start, `?${PERIOD}${start === "timeline" ? "" : `&view=${start}`}`);
-      // The three views are there on every view, the Clippings too, where none is current (the bar is the same size on all four).
+      // The three views are there on every view, the Quotes too, where none is current (the bar is the same size on all four).
       await expect(bar(page).getByRole("navigation", { name: "Films view", exact: true }).getByRole("link")).toHaveCount(3);
 
       await viewLink(page, target).click();
@@ -174,7 +174,7 @@ for (const start of STARTS) {
 
       if (target === "depth") await expect(scene(page)).toBeVisible();
       else await expect(scene(page)).toHaveCount(0);
-      // The period goes along; the view is the address's (the Timeline has none), and nothing of the one that was left (a sort, a quote, the Clippings) stays.
+      // The period goes along; the view is the address's (the Timeline has none), and nothing of the one that was left (a sort, a quote, the Quotes) stays.
       expect(params(page)).toEqual({ from: "2001", to: "2005", ...(target === "timeline" ? {} : { view: target }) });
       expect(new URL(page.url()).pathname).toBe(PAIR);
       // It is the view the Films tab goes to from now on.
@@ -195,14 +195,14 @@ test("a click with a modifier on a switcher link is the browser's, not the page'
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test("the gear's sheet is the switcher and the Films | Clippings choice: the same round trip, with the period", async ({ page }) => {
+  test("the gear's sheet is the switcher and the Films | Quotes choice: the same round trip, with the period", async ({ page }) => {
     await page.goto(`${PAIR}?view=depth&${PERIOD}`);
     await expect(scene(page)).toBeVisible();
     await expect.poll(() => storedFilmsView(page)).toBe("depth");
     const gear = page.getByRole("button", { name: "Settings", exact: true });
     const sheet = page.getByRole("dialog", { name: "Settings", exact: true });
 
-    // Focus → Table (the sheet's three-way choice) → Clippings (its Films | Clippings row) → Films, which is the Table.
+    // Focus → Table (the sheet's three-way choice) → Quotes (its Films | Quotes row) → Films, which is the Table.
     await gear.tap();
     await sheet.getByRole("navigation", { name: "Films view", exact: true }).getByRole("link", { name: "Table view", exact: true }).tap();
     await expect(scene(page)).toHaveCount(0);
@@ -210,7 +210,7 @@ test.describe("on a phone", () => {
     expect(params(page)).toEqual({ from: "2001", to: "2005", view: "table" });
 
     await gear.tap();
-    await sheet.getByRole("navigation", { name: "Sections", exact: true }).getByRole("link", { name: "Clippings", exact: true }).tap();
+    await sheet.getByRole("navigation", { name: "Sections", exact: true }).getByRole("link", { name: "Quotes", exact: true }).tap();
     await expect(sheet).toBeHidden();
     await expect(page.locator('nav[aria-label="Sections"] a[href*="view=clippings"]')).toHaveAttribute("aria-current", "page");
     expect(params(page)).toEqual({ from: "2001", to: "2005", view: "clippings" });

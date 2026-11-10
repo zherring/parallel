@@ -3,15 +3,16 @@ import { FILM_COUNT, HEADLINE, PAIR, expect, test } from "./almodovar";
 import { bar, scene, storedFilmsView, viewLink } from "./fixtures";
 
 /**
- * The page bar of a `/p/` page is the same on every view: the flat Timeline, Table and Clippings, and the Depth view (Focus). These tests measure
- * it. The home pill, the people pill, the pill of films made together and the Films and Clippings tabs are in the same place on all four; at the
- * right, the view switcher (Timeline, Focus, Table) and the gear are where their view puts them (at the right edge on the flat views, left of the
- * year rail on Focus), and are on every view, the Clippings too; between a flat view and Focus they glide (a view transition), and the tests watch
- * that happen. They check what goes with the bar too: the h1 (visually hidden, on every view) and what is no longer on the page (the site's header,
- * the title row's Add a person field, the row of Export and Share: Export and Share are in the gear).
+ * The page bar of a `/p/` page is the same on every view: the flat Timeline, Table and Quotes, and the Depth view (Focus). These tests measure
+ * it. The home circle, the people pill and the pill of films made together are in the same place on all four, and as tall as the switcher and the
+ * gear (one height, the people pill's); at the right, the view switcher (Timeline, Focus, Table) and the gear are where their view puts them (at the
+ * right edge on the flat views, left of the year rail on Focus), and are on every view, the Quotes too; between a flat view and Focus they glide (a
+ * view transition), and the tests watch that happen. The Films | Quotes nav is not in the bar's row but down the left edge under the home circle
+ * (see section-nav.spec.ts), the same on every view. They check what goes with the bar too: the h1 (visually hidden, on every view) and what is no
+ * longer on the page (the site's header, the title row's Add a person field, the row of Export and Share: Export and Share are in the gear).
  *
- * The pair is Almodóvar and Cruz, who have Clippings (a pair without any has Films alone in the bar), with a dozen films in common so that the
- * pages are long enough to scroll.
+ * The pair is Almodóvar and Cruz, who have Quotes (a pair without any has no section nav), with a dozen films in common so that the pages are long
+ * enough to scroll.
  */
 
 // Activate the server-side fetch fixtures before any test navigates to a people page.
@@ -30,7 +31,7 @@ const together = (page: Page) => bar(page).locator("[data-together-pill]");
 
 /**
  * The bar's link to a view, found by what it is rather than by its role, so that it is found where it is not shown (a phone's bar hides the tabs
- * and the switcher: the gear's sheet has the same links). The Clippings are a section's tab, the others the switcher's.
+ * and the switcher: the gear's sheet has the same links). The Quotes are a section's tab, the others the switcher's.
  */
 const link = (page: Page, view: ViewName) =>
   view === "clippings"
@@ -57,7 +58,7 @@ type Box = { x: number; y: number; width: number; height: number };
 const round = (box: Box | null): Box | null =>
   box && Object.fromEntries(Object.entries(box).map(([key, value]) => [key, Math.round(value * 100) / 100])) as Box;
 
-/** Where each of the bar's items is on the screen (null for one that is not shown: the home pill, the tabs and the switcher are not on a phone). */
+/** Where each of the bar's items is on the screen (null for one that is not shown: the section nav and the switcher are not on a phone). */
 async function measureBar(page: Page) {
   const root = bar(page);
   const box = async (locator: Locator) => ((await locator.count()) > 0 && (await locator.first().isVisible()) ? round(await locator.first().boundingBox()) : null);
@@ -65,10 +66,11 @@ async function measureBar(page: Page) {
   return {
     bar: await box(root),
     home: await box(root.getByRole("link", { name: "Parallel home", exact: true })),
-    people: await box(root.getByRole("button", { name: /^People on this page/ })),
+    // The people pill: its capsule, which is as tall as the rest of the bar (its button is inside it).
+    people: await box(root.locator("[data-pill-capsule]")),
     // The pill of films made together, after the people.
     together: await box(together(page)),
-    // The sections: Films and Clippings, in the same box on every view.
+    // The sections: Films and Quotes, down the left edge under the home circle (not in the bar's row), in the same box on every view.
     sections: await box(root.locator('nav[aria-label="Sections"]')),
     sectionItems: await Promise.all([0, 1].map((index) => box(items("Sections").nth(index)))),
     // The view switcher and the gear: where their view puts them.
@@ -94,7 +96,7 @@ for (const [label, viewport] of [
   test.describe(`at ${viewport.width}px`, () => {
     test.use({ viewport, hasTouch: label === "phone", isMobile: label === "phone" });
 
-    test("the home pill, the people, the count and the sections are in the same place and size on the Timeline, the Table, the Clippings and Focus; the switcher and the gear are at the right edge on the flat views and left of the rail on Focus", async ({ page }) => {
+    test("the home circle, the people, the count and the sections are in the same place and size on the Timeline, the Table, the Quotes and Focus; the switcher and the gear are at the right edge on the flat views and left of the rail on Focus", async ({ page }) => {
       const measured = {} as Record<ViewName, BarBoxes>;
       let rail: Box | null = null;
       for (const view of ALL_VIEWS) {
@@ -104,12 +106,12 @@ for (const [label, viewport] of [
       }
 
       const timeline = measured.timeline;
-      // It is the bar: the people, the count and the gear are there on every view, the home pill, the sections and the switcher only from the small breakpoint up
-      // (a phone's gear holds them).
+      // It is the bar: the home circle, the people, the count and the gear are there on every view and on a phone, the section nav and the switcher only from the
+      // small breakpoint up (a phone's gear holds them).
+      expect(timeline.home).not.toBeNull();
       expect(timeline.people).not.toBeNull();
       expect(timeline.together).not.toBeNull();
       expect(timeline.gear).not.toBeNull();
-      expect(timeline.home === null).toBe(label === "phone");
       expect(timeline.sections === null).toBe(label === "phone");
       expect(timeline.switcher === null).toBe(label === "phone");
       // Every item but the gear and the switcher is identical on all four views.
@@ -121,16 +123,29 @@ for (const [label, viewport] of [
       // The count comes right after the people, on their level.
       expect(timeline.together!.x).toBeGreaterThan(timeline.people!.x + timeline.people!.width);
       expect(Math.abs(timeline.together!.y + timeline.together!.height / 2 - (timeline.people!.y + timeline.people!.height / 2))).toBeLessThan(2);
-      if (label === "desktop") expect(timeline.sections!.x).toBeGreaterThan(timeline.together!.x + timeline.together!.width);
+      // The home circle comes first, a circle, then the people.
+      expect(timeline.home!.x).toBe(12);
+      expect(timeline.home!.width).toBe(timeline.home!.height);
+      expect(timeline.people!.x).toBeGreaterThan(timeline.home!.x + timeline.home!.width);
 
-      // The flat views share their boxes, the gear's and the switcher's too: at the right edge, with the gutter the home pill has at the left. (A phone has no home
-      // pill: its first item is the people pill, whose outline starts at the same 12px, with its button inside that, so the gutter is the bar's own.)
+      // One height: the home circle, the people pill, the count pill, the switcher and the gear are as tall as each other (the people pill's own: 50px, 46px on a phone),
+      // on every view, and on one line.
+      for (const view of ALL_VIEWS) {
+        const { home, people, together: count, switcher: views, gear } = measured[view];
+        const row = [home, people, count, gear, ...(label === "desktop" ? [views] : [])];
+        for (const box of row) {
+          expect(box!.height, `the height on ${view}`).toBe(label === "phone" ? 46 : 50);
+          expect(box!.y, `the top on ${view}`).toBe(home!.y);
+        }
+      }
+
+      // The flat views share their boxes, the gear's and the switcher's too: at the right edge, with the gutter the home circle has at the left.
       for (const view of ["table", "clippings"] as const) {
         expect(measured[view].gear, `the gear on ${view}`).toEqual(timeline.gear);
         expect(measured[view].switcher, `the switcher on ${view}`).toEqual(timeline.switcher);
         expect(measured[view].switcherItems, `the switcher's items on ${view}`).toEqual(timeline.switcherItems);
       }
-      const leftGutter = label === "phone" ? 12 : timeline.home!.x;
+      const leftGutter = timeline.home!.x;
       expect(leftGutter).toBe(12);
       for (const view of ["timeline", "table", "clippings"] as const) {
         const gear = measured[view].gear!;
@@ -144,7 +159,7 @@ for (const [label, viewport] of [
       expect(focusGear.x).toBeLessThan(timeline.gear!.x);
       expect({ y: focusGear.y, width: focusGear.width, height: focusGear.height }).toEqual({ y: timeline.gear!.y, width: timeline.gear!.width, height: timeline.gear!.height });
 
-      // The switcher: on every view of a desktop (the Clippings too, where none of its views is current), before the gear with the gap the bar's controls have,
+      // The switcher: on every view of a desktop (the Quotes too, where none of its views is current), before the gear with the gap the bar's controls have,
       // the same size and height on all four, and moved by the rail's room just as the gear is. Not on a phone's bar at all.
       if (label === "phone") {
         for (const view of ALL_VIEWS) expect(measured[view].switcher, `the switcher on ${view}`).toBeNull();
@@ -166,7 +181,35 @@ for (const [label, viewport] of [
       }
     });
 
-    test("Films is current on the Timeline, Focus and Table, and the Clippings on the Clippings; the switcher has the view that is on, and none on the Clippings", async ({ page }) => {
+    test("the home button is a circle holding only the wordmark's green ll, named Parallel home, on every view and on a phone", async ({ page }) => {
+      for (const view of ALL_VIEWS) {
+        await openView(page, view);
+        const home = bar(page).getByRole("link", { name: "Parallel home", exact: true });
+        await expect(home, view).toBeVisible();
+        await expect(home, view).toHaveAttribute("href", "/");
+        await expect(home, view).toHaveAttribute("title", "Parallel home");
+        // Nothing but the two strokes: no wordmark, no other text.
+        expect((await home.evaluate((element) => (element as HTMLElement).innerText)).trim(), view).toBe("ll");
+        const look = await home.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          const mark = element.querySelector(".text-accent-green")!;
+          const probe = document.createElement("span");
+          probe.style.color = "var(--green)";
+          document.body.append(probe);
+          const green = getComputedStyle(probe).color;
+          probe.remove();
+          return { width: box.width, height: box.height, radius: parseFloat(getComputedStyle(element).borderTopLeftRadius), mark: getComputedStyle(mark).color, green, size: parseFloat(getComputedStyle(mark).fontSize) };
+        });
+        // A circle (the corners round past half the side), the page bar's own height, and the mark the green of the wordmark, large enough to read as a mark.
+        expect(look.width, view).toBe(look.height);
+        expect(look.height, view).toBe(label === "phone" ? 46 : 50);
+        expect(look.radius, view).toBeGreaterThanOrEqual(look.height / 2);
+        expect(look.mark, view).toBe(look.green);
+        expect(look.size, view).toBeGreaterThanOrEqual(20);
+      }
+    });
+
+    test("Films is current on the Timeline, Focus and Table, and the Quotes on the Quotes; the switcher has the view that is on, and none on the Quotes", async ({ page }) => {
       for (const view of ALL_VIEWS) {
         await openView(page, view);
         if (view === "clippings") await expect(filmsLink(page)).not.toHaveAttribute("aria-current", /.+/);
@@ -174,7 +217,7 @@ for (const [label, viewport] of [
         await expect(link(page, "clippings")).toHaveCount(1);
         if (view === "clippings") await expect(link(page, "clippings")).toHaveAttribute("aria-current", "page");
         else await expect(link(page, "clippings")).not.toHaveAttribute("aria-current", /.+/);
-        // Of the switcher's three, the view that is on is current, and on the Clippings none is.
+        // Of the switcher's three, the view that is on is current, and on the Quotes none is.
         for (const name of ["timeline", "table", "focus"] as const) {
           if (view === name) await expect(link(page, name)).toHaveAttribute("aria-current", "page");
           else await expect(link(page, name)).not.toHaveAttribute("aria-current", /.+/);
@@ -185,7 +228,7 @@ for (const [label, viewport] of [
     test("switching views moves nothing in the bar: the gear and the switcher stay, whichever way the visitor goes between the flat views", async ({ page }) => {
       await openView(page, "timeline");
       const before = await measureBar(page);
-      // Table (the switcher), the Clippings (a tab), Films again (a tab, which goes back to the Table, the view that was last used), the Timeline (the switcher).
+      // Table (the switcher), the Quotes (a tab), Films again (a tab, which goes back to the Table, the view that was last used), the Timeline (the switcher).
       const steps: { go: () => Promise<void>; panel: ViewName }[] = [
         { go: () => choose(page, "table"), panel: "table" },
         { go: () => choose(page, "clippings"), panel: "clippings" },
@@ -217,12 +260,12 @@ for (const [label, viewport] of [
         await expect(bar(page).locator('nav[aria-label="Films view"]')).toBeVisible({ visible: label === "desktop" });
 
         if (label === "phone") {
-          // The sheet has the same three, with their words, and Films | Clippings above them: on every view, the Clippings too.
+          // The sheet has the same three, with their words, and Films | Quotes above them: on every view, the Quotes too.
           await settingsGear(page).tap();
           const sheet = settingsSheet(page);
           await expect(sheet.getByRole("navigation", { name: "Films view", exact: true })).toHaveCount(1);
           await expect(sheet.getByRole("navigation", { name: "Films view", exact: true }).getByRole("link")).toHaveText(["Timeline", "Focus", "Table"]);
-          await expect(sheet.getByRole("navigation", { name: "Sections", exact: true }).getByRole("link")).toHaveText(["Films", "Clippings"]);
+          await expect(sheet.getByRole("navigation", { name: "Sections", exact: true }).getByRole("link")).toHaveText(["Films", "Quotes"]);
           await page.keyboard.press("Escape");
           await expect(sheet).toBeHidden();
         }
@@ -271,7 +314,7 @@ for (const [label, viewport] of [
   });
 }
 
-/** Goes to `view` by the bar: the switcher's link, the Clippings' tab, or the Films tab (a phone has them in the gear's sheet: the sheet closes). */
+/** Goes to `view` by the bar: the switcher's link, the Quotes' tab, or the Films tab (a phone has them in the gear's sheet: the sheet closes). */
 async function choose(page: Page, view: "timeline" | "table" | "clippings" | "films") {
   const phone = (page.viewportSize()?.width ?? 1440) < 640;
   const root = phone ? settingsSheet(page) : bar(page);
@@ -280,7 +323,7 @@ async function choose(page: Page, view: "timeline" | "table" | "clippings" | "fi
     view === "films"
       ? root.getByRole("navigation", { name: "Sections", exact: true }).getByRole("link", { name: "Films", exact: true })
       : view === "clippings"
-        ? root.getByRole("navigation", { name: "Sections", exact: true }).getByRole("link", { name: "Clippings", exact: true })
+        ? root.getByRole("navigation", { name: "Sections", exact: true }).getByRole("link", { name: "Quotes", exact: true })
         : root.getByRole("navigation", { name: "Films view", exact: true }).getByRole("link", { name: view === "timeline" ? "Timeline view" : "Table view", exact: true });
   if (phone) await target.tap();
   else await target.click();
@@ -335,7 +378,7 @@ test.describe("the people pill's rows open the biography, as names do everywhere
       const name = card.getByRole("button", { name: "Pedro Almodóvar", exact: true });
       const bio = page.getByRole("dialog", { name: "Pedro Almodóvar", exact: true });
 
-      // A click on the name: the biography the people column's names and the Clippings' open, the same dialog (the TMDB link on the name, the text).
+      // A click on the name: the biography the people column's names and the Quotes' open, the same dialog (the TMDB link on the name, the text).
       await name.click();
       await expect(bio).toBeVisible();
       await expect(bio.getByText("A biography.")).toBeVisible();
@@ -412,7 +455,7 @@ test.describe("Export and Share are in the gear on every view", () => {
       await settingsGear(page).click();
       const sheet = settingsSheet(page);
       await expect(sheet.getByRole("button", { name: "Share", exact: true })).toBeVisible();
-      // The film settings, and Export for the views that list films (it is the table's films: not the Clippings).
+      // The film settings, and Export for the views that list films (it is the table's films: not the Quotes).
       await expect(sheet.getByRole("checkbox", { name: "Show all films", exact: true })).toBeVisible();
       await expect(sheet.getByRole("button", { name: "Export List as CSV", exact: true })).toHaveCount(view === "clippings" ? 0 : 1);
     });
@@ -443,9 +486,9 @@ test.describe("on a phone", () => {
     await openView(page, "timeline");
     await settingsGear(page).tap();
     const sheet = settingsSheet(page);
-    // Films | Clippings (this pair has Clippings), then the same three-way choice as the bar's switcher, with its words: Timeline is the current one, here.
+    // Films | Quotes (this pair has Quotes), then the same three-way choice as the bar's switcher, with its words: Timeline is the current one, here.
     const sections = sheet.getByRole("navigation", { name: "Sections", exact: true });
-    await expect(sections.getByRole("link")).toHaveText(["Films", "Clippings"]);
+    await expect(sections.getByRole("link")).toHaveText(["Films", "Quotes"]);
     await expect(sections.getByRole("link", { name: "Films", exact: true })).toHaveAttribute("aria-current", "page");
     const views = sheet.getByRole("navigation", { name: "Films view", exact: true });
     await expect(views.getByRole("link")).toHaveText(["Timeline", "Focus", "Table"]);
@@ -470,9 +513,9 @@ test.describe("on a phone", () => {
     await expect(sheet).toBeHidden();
     expect(new URL(page.url()).searchParams.get("view")).toBe("table");
 
-    // The Clippings, from the sheet's other row, and no view of the three is current there.
+    // The Quotes, from the sheet's other row, and no view of the three is current there.
     await settingsGear(page).tap();
-    await sections.getByRole("link", { name: "Clippings", exact: true }).tap();
+    await sections.getByRole("link", { name: "Quotes", exact: true }).tap();
     await expect(link(page, "clippings")).toHaveAttribute("aria-current", "page");
     await expect(sheet).toBeHidden();
     await settingsGear(page).tap();
@@ -589,13 +632,13 @@ test.describe("moving between a flat view and Focus", () => {
   });
 
   for (const target of ["table", "clippings"] as const) {
-    test(`from Focus to the ${target === "table" ? "Table" : "Clippings"} the gear and the switcher glide right: the switcher is on both sides, so nothing fades`, async ({ page }) => {
+    test(`from Focus to the ${target === "table" ? "Table" : "Quotes"} the gear and the switcher glide right: the switcher is on both sides, so nothing fades`, async ({ page }) => {
       await openView(page, "focus");
       const focus = await measureBar(page);
 
       await startSampling(page);
       if (target === "table") await viewLink(page, "table").click();
-      else await bar(page).getByRole("navigation", { name: "Sections", exact: true }).getByRole("link", { name: "Clippings", exact: true }).click();
+      else await bar(page).getByRole("navigation", { name: "Sections", exact: true }).getByRole("link", { name: "Quotes", exact: true }).click();
       await expect(link(page, target)).toHaveAttribute("aria-current", "page");
       await transitionsDone(page);
       const samples = await stopSampling(page);
@@ -604,7 +647,7 @@ test.describe("moving between a flat view and Focus", () => {
       expect(flat.gear!.x).toBeGreaterThan(focus.gear!.x);
       expect(wasBetween(samples.map((sample) => sample.gearX), focus.gear!.x, flat.gear!.x)).toBe(true);
       expect(wasBetween(samples.map((sample) => sample.viewsX), focus.switcher!.x, flat.switcher!.x)).toBe(true);
-      // Both are paired (the switcher is on the Clippings too), so they move; nothing else is named.
+      // Both are paired (the switcher is on the Quotes too), so they move; nothing else is named.
       expect(animatedNames(samples)).toEqual(["people-bar-gear", "people-bar-views"]);
       expect(fixedItems(flat)).toEqual(fixedItems(focus));
     });

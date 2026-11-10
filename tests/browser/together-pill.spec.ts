@@ -1,5 +1,5 @@
 import type { Page } from "next/experimental/testmode/playwright";
-import { PEOPLE_PATH, bar, expect, filmsTab, scene, sections, test, timeline, viewLink } from "./fixtures";
+import { PEOPLE_PATH, bar, expect, scene, test, timeline, viewLink } from "./fixtures";
 
 /**
  * The pill after the people pill, "9 films made together", is the page's count of the films the people made together: the headline's, the table's rows.
@@ -89,15 +89,14 @@ test.describe("the number in the pill is the number of green films", () => {
   });
 });
 
-test("a page without Clippings has Films alone in the bar, in the same place on every view", async ({ page }) => {
+test("a page without Quotes has no section nav, and the bar is the same on every view", async ({ page }) => {
   const boxes: unknown[] = [];
   for (const view of ["timeline", "table", "depth"] as const) {
     await page.goto(`${PEOPLE_PATH}${{ timeline: "", table: "?view=table", depth: "?view=depth" }[view]}`);
     await expect(viewLink(page, view)).toHaveAttribute("aria-current", "page");
-    await expect(sections(page).getByRole("link")).toHaveText(["Films"]);
-    await expect(filmsTab(page)).toHaveAttribute("aria-current", "page");
-    await expect(sections(page).getByRole("link", { name: "Clippings", exact: true })).toHaveCount(0);
-    boxes.push(await sections(page).boundingBox());
+    // Films | Quotes is for a page that has Quotes: nowhere on this one (the bar's row does not hold it either way).
+    await expect(page.locator('nav[aria-label="Sections"]')).toHaveCount(0);
+    boxes.push(await pill(page).boundingBox());
   }
   expect(boxes[1]).toEqual(boxes[0]);
   expect(boxes[2]).toEqual(boxes[0]);

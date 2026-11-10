@@ -1,4 +1,4 @@
-import { test, expect, MINOR_FILM_COUNT, PEOPLE_PATH, PIXEL, sections, switcher, viewLink } from "./fixtures";
+import { test, expect, MINOR_FILM_COUNT, PEOPLE_PATH, PIXEL, switcher, viewLink } from "./fixtures";
 import type { Page } from "next/experimental/testmode/playwright";
 
 // Activate the server-side fetch fixtures before any test navigates to a people page.
@@ -1384,18 +1384,17 @@ const settingsGear = (page: Page) => page.getByRole("button", { name: "Settings"
 const settingsSheet = (page: Page) => page.getByRole("dialog", { name: "Settings", exact: true });
 const minorToggle = (page: Page) => settingsSheet(page).getByRole("checkbox", { name: /Show shorts, music videos, cameos and uncredited/ });
 
-test("the bar has the pills and Films beside the people, and the view switcher and the gear at the right, clear of the rail", async ({ page }) => {
+test("the bar has the home circle, the people and the count, and the view switcher and the gear at the right, clear of the rail", async ({ page }) => {
   await openDepth(page);
-  // Films alone (the fixture pair has no quotes, so no Clippings, as on the flat page), current on Focus too.
-  await expect(sections(page).getByRole("link")).toHaveText(["Films"]);
-  await expect(sections(page).getByRole("link", { name: "Films", exact: true })).toHaveAttribute("aria-current", "page");
-  await expect(sections(page).getByRole("link", { name: "Clippings", exact: true })).toHaveCount(0);
+  // The fixture pair has no quotes, so no Films | Quotes nav at all (not in the bar, and not down the left edge, which pages that have Quotes have).
+  await expect(page.locator('nav[aria-label="Sections"]')).toHaveCount(0);
 
-  // To the right of the pill, on its level; and the controls are left of the rail with room to spare, the switcher then the gear.
+  // The count is to the right of the pill, on its level and as tall as it; and the controls are left of the rail with room to spare, the switcher then the gear.
   const pillBox = (await pill(page).boundingBox())!;
-  const sectionsBox = (await sections(page).boundingBox())!;
-  expect(sectionsBox.x).toBeGreaterThan(pillBox.x + pillBox.width);
-  expect(Math.abs(sectionsBox.y + sectionsBox.height / 2 - (pillBox.y + pillBox.height / 2))).toBeLessThan(4);
+  const countBox = (await page.locator("[data-together-pill]").boundingBox())!;
+  expect(countBox.x).toBeGreaterThan(pillBox.x + pillBox.width);
+  expect(Math.abs(countBox.y + countBox.height / 2 - (pillBox.y + pillBox.height / 2))).toBeLessThan(4);
+  expect(countBox.height).toBe(Math.round((await pill(page).locator("xpath=ancestor::div[@data-people-pill]").boundingBox())!.height));
   const railBox = (await page.locator("[data-depth-rail]").boundingBox())!;
   const switcherBox = (await switcher(page).boundingBox())!;
   const gearBox = (await settingsGear(page).boundingBox())!;
@@ -1681,25 +1680,29 @@ test("a page of one person has the same switcher, and nothing about lanes", asyn
 
 const homeLink = (page: Page) => page.getByRole("link", { name: "Parallel home", exact: true });
 
-test("the home pill is the first thing in the bar: a small link to the landing page, before the people pill, on its level, and it stays when the pill opens", async ({ page }) => {
+test("the home circle is the first thing in the bar: a round link to the landing page with the wordmark's green ll, before the people pill, as tall as it, and it stays when the pill opens", async ({ page }) => {
   await openDepth(page);
   const home = homeLink(page);
   await expect(home).toBeVisible();
   await expect(home).toHaveAttribute("href", "/");
-  // The app's wordmark, in a pill of its own: "Parallel" with the two green l's.
-  await expect(home).toHaveText("Parallel");
+  await expect(home).toHaveAttribute("title", "Parallel home");
+  // The app's wordmark, as its mark alone: the two green l's.
+  expect((await home.evaluate((el) => (el as HTMLElement).innerText)).trim()).toBe("ll");
   await expect(home.locator(".text-accent-green")).toHaveText("ll");
   const homeBox = (await home.boundingBox())!;
-  // Pill-shaped: the corners are rounded past half the height.
+  // A circle: as wide as it is tall, the corners rounded past half the height.
+  expect(homeBox.width).toBe(homeBox.height);
   expect(await home.evaluate((el) => parseFloat(getComputedStyle(el).borderTopLeftRadius))).toBeGreaterThanOrEqual(homeBox.height / 2);
   const pillBox = (await pill(page).boundingBox())!;
   // At the far left of the bar, then the people pill (the open card hangs from the pill's own left edge), nothing between or over.
   expect(homeBox.x).toBeLessThanOrEqual(16);
   expect(homeBox.x + homeBox.width).toBeLessThan(pillBox.x);
   expect(Math.abs(homeBox.y + homeBox.height / 2 - (pillBox.y + pillBox.height / 2))).toBeLessThan(4);
-  expect(homeBox.height).toBeLessThan(pillBox.height);
+  // As tall as the people pill (the capsule round the heads: the button's box is inside it).
+  const capsuleBox = (await page.locator("[data-pill-capsule]").boundingBox())!;
+  expect(homeBox.height).toBe(capsuleBox.height);
 
-  // It does not sit under the open pill's field and card, so it has no need to step aside.
+  // It does not sit under the open pill's field and card (on a desktop), so it has no need to step aside.
   await pill(page).click();
   await expect(pillSearch(page)).toBeVisible();
   await expect(home).toBeVisible();
@@ -1718,7 +1721,6 @@ for (const width of [640, 768, 1024, 1440]) {
       ["home", homeLink(page)],
       ["pill", pill(page)],
       ["together", page.locator("[data-together-pill]")],
-      ["sections", sections(page)],
       ["switcher", switcher(page)],
       ["gear", settingsGear(page)],
       ["rail", page.locator("[data-depth-rail]")],
@@ -1734,8 +1736,8 @@ for (const width of [640, 768, 1024, 1440]) {
         expect(apart, `${a} and ${b} overlap`).toBe(true);
       }
     }
-    // Left to right: home, people, the pill of films made together, Films, then the view switcher and the gear, clear of the rail; and the page does not scroll sideways.
-    const order = ["home", "pill", "together", "sections", "switcher", "gear", "rail"].map((name) => boxes.get(name)!.x);
+    // Left to right: home, people, the pill of films made together, then the view switcher and the gear, clear of the rail; and the page does not scroll sideways.
+    const order = ["home", "pill", "together", "switcher", "gear", "rail"].map((name) => boxes.get(name)!.x);
     expect(order).toEqual([...order].sort((a, b) => a - b));
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
   });
@@ -1743,17 +1745,14 @@ for (const width of [640, 768, 1024, 1440]) {
 
 test("while the pill is open the bar's other controls step aside: nothing is under its field", async ({ page }) => {
   await openDepth(page);
-  await expect(sections(page)).toBeVisible();
   await expect(page.locator("[data-together-pill]")).toBeVisible();
   await pill(page).click();
   await expect(pillSearch(page)).toBeVisible();
-  await expect(sections(page)).toBeHidden();
   await expect(page.locator("[data-together-pill]")).toBeHidden();
   await expect(switcher(page)).toBeHidden();
   await expect(settingsGear(page)).toBeHidden();
   await page.keyboard.press("Escape");
   await expect(pill(page)).toHaveAttribute("aria-expanded", "false");
-  await expect(sections(page)).toBeVisible();
   await expect(page.locator("[data-together-pill]")).toBeVisible();
   await expect(settingsGear(page)).toBeVisible();
 });
@@ -1891,7 +1890,7 @@ test.describe("on a phone", () => {
     await openDepth(page);
 
     // No tabs and no view switcher on the bar: the heads and the count at the left and the gear at the right, clear of the pill, the rail and the edges.
-    await expect(sections(page)).toBeHidden();
+    await expect(page.locator('nav[aria-label="Sections"]')).toHaveCount(0);
     await expect(switcher(page)).toBeHidden();
     // The count is the dot and the number alone on a phone, with the whole words for its name.
     const together = page.locator("[data-together-pill]");
@@ -1909,7 +1908,7 @@ test.describe("on a phone", () => {
     await settingsGear(page).tap();
     const sheet = settingsSheet(page);
     await expect(sheet).toBeVisible();
-    // The same three-way choice as the bar's switcher, with its words (the fixture pair has no Clippings, so no Films | Clippings above it), Focus the current one.
+    // The same three-way choice as the bar's switcher, with its words (the fixture pair has no Quotes, so no Films | Quotes above it), Focus the current one.
     const views = sheet.getByRole("navigation", { name: "Films view", exact: true });
     await expect(views.getByRole("link")).toHaveText(["Timeline", "Focus", "Table"]);
     await expect(sheet.getByRole("navigation", { name: "Sections", exact: true })).toHaveCount(0);
@@ -1936,11 +1935,33 @@ test.describe("on a phone", () => {
     await expect(scene(page)).toHaveCount(0);
   });
 
-  test("the bar has no home pill, to leave the heads their room: the way home is a link in the gear's sheet", async ({ page }) => {
+  test("the home circle is on the bar of a phone too, as tall as the heads' pill; it steps aside for the open pill, whose card stays on the screen, and the sheet has the way home with its name", async ({ page }) => {
     await openDepth(page);
-    // Not on the bar: the home pill would push the open card off the right edge, and crowd the heads.
-    await expect(homeLink(page)).toBeHidden();
-    await expect(page.locator("[data-people-bar]").getByRole("link", { name: "Parallel home", exact: true })).toBeHidden();
+    const barHome = page.locator("[data-people-bar]").getByRole("link", { name: "Parallel home", exact: true });
+    await expect(barHome).toBeVisible();
+    const homeBox = (await barHome.boundingBox())!;
+    const capsuleBox = (await page.locator("[data-pill-capsule]").boundingBox())!;
+    expect(homeBox.width).toBe(homeBox.height);
+    expect(homeBox.height).toBe(capsuleBox.height);
+    expect(homeBox.x).toBe(12);
+    expect(homeBox.x + homeBox.width).toBeLessThan(capsuleBox.x);
+
+    // The open pill's field and card are as wide as the screen less the margins, so they start at the bar's edge, over the circle's place: it steps
+    // aside for them, and they do not run off the right edge.
+    await pill(page).tap();
+    await expect(peopleCard(page)).toBeVisible();
+    await expect(barHome).toBeHidden();
+    const cardBox = (await peopleCard(page).boundingBox())!;
+    const fieldBox = (await page.locator("[data-pill-open]").boundingBox())!;
+    for (const box of [cardBox, fieldBox]) {
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(390);
+    }
+    expect(Math.round(fieldBox.x)).toBe(12);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+    await page.keyboard.press("Escape");
+    await expect(peopleCard(page)).toBeHidden();
+    await expect(barHome).toBeVisible();
 
     await settingsGear(page).tap();
     const sheet = settingsSheet(page);

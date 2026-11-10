@@ -95,10 +95,10 @@ const SWITCHER_LABEL: Record<FilmsViewName, string> = { timeline: "Timeline view
 /** The view switcher in the bar (not on a phone's bar: its sheet has the same links, see `ViewSwitcher`). */
 export const switcher = (page: Page) => bar(page).getByRole("navigation", { name: "Films view", exact: true });
 export const viewLink = (page: Page, view: FilmsViewName) => switcher(page).getByRole("link", { name: SWITCHER_LABEL[view], exact: true });
-/** The bar's two sections: Films, and the Clippings for a pair that has them. */
+/** The bar's two sections: Films, and the Quotes for a pair that has them. */
 export const sections = (page: Page) => bar(page).getByRole("navigation", { name: "Sections", exact: true });
 export const filmsTab = (page: Page) => sections(page).getByRole("link", { name: "Films", exact: true });
-export const clippingsTab = (page: Page) => sections(page).getByRole("link", { name: "Clippings", exact: true });
+export const clippingsTab = (page: Page) => sections(page).getByRole("link", { name: "Quotes", exact: true });
 /** The Depth view's scene. */
 export const scene = (page: Page) => page.getByRole("region", { name: "Film timeline. Scroll down for later years.", exact: true });
 
