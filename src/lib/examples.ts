@@ -1123,3 +1123,9 @@ export function pairingKey(pairing: Pick<ExamplePairing, "people">): string {
     .sort((a, b) => a - b)
     .join("+");
 }
+
+/** The one-line blurb of the curated pairing of exactly these people (their TMDB ids, in any order), or null when the pairing is not one of `EXAMPLE_PAIRINGS`. */
+export function pairingBlurb(ids: readonly number[]): string | null {
+  const key = [...ids].sort((a, b) => a - b).join("+");
+  return EXAMPLE_PAIRINGS.find((pairing) => pairingKey(pairing) === key)?.blurb ?? null;
+}

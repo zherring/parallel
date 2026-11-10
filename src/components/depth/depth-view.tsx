@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DepthScene } from "@/components/depth/depth-scene";
 import { DustMotes } from "@/components/depth/dust-motes";
@@ -7,6 +8,10 @@ import { DepthChrome } from "@/components/depth/depth-chrome";
 import type { PillPerson } from "@/components/depth/people-pill";
 import { YearRail } from "@/components/depth/year-rail";
 import { FilmPanel } from "@/components/film-panel/film-panel";
+import { PairHeroBody } from "@/components/hero/pair-hero-body";
+import { useHeroCollapse } from "@/components/hero/use-hero-collapse";
+import { usePairHero } from "@/components/hero/use-pair-hero";
+import { scrollBehavior } from "@/components/timeline/scroll-behavior";
 import { PageHeadline } from "@/components/page-headline";
 import type { ExportList } from "@/components/timeline/export-button";
 import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
@@ -21,6 +26,8 @@ import { DEPTH_VIEW, withDepth } from "@/lib/depth-url";
 import { personRows, sharedRows } from "@/lib/film-rows";
 import { DEFAULT_SORT, sortFilms } from "@/lib/films-table";
 import { hasClippingsTab, showingMessage } from "@/lib/films-view";
+import { scrollLeftToCenterTrackX } from "@/lib/minimap";
+import { quoteHref, type HeroNote } from "@/lib/pair-hero";
 import { laneSummary, removePersonHref } from "@/lib/lanes";
 import { outsidePeriodIds, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss, personSlots } from "@/lib/person-colors";
@@ -42,6 +49,8 @@ interface Props {
   clippings: PairClippings | null;
   /** What critics have written about the pair's collaboration, or null: the same. */
   critics: PairCritics | null;
+  /** What the pair hero says beside the portraits (the pair's first quote, a curated description or its blurb), worked out on the server; null for none. */
+  heroNote: HeroNote | null;
 }
 
 /** No film is minor: the usual scene. */
@@ -60,7 +69,7 @@ export function DepthView(props: Props) {
   return <DepthViewInner key={key} {...props} />;
 }
 
-function DepthViewInner({ timelines, shared, today, clippings, critics }: Props) {
+function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const scrollerId = useId();
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -191,6 +200,44 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
     if (trigger?.isConnected) requestAnimationFrame(() => trigger.focus({ preventScroll: true }));
   }, []);
 
+  // ---- the pair hero ------------------------------------------------------------------------------------------------------------------
+  const pathname = usePathname();
+  const search = useSearchParams().toString();
+  const { subtitle, chips } = usePairHero({ timelines, rows, includeMinor });
+  // The scene is the main scroller. It lands on the first collaboration (mid-career), so the hero collapses 48px from there, not from the top.
+  const getHeroScroller = useCallback(() => scrollerRef.current, []);
+  const { collapsed, collapse } = useHeroCollapse({ getScroller: getHeroScroller, axis: "y", resetKey: DEPTH_VIEW });
+  const forwardWheel = useCallback((deltaX: number, deltaY: number) => scrollerRef.current?.scrollBy(deltaX, deltaY), []);
+  /**
+   * A chip pressed: the scene scrolls (smoothly unless the visitor asked for less motion) so that the film's poster is in the middle, as the year rail's dots do,
+   * and the poster's button is focused. The hero collapses, so that it is not over the poster. A film that is not in the scene (a poster the cap left out) opens its panel.
+   */
+  const jumpToFilm = useCallback(
+    (filmId: number, trigger: HTMLElement) => {
+      const scroller = scrollerRef.current;
+      const item = layout.films.find((candidate) => candidate.film.id === filmId);
+      const poster = scroller?.querySelector<HTMLElement>(`[data-film="${filmId}"]`);
+      if (!scroller || !item || !poster) {
+        handleSelect(filmId, trigger);
+        return;
+      }
+      scroller.scrollTo({ top: scrollLeftToCenterTrackX(item.y, layout.trackHeight, scroller.clientHeight), behavior: scrollBehavior() });
+      poster.focus({ preventScroll: true });
+      collapse();
+    },
+    [layout.films, layout.trackHeight, handleSelect, collapse],
+  );
+  const heroBody = (
+    <PairHeroBody
+      people={pillPeople}
+      note={heroNote}
+      quoteHref={heroNote?.kind === "quote" ? quoteHref(pathname, search, heroNote.id) : null}
+      chips={chips}
+      together={multi}
+      onChip={jumpToFilm}
+    />
+  );
+
   return (
     <>
       {/* The palette as custom properties (src/lib/person-colors.ts): the hover card and the panel are in portals. */}
@@ -198,6 +245,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
       {/* First in the tab order, as the site's header was; fixed chrome is a sibling of the scroller, never inside it. */}
       <DepthChrome
         people={pillPeople}
+        hero={{ subtitle, collapsed, body: heroBody, onWheel: forwardWheel }}
         scrollerRef={scrollerRef}
         clippings={clippingsTab}
         showAll={showAll}

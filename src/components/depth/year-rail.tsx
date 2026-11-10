@@ -30,6 +30,8 @@ import { centerYear, xForDate, type Scale } from "@/lib/timeline-layout";
 
 /** Pointer travel (px) after which a press on a film dot counts as a drag instead of a click. */
 const DOT_DRAG_SLOP = 4;
+/** A year label that hangs out to the left of a phone's rail is left out where it would be this far (px) from the top of the screen or less: under the compact bar's gear. */
+const LABEL_CLEARANCE_PX = 76;
 /** On a phone the year readout stays this long (ms) after the scene last moved, then fades. */
 const READOUT_HOLD_MS = 800;
 
@@ -76,7 +78,8 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
   const lastTop = useRef<number | null>(null);
   const holdTimer = useRef<number | undefined>(undefined);
 
-  const [railHeight, setRailHeight] = useState(0);
+  const [railBox, setRailBox] = useState({ height: 0, top: 0 });
+  const railHeight = railBox.height;
   /** A drag is in progress: on a phone the year labels, which are too wide for the thin rail, show while it lasts. */
   const [scrubbing, setScrubbing] = useState(false);
 
@@ -108,6 +111,8 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
       holdTimer.current = window.setTimeout(() => root.removeAttribute("data-active"), READOUT_HOLD_MS);
     }
     lastTop.current = geometry.scrollLeft;
+    // Where the readout rides: the window's middle, as a share of the rail (the CSS places it, see the readout below, so that it keeps clear of the bar).
+    root?.style.setProperty("--readout-frac", String(rect.left + rect.width / 2));
     const readout = readoutRef.current;
     if (readout) {
       // The calendar year the focus line is in: a film of September 1985 in the middle reads 1985, not 1986.
@@ -158,7 +163,10 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
   useLayoutEffect(() => {
     const track = trackRef.current;
     if (!track) return;
-    const measure = () => setRailHeight(track.clientHeight);
+    const measure = () => {
+      const next = { height: track.clientHeight, top: track.offsetTop };
+      setRailBox((prev) => (prev.height === next.height && prev.top === next.top ? prev : next));
+    };
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
@@ -294,9 +302,9 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
           if (event.target === event.currentTarget) endDrag(event);
         }}
         // The bottom minimap's bar turned on its side: a rounded surface with a border, the years along it.
-        // Starts below the page bar (as the bar's controls are left of the rail, only the readout, which hangs out to the left, could meet them: the window's
-        // middle is never nearer the top than half its height under this).
-        className="pointer-events-auto absolute bottom-2 left-0 right-1 top-[calc(0.75rem+var(--bar-h)+0.5rem)] cursor-pointer touch-none select-none rounded-md border border-border bg-surface"
+        // It starts at `--rail-top` (globals.css): the bottom edge of the pair hero's band while that is open, the top of the screen once it has collapsed into the
+        // compact bar, whose controls are left of the rail. Only what hangs out to the left of the rail (the readout, the phone's labels) could meet them: see below.
+        className="pointer-events-auto absolute bottom-2 left-0 right-1 top-(--rail-top) cursor-pointer touch-none select-none rounded-md border border-border bg-surface"
       >
         <div aria-hidden className="pointer-events-none absolute inset-0">
           {marks.map((mark) => (
@@ -308,6 +316,8 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
                 <span
                   className={cn(
                     "absolute left-2 -translate-y-1/2 text-[9px] leading-none tabular-nums text-muted",
+                    // A label that would hang out to the left of the rail under the compact bar's controls (the rail runs to the top of the screen once the hero has collapsed) is left out.
+                    railBox.top + mark.labelX < LABEL_CLEARANCE_PX && "max-sm:hidden!",
                     // Too wide for the thin rail: out beside it, and only while a finger is dragging it.
                     "max-sm:left-auto max-sm:right-full max-sm:mr-1.5 max-sm:hidden max-sm:rounded max-sm:bg-canvas/90 max-sm:px-1 max-sm:py-0.5 max-sm:group-data-[scrubbing]/rail:block",
                   )}
@@ -355,17 +365,6 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
           onKeyDown={onKeyDown}
           className="absolute inset-x-0 top-0 h-full min-h-3 cursor-grab rounded-[5px] border border-strong/70 bg-strong/15 opacity-0 data-[ready]:opacity-100 active:cursor-grabbing"
         >
-          {/* The year at the focus line, level with the window's centre and on the scene's side of the rail (clear of its labels). */}
-          <span
-            aria-hidden
-            className={cn(
-              "pointer-events-none absolute right-full top-1/2 mr-1.5 -translate-y-1/2 rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-medium leading-none tabular-nums text-strong shadow-md shadow-black/30",
-              // On a phone: only while the scene moves or the rail is being dragged, fading after.
-              "max-sm:px-1 max-sm:text-[10px] max-sm:opacity-0 max-sm:transition-opacity max-sm:duration-300 max-sm:group-data-[active]/rail:opacity-100 max-sm:group-data-[scrubbing]/rail:opacity-100 motion-reduce:transition-none",
-            )}
-          >
-            <span ref={readoutRef} data-rail-readout />
-          </span>
         </div>
 
         {/* The nodes sit on the same line as the marks, above the window, and can be pressed to jump to the film. */}
@@ -391,6 +390,25 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
           ))}
         </div>
       </div>
+      {/*
+        The year at the focus line, level with the window's centre (`--readout-frac`, the share of the rail the sync writes) and on the scene's side of the rail
+        (clear of its labels). It is the root's, not the window's, so that it can keep clear of the compact bar: it never rides higher than 1.25rem under the bar's
+        bottom edge (the gear is just left of the rail), and it follows the rail's top (`--rail-top`) as that eases between the hero's band and the top of the screen.
+      */}
+      <span
+        aria-hidden
+        data-rail-readout-box
+        className={cn(
+          "pointer-events-none absolute right-full mr-1.5 -translate-y-1/2 rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-medium leading-none tabular-nums text-strong shadow-md shadow-black/30",
+          // On a phone: only while the scene moves or the rail is being dragged, fading after.
+          "max-sm:px-1 max-sm:text-[10px] max-sm:opacity-0 max-sm:transition-opacity max-sm:duration-300 max-sm:group-data-[active]/rail:opacity-100 max-sm:group-data-[scrubbing]/rail:opacity-100 motion-reduce:transition-none",
+        )}
+        style={{
+          top: "max(calc(0.75rem + var(--bar-h) + 1.25rem), calc(var(--rail-top) + var(--readout-frac, 0) * (100% - var(--rail-top) - 0.5rem)))",
+        }}
+      >
+        <span ref={readoutRef} data-rail-readout />
+      </span>
     </div>
   );
 }

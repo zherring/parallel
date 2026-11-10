@@ -92,6 +92,13 @@ export interface TimelineHandle {
    * of the view stays in the middle.
    */
   rememberCenter: () => void;
+  /** The track's scroller (null until it is mounted): what the pair hero watches to collapse, and what a wheel over its band is passed on to. */
+  getScroller: () => HTMLElement | null;
+  /**
+   * Scrolls the track so that the film is in the middle (smoothly unless the visitor asked for less motion), and returns its card, or its node when
+   * it has no card, for the caller to focus; null when the film is not on the track (its person's eye is off) and nothing moved.
+   */
+  revealFilm: (filmId: number) => HTMLElement | null;
 }
 
 interface TimelineProps {
@@ -556,7 +563,17 @@ export function Timeline({
     if (active) pendingCenter.current = centerYear(scroller.scrollLeft, viewportTrackWidth(), scale);
     else if (lastSeen.current) pendingCenter.current = centerYear(lastSeen.current.left, lastSeen.current.viewport, scale);
   };
-  useImperativeHandle(ref, () => ({ rememberCenter }));
+  const getScroller = () => scrollerRef.current;
+  const revealFilm = (filmId: number): HTMLElement | null => {
+    const scroller = scrollerRef.current;
+    if (!scroller || !active) return null;
+    // A film's card comes before its decorative node in the document, so the first one found is the one that is reached.
+    const target = scroller.querySelector<HTMLElement>(`[data-film="${filmId}"]`);
+    if (!target) return null;
+    target.scrollIntoView({ behavior: scrollBehavior(), block: "center", inline: "center" });
+    return target;
+  };
+  useImperativeHandle(ref, () => ({ rememberCenter, getScroller, revealFilm }));
 
   useLayoutEffect(() => {
     if (!active) return; // a hidden scroller has no width: the queued year waits until it is shown

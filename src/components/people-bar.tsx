@@ -1,8 +1,11 @@
 "use client";
 
 import { ArrowLeft } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, ViewTransition, type RefObject } from "react";
-import { PeoplePill, type PillPerson } from "@/components/depth/people-pill";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, ViewTransition, type ReactNode, type RefObject } from "react";
+import { REDUCED_MOTION, useMediaQuery } from "@/components/depth/use-media";
+import { PeoplePill, flipTransform, type PillPerson } from "@/components/depth/people-pill";
+import { PairTitle } from "@/components/hero/pair-title";
+import { springEasing } from "@/components/landing/hero-motion";
 import { HomeLink } from "@/components/home-link";
 import { Wordmark } from "@/components/wordmark";
 import { cn } from "@/components/timeline/cn";
@@ -14,8 +17,25 @@ import { ViewSwitcher } from "@/components/timeline/view-switcher";
 import { DEPTH_VIEW, isFilmsView, type PageView } from "@/lib/films-view";
 import type { ShareInput } from "@/lib/share";
 
+/** What the pair hero asks of the bar (see `PairHeroBody` and `useHeroCollapse`). */
+export interface PeopleBarHero {
+  /** The line under the names in the expanded title: each person's main role, and the films together. */
+  subtitle: string;
+  /** The hero has collapsed into the compact bar: the people pill is where the title was. */
+  collapsed: boolean;
+  /**
+   * The hero's body (portraits, note, chips) for a view that is the whole screen, the Timeline and Films: it is drawn in the bar's own band, over the
+   * top of the view, on a solid canvas with a soft edge, and eases away when the hero collapses. Null for the Table and the Quotes, whose body is in the
+   * page, above the content, and scrolls away with it.
+   */
+  body: ReactNode;
+  /** The band is solid, so a wheel over it is passed on to the view under it, which is what moves (and collapses the hero). */
+  onWheel?: (deltaX: number, deltaY: number) => void;
+}
+
 interface PeopleBarProps {
   people: readonly PillPerson[];
+  hero: PeopleBarHero;
   /** The Depth view's scroller, for the pill to close on. None on the flat pages: the window scrolls there. */
   scrollerRef?: RefObject<HTMLDivElement | null>;
   /** Whether the page has Quotes: a pair with quotes or critics (see `hasClippingsTab`). Only then is Quotes the fourth segment of the bar's control. */
@@ -85,6 +105,7 @@ const STEPS_ASIDE =
  */
 export function PeopleBar({
   people,
+  hero,
   scrollerRef,
   clippings,
   view,
@@ -116,15 +137,101 @@ export function PeopleBar({
   /** A plain click on a link to `to` chooses it here when the page shows it in place (Focus never is: it is another page render). */
   const clickFor = (to: PageView) => inPlace(onSelect && to !== DEPTH_VIEW ? () => onSelect(to) : undefined);
 
+  const reduced = useMediaQuery(REDUCED_MOTION);
+  const barRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const overlay = hero.body !== null;
+  const expanded = !hero.collapsed;
+
+  // While the band is open over the view, the Films view's year rail starts at its bottom edge (`--rail-top`, see globals.css, which eases it there and
+  // back to the top of the screen). The band's bottom is worked out as it will be once the body is fully open (its row's height is easing, its content's
+  // is not), so the rail and the band move together instead of the rail following the band frame by frame.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    if (!overlay || !expanded) {
+      root.style.removeProperty("--rail-top");
+      return;
+    }
+    const place = () => {
+      const bar = barRef.current;
+      const wrap = wrapRef.current;
+      const content = contentRef.current;
+      if (!bar || !wrap || !content) return;
+      const bottom = bar.getBoundingClientRect().bottom - wrap.getBoundingClientRect().height + content.offsetHeight;
+      root.style.setProperty("--rail-top", `${Math.round(bottom)}px`);
+    };
+    place();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(place);
+    if (barRef.current) observer?.observe(barRef.current);
+    if (contentRef.current) observer?.observe(contentRef.current);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty("--rail-top");
+    };
+  }, [overlay, expanded]);
+
+  // The hero collapses: each person's avatar in the pill flies in from where their portrait is, shrinking to the pill's size (FLIP, with the pill's spring).
+  // Expanding is the reverse by cross-fade alone. Not for a visitor who asked for less motion, and not from a portrait that is off the screen.
+  const wasCollapsed = useRef(hero.collapsed);
+  useLayoutEffect(() => {
+    if (wasCollapsed.current === hero.collapsed) return;
+    wasCollapsed.current = hero.collapsed;
+    const bar = barRef.current;
+    if (!hero.collapsed || reduced || !bar) return;
+    let index = 0;
+    bar.querySelectorAll<HTMLElement>("[data-pill-head]").forEach((head) => {
+      const portrait = document.querySelector<HTMLElement>(`[data-hero-portrait="${head.getAttribute("data-pill-head")}"]`);
+      if (!portrait) return;
+      const from = portrait.getBoundingClientRect();
+      const to = head.getBoundingClientRect();
+      if (from.width === 0 || to.width === 0 || from.bottom < 0 || from.top > window.innerHeight) return;
+      const flown = flipTransform(from, to);
+      head.animate(
+        [
+          { transform: flown, transformOrigin: "top left" },
+          { transform: "none", transformOrigin: "top left" },
+        ],
+        { duration: 360, delay: index * 35, easing: springEasing(), fill: "backwards" },
+      );
+      index += 1;
+    });
+  }, [hero.collapsed, reduced]);
+
   return (
     <div
+      ref={barRef}
       data-people-bar
+      data-hero={expanded ? "expanded" : "collapsed"}
+      data-hero-placement={overlay ? "band" : "page"}
       // The bar's controls are all `--bar-h` tall (the root's, see globals.css), so they line up.
-      className="group/bar pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-3 pt-3"
+      className="group/bar pointer-events-none fixed inset-x-0 top-0 z-30 flex flex-col px-3 pt-3"
+      onWheel={overlay && expanded && hero.onWheel ? (event) => hero.onWheel?.(event.deltaX, event.deltaY) : undefined}
     >
       {backdrop && (
         <div aria-hidden="true" className="absolute inset-x-0 top-0 -z-10 h-[4.5rem] bg-gradient-to-b from-canvas via-canvas/90 to-transparent" />
       )}
+      {overlay && (
+        <>
+          {/* The band: solid canvas behind the title and the body while the hero is open (it takes the pointer, so what is under it is not hovered or pressed), a soft edge below it. */}
+          <div
+            aria-hidden="true"
+            data-hero-band
+            className={cn(
+              "absolute inset-0 -z-10 bg-canvas transition-opacity duration-300 motion-reduce:transition-none",
+              expanded ? "pointer-events-auto opacity-100" : "opacity-0",
+            )}
+          />
+          <div
+            aria-hidden="true"
+            className={cn(
+              "absolute inset-x-0 top-full h-6 bg-gradient-to-b from-canvas to-transparent transition-opacity duration-300 motion-reduce:transition-none",
+              expanded ? "opacity-100" : "opacity-0",
+            )}
+          />
+        </>
+      )}
+      <div className="flex items-start justify-between gap-3">
       <div className="flex min-w-0 items-start gap-3">
         {/*
           The way home, now that the site's header is gone: a rounded square (the bar's radius) with a back arrow, before the people pill, named "Back to
@@ -143,7 +250,24 @@ export function PeopleBar({
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
         </HomeLink>
-        <PeoplePill people={people} scrollerRef={scrollerRef} onToggleVisible={onToggleVisible} />
+        {/*
+          The title and the people pill share one place: the pair hero's title (the names joined with ×, and what each did) while the hero is expanded, the
+          pill once it has collapsed. Both stay mounted, one over the other, and cross-fade; the one that is not shown is inert, so neither can be tabbed to or pressed.
+        */}
+        <div className="grid min-w-0">
+          <div
+            inert={expanded}
+            className={cn("col-start-1 row-start-1 min-w-0 transition-[opacity,visibility] duration-200 motion-reduce:transition-none", expanded && "invisible opacity-0")}
+          >
+            <PeoplePill people={people} scrollerRef={scrollerRef} onToggleVisible={onToggleVisible} />
+          </div>
+          <div
+            inert={!expanded}
+            className={cn("col-start-1 row-start-1 min-w-0 transition-[opacity,visibility] duration-200 motion-reduce:transition-none", !expanded && "invisible opacity-0")}
+          >
+            <PairTitle people={people} subtitle={hero.subtitle} />
+          </div>
+        </div>
       </div>
       {/*
         At the right edge, or, on the Films view, left of the year rail (3.75rem wide, 28px on a phone) with a gap: nothing there is ever over it.
@@ -199,6 +323,24 @@ export function PeopleBar({
           </div>
         </ViewTransition>
       </div>
+      </div>
+      {overlay && (
+        // The body eases open and shut (the grid row from its content's height to nothing, no measuring); shut, it is inert and not shown.
+        <div
+          ref={wrapRef}
+          inert={!expanded}
+          className={cn(
+            "grid transition-[grid-template-rows,opacity,visibility] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none",
+            expanded ? "grid-rows-[1fr] opacity-100" : "invisible grid-rows-[0fr] opacity-0",
+          )}
+        >
+          <div className="-mx-1.5 min-h-0 overflow-hidden px-1.5">
+            <div ref={contentRef} className="pointer-events-auto pb-3 pt-3">
+              {hero.body}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

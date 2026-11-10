@@ -27,6 +27,19 @@ vi.mock("@/lib/critics", async (importOriginal) => {
 vi.mock("@/components/people-view", () => ({ PeopleView: function PeopleView() {} }));
 vi.mock("@/components/depth/depth-view", () => ({ DepthView: function DepthView() {} }));
 
+// The request's headers: the user agent decides which view a link that names none opens.
+const DESKTOP = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
+const ANDROID_PHONE = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
+const IPAD = "Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
+const ANDROID_TABLET = "Mozilla/5.0 (Linux; Android 13; SM-X700) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+const GOOGLEBOT_SMARTPHONE =
+  "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+let userAgentHeader: string | null = DESKTOP;
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => new Headers(userAgentHeader === null ? {} : { "user-agent": userAgentHeader })),
+}));
+
 const REDIRECTED = "TEST_REDIRECT:";
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
@@ -243,7 +256,10 @@ describe("generateMetadata with a critic's quote in the link", () => {
 });
 
 describe("the page", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    userAgentHeader = DESKTOP;
+  });
 
   it("does not redirect from the canonical slug", async () => {
     expect(await redirectsTo(PAIR_SLUG)).toBeNull();
@@ -333,13 +349,70 @@ describe("the page", () => {
 
     it.each([
       ["no query", {}],
+      ["a period", { from: "1970", to: "1980" }],
       ["the table", { view: "table" }],
       ["the timeline", { view: "timeline" }],
       ["the clippings", { view: "clippings" }],
       ["a link to one quote", { quote: "short-one" }],
+      ["a sort", { sort: "rating", dir: "desc" }],
       ["a view it does not know", { view: "grid" }],
-    ])("is the usual page for %s", async (_name, query) => {
+    ])("is the usual page for %s on a desktop", async (_name, query) => {
       expect((await rendered(query)).type).toBe(PeopleView);
+    });
+
+    describe("on a phone, for a link that names no view", () => {
+      it.each([
+        ["an iPhone", IPHONE],
+        ["an Android phone", ANDROID_PHONE],
+      ])("is the Films view (the Depth view) for %s, so that the page never flashes the Timeline first", async (_name, agent) => {
+        userAgentHeader = agent;
+        const element = await rendered({});
+        expect(element.type).toBe(DepthView);
+        expect(element.props.timelines).toHaveLength(2);
+        expect((await rendered({ from: "1970", to: "1980" })).type).toBe(DepthView);
+        // A view the page does not know names none, and neither does a quote it does not have.
+        expect((await rendered({ view: "grid" })).type).toBe(DepthView);
+        expect((await rendered({ quote: "not-a-quote-of-its" })).type).toBe(DepthView);
+      });
+
+      it("lets a view the link names win: the Timeline, the Table, the Quotes, a quote of the pair's own and a sort are the flat page", async () => {
+        userAgentHeader = IPHONE;
+        for (const query of [{ view: "timeline" }, { view: "table" }, { view: "clippings" }, { quote: "short-one" }, { sort: "rating", dir: "desc" }]) {
+          expect((await rendered(query)).type, JSON.stringify(query)).toBe(PeopleView);
+        }
+        expect((await rendered({ view: "depth" })).type).toBe(DepthView);
+      });
+
+      it("takes the first of a repeated view", async () => {
+        userAgentHeader = IPHONE;
+        expect((await rendered({ view: ["timeline", "depth"] })).type).toBe(PeopleView);
+        expect((await rendered({ view: ["depth", "timeline"] })).type).toBe(DepthView);
+      });
+    });
+
+    describe("on a desktop, a tablet, a bot or with no user agent at all, for a link that names no view", () => {
+      it.each([
+        ["a desktop", DESKTOP],
+        ["an iPad", IPAD],
+        ["an Android tablet", ANDROID_TABLET],
+        ["Googlebot's smartphone agent, so that a crawler reads the page with the table in its HTML", GOOGLEBOT_SMARTPHONE],
+        ["no user agent", null],
+      ])("is the Timeline for %s", async (_name, agent) => {
+        userAgentHeader = agent;
+        expect((await rendered({})).type).toBe(PeopleView);
+      });
+
+      it("is still the Films view when the link says so", async () => {
+        for (const agent of [DESKTOP, IPAD, GOOGLEBOT_SMARTPHONE, null]) {
+          userAgentHeader = agent;
+          expect((await rendered({ view: "depth" })).type).toBe(DepthView);
+        }
+      });
+    });
+
+    it("hands the client the pair hero's note, worked out here: the pair's quote, as the stub pair has quotes of its own", async () => {
+      const element = await rendered({});
+      expect(element.props.heroNote).toMatchObject({ kind: "quote" });
     });
   });
 });

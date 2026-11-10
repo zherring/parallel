@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { newsreader } from "@/components/newsreader";
 import type { Clipping, ClippingsPerson, ClippingsVoice, VoicedClippings } from "@/lib/clippings";
@@ -25,6 +26,7 @@ import {
   interleaveQuotes,
 } from "@/lib/critics-view";
 import { personColor } from "@/lib/person-colors";
+import { QUOTE_PARAM } from "@/lib/films-view";
 import { headingNames } from "@/lib/short-name";
 import { cn } from "./cn";
 import { MoreReading } from "./more-reading";
@@ -105,6 +107,8 @@ function Quotes({
   const [filter, setFilter] = useState<ClippingsFilter>("all");
   const [changed, setChanged] = useState(false);
   const [highlighted, setHighlighted] = useState<string | null>(null);
+  // A link to another quote while the tab is already showing (the pair hero's, say) changes the address without changing `active`: it is read again.
+  const quoteInAddress = useSearchParams().get(QUOTE_PARAM);
 
   const colorOf = (side: 0 | 1 | null) => (side === null || !people ? MUTED : personColor(people[side].slot));
 
@@ -144,7 +148,7 @@ function Quotes({
       // Leaving the tab ends the highlight, so that coming back to it does not find a quote still lit.
       setHighlighted(null);
     };
-  }, [active, clippingList, criticQuotes]);
+  }, [active, clippingList, criticQuotes, quoteInAddress]);
 
   return (
     <>

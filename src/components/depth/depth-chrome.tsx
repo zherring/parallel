@@ -3,7 +3,7 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, type RefObject } from "react";
 import type { PillPerson } from "@/components/depth/people-pill";
-import { PeopleBar } from "@/components/people-bar";
+import { PeopleBar, type PeopleBarHero } from "@/components/people-bar";
 import type { ExportList } from "@/components/timeline/export-button";
 import { DEPTH_VIEW, pageViewHref } from "@/lib/depth-url";
 import type { PageView } from "@/lib/films-view";
@@ -11,6 +11,8 @@ import type { ShareInput } from "@/lib/share";
 
 interface DepthChromeProps {
   people: readonly PillPerson[];
+  /** The pair hero (see `PeopleBar`): its title, whether it has collapsed, and its body, which the scene is under. */
+  hero: PeopleBarHero;
   /** The scene's scroller, for the pill to close on. */
   scrollerRef: RefObject<HTMLDivElement | null>;
   /** Whether the page has Quotes: a pair that has quotes or critics (see `hasClippingsTab`). */
@@ -38,6 +40,7 @@ interface DepthChromeProps {
  */
 export function DepthChrome({
   people,
+  hero,
   scrollerRef,
   clippings,
   showAll,
@@ -56,6 +59,7 @@ export function DepthChrome({
   return (
     <PeopleBar
       people={people}
+      hero={hero}
       scrollerRef={scrollerRef}
       clippings={clippings}
       view={DEPTH_VIEW}

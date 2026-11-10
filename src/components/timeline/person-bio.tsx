@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { PersonAvatar } from "@/components/person-avatar";
+import { cn } from "./cn";
 import { bioSnippet, lifeLine, splitParagraphs } from "@/lib/biography";
 import type { PersonSummary } from "@/lib/types";
 
@@ -30,6 +31,8 @@ interface PersonBioProps {
    * of its own that is out of the Tab order, since the name beside it (`nameTrigger`) is the keyboard's way in; it takes the mouse and the touch.
    */
   portrait?: ReactNode;
+  /** With `portrait`: classes for the portrait's button, after its own, so that its corners (and its focus ring's) are the portrait's: round by default. */
+  portraitClassName?: string;
 }
 
 /** A person of the page with the roles their biography dialog gives under the name: what a name outside the people pill needs to open it. */
@@ -47,7 +50,7 @@ export interface BioPerson {
  * the teaser shrinks line by line, down to just the button. The full text is only rendered
  * while the dialog is open.
  */
-export function PersonBio({ person, roles, flow = false, nameTrigger = false, label, portrait }: PersonBioProps) {
+export function PersonBio({ person, roles, flow = false, nameTrigger = false, label, portrait, portraitClassName }: PersonBioProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const wasOpen = useRef(false);
@@ -75,7 +78,7 @@ export function PersonBio({ person, roles, flow = false, nameTrigger = false, la
           title={`Biography of ${person.name}`}
           tabIndex={-1}
           onClick={() => setOpen(true)}
-          className="inline-flex cursor-pointer rounded-full"
+          className={cn("inline-flex cursor-pointer", portraitClassName ?? "rounded-full")}
         >
           {portrait}
         </button>

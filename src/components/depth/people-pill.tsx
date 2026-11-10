@@ -56,7 +56,7 @@ const EASE_IN_OUT = "cubic-bezier(0.4, 0, 0.2, 1)";
 const EASE_OUT = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 /** Where `from`'s box sits relative to `to`'s, as the transform that moves `to` onto `from` (the "F" and "I" of FLIP). */
-function flipTransform(from: DOMRect, to: DOMRect): string {
+export function flipTransform(from: DOMRect, to: DOMRect): string {
   const scale = to.width > 0 ? from.width / to.width : 1;
   return `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${scale})`;
 }

@@ -44,6 +44,9 @@ interface DepthSceneProps {
 /** The scene pans by mouse like the flat timeline, but only up and down, and from posters too (a click still opens one; a drag does not). */
 const PAN: DragPanOptions = { interactive: null, axis: "y" };
 
+/** The room (px) the scene leaves between the bottom of the pair hero's band and the first collaboration's poster when it opens. */
+const HERO_POSTER_GAP_PX = 16;
+
 /** The viewport height (px) the posters that are fetched up front are chosen for: the server does not know the real one. */
 const NOMINAL_VIEWPORT_H = 900;
 
@@ -133,11 +136,22 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
   // Open on the first film made together (or where the latest-starting person begins), not at the oldest year.
   const didInitialScroll = useRef(false);
   const { anchorY, trackHeight } = layout;
+  const layoutFilms = layout.films;
   useLayoutEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller || didInitialScroll.current) return;
     didInitialScroll.current = true;
     scroller.scrollTop = anchorScrollTop(anchorY, scroller.clientHeight, trackHeight);
+    // The pair hero is open over the top of the scene when it opens: if its band would cover the first collaboration's poster (a long quote, a phone, four
+    // people), the scene opens that much further up, so that the poster is just under the band. Where the band leaves it clear nothing moves.
+    const band = document.querySelector<HTMLElement>("[data-people-bar][data-hero='expanded'][data-hero-placement='band']");
+    const first = layoutFilms.filter((item) => item.shared).reduce<DepthFilm | null>((top, item) => (top === null || item.y < top.y ? item : top), null);
+    const poster = first ? scroller.querySelector<HTMLElement>(`[data-film="${first.film.id}"]`) : null;
+    if (band && poster) {
+      const covered = band.getBoundingClientRect().bottom + HERO_POSTER_GAP_PX - poster.getBoundingClientRect().top;
+      if (covered > 0) scroller.scrollTop = Math.max(0, scroller.scrollTop - Math.ceil(covered));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the scene opens once: the films it opens on are the first render's
   }, [scrollerRef, anchorY, trackHeight]);
 
   useFocusField(scrollerRef, layout.films, people.length);

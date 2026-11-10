@@ -131,6 +131,26 @@ body:has([data-people-bar]) > header {
     --bar-h: 2.875rem;
   }
 }
+/*
+ * Where the Films view's year rail starts (src/components/depth/year-rail.tsx): the top of the screen, once the pair hero has collapsed into the compact bar (the
+ * bar's controls are left of the rail), and the bottom edge of the hero's band while it is open (src/components/people-bar.tsx writes that on the root as an inline
+ * style, and takes it off again on collapse). Registered as a length, so that it eases between the two over the time the band takes to open and shut, and
+ * the rail's top edge, its readout and its labels, which are all worked out from it, move together. Reduced motion: at once.
+ */
+@property --rail-top {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+:root {
+  --rail-top: 0px;
+  transition: --rail-top 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    transition: none;
+  }
+}
 /* The page stays usable under a transition. */
 ::view-transition {
   pointer-events: none;
@@ -149,6 +169,28 @@ body:has([data-people-bar]) > header {
   ::view-transition-new(*) {
     animation-duration: 0s !important;
     animation-delay: 0s !important;
+  }
+}
+
+/*
+ * A film that a chip of the pair hero brought into view in the Table (src/components/timeline/reveal-film-row.ts) is lit for a moment: the green of the films made together,
+ * fading out. Reduced motion: lit for the same time, without the fade.
+ */
+@keyframes film-row-flash {
+  from {
+    background-color: color-mix(in srgb, var(--lit) 24%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+[data-flash] {
+  animation: film-row-flash 1800ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-flash] {
+    animation: none;
+    background-color: color-mix(in srgb, var(--lit) 18%, transparent);
   }
 }
 
