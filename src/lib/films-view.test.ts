@@ -8,6 +8,8 @@ import {
   DEPTH_VIEW,
   FILMS_VIEWS,
   FILMS_VIEW_LABELS,
+  SWITCHER_LABELS,
+  switcherViews,
   VIEWS,
   VIEW_LABELS,
   availableViews,
@@ -38,6 +40,12 @@ describe("FILMS_VIEWS", () => {
     expect(FILMS_VIEWS).toEqual(["depth", "timeline", "table"]);
     expect(FILMS_VIEWS[0]).toBe(DEPTH_VIEW);
     expect(FILMS_VIEW_LABELS).toEqual({ depth: "Films", timeline: "Timeline", table: "Table" });
+  });
+
+  it("has the Quotes as a fourth segment only for a page that has quotes, and says Quotes where the code says clippings", () => {
+    expect(switcherViews(false)).toEqual(["depth", "timeline", "table"]);
+    expect(switcherViews(true)).toEqual(["depth", "timeline", "table", "clippings"]);
+    expect(switcherViews(true).map((view) => SWITCHER_LABELS[view])).toEqual(["Films", "Timeline", "Table", "Quotes"]);
   });
 
   it("never says Focus: the Depth view is Films to a person", () => {

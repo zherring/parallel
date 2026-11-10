@@ -10,7 +10,7 @@ import { ExportButton, type ExportList } from "@/components/timeline/export-butt
 import { FilmSettings } from "@/components/timeline/film-settings";
 import { ShareMenu } from "@/components/timeline/share-menu";
 import { inPlace } from "@/components/timeline/view-tabs";
-import { QuotesLink, ViewSwitcher } from "@/components/timeline/view-switcher";
+import { ViewSwitcher } from "@/components/timeline/view-switcher";
 import { DEPTH_VIEW, isFilmsView, type PageView } from "@/lib/films-view";
 import type { ShareInput } from "@/lib/share";
 
@@ -18,7 +18,7 @@ interface PeopleBarProps {
   people: readonly PillPerson[];
   /** The Depth view's scroller, for the pill to close on. None on the flat pages: the window scrolls there. */
   scrollerRef?: RefObject<HTMLDivElement | null>;
-  /** Whether the page has Quotes: a pair with quotes or critics (see `hasClippingsTab`). Only then has the bar its "Quotes" link. */
+  /** Whether the page has Quotes: a pair with quotes or critics (see `hasClippingsTab`). Only then is Quotes the fourth segment of the bar's control. */
   clippings: boolean;
   /** The view this page is on: Films (the Depth view, `depth`), Timeline or Table, or the Quotes (`clippings`). */
   view: PageView;
@@ -31,7 +31,7 @@ interface PeopleBarProps {
    */
   onSelect?: (view: PageView) => void;
   /**
-   * The Films view's year rail is at the right edge (3.75rem wide, 28px on a phone), and the gear, with the view switcher and Quotes before it, sits clear of it.
+   * The Films view's year rail is at the right edge (3.75rem wide, 28px on a phone), and the gear, with the view switcher before it, sits clear of it.
    * Without a rail (the flat pages) the gear hugs the right edge, with the same gutter the bar's first control (the home square, the people pill on a phone) has at the left.
    */
   rail?: boolean;
@@ -64,8 +64,8 @@ const STEPS_ASIDE =
 /**
  * The page bar of a `/p/` page, fixed to the top of the screen, the same on every view (the flat Timeline, Table and Quotes, and the Films view,
  * which is the Depth view): at the left a small square home (a back arrow to the landing page), from `sm` up (the site's header is hidden on these
- * pages, see globals.css), and the people pill; at the right the view switcher (Films, Timeline, Table as one segmented control of text), the "Quotes"
- * link of a page that has quotes, and the gear. Everything at the left is in the same place and size on every view, and so is everything at the
+ * pages, see globals.css), and the people pill; at the right the view switcher (Films, Timeline, Table as one segmented control of text, and Quotes as
+ * its fourth segment for a page that has quotes) and the gear. Everything at the left is in the same place and size on every view, and so is everything at the
  * right but for what the Films view's rail asks of it: the controls sit clear of the year rail there (`rail`), and at the right edge on the flat
  * pages, with the gutter the bar's first control has at the left.
  * Between the flat views they do not move; between a flat view and Films they glide, as a view transition: the bar is a different one on each page,
@@ -73,12 +73,12 @@ const STEPS_ASIDE =
  * The Depth view puts the bar before its scroller, never inside it (perspective would turn `fixed` into `absolute`); the bar takes no pointer events
  * of its own, only what is in it does, so the scene is draggable up to the controls' edges.
  *
- * The switcher is on the Quotes too, where none of its views is the current one and choosing one goes to it, and "Quotes" is the current link: that
- * keeps the bar's footprint the same on every view.
+ * The switcher is on every view with the same segments, Quotes included (its segment is the current one on the Quotes, like any other): that keeps the
+ * bar's footprint the same on every view.
  *
  * The gear opens the film settings (Show all films and Include minor credits), Share (with its Period choice) and Export (the list as a CSV
- * file), on every view alike. On a phone there is no room for the home square, the switcher and Quotes on the bar, so the bar holds the people
- * pill and the gear, and the gear's sheet holds the views, the Quotes and the way home too.
+ * file), on every view alike. On a phone there is no room for the home square and the switcher on the bar, so the bar holds the people
+ * pill and the gear, and the gear's sheet holds the views (Quotes among them) and the way home too.
  *
  * The bar is as wide as the page's viewport (`inset-x-0`: a flat page with a scrollbar of its own ends the bar at the scrollbar, where the gear's
  * gutter is measured from; the Depth view's scroller hides its own) and sits over the page at `z-30`, under the panels and dialogs.
@@ -151,9 +151,8 @@ export function PeopleBar({
       */}
       <div className={cn("pointer-events-none flex shrink-0 items-center gap-2", rail && "mr-[3.75rem] max-sm:mr-6", STEPS_ASIDE)}>
         <ViewTransition name="people-bar-views" share="bar-glide" default="none">
-          <div className="pointer-events-auto flex items-center gap-2 max-sm:hidden">
-            <ViewSwitcher view={view} hrefFor={hrefFor} onClickFor={clickFor} className={FLOATING} />
-            {clippings && <QuotesLink current={view === "clippings"} href={hrefFor("clippings")} onClick={clickFor("clippings")} />}
+          <div className="pointer-events-auto max-sm:hidden">
+            <ViewSwitcher view={view} quotes={clippings} hrefFor={hrefFor} onClickFor={clickFor} className={FLOATING} />
           </div>
         </ViewTransition>
         <ViewTransition name="people-bar-gear" share="bar-glide" default="none">
@@ -171,9 +170,8 @@ export function PeopleBar({
                 <div className="sm:hidden">
                   <h2 className={sectionTitle}>Views</h2>
                   {/* Choosing a view on the flat page leaves the sheet over it: it closes (see `FilmSettings`). */}
-                  <div data-close-sheet className="flex flex-col gap-2">
-                    <ViewSwitcher view={view} hrefFor={hrefFor} onClickFor={clickFor} sheet className="bg-surface" />
-                    {clippings && <QuotesLink sheet current={view === "clippings"} href={hrefFor("clippings")} onClick={clickFor("clippings")} />}
+                  <div data-close-sheet>
+                    <ViewSwitcher view={view} quotes={clippings} hrefFor={hrefFor} onClickFor={clickFor} sheet className="bg-surface" />
                   </div>
                   <hr className="my-3 border-border" />
                 </div>

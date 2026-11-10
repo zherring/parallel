@@ -91,6 +91,17 @@ export const FILMS_VIEW_LABELS: Record<FilmsView, string> = {
 /** Every view a `/p/` page can be on: the three films views, and the Clippings (the Quotes). */
 export type PageView = FilmsView | "clippings";
 
+/** What a person reads on each segment of the page bar's control: the three films views, and the Quotes (`clippings` in the address and the code). */
+export const SWITCHER_LABELS: Record<PageView, string> = { ...FILMS_VIEW_LABELS, clippings: "Quotes" };
+
+/**
+ * The segments of the page bar's control, in order: Films, Timeline, Table, and Quotes as the fourth for a page that has quotes (`hasQuotes`, see
+ * `hasClippingsTab`). Without quotes the control is the three films views.
+ */
+export function switcherViews(hasQuotes: boolean): readonly PageView[] {
+  return hasQuotes ? [...FILMS_VIEWS, "clippings"] : FILMS_VIEWS;
+}
+
 /** Whether the view is one of the films views (Films, Timeline, Table) rather than the Clippings (the Quotes). */
 export function isFilmsView(view: PageView): view is FilmsView {
   return view !== "clippings";

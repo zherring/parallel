@@ -1,15 +1,13 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import type { FilmsView, PageView } from "@/lib/films-view";
-import { QuotesLink, ViewSwitcher } from "./view-switcher";
+import type { PageView } from "@/lib/films-view";
+import { ViewSwitcher } from "./view-switcher";
 import { inPlace, isPlainClick } from "./view-tabs";
 
-const hrefFor = (view: FilmsView) => `/p/a?view=${view}`;
+const hrefFor = (view: PageView) => `/p/a?view=${view}`;
 const switcher = (props: Partial<Parameters<typeof ViewSwitcher>[0]> = {}) =>
   renderToStaticMarkup(createElement(ViewSwitcher, { view: "timeline", hrefFor, ...props }));
-const quotes = (props: Partial<Parameters<typeof QuotesLink>[0]> = {}) =>
-  renderToStaticMarkup(createElement(QuotesLink, { current: false, href: "/p/a?view=clippings", ...props }));
 
 /** The links of some markup, as their text, current mark, address and title. */
 const linksOf = (html: string) =>
@@ -34,62 +32,63 @@ describe("ViewSwitcher", () => {
     expect(html).not.toMatch(/<button\b/);
   });
 
+  it("has Quotes as its fourth segment, inside the same box, for a page that has quotes, and not otherwise", () => {
+    const html = switcher({ quotes: true });
+    expect(html.match(/<nav\b/g)).toHaveLength(1);
+    const links = linksOf(html);
+    expect(links.map((link) => link.text)).toEqual(["Films", "Timeline", "Table", "Quotes"]);
+    expect(links[3]).toMatchObject({ href: "/p/a?view=clippings" });
+    // What a person reads is Quotes; the address and the code say clippings.
+    expect(html).not.toContain("Clippings");
+    expect(linksOf(switcher({ quotes: false })).map((link) => link.text)).toEqual(["Films", "Timeline", "Table"]);
+    expect(linksOf(switcher()).map((link) => link.text)).toEqual(["Films", "Timeline", "Table"]);
+  });
+
   it("never says Focus: the Depth view is Films to a person", () => {
-    expect(switcher()).not.toContain("Focus");
+    expect(switcher({ quotes: true })).not.toContain("Focus");
     expect(switcher({ sheet: true })).not.toContain("Focus");
   });
 
-  it("marks the view the page is on as current, and none for the Quotes", () => {
+  it("marks the one view the page is on as current, the Quotes' segment on the Quotes like any other", () => {
     for (const [view, expected] of [
-      ["depth", [true, false, false]],
-      ["timeline", [false, true, false]],
-      ["table", [false, false, true]],
-      ["clippings", [false, false, false]],
+      ["depth", [true, false, false, false]],
+      ["timeline", [false, true, false, false]],
+      ["table", [false, false, true, false]],
+      ["clippings", [false, false, false, true]],
     ] satisfies [PageView, boolean[]][]) {
-      expect(linksOf(switcher({ view })).map((link) => link.current), view).toEqual(expected);
+      expect(linksOf(switcher({ view, quotes: true })).map((link) => link.current), view).toEqual(expected);
     }
+    // Without quotes there is no fourth segment to mark: the three are as they were.
+    expect(linksOf(switcher({ view: "table" })).map((link) => link.current)).toEqual([false, false, true]);
   });
 
-  it("has the same three words in the phone's sheet, as a row that fills it", () => {
-    const sheet = switcher({ sheet: true });
-    expect(linksOf(sheet).map((link) => link.text)).toEqual(["Films", "Timeline", "Table"]);
+  it("has the same segments in the phone's sheet, as a row that fills it", () => {
+    const sheet = switcher({ sheet: true, quotes: true });
+    expect(linksOf(sheet).map((link) => link.text)).toEqual(["Films", "Timeline", "Table", "Quotes"]);
     expect(sheet).toContain("w-full");
     // The bar's box is the bar's height; the sheet's is not.
     expect(switcher()).toContain("h-(--bar-h)");
     expect(sheet).not.toContain("h-(--bar-h)");
   });
 
+  it("gives every segment the bar's one radius inside, concentric with the box", () => {
+    const html = switcher({ quotes: true });
+    expect(html).toContain("rounded-(--bar-radius)");
+    expect(html.match(/rounded-\[max\(0px,calc\(var\(--bar-radius\)-var\(--switcher-pad\)\)\)\]/g)).toHaveLength(4);
+  });
+
   it("asks the page for the click handler of each view, in order: the page decides which views it shows in place", () => {
-    const asked: FilmsView[] = [];
+    const asked: PageView[] = [];
     const html = switcher({
+      quotes: true,
       onClickFor: (view) => {
         asked.push(view);
         return undefined;
       },
     });
-    expect(asked).toEqual(["depth", "timeline", "table"]);
+    expect(asked).toEqual(["depth", "timeline", "table", "clippings"]);
     // Without a handler a link is a plain link: it navigates.
-    expect(html.match(/<a\b/g)).toHaveLength(3);
-  });
-});
-
-describe("QuotesLink", () => {
-  it("is a text link named Quotes, to the Quotes' address; what a person reads is Quotes, the code says clippings", () => {
-    const html = quotes();
-    expect(linksOf(html)).toEqual([expect.objectContaining({ text: "Quotes", href: "/p/a?view=clippings", current: false })]);
-    expect(html).not.toContain("Clippings");
-    expect(html).not.toMatch(/<svg\b/);
-  });
-
-  it("is current on the Quotes alone", () => {
-    expect(linksOf(quotes({ current: true }))[0].current).toBe(true);
-    expect(linksOf(quotes({ current: false }))[0].current).toBe(false);
-  });
-
-  it("is the bar's height and radius, and the sheet's row is not", () => {
-    expect(quotes()).toContain("h-(--bar-h)");
-    expect(quotes()).toContain("rounded-(--bar-radius)");
-    expect(quotes({ sheet: true })).not.toContain("h-(--bar-h)");
+    expect(html.match(/<a\b/g)).toHaveLength(4);
   });
 });
 

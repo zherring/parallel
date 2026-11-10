@@ -2,35 +2,39 @@
 
 import Link from "next/link";
 import type { MouseEvent } from "react";
-import { FILMS_VIEWS, FILMS_VIEW_LABELS, type FilmsView, type PageView } from "@/lib/films-view";
+import { SWITCHER_LABELS, switcherViews, type PageView } from "@/lib/films-view";
 import { cn } from "./cn";
 
 /** The tooltip of each view: the word on the segment, and what it is. */
-const TITLES: Record<FilmsView, string> = {
+const TITLES: Record<PageView, string> = {
   depth: "Films · the films as a scene in depth",
   timeline: "Timeline · the films along a horizontal timeline",
   table: "Table · the films as a sortable table",
+  clippings: "Quotes · what the pair and their critics have said about each other",
 };
 
 interface ViewSwitcherProps {
-  /** The view the page is on; the Quotes are none of the three, and then none is current. */
+  /** The view the page is on. */
   view: PageView;
+  /** Whether the page has quotes (see `hasClippingsTab`): only then is Quotes the fourth segment. */
+  quotes?: boolean;
   /** The address of each view's page. */
-  hrefFor: (view: FilmsView) => string;
+  hrefFor: (view: PageView) => string;
   /** When given, a plain click on a view that is chosen here returns its handler (see `inPlace`); none leaves the link to navigate. */
-  onClickFor?: (view: FilmsView) => ((event: MouseEvent<HTMLAnchorElement>) => void) | undefined;
+  onClickFor?: (view: PageView) => ((event: MouseEvent<HTMLAnchorElement>) => void) | undefined;
   /** The phone's sheet: the segments share the sheet's width, in a row of 28px links, instead of the bar's `--bar-h` box. */
   sheet?: boolean;
   className?: string;
 }
 
 /**
- * The page bar's view switcher: Films, Timeline and Table as one small segmented control of text links, in that order, the current one filled. Each
- * is a link with a title, and the current one is `aria-current`. "Films" is the Depth view (`?view=depth`: the address and the code still say
- * `depth`). It is on every view, the Quotes too, where none is current and choosing one goes to that view, so that the bar's footprint does not
- * change with the view. On a phone the bar has no room for it and the gear's sheet holds the same three (`sheet`).
+ * The page bar's view switcher: Films, Timeline and Table as one small segmented control of text links, in that order, and Quotes as its fourth
+ * segment for a page that has quotes (`quotes`); the one the page is on is filled and `aria-current`, the Quotes' segment on the Quotes like any other.
+ * "Films" is the Depth view (`?view=depth`: the address and the code still say `depth`, as they say `clippings` for the Quotes). Each is a link with a title.
+ * It is on every view, with the same segments, so that the bar's footprint does not change with the view. On a phone the bar has no room for it and the
+ * gear's sheet holds the same segments (`sheet`).
  */
-export function ViewSwitcher({ view, hrefFor, onClickFor, sheet = false, className }: ViewSwitcherProps) {
+export function ViewSwitcher({ view, quotes = false, hrefFor, onClickFor, sheet = false, className }: ViewSwitcherProps) {
   return (
     <nav
       aria-label="Views"
@@ -42,7 +46,7 @@ export function ViewSwitcher({ view, hrefFor, onClickFor, sheet = false, classNa
         className,
       )}
     >
-      {FILMS_VIEWS.map((id) => {
+      {switcherViews(quotes).map((id) => {
         const current = id === view;
         return (
           <Link
@@ -58,44 +62,10 @@ export function ViewSwitcher({ view, hrefFor, onClickFor, sheet = false, classNa
               current ? "bg-border text-strong" : "text-muted hover:bg-surface hover:text-strong",
             )}
           >
-            {FILMS_VIEW_LABELS[id]}
+            {SWITCHER_LABELS[id]}
           </Link>
         );
       })}
     </nav>
-  );
-}
-
-interface QuotesLinkProps {
-  /** The page is on the Quotes. */
-  current: boolean;
-  href: string;
-  /** A plain click that chooses the Quotes here instead of following the link (see `inPlace`). */
-  onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
-  /** The phone's sheet: a full-width row instead of the bar's `--bar-h` box. */
-  sheet?: boolean;
-}
-
-/**
- * "Quotes", a text link beside the view switcher, for a page that has quotes (the caller leaves it out otherwise). It is the bar's one other
- * view, the Quotes, so it is current (`aria-current`) on the Quotes and on no other. The same box as the switcher's: `--bar-h` tall, the bar's
- * radius, a hairline. On a phone the gear's sheet holds it, after the three views.
- */
-export function QuotesLink({ current, href, onClick, sheet = false }: QuotesLinkProps) {
-  return (
-    <Link
-      href={href}
-      prefetch={false}
-      aria-current={current ? "page" : undefined}
-      title="Quotes · what the pair and their critics have said about each other"
-      onClick={onClick}
-      className={cn(
-        "inline-flex shrink-0 cursor-pointer items-center justify-center border border-border text-sm font-medium no-underline transition-colors motion-reduce:transition-none",
-        sheet ? "h-8 w-full rounded-md px-3" : "h-(--bar-h) rounded-(--bar-radius) px-3.5",
-        current ? "bg-border text-strong" : "bg-canvas/90 text-muted hover:bg-surface hover:text-strong",
-      )}
-    >
-      Quotes
-    </Link>
   );
 }
