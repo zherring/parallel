@@ -209,12 +209,12 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
 
   // ---- the pair hero ------------------------------------------------------------------------------------------------------------------
   const { subtitle, chips } = usePairHero({ timelines, rows, includeMinor });
-  // The view's main scroller: the Timeline's track, sideways, from where it landed (its first collaboration); the Table and the Quotes are the page, from its top.
+  // The view's main scroller: the Timeline's track, sideways (or down, where it has nothing to scroll sideways), from where it landed (its first collaboration); the Table and the Quotes are the page, from its top.
   const timelineView = view === "timeline";
   const getHeroScroller = useCallback(() => (timelineView ? (timelineRef.current?.getScroller() ?? null) : window), [timelineView]);
   const { collapsed, collapse } = useHeroCollapse({
     getScroller: getHeroScroller,
-    axis: timelineView ? "x" : "y",
+    axis: timelineView ? "both" : "y",
     landing: timelineView ? undefined : 0,
     resetKey: view,
   });
@@ -240,7 +240,17 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     },
     [view, collapse, handleSelect],
   );
-  const forwardWheel = useCallback((deltaX: number, deltaY: number) => timelineRef.current?.getScroller()?.scrollBy(deltaX, deltaY), []);
+  // A wheel over the band is the visitor moving the track under it; a track with nothing to scroll does not move, and the hero gives way all the same.
+  const forwardWheel = useCallback(
+    (deltaX: number, deltaY: number) => {
+      const scroller = timelineRef.current?.getScroller();
+      if (!scroller) return;
+      const [left, top] = [scroller.scrollLeft, scroller.scrollTop];
+      scroller.scrollBy(deltaX, deltaY);
+      if (scroller.scrollLeft === left && scroller.scrollTop === top) collapse();
+    },
+    [collapse],
+  );
   const featuredQuoteHref = heroNote?.kind === "quote" ? quoteHref(pathname, search, heroNote.id) : null;
   const heroBody = (
     <PairHeroBody

@@ -232,97 +232,98 @@ export function PeopleBar({
         </>
       )}
       <div className="flex items-start justify-between gap-3">
-      <div className="flex min-w-0 items-start gap-3">
-        {/*
-          The way home, now that the site's header is gone: a rounded square (the bar's radius) with a back arrow, before the people pill, named "Back to
-          Parallel home" (it links to the landing page, it does not go back in history). On a desktop it does not step aside for the open pill, whose field
-          and card start at the people pill's own left edge, clear of it. Not on a phone: the bar's room there is the people pill's, so the pill starts at the
-          bar's own left edge, the same on every view, and the gear's sheet has the way home, with the name.
-        */}
-        <HomeLink
-          label="Back to Parallel home"
-          title="Back to Parallel home"
-          className={cn(
-            "pointer-events-auto inline-flex size-(--bar-h) shrink-0 items-center justify-center rounded-(--bar-radius) text-muted no-underline transition-colors hover:bg-surface hover:text-strong motion-reduce:transition-none",
-            FLOATING,
-            "max-sm:hidden",
-          )}
-        >
-          <ArrowLeft aria-hidden="true" className="size-4" />
-        </HomeLink>
-        {/*
-          The title and the people pill share one place: the pair hero's title (the names joined with ×, and what each did) while the hero is expanded, the
-          pill once it has collapsed. Both stay mounted, one over the other, and cross-fade; the one that is not shown is inert, so neither can be tabbed to or pressed.
-        */}
-        <div className="grid min-w-0">
-          <div
-            inert={expanded}
-            className={cn("col-start-1 row-start-1 min-w-0 transition-[opacity,visibility] duration-200 motion-reduce:transition-none", expanded && "invisible opacity-0")}
+        <div className="flex min-w-0 items-start gap-3">
+          {/*
+            The way home, now that the site's header is gone: a rounded square (the bar's radius) with a back arrow, before the people pill, named "Back to
+            Parallel home" (it links to the landing page, it does not go back in history). On a desktop it does not step aside for the open pill, whose field
+            and card start at the people pill's own left edge, clear of it. Not on a phone: the bar's room there is the people pill's, so the pill starts at the
+            bar's own left edge, the same on every view, and the gear's sheet has the way home, with the name.
+          */}
+          <HomeLink
+            label="Back to Parallel home"
+            title="Back to Parallel home"
+            className={cn(
+              "pointer-events-auto inline-flex size-(--bar-h) shrink-0 items-center justify-center rounded-(--bar-radius) text-muted no-underline transition-colors hover:bg-surface hover:text-strong motion-reduce:transition-none",
+              FLOATING,
+              "max-sm:hidden",
+            )}
           >
-            <PeoplePill people={people} scrollerRef={scrollerRef} onToggleVisible={onToggleVisible} />
-          </div>
-          <div
-            inert={!expanded}
-            className={cn("col-start-1 row-start-1 min-w-0 transition-[opacity,visibility] duration-200 motion-reduce:transition-none", !expanded && "invisible opacity-0")}
-          >
-            <PairTitle people={people} subtitle={hero.subtitle} />
+            <ArrowLeft aria-hidden="true" className="size-4" />
+          </HomeLink>
+          {/*
+            The title and the people pill share one place: the pair hero's title (the names joined with ×, and what each did) while the hero is expanded, the
+            pill once it has collapsed. Both stay mounted, one over the other, and cross-fade; the one that is not shown is inert, so neither can be tabbed to or pressed.
+          */}
+          <div className="grid min-w-0">
+            <div
+              inert={expanded}
+              className={cn("col-start-1 row-start-1 min-w-0 transition-[opacity,visibility] duration-200 motion-reduce:transition-none", expanded && "invisible opacity-0")}
+            >
+              <PeoplePill people={people} scrollerRef={scrollerRef} onToggleVisible={onToggleVisible} />
+            </div>
+            <div
+              inert={!expanded}
+              // Collapsed it takes no room either (a title of several lines on a narrow screen would make the compact bar taller than its controls).
+              className={cn("col-start-1 row-start-1 min-w-0 transition-[opacity,visibility] duration-200 motion-reduce:transition-none", !expanded && "invisible h-0 overflow-hidden opacity-0")}
+            >
+              <PairTitle people={people} subtitle={hero.subtitle} />
+            </div>
           </div>
         </div>
-      </div>
-      {/*
-        At the right edge, or, on the Films view, left of the year rail (3.75rem wide, 28px on a phone) with a gap: nothing there is ever over it.
-        The cluster takes no pointer events itself, so that what is between its controls does not shield what is under it.
-      */}
-      <div className={cn("pointer-events-none flex shrink-0 items-center gap-2", rail && "mr-[3.75rem] max-sm:mr-6", STEPS_ASIDE)}>
-        <ViewTransition name="people-bar-views" share="bar-glide" default="none">
-          <div className="pointer-events-auto max-sm:hidden">
-            <ViewSwitcher view={view} quotes={clippings} hrefFor={hrefFor} onClickFor={clickFor} className={FLOATING} />
-          </div>
-        </ViewTransition>
-        <ViewTransition name="people-bar-gear" share="bar-glide" default="none">
-          <div className="pointer-events-auto flex shrink-0">
-            <FilmSettings
-              label="Settings"
-              buttonClassName={cn("size-[var(--bar-h)]", FLOATING)}
-              scrollable={false}
-              showAll={showAll}
-              onShowAllChange={onShowAllChange}
-              includeMinor={includeMinor}
-              onIncludeMinorChange={onIncludeMinorChange}
-              message={settingsMessage}
-              before={
-                <div className="sm:hidden">
-                  <h2 className={sectionTitle}>Views</h2>
-                  {/* Choosing a view on the flat page leaves the sheet over it: it closes (see `FilmSettings`). */}
-                  <div data-close-sheet>
-                    <ViewSwitcher view={view} quotes={clippings} hrefFor={hrefFor} onClickFor={clickFor} sheet className="bg-surface" />
+        {/*
+          At the right edge, or, on the Films view, left of the year rail (3.75rem wide, 28px on a phone) with a gap: nothing there is ever over it.
+          The cluster takes no pointer events itself, so that what is between its controls does not shield what is under it.
+        */}
+        <div className={cn("pointer-events-none flex shrink-0 items-center gap-2", rail && "mr-[3.75rem] max-sm:mr-6", STEPS_ASIDE)}>
+          <ViewTransition name="people-bar-views" share="bar-glide" default="none">
+            <div className="pointer-events-auto max-sm:hidden">
+              <ViewSwitcher view={view} quotes={clippings} hrefFor={hrefFor} onClickFor={clickFor} className={FLOATING} />
+            </div>
+          </ViewTransition>
+          <ViewTransition name="people-bar-gear" share="bar-glide" default="none">
+            <div className="pointer-events-auto flex shrink-0">
+              <FilmSettings
+                label="Settings"
+                buttonClassName={cn("size-[var(--bar-h)]", FLOATING)}
+                scrollable={false}
+                showAll={showAll}
+                onShowAllChange={onShowAllChange}
+                includeMinor={includeMinor}
+                onIncludeMinorChange={onIncludeMinorChange}
+                message={settingsMessage}
+                before={
+                  <div className="sm:hidden">
+                    <h2 className={sectionTitle}>Views</h2>
+                    {/* Choosing a view on the flat page leaves the sheet over it: it closes (see `FilmSettings`). */}
+                    <div data-close-sheet>
+                      <ViewSwitcher view={view} quotes={clippings} hrefFor={hrefFor} onClickFor={clickFor} sheet className="bg-surface" />
+                    </div>
+                    <hr className="my-3 border-border" />
                   </div>
-                  <hr className="my-3 border-border" />
-                </div>
-              }
-              after={
-                <div className="mt-3 border-t border-border pt-3">
-                  <h2 className={sectionTitle}>{exports ? "Share and export" : "Share"}</h2>
-                  <div className="flex flex-col gap-2">
-                    <ShareMenu input={share} onStatus={announce} className="w-full" />
-                    {exports && <ExportButton {...exportList} onStatus={announce} className="w-full" />}
+                }
+                after={
+                  <div className="mt-3 border-t border-border pt-3">
+                    <h2 className={sectionTitle}>{exports ? "Share and export" : "Share"}</h2>
+                    <div className="flex flex-col gap-2">
+                      <ShareMenu input={share} onStatus={announce} className="w-full" />
+                      {exports && <ExportButton {...exportList} onStatus={announce} className="w-full" />}
+                    </div>
+                    <p role="status" aria-live="polite" className="mt-2 min-h-4 text-xs text-muted">
+                      {status}
+                    </p>
+                    {/* On a phone the bar has no home pill (see above): the way home is here, last. */}
+                    <div className="mt-3 border-t border-border pt-3 sm:hidden">
+                      <HomeLink className="flex h-9 items-center gap-1.5 rounded-md bg-surface px-3 no-underline hover:bg-border">
+                        <Wordmark className="text-base" />
+                        <span className="text-sm text-muted">home</span>
+                      </HomeLink>
+                    </div>
                   </div>
-                  <p role="status" aria-live="polite" className="mt-2 min-h-4 text-xs text-muted">
-                    {status}
-                  </p>
-                  {/* On a phone the bar has no home pill (see above): the way home is here, last. */}
-                  <div className="mt-3 border-t border-border pt-3 sm:hidden">
-                    <HomeLink className="flex h-9 items-center gap-1.5 rounded-md bg-surface px-3 no-underline hover:bg-border">
-                      <Wordmark className="text-base" />
-                      <span className="text-sm text-muted">home</span>
-                    </HomeLink>
-                  </div>
-                </div>
-              }
-            />
-          </div>
-        </ViewTransition>
-      </div>
+                }
+              />
+            </div>
+          </ViewTransition>
+        </div>
       </div>
       {overlay && (
         // The body eases open and shut (the grid row from its content's height to nothing, no measuring); shut, it is inert and not shown.

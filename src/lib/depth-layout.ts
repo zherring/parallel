@@ -256,8 +256,17 @@ export interface DepthLayout {
   hasShared: boolean;
 }
 
+/**
+ * Room (px) the scene adds above its first year and below its last, on top of `DEPTH.pad`, when the pair hero is over its top: the hero's band covers the top of the
+ * screen while it is open, and a scene whose first collaboration is where the axis starts (no earlier films, so nothing to scroll up to) would open with that poster under
+ * it. A band is about 300px tall on a desktop and on a phone.
+ */
+export const HERO_ROOM_PX = 180;
+
 export interface DepthOptions {
   pxPerYear?: number;
+  /** Empty space before the first and after the last year (px); `DEPTH.pad` by default. */
+  pad?: number;
   /**
    * The films that are minor for everyone who has them (see `minorOnlyIds`), on a page that includes minor credits: they are
    * background posters, whatever the number of people on the page, at least as faint and far back as `MINOR_OBSCURITY` says.
@@ -569,7 +578,7 @@ export function depthLayout(
     placeable.map((entry) => entry.film.year),
     Number(today.slice(0, 4)),
   );
-  const scale = makeScale(range, pxPerYear, DEPTH.pad);
+  const scale = makeScale(range, pxPerYear, options.pad ?? DEPTH.pad);
   const trackHeight = trackWidth(scale);
 
   const byLayer = new Map<number, CombinedFilm[]>();

@@ -4,6 +4,7 @@ import * as layoutExports from "@/lib/depth-layout";
 import {
   COLLAB_SIZE,
   DEPTH,
+  HERO_ROOM_PX,
   OBSCURITY_CUES,
   PULL,
   SOLO_COLUMNS,
@@ -763,6 +764,22 @@ describe("depthLayout", () => {
     expect(l.scale.axisEndYear).toBe(2011);
     expect(l.trackHeight).toBe(DEPTH.pad * 2 + 22 * DEPTH.pxPerYear);
     expect(l.layerCount).toBe(3);
+  });
+
+  it("takes the room over its first year and under its last from the pad option: every film and the track move by it, and nothing else", () => {
+    const base = layout(pair);
+    const { entries, peopleCount } = entriesOf(pair);
+    const roomy = depthLayout(entries, peopleCount, TODAY, { pad: DEPTH.pad + HERO_ROOM_PX });
+    expect(HERO_ROOM_PX).toBeGreaterThan(0);
+    expect(roomy.scale.pad).toBe(DEPTH.pad + HERO_ROOM_PX);
+    expect(roomy.trackHeight).toBe(base.trackHeight + 2 * HERO_ROOM_PX);
+    for (const film of base.films) {
+      const moved = roomy.films.find((other) => other.film.id === film.film.id)!;
+      expect(moved.y - film.y, `film ${film.film.id}`).toBe(HERO_ROOM_PX);
+      expect([moved.layer, moved.col, moved.w, moved.h]).toEqual([film.layer, film.col, film.w, film.h]);
+    }
+    // The scene opens where it did: the anchor is the same film, the same HERO_ROOM_PX further down.
+    expect(roomy.anchorY! - base.anchorY!).toBe(HERO_ROOM_PX);
   });
 
   it("lists the films layer by layer, each layer top to bottom", () => {

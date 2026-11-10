@@ -20,7 +20,7 @@ import { cardFilms } from "@/lib/card-films";
 import type { PairClippings } from "@/lib/clippings";
 import { combineLanes, combinedMinimapFilms, describeCombined } from "@/lib/combined-track";
 import type { PairCritics } from "@/lib/critics";
-import { depthLayout } from "@/lib/depth-layout";
+import { DEPTH, HERO_ROOM_PX, depthLayout } from "@/lib/depth-layout";
 import { demoteMinor, minorOnlyIds } from "@/lib/depth-minor";
 import { DEPTH_VIEW, withDepth } from "@/lib/depth-url";
 import { personRows, sharedRows } from "@/lib/film-rows";
@@ -105,7 +105,11 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
     [everyEntry, leftOut],
   );
   const info = useMemo(() => describeCombined(entries, lanes, includeMinor), [entries, lanes, includeMinor]);
-  const layout = useMemo(() => depthLayout(entries, people.length, today, { minorIds }), [entries, people.length, today, minorIds]);
+  // The scene has room over its first year for the pair hero's band, which is over its top when it opens.
+  const layout = useMemo(
+    () => depthLayout(entries, people.length, today, { minorIds, pad: DEPTH.pad + HERO_ROOM_PX }),
+    [entries, people.length, today, minorIds],
+  );
   // The people pill's rows. Removing someone stays in the Depth view, unless it was the last person (that goes home).
   const pillPeople = useMemo(
     () =>
@@ -207,7 +211,17 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
   // The scene is the main scroller. It lands on the first collaboration (mid-career), so the hero collapses 48px from there, not from the top.
   const getHeroScroller = useCallback(() => scrollerRef.current, []);
   const { collapsed, collapse } = useHeroCollapse({ getScroller: getHeroScroller, axis: "y", resetKey: DEPTH_VIEW });
-  const forwardWheel = useCallback((deltaX: number, deltaY: number) => scrollerRef.current?.scrollBy(deltaX, deltaY), []);
+  const forwardWheel = useCallback(
+    (deltaX: number, deltaY: number) => {
+      const scroller = scrollerRef.current;
+      if (!scroller) return;
+      const top = scroller.scrollTop;
+      scroller.scrollBy(deltaX, deltaY);
+      // A scene that is at its end does not move; the hero gives way all the same.
+      if (scroller.scrollTop === top) collapse();
+    },
+    [collapse],
+  );
   /**
    * A chip pressed: the scene scrolls (smoothly unless the visitor asked for less motion) so that the film's poster is in the middle, as the year rail's dots do,
    * and the poster's button is focused. The hero collapses, so that it is not over the poster. A film that is not in the scene (a poster the cap left out) opens its panel.

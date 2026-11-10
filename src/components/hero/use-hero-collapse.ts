@@ -9,8 +9,11 @@ export type HeroScroller = HTMLElement | Window;
 interface HeroCollapseOptions {
   /** The view's main scroller, looked up when the view is on screen (in an effect, never during a render). Null: there is none yet, and the hero stays expanded. Keep it stable (`useCallback`). */
   getScroller: () => HeroScroller | null;
-  /** Which way the scroller moves that counts: the Timeline's track sideways (`x`), the scene and the page down (`y`). */
-  axis: "x" | "y";
+  /**
+   * Which way the scroller moves that counts: the scene and the page down (`y`), the Timeline's track sideways (`x`). The Timeline is `both`: a track that is narrower than the
+   * screen (a short career at a wide zoom-out) has nothing to scroll sideways, and then its rows, which scroll down, are what moves; either one, 48px from where it landed, collapses the hero.
+   */
+  axis: "x" | "y" | "both";
   /** Where the scroller lands, when that is known up front (the Table and the Quotes land at the top of the page, 0). Without it the landing is wherever the scroller is a frame after the view opened: Films lands mid-career, the Timeline at its first collaboration. */
   landing?: number;
   /** A different key is a different view: the hero starts expanded again and the landing is read again. */
@@ -39,31 +42,42 @@ export function useHeroCollapse({ getScroller, axis, landing: fixedLanding, rese
     forced.current = false;
     const target = getScroller();
     if (!target) return;
-    const offset = () =>
-      target instanceof Window
-        ? axis === "y"
-          ? target.scrollY
-          : target.scrollX
-        : axis === "y"
-          ? target.scrollTop
-          : target.scrollLeft;
-    let landing: number | null = fixedLanding ?? null;
+    const offsets = (): number[] => {
+      const x = target instanceof Window ? target.scrollX : target.scrollLeft;
+      const y = target instanceof Window ? target.scrollY : target.scrollTop;
+      return axis === "x" ? [x] : axis === "y" ? [y] : [x, y];
+    };
+    // Where the scroller landed, one offset per axis that counts. A landing known up front (`fixedLanding`) is for the one axis there is.
+    let landing: number[] | null = fixedLanding === undefined ? null : [fixedLanding];
     let frame = 0;
     const evaluate = () => {
       frame = 0;
       // The first frame after the view opened: where it landed, once everything that places it (a linked period, the first collaboration) has.
-      if (landing === null) landing = offset();
-      const away = heroCollapsed(offset(), landing);
+      if (landing === null) landing = offsets();
+      const from = landing;
+      const away = offsets().some((offset, index) => heroCollapsed(offset, from[index] ?? 0));
       if (away) forced.current = false;
       apply(away || forced.current);
     };
     const schedule = () => {
       if (!frame) frame = requestAnimationFrame(evaluate);
     };
+    // A scroller with nothing to scroll (the Timeline of a short career, on a wide screen, is no wider than the screen) can never be moved the 48px: a press on it is
+    // the visitor reaching for the view under the hero, and collapses it, as the scroll would have.
+    const press = () => {
+      if (target instanceof Window) return;
+      const room = (counted: "x" | "y") => (counted === "x" ? target.scrollWidth > target.clientWidth + 1 : target.scrollHeight > target.clientHeight + 1);
+      if (axis !== "y" && room("x")) return;
+      if (axis !== "x" && room("y")) return;
+      forced.current = true;
+      apply(true);
+    };
     schedule();
     target.addEventListener("scroll", schedule, { passive: true });
+    target.addEventListener("pointerdown", press);
     return () => {
       target.removeEventListener("scroll", schedule);
+      target.removeEventListener("pointerdown", press);
       if (frame) cancelAnimationFrame(frame);
     };
   }, [getScroller, axis, fixedLanding, resetKey, apply]);
