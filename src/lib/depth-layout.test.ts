@@ -5,6 +5,7 @@ import {
   COLLAB_SIZE,
   DEPTH,
   OBSCURITY_CUES,
+  PULL,
   SOLO_COLUMNS,
   TIER_MIN_WIDTH,
   anchorScrollTop,
@@ -23,6 +24,7 @@ import {
   layerFactor,
   obscurityOf,
   posterFactor,
+  pullFor,
   restOpacityFor,
   tierOf,
   xSpec,
@@ -985,5 +987,325 @@ describe("anchorScrollTop", () => {
 
   it("opens at the top without an anchor", () => {
     expect(anchorScrollTop(null, 800, 10_000)).toBe(0);
+  });
+});
+
+describe("filling the empty middle: the pull towards the centre", () => {
+  const widths = [390, 640, 820, 1024, 1440];
+  const vmaxOf = (width: number) => Math.max(width, Math.round(width * 0.6));
+  /** A person's films, `perYear` a year from `from`: ids from `firstId`, votes spread over a few orders of magnitude so that the cloud has depth. */
+  const lane = (firstId: number, from: number, perYear: number, count: number): FilmSpec[] =>
+    Array.from({ length: count }, (_, i): FilmSpec => {
+      const at = from + i / perYear;
+      return [firstId + i, `${Math.floor(at)}-${String(1 + Math.floor((at % 1) * 12)).padStart(2, "0")}-15`, Math.floor(10 ** (1 + ((i * 7) % 40) / 10))];
+    });
+  const together: FilmSpec = [9000, "1965-06-01", 50_000];
+  /** Two people with a film every five months from 1950 to 1990 (three columns each, no more), and one film made together in 1965: a long stretch after it with none. */
+  const stretch = () => layout([[...lane(100, 1950, 2.4, 95), together], [...lane(500, 1950.1, 2.4, 95), together]]);
+  /** The same two people with nothing in common. */
+  const apart = () => layout([lane(100, 1950, 2.4, 95), lane(500, 1950.1, 2.4, 95)]);
+  const backgrounds = (l: ReturnType<typeof layout>) => l.films.filter((f) => f.background);
+  /** Where on screen a poster's centre is, with its pull (or without it). */
+  const screenX = (item: DepthFilm, width: number, pulled = true) =>
+    projectX(docCenterX(pulled ? item : { ...item, pull: 0 }, width, xSpec(tierOf(width), 2), vmaxOf(width)), width, posterFactor(item));
+
+  describe("pullFor", () => {
+    it("is nothing within the margin of a film made together and all the way in a screen away, with no corner at either end", () => {
+      expect(PULL.from).toBeLessThan(PULL.to);
+      expect(pullFor(-100)).toBe(0);
+      expect(pullFor(0)).toBe(0);
+      expect(pullFor(PULL.from)).toBe(0);
+      expect(pullFor(PULL.to)).toBe(1);
+      expect(pullFor(PULL.to + 5000)).toBe(1);
+      expect(pullFor(Number.POSITIVE_INFINITY)).toBe(1);
+      expect(pullFor((PULL.from + PULL.to) / 2)).toBeCloseTo(0.5, 10);
+      // Flat where it starts and where it ends: a smoothstep.
+      expect(pullFor(PULL.from + 1)).toBeLessThan(0.0001);
+      expect(1 - pullFor(PULL.to - 1)).toBeLessThan(0.0001);
+    });
+
+    it("never goes down as the clear air grows, and never steeper than a smoothstep's 1.5 over the range", () => {
+      let last = 0;
+      for (let clear = 0; clear <= PULL.to + 100; clear += 5) {
+        const pull = pullFor(clear);
+        expect(pull).toBeGreaterThanOrEqual(last - 1e-12);
+        expect(pull - last).toBeLessThanOrEqual((1.5 / (PULL.to - PULL.from)) * 5 + 1e-9);
+        last = pull;
+      }
+    });
+
+    it("starts after one film made together at its largest, its label and a margin, and is complete by about a screen", () => {
+      // Centre to centre, with a solo poster: half a collaboration poster, its label, half the poster, and the margin.
+      expect(DEPTH.collabMax.h / 2 + PULL.label + DEPTH.solo.h / 2 + PULL.from).toBeCloseTo(344.5, 6);
+      expect(PULL.to).toBeGreaterThanOrEqual(800);
+      expect(PULL.to).toBeLessThanOrEqual(1000);
+    });
+  });
+
+  describe("xSpec's far offsets", () => {
+    it("are nothing for one person, and mirror each other on a page of two: the first left of the middle, the second right", () => {
+      for (const tier of ["phone", "tablet", "desktop"] as const) {
+        expect(xSpec(tier, 1).far).toEqual([0]);
+        const { far } = xSpec(tier, 2);
+        expect(far).toHaveLength(2);
+        expect(far[0]).toBe(far[1]);
+        expect(far[0]).toBeGreaterThan(0);
+      }
+    });
+
+    it("keep the people in the order of their bands, side by side: three with the third between the others, four with the third and fourth inside", () => {
+      for (const tier of ["phone", "tablet", "desktop"] as const) {
+        const three = xSpec(tier, 3).far;
+        expect(three[2]).toBe(0);
+        expect(three[0]).toBe(three[1]);
+        expect(three[0]).toBeGreaterThan(0);
+        const four = xSpec(tier, 4).far;
+        expect(four[0]).toBe(four[1]);
+        expect(four[2]).toBe(four[3]);
+        expect(four[2]).toBeGreaterThan(0);
+        expect(four[0]).toBeGreaterThan(four[2]);
+      }
+    });
+
+    it("leave PULL.gap of air between two neighbouring clusters (three columns a step apart, a poster wide, and the jitter): the first layer back is the widest", () => {
+      for (const tier of ["phone", "tablet", "desktop"] as const) {
+        const spec = xSpec(tier, 2);
+        const half = spec.stepSolo + (DEPTH.solo.w * layerFactor(1, undefined, 2)) / 2 + spec.jitterSpan / 2;
+        expect(2 * spec.far[0] - 2 * half).toBeGreaterThanOrEqual(PULL.gap - 1);
+        expect(2 * spec.far[0] - 2 * half).toBeLessThanOrEqual(PULL.gap + 1);
+      }
+    });
+
+    it("are declared as CSS, one per person, from the same numbers", () => {
+      const css = depthSceneCss(3);
+      for (const tier of ["phone", "tablet", "desktop"] as const) {
+        const spec = xSpec(tier, 3);
+        spec.far.forEach((far, slot) => expect(css).toContain(`--far-${slot}:${far}px`));
+      }
+      expect(depthSceneCss(2)).not.toContain("--far-2:");
+    });
+
+    it("are applied by the one rule that places a poster: the pull draws the band in as far as --far, never out", () => {
+      const css = depthSceneCss(2);
+      expect(css).toContain("var(--pull) * (clamp(-1 * var(--far),");
+      expect(css.match(/\[data-poster\]\{left:/g)).toHaveLength(1);
+    });
+  });
+
+  describe("depthLayout's pull", () => {
+    it("is nothing for the films made together, and for every film of a page of one person", () => {
+      for (const poster of stretch().films.filter((f) => f.layer === 0)) expect(poster.pull).toBe(0);
+      const alone = layout([lane(100, 1950, 2.4, 40)]);
+      expect(alone.films.every((f) => f.pull === 0)).toBe(true);
+    });
+
+    it("leaves a poster by a film made together where its band put it: nothing within the margin, down the axis, of the film and its label", () => {
+      const l = layout([
+        [[1, "2000-01-01", 50_000], [2, "2000-02-01", 500], [3, "2000-10-01", 500], [4, "2001-06-01", 500]],
+        [[1, "2000-01-01", 50_000], [5, "1999-10-01", 500], [6, "1999-04-01", 500]],
+      ]);
+      const collab = byId(l, 1);
+      for (const id of [2, 3, 4, 5, 6]) {
+        const poster = byId(l, id);
+        // Clear air between the boxes down the axis: the film's box is as tall as it can be, with its label under it.
+        const clear = Math.max(
+          collab.y - DEPTH.collabMax.h / 2 - (poster.y + poster.h / 2),
+          poster.y - poster.h / 2 - (collab.y + DEPTH.collabMax.h / 2 + PULL.label),
+          0,
+        );
+        expect(poster.pull).toBeCloseTo(pullFor(clear), 3);
+        if (clear <= PULL.from) {
+          expect(poster.pull).toBe(0);
+          for (const width of widths) {
+            const spec = xSpec(tierOf(width), 2);
+            expect(docCenterX(poster, width, spec, vmaxOf(width))).toBe(docCenterX({ ...poster, pull: 0 }, width, spec, vmaxOf(width)));
+          }
+        }
+      }
+      expect(byId(l, 2).pull).toBe(0);
+    });
+
+    it("pulls a poster a screen or more from every film made together all the way in, and the ones between by part", () => {
+      const l = stretch();
+      const collab = byId(l, 9000);
+      const far = backgrounds(l).filter((f) => Math.abs(f.y - collab.y) > DEPTH.collabMax.h / 2 + PULL.label + PULL.to + 60);
+      expect(far.length).toBeGreaterThan(20);
+      for (const poster of far) expect(poster.pull).toBe(1);
+      const partial = backgrounds(l).filter((f) => f.pull > 0 && f.pull < 1);
+      expect(partial.length).toBeGreaterThan(4);
+      // The nearer a poster is to the film made together, the less pulled: along each side of it, never down as it gets further.
+      for (const side of [-1, 1]) {
+        const ordered = backgrounds(l)
+          .filter((f) => Math.sign(f.y - collab.y) === side)
+          .sort((a, b) => side * (a.y - b.y));
+        for (let i = 1; i < ordered.length; i++) expect(ordered[i].pull).toBeGreaterThanOrEqual(ordered[i - 1].pull - 1e-9);
+      }
+    });
+
+    it("pulls everything all the way in when nothing is made together", () => {
+      const l = apart();
+      expect(l.hasShared).toBe(false);
+      expect(backgrounds(l).length).toBe(l.films.length);
+      expect(backgrounds(l).every((f) => f.pull === 1)).toBe(true);
+    });
+
+    it("is the same layout every time", () => {
+      expect(stretch().films.map((f) => f.pull)).toEqual(stretch().films.map((f) => f.pull));
+    });
+
+    it("changes smoothly down the axis: two posters a little apart differ by no more than a smoothstep's slope allows", () => {
+      const posters = backgrounds(stretch()).sort((a, b) => a.y - b.y);
+      for (let i = 1; i < posters.length; i++) {
+        const dy = posters[i].y - posters[i - 1].y;
+        expect(Math.abs(posters[i].pull - posters[i - 1].pull)).toBeLessThanOrEqual((1.5 / (PULL.to - PULL.from)) * dy + 0.0011);
+      }
+    });
+  });
+
+  describe("docCenterX with a pull", () => {
+    const poster = (band: number, pull: number, col = 0, jitter = 0): Parameters<typeof docCenterX>[0] => ({ layer: band + 1, band, col, jitter, w: DEPTH.solo.w, depth: layerDepth(band + 1, 2), pull });
+
+    it("is the band's place with no pull, and the cluster's far place, side by side in the middle, with all of it", () => {
+      const width = 1440;
+      const spec = xSpec("desktop", 2);
+      const stage = width - spec.rail;
+      const at = (band: number, pull: number) => projectX(docCenterX(poster(band, pull), width, spec, vmaxOf(width)), width, posterFactor(poster(band, pull)));
+      expect(at(0, 0)).toBeCloseTo(stage * 0.24, 6);
+      expect(at(1, 0)).toBeCloseTo(stage * 0.76, 6);
+      expect(at(0, 1)).toBeCloseTo(stage / 2 - spec.far[0], 6);
+      expect(at(1, 1)).toBeCloseTo(stage / 2 + spec.far[1], 6);
+      // Half way, half way.
+      expect(at(0, 0.5)).toBeCloseTo((at(0, 0) + at(0, 1)) / 2, 6);
+      // A clear gap between the two clusters' columns at the middle, whatever the layer's depth (the pull is on screen, like the bands).
+      const left = projectX(docCenterX(poster(0, 1, 1, 0.5), width, spec, vmaxOf(width)), width, posterFactor(poster(0, 1)));
+      const right = projectX(docCenterX(poster(1, 1, 2, -0.5), width, spec, vmaxOf(width)), width, posterFactor(poster(1, 1)));
+      expect(right - left).toBeGreaterThan(DEPTH.solo.w);
+    });
+
+    it("moves along the same line on any layer or push: the pull is on screen, not in the layer's own plane", () => {
+      const width = 1440;
+      const spec = xSpec("desktop", 2);
+      const stage = width - spec.rail;
+      for (const push of [0, DEPTH.spread]) {
+        const item = { ...poster(0, 1), depth: layerDepth(1, 2) + push };
+        expect(projectX(docCenterX(item, width, spec, vmaxOf(width)), width, posterFactor(item))).toBeCloseTo(stage / 2 - spec.far[0], 6);
+      }
+    });
+
+    it("only ever draws a band in, never out: a band already nearer the middle than its far place does not move (a phone's, a tablet's narrow end)", () => {
+      for (const width of [320, 360, 390, 414, 639, 640]) {
+        for (const people of [2, 3, 4]) {
+          const spec = xSpec(tierOf(width), people);
+          for (let band = 0; band < people; band++) {
+            const item = poster(band, 1, 0, 0.3);
+            const pulled = docCenterX({ ...item, layer: band + 1, depth: layerDepth(band + 1, people) }, width, spec, vmaxOf(width));
+            const rest = docCenterX({ ...item, layer: band + 1, depth: layerDepth(band + 1, people), pull: 0 }, width, spec, vmaxOf(width));
+            const middle = width / 2;
+            // Never further from the middle than where it was.
+            expect(Math.abs(pulled - middle)).toBeLessThanOrEqual(Math.abs(rest - middle) + 1e-9);
+          }
+        }
+      }
+      // A phone's two bands are already tighter than their far places: nothing moves.
+      const phone = xSpec("phone", 2);
+      const item = poster(0, 1);
+      expect(docCenterX(item, 390, phone, 844)).toBe(docCenterX({ ...item, pull: 0 }, 390, phone, 844));
+    });
+
+    it("is continuous in the clear air: sweeping a poster away from a film made together moves it smoothly, never by more than the slope allows", () => {
+      for (const width of [820, 1024, 1440, 1920]) {
+        const spec = xSpec(tierOf(width), 2);
+        // The whole way the pull moves it (in the layer's own space), and so the most a px of clear air can move it.
+        const whole = Math.abs(docCenterX(poster(0, 1), width, spec, vmaxOf(width)) - docCenterX(poster(0, 0), width, spec, vmaxOf(width)));
+        expect(whole).toBeGreaterThan(width >= 1024 ? 40 : 10);
+        let last = docCenterX(poster(0, pullFor(0)), width, spec, vmaxOf(width));
+        for (let clear = 1; clear <= PULL.to + 50; clear++) {
+          const x = docCenterX(poster(0, pullFor(clear)), width, spec, vmaxOf(width));
+          expect(Math.abs(x - last)).toBeLessThanOrEqual((1.5 / (PULL.to - PULL.from)) * whole + 1e-6);
+          last = x;
+        }
+      }
+    });
+  });
+
+  describe("on the page", () => {
+    /** Whether two posters (by their layer's `onScreen`) overlap across, when they are level down the axis (a poster's height) at some scroll. */
+    const crossOverlap = (a: DepthFilm, b: DepthFilm, width: number, pulled: boolean) => {
+      const spec = xSpec(tierOf(width), 2);
+      const half = (item: DepthFilm) => (item.w * spec.soloScale * posterFactor(item)) / 2;
+      return half(a) + half(b) - Math.abs(screenX(a, width, pulled) - screenX(b, width, pulled));
+    };
+    /** Pairs of background posters that are close enough down the axis to overlap on screen at some scroll position. */
+    const levelPairs = (l: ReturnType<typeof layout>, sameLayer: boolean) => {
+      const posters = backgrounds(l);
+      const pairs: [DepthFilm, DepthFilm][] = [];
+      for (let i = 0; i < posters.length; i++) {
+        for (let j = i + 1; j < posters.length; j++) {
+          if ((posters[i].layer === posters[j].layer) !== sameLayer) continue;
+          if (Math.abs(posters[i].y - posters[j].y) < (posters[i].h + posters[j].h) / 2) pairs.push([posters[i], posters[j]]);
+        }
+      }
+      return pairs;
+    };
+
+    it("makes no two posters of one person overlap that did not already, on a phone, a tablet and a desktop", () => {
+      for (const l of [stretch(), apart()]) {
+        const pairs = levelPairs(l, true);
+        expect(pairs.length).toBeGreaterThan(20);
+        for (const width of widths) {
+          for (const [a, b] of pairs) {
+            // (The posters of one layer are the same person's; the ones that touch each other are the ones that were too close down the axis for one column.)
+            const before = crossOverlap(a, b, width, false);
+            const after = crossOverlap(a, b, width, true);
+            if (before <= 0) expect(after, `${width}: ${a.film.id} ${b.film.id}`).toBeLessThanOrEqual(0.001);
+          }
+        }
+      }
+    });
+
+    it("makes no poster of one person overlap one of the next person that did not already, and leaves a gap between the two clusters where nothing is made together", () => {
+      for (const l of [stretch(), apart()]) {
+        const pairs = levelPairs(l, false);
+        for (const width of widths) {
+          for (const [a, b] of pairs) {
+            if (crossOverlap(a, b, width, false) <= 0) expect(crossOverlap(a, b, width, true), `${width}: ${a.film.id} ${b.film.id}`).toBeLessThanOrEqual(0.001);
+          }
+        }
+      }
+      // All the way in, on a tablet and a desktop: the first person's films are all left of the second's, by the air the clusters are given.
+      for (const width of [820, 1024, 1440]) {
+        const posters = backgrounds(apart());
+        const first = posters.filter((f) => f.layer === 1).map((f) => screenX(f, width) + (f.w * posterFactor(f)) / 2);
+        const second = posters.filter((f) => f.layer === 2).map((f) => screenX(f, width) - (f.w * posterFactor(f)) / 2);
+        expect(Math.max(...first)).toBeLessThan(Math.min(...second));
+      }
+    });
+
+    it("fills the middle: with nothing made together the people's films meet at the middle of the stage, a gap between them, on a tablet and a desktop", () => {
+      for (const width of [1024, 1440]) {
+        const spec = xSpec(tierOf(width), 2);
+        const stage = width - spec.rail;
+        const xs = (layer: number) => backgrounds(apart()).filter((f) => f.layer === layer).map((f) => screenX(f, width));
+        // Their middles are on the far places (give or take the spread of the jitter), nearer the centre than the bands they were asked to be on.
+        const mean = (values: number[]) => values.reduce((a, b) => a + b, 0) / values.length;
+        expect(Math.abs(mean(xs(1)) - stage / 2)).toBeLessThanOrEqual(spec.far[0] + 12);
+        expect(Math.abs(mean(xs(2)) - stage / 2)).toBeLessThanOrEqual(spec.far[1] + 12);
+        expect(Math.abs(mean(xs(1)) - stage / 2)).toBeLessThan(Math.abs(stage * 0.24 - stage / 2));
+        expect(Math.abs(mean(xs(2)) - stage / 2)).toBeLessThan(Math.abs(stage * 0.76 - stage / 2));
+        // And their order is kept: the first person's films are left of the second's.
+        expect(mean(xs(1))).toBeLessThan(stage / 2);
+        expect(mean(xs(2))).toBeGreaterThan(stage / 2);
+      }
+    });
+
+    it("leaves a phone as it was: the bands are already close, and nothing moves", () => {
+      for (const width of [360, 390, 414]) {
+        const l = stretch();
+        for (const poster of backgrounds(l)) {
+          const spec = xSpec("phone", 2);
+          expect(docCenterX(poster, width, spec, vmaxOf(width))).toBe(docCenterX({ ...poster, pull: 0 }, width, spec, vmaxOf(width)));
+        }
+      }
+    });
   });
 });

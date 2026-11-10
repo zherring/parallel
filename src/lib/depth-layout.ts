@@ -23,6 +23,12 @@
  * where a person's films are centred is a fraction of the visible stage (the width less the year rail), and a poster
  * `f` times smaller on screen has its offset from the centre divided by `f`, so a far poster's band lands where it was
  * asked to instead of collapsing towards the middle. The posters are never allowed under the rail or past the left edge.
+ *
+ * Where no film is made together for a long stretch, the middle of the screen would be empty, with each person's films far out on their
+ * band. So a background poster is pulled in towards the middle the further it is down the axis from the nearest film made together
+ * (`PULL`, `pullFor`): `DepthFilm.pull` is how far, 0 (by a film made together: on its band) to 1 (about a screen away: the people's
+ * clusters side by side, keeping their order, with a small gap between them). It is a function of the poster's y alone, so it is as
+ * pure and as deterministic as the rest, and it is applied to the poster's x by `docCenterX` and the CSS rule of `depthSceneCss`.
  */
 
 import type { CombinedFilm } from "@/lib/combined-track";
@@ -103,6 +109,21 @@ export const OBSCURITY_CUES = {
 } as const;
 
 /**
+ * Filling the empty middle of a stretch with no film made together: how far down the axis (px) from the nearest one, with its label, a background
+ * poster is pulled in towards the middle of the stage. The distance is the clear air between the two boxes (`pullFor`).
+ */
+export const PULL = {
+  /** Clear air (px) between a background poster and the nearest film made together (as large as it can be, `DEPTH.collabMax`) and its label before the pull begins: a margin, so a poster by one is exactly where it was. */
+  from: 40,
+  /** Clear air (px) at which the pull is complete: about a screen (a 1440 x 900 window), so the middle is filled by the time a whole screen has no film made together. */
+  to: 900,
+  /** Height (px) a film made together's label hangs under its poster: 6px off the poster and up to three lines of 22px. */
+  label: 72,
+  /** Clear air (px, on screen) between two neighbouring people's films when the people are pulled all the way in. */
+  gap: 32,
+} as const;
+
+/**
  * How big the films several people made are laid out, on a tablet and a desktop: `clamp(min, vmax% of the viewport's larger side, max)` px wide and
  * `aspect` times that tall (2:3). It is the smallest, 136px, up to a viewport of 1440 (136 is 9.4444% of it: a 1440 window is exactly as it was), 4/3 of that at 1920 and
  * capped at 230px (from about 2435). A phone's are 136px whatever its size (`DepthTier`'s `collabFluid`). It is CSS (`--collab-w`, see `depthSceneCss`) so that the markup is
@@ -144,6 +165,12 @@ export interface XSpec {
   jitterSpan: number;
   /** Where each person's films are centred, as a fraction of the stage (what is visible, left of the rail), by palette slot. */
   bands: readonly number[];
+  /**
+   * How far (px on screen) from the middle of the stage each person's films are centred when pulled all the way in (`DepthFilm.pull` of 1), by palette
+   * slot: their clusters (three columns a step apart, and their jitter) side by side in the order of the bands, `PULL.gap` apart. A band that is
+   * already nearer the middle than this does not move: the pull only ever draws a band in, so on a phone, whose bands are already close, it does nothing.
+   */
+  far: readonly number[];
 }
 
 /**
@@ -152,7 +179,7 @@ export interface XSpec {
  * shrunk, so no two posters of a layer overlap. A larger step spreads a person's columns across more of the screen, which
  * is what lets a desktop use its width while a phone keeps three columns inside 362px.
  */
-const TIERS: Record<DepthTier, Omit<XSpec, "bands" | "soloScale" | "people"> & { stepSoloOne: number; singleScale: number; spread: number }> = {
+const TIERS: Record<DepthTier, Omit<XSpec, "bands" | "far" | "soloScale" | "people"> & { stepSoloOne: number; singleScale: number; spread: number }> = {
   // A phone's `spread` is 1 (the desktop's bands, not drawn in): see `bandFor`'s test for what the 390px trio and quartet pages measured.
   phone: { rail: 28, gutter: 4, stepCollab: 128, collabFluid: false, collabScale: 0.76, stepSolo: 70, stepSoloOne: 108, singleScale: 0.8, jitterSpan: 8, spread: 1 },
   tablet: { rail: 60, gutter: 8, stepCollab: 146, collabFluid: true, collabScale: 0.9, stepSolo: 100, stepSoloOne: 190, singleScale: 0.9, jitterSpan: 20, spread: 0.9 },
@@ -198,6 +225,11 @@ export interface DepthFilm {
   push: number;
   /** Distance (px) behind the screen plane, negative in front of it: the layer's (`layerDepth`) plus `push`. Its factor on screen is `posterFactor`. */
   depth: number;
+  /**
+   * How far (0 to 1) the poster is pulled in from its band towards the middle of the stage (see `PULL`): 0 within the margin of a film made together (and
+   * for the films themselves, and on a page of one person), 1 a screen or more from the nearest. A smooth function of `y`.
+   */
+  pull: number;
   /**
    * A poster of a layer behind, on a page of several people, or a minor film on any page: faded by its obscurity and pushed
    * back by it, until the focus field (or a hover) brings it up to full opacity. False for the films several people made and for a page of
@@ -346,7 +378,37 @@ export function xSpec(tier: DepthTier, peopleCount: number): XSpec {
     stepSolo: people === 1 ? stepSoloOne : stepSolo,
     jitterSpan,
     bands: Array.from({ length: people }, (_, slot) => bandFor(slot, people, tier)),
+    far: farOffsets(people, people === 1 ? stepSoloOne : stepSolo, jitterSpan, people === 1 ? singleScale : 1),
   };
+}
+
+/**
+ * How far from the middle of the stage (px on screen) each slot's films sit when pulled all the way in: the people side by side in the order of their bands
+ * (the first left of the second, the third between them on a page of three), one cluster apart. A cluster is the three columns of a person's films
+ * (a step either side of the band) with the width of a poster on the first layer back (the widest) and the jitter, and `PULL.gap` of air between two. A page
+ * of one person has nobody to make room for: 0.
+ */
+function farOffsets(people: number, stepSolo: number, jitterSpan: number, soloScale: number): number[] {
+  const far: number[] = Array.from({ length: people }, () => 0);
+  if (people < 2) return far;
+  const half = stepSolo + (DEPTH.solo.w * soloScale * layerFactor(1, undefined, people)) / 2 + jitterSpan / 2;
+  const unit = 2 * half + PULL.gap;
+  // Left to right: the slots in the order of their bands (a tie, which there is none of, by slot).
+  const order = Array.from({ length: people }, (_, slot) => slot).sort((a, b) => BANDS[people][a] - BANDS[people][b] || a - b);
+  order.forEach((slot, rank) => {
+    far[slot] = Math.round(Math.abs(rank - (people - 1) / 2) * unit);
+  });
+  return far;
+}
+
+/**
+ * How far (0 to 1) a background poster is pulled in towards the middle, from the clear air `clear` (px down the axis) between it and the nearest film
+ * made together: nothing within `PULL.from`, everything from `PULL.to` on, a smoothstep between (no corner at either end, so nothing jumps as one scrolls).
+ * Infinity (no film made together on the page) is all the way in.
+ */
+export function pullFor(clear: number): number {
+  const t = clamp01((clear - PULL.from) / (PULL.to - PULL.from));
+  return t * t * (3 - 2 * t);
 }
 
 /**
@@ -374,11 +436,12 @@ export function collabStep(spec: Pick<XSpec, "stepCollab" | "collabFluid">, vmax
  * What is chosen is where the poster is on screen: the stage fraction of its band, plus its column's steps and its jitter,
  * all in screen px; the poster's perspective (`f`, its own: `posterFactor`) maps its x to the screen's as `(x - width / 2) f + width / 2`,
  * so the offset from the centre is divided by `f`. The posters are kept inside the stage: the bounds are that mapping
- * undone for the least and greatest x a poster clear of the edge and the rail can be at. `vmax`, the viewport's larger side, is what
+ * undone for the least and greatest x a poster clear of the edge and the rail can be at. `pull` (0 to 1: see `PULL`) first draws the band in towards the
+ * middle of the stage, as far as `spec.far` says and never outwards. `vmax`, the viewport's larger side, is what
  * the films several people made are as large as (and as far apart in their columns) as: without it they are the smallest.
  */
 export function docCenterX(
-  film: Pick<DepthFilm, "layer" | "band" | "col" | "jitter" | "w" | "depth">,
+  film: Pick<DepthFilm, "layer" | "band" | "col" | "jitter" | "w" | "depth"> & { pull?: number },
   width: number,
   spec: XSpec,
   vmax = 0,
@@ -388,7 +451,11 @@ export function docCenterX(
   const w = film.layer === 0 ? collabWidth(vmax, spec.collabFluid) * spec.collabScale : film.w * spec.soloScale;
   const q = film.band === null ? 0.5 : (spec.bands[Math.min(film.band, spec.bands.length - 1)] ?? 0.5);
   const step = film.layer === 0 ? collabStep(spec, vmax) : spec.stepSolo;
-  const x = width / 2 + ((width - spec.rail) * q - width / 2 + columnIndex(film.col) * step + film.jitter * spec.jitterSpan) / f;
+  // The pull draws the band in towards the middle, no further than where `spec.far` puts its cluster (a band nearer than that stays): on screen, like the rest.
+  const near = (width - spec.rail) * (q - 0.5);
+  const reach = film.band === null ? 0 : (spec.far[Math.min(film.band, spec.far.length - 1)] ?? 0);
+  const pulled = film.pull ? film.pull * (Math.max(-reach, Math.min(near, reach)) - near) : 0;
+  const x = width / 2 + ((width - spec.rail) * q - width / 2 + pulled + columnIndex(film.col) * step + film.jitter * spec.jitterSpan) / f;
   const least = width / 2 + (spec.gutter - width / 2) / f + w / 2;
   const greatest = width / 2 + (width / 2 - spec.rail - spec.gutter) / f - w / 2;
   return Math.max(least, Math.min(x, greatest));
@@ -420,18 +487,22 @@ function specDeclarations(spec: XSpec): string {
     `--step-solo:${spec.stepSolo}px`,
     `--jit-span:${spec.jitterSpan}px`,
     ...spec.bands.map((band, slot) => `--band-${slot}:${round(band)}`),
+    ...spec.far.map((far, slot) => `--far-${slot}:${far}px`),
   ].join(";");
 }
 
 /**
  * The scene's horizontal spacing as CSS: the custom properties of each viewport (`xSpec`) on `[data-depth-scene]`, and the
- * one rule that turns them and a poster's own (`--q` band, `--col` steps from it, `--jit`, `--step`, `--w`, `--ps` (its scale, `--collab-scale` for the films several people made), `--lead`, with
+ * one rule that turns them and a poster's own (`--q` band, `--pull` and `--far`, `--col` steps from it, `--jit`, `--step`, `--w`, `--ps` (its scale, `--collab-scale` for the films several people made), `--lead`, with
  * its own `--f`) into `left`, the same sum as `docCenterX`. It is generated from the same numbers the JS uses, so the
  * two cannot drift apart, and it is the same markup for every viewport: the browser picks the spacing.
  */
 export function depthSceneCss(peopleCount: number): string {
   const rule = (tier: DepthTier) => `[data-depth-scene]{${specDeclarations(xSpec(tier, peopleCount))}}`;
-  const x = "calc(50% + ((100% - var(--rail)) * var(--q) - 50% + var(--col) * var(--step) + var(--jit) * var(--jit-span)) / var(--f))";
+  // The pull (`--pull`, 0 to 1) draws the band in towards the middle of the stage, to no further than `--far` from it (a band already nearer does not move).
+  const near = "(100% - var(--rail)) * (var(--q) - 0.5)";
+  const pulled = `var(--pull) * (clamp(-1 * var(--far), ${near}, var(--far)) - ${near})`;
+  const x = `calc(50% + ((100% - var(--rail)) * var(--q) - 50% + ${pulled} + var(--col) * var(--step) + var(--jit) * var(--jit-span)) / var(--f))`;
   const least = "calc(50% + (var(--gutter) - 50%) / var(--f) + var(--w) * var(--ps) / 2)";
   const greatest = "calc(50% + (50% - var(--rail) - var(--gutter)) / var(--f) - var(--w) * var(--ps) / 2)";
   return [
@@ -559,8 +630,24 @@ export function depthLayout(
         obscurity,
         push,
         depth: layerDepth(layer, peopleCount) + push,
+        pull: 0,
         background,
       });
+    }
+  }
+  // The empty middle: a background poster far down the axis from every film made together is drawn in towards the middle of the stage. (The films made
+  // together are packed for the largest they can be, and their labels hang under them: that is the box a poster has to be clear of before the pull begins.)
+  if (peopleCount >= 2) {
+    const zones = films
+      .filter((item) => item.layer === 0)
+      .map((item) => [item.y - DEPTH.collabMax.h / 2, item.y + DEPTH.collabMax.h / 2 + PULL.label] as const);
+    for (const item of films) {
+      if (!item.background) continue;
+      // The clear air to the nearest zone: above it or below it (nothing, 0, while the boxes overlap down the axis). With no film made together, there is none to be near.
+      let clear = Number.POSITIVE_INFINITY;
+      for (const [top, bottom] of zones) clear = Math.min(clear, Math.max(top - (item.y + item.h / 2), item.y - item.h / 2 - bottom, 0));
+      // Rounded, so the CSS and the focus field read the same number.
+      item.pull = Math.round(pullFor(clear) * 1000) / 1000;
     }
   }
   // Within a layer, later in time lies on top of earlier (the list's order is the paint order), and on a tie the higher column

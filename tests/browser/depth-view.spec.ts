@@ -721,6 +721,55 @@ const freeSpot = (page: Page, x: number, y: number, distance: number) =>
     [x, y, distance],
   );
 
+/** Where on screen a background poster's centre should be, from the scene's own numbers (its band, pull, column and jitter, and the viewport's spacing): the CSS rule's sum, worked out here. */
+const expectedCentre = (page: Page, id: number) =>
+  scene(page).evaluate((scroller, filmId) => {
+    const li = scroller.querySelector<HTMLElement>(`[data-poster="${filmId}"]`)!;
+    const style = getComputedStyle(li);
+    const number = (name: string) => Number.parseFloat(style.getPropertyValue(name));
+    const stage = innerWidth - number("--rail");
+    const near = stage * (number("--q") - 0.5);
+    const far = number("--far");
+    const pulled = number("--pull") * (Math.max(-far, Math.min(near, far)) - near);
+    return { pull: number("--pull"), far, x: stage * number("--q") + pulled + number("--col") * number("--step") + number("--jit") * number("--jit-span") };
+  }, id);
+
+test("a background poster far from every film made together is drawn in towards the middle, and the focus field finds it there", async ({ page }) => {
+  await openDepth(page);
+  await showAllFilms(page);
+  const stage = 1440 - 60;
+
+  // 1000 (1990) is ten years before the first film made together (2000): all the way in. 1005 (1995) is five years before it: part of the way. 1010 (2000) is among them: not at all.
+  const [farOne, partial, near] = await Promise.all([1000, 1005, 1010].map((id) => expectedCentre(page, id)));
+  expect(farOne.pull).toBe(1);
+  expect(partial.pull).toBeGreaterThan(0);
+  expect(partial.pull).toBeLessThan(1);
+  expect(near.pull).toBe(0);
+  // Pulled in, to the first person's cluster beside the middle: the band is at 0.24 of the stage (a desktop), the far place `--far` from its middle.
+  expect(farOne.far).toBeGreaterThan(150);
+  expect(farOne.far).toBeLessThan(250);
+  // (Its column and jitter then spread it either side: a step and a half at most from where the cluster is centred.)
+  expect(Math.abs(farOne.x - (stage / 2 - farOne.far))).toBeLessThan(150);
+  expect(farOne.x).toBeGreaterThan(stage * 0.24 + 100);
+
+  // On screen, the poster's box is centred where the sum says (the CSS rule does what the numbers do).
+  for (const id of [1000, 1005, 1010]) {
+    const centre = await scrollToCentre(page, id);
+    const want = await expectedCentre(page, id);
+    expect(Math.abs(centre.x - want.x), `${id}`).toBeLessThan(1.5);
+  }
+
+  // The pointer on it brings it up: the focus field's idea of where the poster is (the same sum, in JS) is where the box is. Beside it, within the field's inner radius.
+  const on = await scrollToCentre(page, 1000);
+  expect(on.x).toBeLessThan(stage / 2);
+  const beside = (await freeSpot(page, on.x, on.y, on.width / 2 + 24))!;
+  expect(beside).not.toBeNull();
+  await page.mouse.move(beside.x, beside.y);
+  await expect.poll(async () => (await lookOf(page, 1000)).focus).toBeGreaterThan(0.99);
+  // And not where its band would have put it (a long way off): the field would not see it there.
+  expect(Math.abs(on.x - stage * 0.24)).toBeGreaterThan(40);
+});
+
 test("the pointer near a poster brings it to full opacity, whatever its obscurity, and it falls back when the pointer leaves", async ({ page }) => {
   await openDepth(page);
   const center = await scrollToCentre(page, 1014);

@@ -69,7 +69,7 @@ function TitleFace({ title }: { title: string }) {
 }
 
 function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selected, eager, describedBy, onSelect }: DepthPosterProps) {
-  const { film, shared, slots, layer, y, band, col, jitter, w, h, obscurity, push, background } = item;
+  const { film, shared, slots, layer, y, band, col, jitter, w, h, obscurity, push, pull, background } = item;
   // `Title, Year`: a title that already ends with its year is not said twice (see `filmLabel`). The label is only drawn for a film made together.
   const label = filmLabel(film.title, film.year);
   // Out of the period a link chose, the dimming (the `li`'s `opacity-25`) is the whole opacity: the obscurity's is not stacked under it.
@@ -90,6 +90,10 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
     // from the band and its jitter, which the scene's CSS (`depthSceneCss`) turns into `left` with the viewport's spacing and
     // its layer's `--f`. The films several people made sit on the centre line.
     "--q": band === null ? "0.5" : `var(--band-${band})`,
+    // How far a background poster is drawn in from its band towards the middle, because no film made together is near (`PULL`), and the
+    // furthest the viewport lets its person's films be drawn in (`--far-<slot>`: see `depthSceneCss`).
+    "--pull": pull,
+    "--far": band === null ? "0px" : `var(--far-${band})`,
     "--col": columnIndex(col),
     "--jit": round(jitter),
     "--step": layer === 0 ? "var(--step-collab)" : "var(--step-solo)",
