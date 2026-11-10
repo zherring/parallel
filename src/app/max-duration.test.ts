@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { REQUEST_DEADLINE_MS } from "@/lib/tmdb";
+import { REQUEST_DEADLINE_MS, ROUTE_BUDGET_MS } from "@/lib/tmdb";
 
 const APP = join(process.cwd(), "src", "app");
 /** The files Next runs per request (pages, route handlers, generated images). */
@@ -42,6 +42,11 @@ const EXPECTED: Record<string, number> = {
 };
 
 describe("maxDuration of everything that can reach TMDB", () => {
+  it("leaves the 60s routes at least 5s above their route budget", () => {
+    expect(ROUTE_BUDGET_MS + HEADROOM_MS).toBeLessThanOrEqual(60_000);
+    expect(ROUTE_BUDGET_MS).toBeGreaterThan(REQUEST_DEADLINE_MS);
+  });
+
   it("finds the pair page, its cards and every TMDB api route", () => {
     expect(entries.sort()).toEqual(Object.keys(EXPECTED).sort());
   });

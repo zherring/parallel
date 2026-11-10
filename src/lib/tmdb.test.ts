@@ -297,6 +297,21 @@ describe("the short-film lookup", () => {
 });
 
 describe("getPersonMovieCredits", () => {
+  it("marks the timeline incomplete whenever the lookup stops before the last discover page, and only then", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    for (const [totalPages, incomplete] of [[1, false], [10, false], [11, true], [500, true]] as const) {
+      __resetTmdbClientStateForTests();
+      fetchMock.mockReset();
+      fetchMock.mockImplementation(async (input) => {
+        const { pathname, searchParams } = new URL(String(input));
+        if (pathname.includes("/discover/")) return json({ page: 1, total_pages: totalPages, results: [{ id: Number(searchParams.get("page")) }] });
+        return json(pathname.endsWith("movie_credits") ? { cast: [], crew: [] } : { id: 1, name: "A" });
+      });
+      const timeline = await getPersonMovieCredits(1);
+      expect(timeline.shortsIncomplete === true, `${totalPages} pages`).toBe(incomplete);
+    }
+  });
+
   it("skips the short-film lookup when asked: only the person and the credits are requested, and nothing is marked incomplete", async () => {
     fetchMock.mockImplementation(async (input) => {
       const { pathname } = new URL(String(input));

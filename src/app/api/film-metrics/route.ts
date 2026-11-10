@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { awardsFor } from "@/lib/awards";
 import { parseIdList } from "@/lib/film-metrics-batch";
-import { TmdbError, getMovieMetrics } from "@/lib/tmdb";
+import { ROUTE_BUDGET_MS, TmdbError, getMovieMetrics } from "@/lib/tmdb";
 import type { FilmMetrics } from "@/lib/types";
 
 // Seconds this function may run; why this value: see REQUEST_DEADLINE_MS in src/lib/tmdb.ts.
@@ -12,23 +12,26 @@ const CONCURRENCY = 8;
 
 type Outcome = { metrics: FilmMetrics } | { missing: true } | { failed: true; message: string };
 
-async function lookup(id: number): Promise<Outcome> {
+async function lookup(id: number, signal: AbortSignal): Promise<Outcome> {
   try {
-    return { metrics: { ...(await getMovieMetrics(id)), awards: awardsFor(id) } };
+    return { metrics: { ...(await getMovieMetrics(id, signal)), awards: awardsFor(id) } };
   } catch (error) {
     if (error instanceof TmdbError && error.status === 404) return { missing: true };
     return { failed: true, message: error instanceof Error ? error.message : "Unknown TMDB error" };
   }
 }
 
-/** Runs `lookup` for every id, at most `limit` at a time; results keep the order of `ids`. */
-async function lookupAll(ids: number[], limit: number): Promise<Outcome[]> {
+/**
+ * Runs `lookup` for every id, at most `limit` at a time; results keep the order of `ids`. Once
+ * `signal` aborts the films not done fail at once, like any other failed lookup.
+ */
+async function lookupAll(ids: number[], limit: number, signal: AbortSignal): Promise<Outcome[]> {
   const outcomes: Outcome[] = new Array(ids.length);
   let next = 0;
   const worker = async () => {
     while (next < ids.length) {
       const index = next++;
-      outcomes[index] = await lookup(ids[index]);
+      outcomes[index] = await lookup(ids[index], signal);
     }
   };
   await Promise.all(Array.from({ length: Math.min(limit, ids.length) }, worker));
@@ -47,7 +50,7 @@ export async function GET(request: Request) {
   const parsed = parseIdList(new URL(request.url).searchParams.get("ids"));
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
-  const outcomes = await lookupAll(parsed.ids, CONCURRENCY);
+  const outcomes = await lookupAll(parsed.ids, CONCURRENCY, AbortSignal.timeout(ROUTE_BUDGET_MS));
   const failures = outcomes.flatMap((outcome) => ("failed" in outcome ? [outcome.message] : []));
 
   // Nothing came back and TMDB (not just "no such film") is why: report it rather than a page of nulls.

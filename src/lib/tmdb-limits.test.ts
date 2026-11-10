@@ -7,6 +7,7 @@ import {
   __resetTmdbClientStateForTests,
   getFilmCredits,
   getFilmDetails,
+  getMovieMetrics,
   getPersonMovieCredits,
   searchPeople,
   searchPeopleWithPopularity,
@@ -471,9 +472,9 @@ describe("timeout", () => {
       await expect(getFilmCredits(7)).resolves.toEqual({ cast: [], crew: [] });
     });
 
-    it("remembers a timeout only if the attempt had at least 1s: one the deadline cut shorter says nothing about TMDB", async () => {
+    it("remembers a timeout only if the attempt had at least 1s: one the deadline cut shorter, even to 1ms, says nothing about TMDB", async () => {
       fakeAbortSignalTimeout();
-      for (const [slotFreedAt, remembered] of [[10_000, true], [11_500, false]] as const) {
+      for (const [slotFreedAt, remembered] of [[10_000, true], [11_500, false], [11_999, false]] as const) {
         __resetTmdbClientStateForTests();
         fetchMock.mockReset();
         // Six requests hold every slot (and ignore their signals); request 7 waits for one of them
@@ -490,7 +491,7 @@ describe("timeout", () => {
         for (let id = 1; id <= 6; id++) void getFilmCredits(id);
         const late = settle(getFilmCredits(7));
         await vi.advanceTimersByTimeAsync(slotFreedAt);
-        hung.shift()!(); // request 7 gets its slot with 2s (or 0.5s) of its 12s left
+        hung.shift()!(); // request 7 gets its slot with 2s (0.5s, 1ms) of its 12s left
         await vi.advanceTimersByTimeAsync(12_000 - slotFreedAt);
 
         expect(((await late) as { error: TmdbError }).error, `slot at ${slotFreedAt}ms`).toMatchObject({ status: 504 });
@@ -564,6 +565,30 @@ describe("timeout", () => {
     const outcome = await queued;
     expect((outcome as { error: TmdbError }).error).toMatchObject({ name: "TmdbError", status: 504 });
     expect(fetchMock).toHaveBeenCalledTimes(6);
+  });
+});
+
+describe("a caller's signal on the calls a route makes", () => {
+  it("ends getPersonMovieCredits, getFilmCredits and getMovieMetrics with a 504 when it aborts, and remembers nothing", async () => {
+    const calls: Record<string, (signal: AbortSignal) => Promise<unknown>> = {
+      credits: (signal) => getPersonMovieCredits(1, { shorts: false, signal }),
+      film: (signal) => getFilmCredits(1, signal),
+      metrics: (signal) => getMovieMetrics(1, signal),
+    };
+    for (const [name, call] of Object.entries(calls)) {
+      __resetTmdbClientStateForTests();
+      hangUntilAborted();
+      const controller = new AbortController();
+      const outcome = settle(call(controller.signal));
+      await vi.advanceTimersByTimeAsync(5000);
+      controller.abort();
+
+      expect(((await outcome) as { error: TmdbError }).error, name).toMatchObject({ name: "TmdbError", status: 504 });
+      // A route running out of time says nothing about TMDB: the next ask goes through.
+      fetchMock.mockReset();
+      fetchMock.mockImplementation(async () => json({ id: 1, name: "A", cast: [], crew: [] }));
+      await expect(getFilmCredits(1), name).resolves.toBeDefined();
+    }
   });
 });
 

@@ -75,12 +75,15 @@ describe("suggestCollaboratorsChecked completeness", () => {
     expect(credits.mock.calls.length).toBeGreaterThan(calls);
   });
 
-  it("skips the short-film lookup for the candidates but not for the person", async () => {
+  it("skips the short-film lookup for the candidates but not for the person, and gives every call the route's signal", async () => {
     loadAllBut([]);
-    await suggestCollaboratorsChecked(SUBJECT);
+    const { signal } = new AbortController();
+    await suggestCollaboratorsChecked(SUBJECT, signal);
 
-    expect(credits.mock.calls.find(([id]) => id === SUBJECT)).toEqual([SUBJECT]);
-    for (const id of CANDIDATES) expect(credits.mock.calls.find(([called]) => called === id)).toEqual([id, { shorts: false }]);
+    const optionsOf = (id: number) => credits.mock.calls.find(([called]) => called === id)?.[1];
+    expect(optionsOf(SUBJECT)).not.toMatchObject({ shorts: false });
+    for (const id of CANDIDATES) expect(optionsOf(id)).toMatchObject({ shorts: false });
+    for (const [, options] of credits.mock.calls) expect(options?.signal).toBe(signal);
   });
 });
 

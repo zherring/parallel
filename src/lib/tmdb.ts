@@ -41,6 +41,12 @@ const ATTEMPT_TIMEOUT_MS = 8000;
  * `src/app/max-duration.test.ts` lists them and checks.
  */
 export const REQUEST_DEADLINE_MS = 12_000;
+/**
+ * What those two multi-round routes may spend on TMDB in all: one signal per request, passed to
+ * every call it makes. Each call has its own 12 seconds, so against a slow or hanging TMDB the
+ * rounds could add up past `maxDuration`; what is not done by then fails at once instead.
+ */
+export const ROUTE_BUDGET_MS = 45_000;
 /** A 404 is remembered this long: the id does not exist, asking again will not change that. */
 const NOT_FOUND_TTL_MS = 10 * 60 * 1000;
 /** A request that still failed after its retries is remembered this long, so a bad spell is not hammered. */
@@ -51,7 +57,7 @@ const CREDENTIALS_LOG_INTERVAL_MS = 60 * 1000;
 const USER_AGENT = "Parallel/1.0 (+https://github.com/zherring/parallel)";
 /** Anything shorter than this many minutes is a "short" and counts as a minor credit. */
 const SHORT_MAX_MINUTES = 39;
-/** 20 results per page: 200 short movies per person is far more than anyone has. */
+/** 20 results per page: 200 short movies per person is far more than anyone has (more is `shortsIncomplete`). */
 const MAX_DISCOVER_PAGES = 10;
 /**
  * The whole short-film lookup of one person, its chained page requests included, gives up after
@@ -391,8 +397,8 @@ export async function searchPeopleWithPopularity(
   return results.map((p) => ({ ...toSearchResult(p), popularity: p.popularity ?? 0 }));
 }
 
-export async function getPerson(id: number): Promise<PersonSummary> {
-  return normalizePerson(await tmdbGet<RawPerson>(`/person/${id}`, DAY));
+export async function getPerson(id: number, signal?: AbortSignal): Promise<PersonSummary> {
+  return normalizePerson(await tmdbGet<RawPerson>(`/person/${id}`, DAY, {}, signal));
 }
 
 /**
@@ -417,7 +423,7 @@ export async function getPerson(id: number): Promise<PersonSummary> {
  *   lane included. When that runs out it resolves at once with the pages it has by then (maybe
  *   none), whatever TMDB is doing.
  *
- * A lookup that is cut short, or that lost a page, leaves some shorts counting as ordinary
+ * A lookup that is cut short, that lost a page or that stopped at MAX_DISCOVER_PAGES leaves some shorts counting as ordinary
  * credits on that render. Nothing derived from it is kept for long: the Next data cache holds raw
  * TMDB responses only (and only the pages that did arrive), the next request asks for the missing
  * ones again, and `getPersonMovieCredits` marks the timeline `shortsIncomplete` so the caches
@@ -466,7 +472,9 @@ async function lookUpShortMovies(personId: number): Promise<{ ids: Set<number>; 
       const first = await query(1);
       collect(first);
 
-      const count = Math.min(first.total_pages ?? 1, MAX_DISCOVER_PAGES);
+      const total = first.total_pages ?? 1;
+      const count = Math.min(total, MAX_DISCOVER_PAGES);
+      if (total > count) complete = false;
       const rest = await Promise.allSettled(
         Array.from({ length: Math.max(0, count - 1) }, (_, i) => query(i + 2)),
       );
@@ -494,18 +502,21 @@ async function lookUpShortMovies(personId: number): Promise<{ ids: Set<number>; 
 
 /**
  * A person with their movie credits. `shorts: false` skips the short-film lookup (see
- * `lookUpShortMovies`): shorts then count as ordinary credits. Pass an options object rather than
- * letting `.map` hand over its index.
+ * `lookUpShortMovies`): shorts then count as ordinary credits. `signal` is the caller's own
+ * deadline, as on `tmdbGet`. Pass an options object rather than letting `.map` hand over its index.
  *
  * `cache()` makes `generateMetadata` and the page of one render share a person's load (the
  * discover lookup carries a signal, so neither our in-flight map nor Next's fetch dedupe would).
  * It is keyed by the arguments, so it is per person, whatever form the page's slug takes.
  */
 export const getPersonMovieCredits = cache(
-  async (id: number, { shorts: withShorts = true } = {}): Promise<PersonTimeline> => {
+  async (
+    id: number,
+    { shorts: withShorts = true, signal }: { shorts?: boolean; signal?: AbortSignal } = {},
+  ): Promise<PersonTimeline> => {
     const [person, credits, shorts] = await Promise.all([
-      getPerson(id),
-      tmdbGet<RawMovieCredits>(`/person/${id}/movie_credits`, DAY),
+      getPerson(id, signal),
+      tmdbGet<RawMovieCredits>(`/person/${id}/movie_credits`, DAY, {}, signal),
       withShorts ? lookUpShortMovies(id) : { ids: new Set<number>(), complete: true },
     ]);
     return {
@@ -521,8 +532,8 @@ export const getPersonMovieCredits = cache(
  * lookups. For the live fallback of the collaborator suggestions, which counts who worked on a
  * person's best-known films.
  */
-export function getFilmCredits(id: number): Promise<RawFilmCredits> {
-  return tmdbGet<RawFilmCredits>(`/movie/${id}/credits`, DAY);
+export function getFilmCredits(id: number, signal?: AbortSignal): Promise<RawFilmCredits> {
+  return tmdbGet<RawFilmCredits>(`/movie/${id}/credits`, DAY, {}, signal);
 }
 
 export async function getFilmDetails(id: number): Promise<FilmDetails> {
@@ -540,8 +551,8 @@ const positiveOrNull = (value: number | null | undefined): number | null =>
  * The numbers for the hover card: a plain `/movie/{id}` (no credits appended, so the payload is
  * small), cached for a day like the other film lookups. Unknown figures come back as null.
  */
-export async function getMovieMetrics(id: number): Promise<MovieMetrics> {
-  const movie = await tmdbGet<RawMovieMetrics>(`/movie/${id}`, DAY);
+export async function getMovieMetrics(id: number, signal?: AbortSignal): Promise<MovieMetrics> {
+  const movie = await tmdbGet<RawMovieMetrics>(`/movie/${id}`, DAY, {}, signal);
   const votes = typeof movie.vote_count === "number" && movie.vote_count > 0 ? movie.vote_count : 0;
   return {
     voteAverage: votes > 0 ? positiveOrNull(movie.vote_average) : null,

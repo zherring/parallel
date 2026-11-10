@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api-error";
 import { suggestCollaboratorsChecked } from "@/lib/collaborators";
+import { ROUTE_BUDGET_MS } from "@/lib/tmdb";
 
 // Seconds this function may run; why this value: see REQUEST_DEADLINE_MS in src/lib/tmdb.ts.
 export const maxDuration = 60;
@@ -24,7 +25,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
 
   try {
-    const { suggestions, complete } = await suggestCollaboratorsChecked(Number(id));
+    const { suggestions, complete } = await suggestCollaboratorsChecked(Number(id), AbortSignal.timeout(ROUTE_BUDGET_MS));
     return NextResponse.json(suggestions, {
       headers: { "Cache-Control": complete ? COMPLETE_CACHE : PARTIAL_CACHE },
     });

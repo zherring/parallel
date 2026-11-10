@@ -83,13 +83,13 @@ function fulfilledOrThrow<T>(settled: PromiseSettledResult<T>[]): T[] {
  * films (their top 25 by vote count), by the same counting as the graph. Credits of films that
  * fail to load are skipped; if none load, this throws.
  */
-async function liveCandidates(subject: PersonTimeline, today: string): Promise<number[]> {
+async function liveCandidates(subject: PersonTimeline, today: string, signal?: AbortSignal): Promise<number[]> {
   const films = subject.films
     .filter((film) => !film.minor && isReleased(film.releaseDate, today))
     .sort((a, b) => b.voteCount - a.voteCount || b.releaseDate.localeCompare(a.releaseDate) || a.id - b.id)
     .slice(0, LIVE_FILMS);
 
-  const credits = fulfilledOrThrow(await mapLimited(films, CONCURRENCY, (film) => getFilmCredits(film.id)));
+  const credits = fulfilledOrThrow(await mapLimited(films, CONCURRENCY, (film) => getFilmCredits(film.id, signal)));
 
   // TMDB's popularity of each person breaks ties between equal counts.
   const popularity = new Map<number, number>();
@@ -104,22 +104,22 @@ async function liveCandidates(subject: PersonTimeline, today: string): Promise<n
   );
 }
 
-async function compute(personId: number): Promise<SuggestionResult> {
-  const subject = await getPersonMovieCredits(personId);
+async function compute(personId: number, signal?: AbortSignal): Promise<SuggestionResult> {
+  const subject = await getPersonMovieCredits(personId, { signal });
   const today = todayIso();
 
   const fromGraph = await graphCandidates(personId);
   const source = fromGraph ? "graph" : "live";
-  const candidateIds = fromGraph ?? (await liveCandidates(subject, today));
+  const candidateIds = fromGraph ?? (await liveCandidates(subject, today, signal));
 
   // Candidates skip the short-film lookup. A film counts as shared only if both people have a
   // non-minor credit on it, and the subject's own lookup (above) already marks the shorts they
   // share, so the counts match the pair page. Sixteen more lookups would also queue in the shared
   // short-film lane ahead of a visitor's page, whose 3s budget counts that wait.
-  const settled = await mapLimited(candidateIds, CONCURRENCY, (id) => getPersonMovieCredits(id, { shorts: false }));
+  const settled = await mapLimited(candidateIds, CONCURRENCY, (id) => getPersonMovieCredits(id, { shorts: false, signal }));
   const timelines = fulfilledOrThrow(settled);
   const results = suggestFromTimelines(subject, timelines, { today });
-  // Incomplete too when the subject's short-film lookup was cut short: the counts then include a few shorts.
+  // Incomplete too when the subject's short-film lookup was cut short or capped: the counts then include a few shorts.
   const complete = timelines.length === candidateIds.length && !subject.shortsIncomplete;
   return { suggestions: { source, results }, complete };
 }
@@ -134,8 +134,12 @@ async function compute(personId: number): Promise<SuggestionResult> {
  * was cut short) the list is incomplete and is remembered for a few minutes only, after which the
  * next request tries again. `complete` says which, so the API route can give a shared cache the
  * same two lifetimes.
+ *
+ * `signal` is the route's time budget (see ROUTE_BUDGET_MS), passed to every TMDB call: candidates
+ * not loaded by the time it aborts are left out, so the list is partial. (A computation already
+ * under way for the same person keeps the signal of the request that started it.)
  */
-export function suggestCollaboratorsChecked(personId: number): Promise<SuggestionResult> {
+export function suggestCollaboratorsChecked(personId: number, signal?: AbortSignal): Promise<SuggestionResult> {
   const done = finished.get(personId);
   if (done) return Promise.resolve({ suggestions: done, complete: true });
   const incomplete = partial.get(personId);
@@ -143,7 +147,7 @@ export function suggestCollaboratorsChecked(personId: number): Promise<Suggestio
 
   let pending = running.get(personId);
   if (!pending) {
-    pending = compute(personId)
+    pending = compute(personId, signal)
       .then((result) => {
         (result.complete ? finished : partial).set(personId, result.suggestions);
         return result;
