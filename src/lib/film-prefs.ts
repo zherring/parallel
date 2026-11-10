@@ -13,9 +13,10 @@
 export type TrackMode = "combined" | "separate";
 
 /**
- * Whether the separate-lanes layout is on offer. It is parked for now: the layout control shows Focus and Combined only, and
- * the flat timeline is always the one combined track (see `effectiveTrackMode`). The lanes themselves (the timeline's lane
- * rendering, `TrackMode`) are all still here: set this to `true` to bring the option back.
+ * Whether the separate-lanes layout is on offer. It is parked for now: the flat timeline is always the one combined track (see
+ * `effectiveTrackMode`), and no control chooses between them (the page bar's switcher is Timeline, Focus and Table; the layout control that
+ * had Lanes is gone). The lanes themselves (the timeline's lane rendering, `TrackMode`) are all still here: set this to `true`, and give
+ * `useFilmPrefs`' `trackMode` a control, to bring the option back.
  */
 export const LANES_ENABLED = false;
 

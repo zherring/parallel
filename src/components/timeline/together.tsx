@@ -27,7 +27,7 @@ interface TogetherProps {
   upcomingExtra: number;
   /** The note over the section's panels (see `FilmsSection`). */
   note?: ReactNode;
-  /** The Timeline tab of the section. */
+  /** The Timeline panel of the section. */
   timeline: ReactNode;
   onSelect: (id: number, trigger: HTMLElement) => void;
   /** The quotes the two people of the page have about each other, when it has any (see `FilmsSection`). */

@@ -550,8 +550,9 @@ export function MinimapBar({
         onKeyDown={brush ? onBarKeyDown : undefined}
         className={cn(
           // The bar is rendered after the timeline and pins to the bottom of the viewport while any of the timeline is on
-          // screen, resting right under it otherwise. Opaque, above the lanes and below the film panel and hover card.
-          "sticky bottom-0 z-30 -mx-4 flex items-center gap-3 bg-canvas px-4 pb-[calc(0.375rem+env(safe-area-inset-bottom))] pt-1.5",
+          // screen, resting right under it otherwise. Opaque, above the lanes and below the film panel and hover card. It bleeds to the page's
+          // edges (-mx-3: the page's own gutter, 12px, see `PeopleView`) and keeps the content where the timeline's box is (px-3).
+          "sticky bottom-0 z-30 -mx-3 flex items-center gap-3 bg-canvas px-3 pb-[calc(0.375rem+env(safe-area-inset-bottom))] pt-1.5",
           stuck ? "border-t border-border shadow-[0_-8px_10px_-8px_rgb(0_0_0/0.8)]" : "border-t border-transparent",
         )}
       >
