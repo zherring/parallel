@@ -228,10 +228,9 @@ button:focus-visible > [data-poster-card][data-collab]::after {
 }
 
 /*
- * A background poster the pointer is on, or that has keyboard focus (`DepthScene` marks its `li` `data-pinned`), is at full opacity and fully
- * sharp: its `--focus` is pinned to 1 over whatever the focus field wrote on it (an `!important` custom property beats the inline one the field sets
+ * A background poster the pointer is on, or that has keyboard focus (`DepthScene` marks its `li` `data-pinned`), is at full opacity: its `--focus` is pinned to 1 over whatever the focus field wrote on it (an `!important` custom property beats the inline one the field sets
  * every frame, so the field and the pin never fight). The opacity eases in over 150ms (only while pinned: the field's own per-frame
- * writes must not each start a transition); the sharp image fades on its own transition. It does not move, grow or leave its place in the stack.
+ * writes must not each start a transition). It does not move, grow or leave its place in the stack.
  */
 [data-poster][data-pinned] {
   --focus: 1 !important;

@@ -51,7 +51,7 @@ export function focusWeight(distance: number, radius: number): number {
 
 /**
  * Screen distance (px) from a poster's centre to the focus: the pointer when there is one, else the horizontal band
- * through the middle of the viewport (a finger has no hover; the posters sharpen as they scroll through the middle).
+ * through the middle of the viewport (a finger has no hover; the posters come up to full opacity as they scroll through the middle).
  */
 export function focusDistance(screenX: number, screenY: number, viewportH: number, pointer: { x: number; y: number } | null): number {
   return pointer ? Math.hypot(screenX - pointer.x, screenY - pointer.y) : Math.abs(screenY - viewportH / 2);

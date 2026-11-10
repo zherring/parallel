@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { combineLanes } from "@/lib/combined-track";
+import * as layoutExports from "@/lib/depth-layout";
 import {
   COLLAB_SIZE,
   DEPTH,
@@ -8,7 +9,6 @@ import {
   TIER_MIN_WIDTH,
   anchorScrollTop,
   bandFor,
-  blurFor,
   columnIndex,
   collabHeight,
   collabStep,
@@ -22,7 +22,6 @@ import {
   layerDepth,
   layerFactor,
   obscurityOf,
-  phoneBlurFor,
   posterFactor,
   restOpacityFor,
   tierOf,
@@ -545,36 +544,28 @@ describe("what obscurity does to a poster", () => {
     for (let i = 1; i < pushes.length; i++) expect(pushes[i]).toBeGreaterThan(pushes[i - 1]);
   });
 
-  it("fades a background poster from 0.8 at rest for the best-known to about 0.45 for the most obscure", () => {
-    expect(restOpacityFor(0)).toBe(0.8);
-    expect(restOpacityFor(1)).toBeCloseTo(0.45, 10);
-    expect(restOpacityFor(0.5)).toBeCloseTo(0.625, 10);
+  it("fades a background poster from 0.56 at rest for the best-known to 0.315 for the most obscure: 0.7 of what it was", () => {
+    expect(OBSCURITY_CUES.opacity).toEqual({ best: 0.56, worst: 0.315 });
+    // The old range (0.8 down to 0.45) at 70%.
+    expect(OBSCURITY_CUES.opacity.best).toBeCloseTo(0.8 * 0.7, 10);
+    expect(OBSCURITY_CUES.opacity.worst).toBeCloseTo(0.45 * 0.7, 10);
+    expect(restOpacityFor(0)).toBe(0.56);
+    expect(restOpacityFor(1)).toBeCloseTo(0.315, 10);
+    expect(restOpacityFor(0.5)).toBeCloseTo(0.4375, 10);
     const opacities = range.map(restOpacityFor);
     for (let i = 1; i < opacities.length; i++) expect(opacities[i]).toBeLessThan(opacities[i - 1]);
   });
 
-  it("blurs the soft image from about 0.85px for the best-known to 2.55px for the most obscure", () => {
-    const { best, worst } = OBSCURITY_CUES.blur;
-    expect(blurFor(0)).toBeCloseTo(best, 10);
-    expect(blurFor(1)).toBeCloseTo(worst, 10);
-    expect(blurFor(0.5)).toBeCloseTo((best + worst) / 2, 10);
-    const blurs = range.map(blurFor);
-    for (let i = 1; i < blurs.length; i++) expect(blurs[i]).toBeGreaterThan(blurs[i - 1]);
-  });
-
-  it("blurs gently on a phone: 0.425px to 1.275px, never more than the desktop's", () => {
-    expect(phoneBlurFor(0)).toBeCloseTo(OBSCURITY_CUES.phoneBlur.best, 10);
-    expect(phoneBlurFor(1)).toBeCloseTo(OBSCURITY_CUES.phoneBlur.worst, 10);
-    for (const o of range) expect(phoneBlurFor(o)).toBeLessThan(blurFor(o));
-    const blurs = range.map(phoneBlurFor);
-    for (let i = 1; i < blurs.length; i++) expect(blurs[i]).toBeGreaterThan(blurs[i - 1]);
+  it("has no blur at all: obscurity is the poster's depth and its opacity, and nothing else", () => {
+    expect(Object.keys(OBSCURITY_CUES)).toEqual(["opacity"]);
+    expect(Object.keys(layoutExports)).not.toContain("blurFor");
+    expect(Object.keys(layoutExports)).not.toContain("phoneBlurFor");
   });
 
   it("clamps an obscurity outside 0 to 1, and one that is not a number is the best-known", () => {
     expect([depthPush(-1), depthPush(2)]).toEqual([0, DEPTH.spread]);
     expect([restOpacityFor(-1), restOpacityFor(2)]).toEqual([OBSCURITY_CUES.opacity.best, OBSCURITY_CUES.opacity.worst]);
-    expect([blurFor(-1), blurFor(2)]).toEqual([OBSCURITY_CUES.blur.best, OBSCURITY_CUES.blur.worst]);
-    expect([depthPush(Number.NaN), restOpacityFor(Number.NaN), blurFor(Number.NaN)]).toEqual([0, OBSCURITY_CUES.opacity.best, OBSCURITY_CUES.blur.best]);
+    expect([depthPush(Number.NaN), restOpacityFor(Number.NaN)]).toEqual([0, OBSCURITY_CUES.opacity.best]);
   });
 });
 

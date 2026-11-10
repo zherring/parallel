@@ -4,12 +4,8 @@ import { useEffect, type RefObject } from "react";
 import { posterFactor, type DepthFilm } from "@/lib/depth-layout";
 import { inWindow, projectY } from "@/lib/depth-projection";
 
-/**
- * How far from the screen (in viewport heights) a poster's image is fetched: the soft one that is on screen
- * whenever the poster is, and the sharp one that only shows once the focus field raises it.
- */
-export const SOFT_WINDOW = 1.5;
-export const SHARP_WINDOW = 1;
+/** How far from the screen (in viewport heights) a poster's image is fetched: it is on screen whenever the poster is, so it has to be there before. */
+export const IMAGE_WINDOW = 1.5;
 
 /** A failed image is asked for again this many times, `RETRY_MS` later each time (so 1.5 s, then 3 s). */
 const RETRIES = 2;
@@ -18,8 +14,8 @@ const RETRY_MS = 1500;
 interface PosterImages {
   y: number;
   f: number;
-  /** The images still without a `src`: what the poster's markup left for this hook to fill in (`data-src`). */
-  pending: { img: HTMLImageElement; window: number }[];
+  /** The image, if it is still without a `src`: what the poster's markup left for this hook to fill in (`data-src`). */
+  pending: HTMLImageElement[];
 }
 
 /**
@@ -30,7 +26,7 @@ interface PosterImages {
  * a half of the viewport, on each poster's own factor, and their images are requested nearest first, so what is on screen
  * comes before what is only coming. Anything that is not on screen yet is fetched at low priority.
  *
- * A poster's markup has `data-src` for each image and a real `src` only when it was inside that window at the scene's
+ * A poster's markup has `data-src` for its image and a real `src` only when it was inside that window at the scene's
  * opening position (`eager`), so the first paint has its posters without waiting for the hydration; this hook skips those.
  * It runs on scroll and on resize (a frame at most): once every image has its `src` it does no work. A request that fails
  * is repeated twice.
@@ -49,7 +45,7 @@ export function usePosterImages(scrollerRef: RefObject<HTMLDivElement | null>, f
       const pending: PosterImages["pending"] = [];
       el.querySelectorAll<HTMLImageElement>("img[data-src]").forEach((img) => {
         if (img.hasAttribute("src")) return;
-        pending.push({ img, window: img.dataset.window === "sharp" ? SHARP_WINDOW : SOFT_WINDOW });
+        pending.push(img);
       });
       if (pending.length > 0) posters.push({ y: item.y, f: posterFactor(item), pending });
     }
@@ -64,18 +60,12 @@ export function usePosterImages(scrollerRef: RefObject<HTMLDivElement | null>, f
       const due: { img: HTMLImageElement; distance: number; onScreen: boolean }[] = [];
       for (const poster of posters) {
         if (poster.pending.length === 0) continue;
+        if (!inWindow(poster.y, scrollTop, height, poster.f, IMAGE_WINDOW * height)) continue;
         const screenY = projectY(poster.y, scrollTop, height, poster.f);
         const distance = Math.abs(screenY - height / 2);
-        const keep: PosterImages["pending"] = [];
-        for (const entry of poster.pending) {
-          if (inWindow(poster.y, scrollTop, height, poster.f, entry.window * height)) {
-            due.push({ img: entry.img, distance, onScreen: screenY > -60 && screenY < height + 60 });
-          } else {
-            keep.push(entry);
-          }
-        }
-        if (keep.length === 0) remaining--;
-        poster.pending = keep;
+        for (const img of poster.pending) due.push({ img, distance, onScreen: screenY > -60 && screenY < height + 60 });
+        poster.pending = [];
+        remaining--;
       }
       // Nearest the middle of the screen first: they are queued in this order.
       due.sort((a, b) => a.distance - b.distance);

@@ -27,10 +27,10 @@ interface FieldItem {
 }
 
 /**
- * The field of focus: the pointer (or, with no pointer, a band through the middle of the screen) sharpens the soft
- * posters of the layers behind. Each poster's `--focus` (0 to 1) is the opacity of its sharp image over its blurred one, and
- * lifts the poster from its resting opacity (fainter the more obscure the film) to 1, so it is the only thing that animates;
- * posters of the front layer (and a page of one person's) are never sharpened, so the loop leaves them alone.
+ * The field of focus: the pointer (or, with no pointer, a band through the middle of the screen) brings the faint
+ * posters of the layers behind up to full opacity. Each poster's `--focus` (0 to 1) lifts the poster from its resting opacity (fainter the
+ * more obscure the film) to 1, so it is the only thing that animates; posters of the front layer (and a page of one person's) are
+ * always at full opacity, so the loop leaves them alone.
  *
  * Where a poster is on screen is worked out from numbers (`depth-projection.ts`), never read from the DOM: the work
  * per frame is arithmetic over the posters that are in view. The loop runs only while the scene scrolls or the pointer
@@ -133,7 +133,7 @@ export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, fil
     scroller.addEventListener("pointerleave", onPointerLeave, { passive: true });
     const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(onResize);
     observer?.observe(scroller);
-    // Once at the start: on a phone the posters in the middle band are sharp before anything moves.
+    // Once at the start: on a phone the posters in the middle band are at full opacity before anything moves.
     wake();
 
     return () => {

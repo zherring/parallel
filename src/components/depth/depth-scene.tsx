@@ -3,7 +3,7 @@
 import { useCallback, useId, useLayoutEffect, useMemo, useRef, type FocusEvent, type PointerEvent, type RefObject } from "react";
 import { DepthPoster } from "@/components/depth/depth-poster";
 import { useFocusField } from "@/components/depth/use-focus-field";
-import { SOFT_WINDOW, usePosterImages } from "@/components/depth/use-poster-images";
+import { IMAGE_WINDOW, usePosterImages } from "@/components/depth/use-poster-images";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "@/components/timeline/film-popover";
 import { useDragPan, type DragPanOptions } from "@/components/timeline/use-drag-pan";
 import type { CombinedFilmInfo } from "@/lib/combined-track";
@@ -116,7 +116,7 @@ function focusIsVisible(element: HTMLElement): boolean {
  * target it would shadow their posters (a poster's button turns them back on).
  *
  * Hover and focus are handled once, on the scroller, for every poster (the film popover is a portal on the body, which
- * is not inside the scroller either). The field of focus that sharpens the soft posters behind is `useFocusField`.
+ * is not inside the scroller either). The field of focus that brings the faint posters behind up to full opacity is `useFocusField`.
  */
 export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slots, info, outsideIds, includeMinor, selectedId, today, onSelect }: DepthSceneProps) {
   const layers = useMemo(() => {
@@ -149,7 +149,7 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
     const top = anchorScrollTop(anchorY, NOMINAL_VIEWPORT_H, trackHeight);
     return new Set(
       layout.films
-        .filter((item) => inWindow(item.y, top, NOMINAL_VIEWPORT_H, posterFactor(item), SOFT_WINDOW * NOMINAL_VIEWPORT_H))
+        .filter((item) => inWindow(item.y, top, NOMINAL_VIEWPORT_H, posterFactor(item), IMAGE_WINDOW * NOMINAL_VIEWPORT_H))
         .map((item) => item.film.id),
     );
   }, [layout.films, anchorY, trackHeight]);
@@ -158,7 +158,7 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
   const popoverId = useId();
   const { target: popoverTarget, show: showPopover, hide: hidePopover } = useFilmPopover();
   const hoverElement = useRef<HTMLElement | null>(null);
-  // A background poster brightens in place while the pointer is on it or it has keyboard focus: full opacity and fully sharp (`data-pinned`
+  // A background poster brightens in place while the pointer is on it or it has keyboard focus: full opacity (`data-pinned`
   // on its `li` pins its `--focus` to 1, globals.css, whatever the focus field says). It does not move, grow or come forward: it stays at its own
   // depth, behind any film made together that covers it, and so is only hoverable where it shows.
   const pinned = useCallback((element: HTMLElement, on: boolean) => {

@@ -2,7 +2,7 @@ import { memo, type CSSProperties } from "react";
 import { filmLabel } from "@/lib/film-label";
 import { tmdbImage } from "@/lib/images";
 import { placeholderFill } from "@/lib/poster-placeholder";
-import { blurFor, columnIndex, phoneBlurFor, posterFactor, restOpacityFor, type DepthFilm } from "@/lib/depth-layout";
+import { columnIndex, posterFactor, restOpacityFor, type DepthFilm } from "@/lib/depth-layout";
 import { personColor, personGlow } from "@/lib/person-colors";
 import { cn } from "@/components/timeline/cn";
 
@@ -70,16 +70,13 @@ function TitleFace({ title }: { title: string }) {
 
 function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selected, eager, describedBy, onSelect }: DepthPosterProps) {
   const { film, shared, slots, layer, y, band, col, jitter, w, h, obscurity, push, background } = item;
-  // Collaborations are the sharp ones in front: a bigger image. The posters of the layers behind are two images, a soft
-  // one (small and blurred, drawn once) under a sharp one whose opacity the focus field raises (see `useFocusField`).
-  const soft = background;
   // `Title, Year`: a title that already ends with its year is not said twice (see `filmLabel`). The label is only drawn for a film made together.
   const label = filmLabel(film.title, film.year);
   // Out of the period a link chose, the dimming (the `li`'s `opacity-25`) is the whole opacity: the obscurity's is not stacked under it.
   const dimmed = outside && !selected;
-  // The films several people made, and a page of one person's (up front, big and sharp), get the larger image.
-  const src = tmdbImage(film.posterPath, shared || !soft ? "w342" : "w185");
-  const softSrc = soft ? tmdbImage(film.posterPath, "w92") : null;
+  // One image, sharp whatever the poster: the films several people made, and a page of one person's (up front, big), get the larger one; the layers behind are
+  // faint and small, and the smaller one is enough. The layers behind are faint, not blurred: their opacity is the cue (see `restOpacityFor`).
+  const src = tmdbImage(film.posterPath, shared || !background ? "w342" : "w185");
   // One person made it: their colour rings the poster. Several people making a film that is not out yet: neutral.
   const ring = coloured && !shared && slots.length === 1 ? slots[0] : null;
   const ringColor = ring === null ? null : personColor(ring);
@@ -115,15 +112,12 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
     "--lead": fluid ? "calc(var(--collab-w) / 2)" : `${round(w / 2)}px`,
     width: fluid ? "var(--collab-w)" : w,
     height: fluid ? "calc(var(--collab-w) * 1.5)" : h,
-    // How much the focus field has sharpened this poster, 0 to 1 (the posters it does not drive are always in focus), and the blur it is behind.
-    "--focus": soft ? 0 : 1,
-    // The more obscure the film, the fainter at rest and the softer (the blur of its soft image): see `restOpacityFor` and `blurFor`.
-    // Under `sm` the blur is gentler (`phoneBlurFor`): it is what costs on a phone.
-    ...(soft
+    // How far the focus field has brought this poster up from its resting opacity to 1, 0 to 1 (the posters it does not drive are always at full opacity).
+    "--focus": background ? 0 : 1,
+    // The more obscure the film, the fainter at rest: see `restOpacityFor`.
+    ...(background
       ? {
           "--rest-opacity": round(restOpacityFor(obscurity)),
-          "--layer-blur": `${round(blurFor(obscurity))}px`,
-          "--layer-blur-phone": `${round(phoneBlurFor(obscurity))}px`,
           // Faint at rest, rising to 1 with the focus (the pointer near, the middle band on a phone, a hover or keyboard focus).
           // The whole poster fades as one (the card and the shadows hanging from it), so a shadow never shows through a faint poster.
           opacity: dimmed ? undefined : "calc(var(--rest-opacity) + (1 - var(--rest-opacity)) * var(--focus))",
@@ -142,11 +136,11 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
         "[backface-visibility:hidden]",
         // A poster the focus field drives has no opacity transition: the field already eases it (a weight per frame), and a transition
         // started on every one of those frames, for every poster in view, added about a tenth to a frame's main-thread time (a page of three, 4x CPU throttle). The dimming of a period fades.
-        (!soft || dimmed) && "transition-[opacity,filter] duration-150 motion-reduce:transition-none",
+        (!background || dimmed) && "transition-[opacity,filter] duration-150 motion-reduce:transition-none",
         dimmed && "opacity-25 grayscale",
-        // Keyboard focus takes a poster to full opacity, as it sharpens it (the inline opacity needs the `!`). A hover or keyboard focus also
+        // Keyboard focus takes a poster to full opacity (the inline opacity needs the `!`). A hover or keyboard focus also
         // marks the `li` `data-pinned` (see `DepthScene`), which pins `--focus` to 1 over the focus field's (globals.css).
-        soft && !dimmed && "has-[button:focus-visible]:opacity-100!",
+        background && !dimmed && "has-[button:focus-visible]:opacity-100!",
       )}
       style={style}
     >
@@ -189,48 +183,20 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
               ...(shared ? { boxShadow: "0 0 0 2px var(--lit)" } : ringColor !== null ? { boxShadow: `0 0 0 1.5px ${ringColor}` } : null),
             }}
           >
-            {soft &&
-              (softSrc ? (
-                <img
-                  // The image is fetched as the scene scrolls (`usePosterImages`), not by the browser's lazy loading.
-                  src={eager ? softSrc : undefined}
-                  data-src={softSrc}
-                  alt=""
-                  width={w}
-                  height={h}
-                  decoding="async"
-                  draggable={false}
-                  // Blurred once and left alone; scaled up so the blur's soft edge falls outside the clip. A phone blurs the first
-                  // layer back lightly and the rest not at all (it is what costs there): the small image blown up is soft enough.
-                  className="absolute inset-0 size-full scale-105 object-cover [filter:blur(var(--layer-blur))] max-sm:[filter:blur(var(--layer-blur-phone))]"
-                />
-              ) : (
-                <span className="absolute inset-0 scale-105 [filter:blur(var(--layer-blur))] max-sm:[filter:blur(var(--layer-blur-phone))]">
-                  <TitleFace title={film.title} />
-                </span>
-              ))}
             {src ? (
               <img
-                // The sharp image of a soft poster is only wanted when it is close (the hook has it); a poster that is not soft has only this one.
-                src={eager && !soft ? src : undefined}
+                // The image is fetched as the scene scrolls (`usePosterImages`), not by the browser's lazy loading: the markup has it only for the posters near where the scene opens.
+                src={eager ? src : undefined}
                 data-src={src}
-                data-window={soft ? "sharp" : "soft"}
                 alt=""
                 width={w}
                 height={h}
                 decoding="async"
                 draggable={false}
-                className={cn(
-                  "size-full object-cover",
-                  // Keyboard focus sharpens a poster, as the pointer does.
-                  soft &&
-                    "absolute inset-0 transition-opacity duration-100 [opacity:var(--focus)] group-focus-visible:opacity-100 motion-reduce:transition-none",
-                )}
+                className="size-full object-cover"
               />
             ) : (
-              <span className={cn("block size-full", soft && "absolute inset-0 transition-opacity duration-100 [opacity:var(--focus)] group-focus-visible:opacity-100 motion-reduce:transition-none")}>
-                <TitleFace title={film.title} />
-              </span>
+              <TitleFace title={film.title} />
             )}
             <span
               aria-hidden

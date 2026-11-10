@@ -15,8 +15,8 @@
  * those films down the axis is for the largest they can be (`DEPTH.collabMax`), so that none overlap at any width.
  *
  * Within its person's layer a background poster is pushed further back the more obscure its film is (`obscurity`,
- * from TMDB's vote count), so a person's films read as a cloud with depth, and it is also fainter and softer: the cues
- * are `depthPush`, `restOpacityFor` and `blurFor`. Because of that a poster has its own depth and so its own factor `f`
+ * from TMDB's vote count), so a person's films read as a cloud with depth, and it is also fainter: the cues
+ * are `depthPush` and `restOpacityFor`. Because of that a poster has its own depth and so its own factor `f`
  * (`posterFactor`), not its layer's: everything that places or projects a poster uses it.
  *
  * A poster's x is worked out in the space the visitor sees, then pushed back through the poster's perspective: the band
@@ -94,14 +94,12 @@ export const DEPTH = {
 } as const;
 
 /**
- * What obscurity does to a background poster, by the poster's `obscurity` (0 best-known, 1 most obscure): its resting
- * opacity (the focus field and hover raise it to 1) and the blur of its soft image (px; a phone's is gentler: the blur is
- * what costs there).
+ * What obscurity does to a background poster, by the poster's `obscurity` (0 best-known, 1 most obscure): its resting opacity, which the focus
+ * field and a hover raise to 1. The posters are single, sharp images, never blurred: how faint and how far back they are is the whole cue. (The
+ * range is 0.7 of what it was, 0.8 and 0.45, so the layers behind sit further back in the dark.)
  */
 export const OBSCURITY_CUES = {
-  opacity: { best: 0.8, worst: 0.45 },
-  blur: { best: 0.85, worst: 2.55 },
-  phoneBlur: { best: 0.425, worst: 1.275 },
+  opacity: { best: 0.56, worst: 0.315 },
 } as const;
 
 /**
@@ -201,9 +199,9 @@ export interface DepthFilm {
   /** Distance (px) behind the screen plane, negative in front of it: the layer's (`layerDepth`) plus `push`. Its factor on screen is `posterFactor`. */
   depth: number;
   /**
-   * A poster of a layer behind, on a page of several people, or a minor film on any page: drawn soft, faded by its obscurity and pushed
-   * back by it, until the focus field (or a hover) brings it into focus. False for the films several people made and for a page of
-   * one person's posters (but its minor films), which are always sharp, opaque and level.
+   * A poster of a layer behind, on a page of several people, or a minor film on any page: faded by its obscurity and pushed
+   * back by it, until the focus field (or a hover) brings it up to full opacity. False for the films several people made and for a page of
+   * one person's posters (but its minor films), which are always opaque and level.
    */
   background: boolean;
 }
@@ -312,19 +310,9 @@ export function depthPush(obscurity: number): number {
   return lerp(0, DEPTH.spread, obscurity);
 }
 
-/** The opacity (0 to 1) of a background poster at rest, out of focus: 0.8 for the best-known, fading to 0.45 for the most obscure. Focus brings it to 1. */
+/** The opacity (0 to 1) of a background poster at rest, out of focus: 0.56 for the best-known, fading to 0.315 for the most obscure. Focus brings it to 1. */
 export function restOpacityFor(obscurity: number): number {
   return lerp(OBSCURITY_CUES.opacity.best, OBSCURITY_CUES.opacity.worst, obscurity);
-}
-
-/** Blur (px) of a background poster's soft image while it is out of focus: about 0.85px for the best-known to 2.55px for the most obscure. */
-export function blurFor(obscurity: number): number {
-  return lerp(OBSCURITY_CUES.blur.best, OBSCURITY_CUES.blur.worst, obscurity);
-}
-
-/** The same on a phone, where a blur is what costs: gentler, 0.425px to 1.275px. */
-export function phoneBlurFor(obscurity: number): number {
-  return lerp(OBSCURITY_CUES.phoneBlur.best, OBSCURITY_CUES.phoneBlur.worst, obscurity);
 }
 
 /** Which spacing a viewport `width` px wide gets. */
