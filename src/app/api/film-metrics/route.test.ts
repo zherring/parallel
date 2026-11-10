@@ -10,7 +10,7 @@ vi.mock("@/lib/tmdb", async (importOriginal) => ({
 import { GET } from "@/app/api/film-metrics/route";
 import { MAX_BATCH_IDS } from "@/lib/film-metrics-batch";
 import { awardsFor } from "@/lib/awards";
-import { TmdbError, getMovieMetrics } from "@/lib/tmdb";
+import { ROUTE_BUDGET_MS, TmdbError, getMovieMetrics } from "@/lib/tmdb";
 import type { MovieMetrics } from "@/lib/types";
 
 const metrics = vi.mocked(getMovieMetrics);
@@ -38,6 +38,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
   metrics.mockReset();
   awards.mockReset();
 });
@@ -178,5 +179,47 @@ describe("GET /api/film-metrics?ids=", () => {
     expect(res.status).toBe(200);
     expect(peak).toBeGreaterThan(1);
     expect(peak).toBeLessThanOrEqual(8);
+  });
+});
+
+describe("GET /api/film-metrics?ids=: the route budget", () => {
+  it("settles by the budget against a hanging TMDB: films not done fail like any other failed lookup, uncached", async () => {
+    vi.useFakeTimers();
+    // AbortSignal.timeout runs on a timer fake timers cannot see; this one aborts on the fake clock.
+    vi.spyOn(AbortSignal, "timeout").mockImplementation((ms) => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(new DOMException("The operation timed out", "TimeoutError")), ms);
+      return controller.signal;
+    });
+    // Ten films answer; every other one hangs until the signal it is given aborts (and fails at once if it already has).
+    metrics.mockImplementation(
+      (id, signal) =>
+        id <= 10
+          ? Promise.resolve(movie(id / 10))
+          : new Promise((_resolve, reject) => {
+              const fail = () => reject(new TmdbError(504, "TMDB request timed out"));
+              if (signal?.aborted) fail();
+              else signal?.addEventListener("abort", fail, { once: true });
+            }),
+    );
+    const ids = Array.from({ length: MAX_BATCH_IDS }, (_, i) => i + 1).join(",");
+    const started = Date.now();
+    let settledAt = -1;
+    const res = get(ids).then((response) => {
+      settledAt = Date.now() - started;
+      return response;
+    });
+
+    await vi.advanceTimersByTimeAsync(ROUTE_BUDGET_MS - 1);
+    expect(settledAt).toBe(-1);
+    await vi.advanceTimersByTimeAsync(1);
+
+    const response = await res;
+    expect(settledAt).toBe(ROUTE_BUDGET_MS);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    const { results } = await body(response);
+    expect(Object.values(results!).filter((value) => value !== null)).toHaveLength(10);
+    expect(Object.keys(results!)).toHaveLength(MAX_BATCH_IDS);
   });
 });

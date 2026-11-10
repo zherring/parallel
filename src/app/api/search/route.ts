@@ -5,6 +5,9 @@ import { searchIndex, type PersonMatch } from "@/lib/people-match";
 import { mergeSearchResults, MAX_SEARCH_RESULTS } from "@/lib/search-merge";
 import { TmdbError, searchPeopleWithPopularity } from "@/lib/tmdb";
 
+// Seconds this function may run; why this value: see REQUEST_DEADLINE_MS in src/lib/tmdb.ts.
+export const maxDuration = 20;
+
 const MIN_QUERY = 2;
 const MAX_QUERY = 100;
 /** TMDB's person search only adds names the local index lacks; it never holds the answer up. */

@@ -15,22 +15,38 @@ import type { CollaboratorSuggestions, PersonTimeline } from "@/lib/types";
 
 /** Candidates whose filmographies are fetched to be counted exactly. */
 const VERIFY_CANDIDATES = GRAPH_CANDIDATES;
-/** TMDB requests in flight at once (each filmography is a few requests of its own). */
+/**
+ * Filmographies (and film credits) loaded at once. This bounds the fan-out, not the wire: the
+ * TMDB client's own limiter holds the requests on the wire to six. Without it all 16 candidates
+ * would ask at once, and with every request's 12s deadline running from the moment it is asked
+ * for, the ones at the back of the queue would run out of time before they were ever sent.
+ */
 const CONCURRENCY = 6;
 /** The live fallback looks at the person's best-known films only. */
 const LIVE_FILMS = 25;
 
 const CACHE_TTL_MS = 3 * 60 * 60 * 1000;
+/** A list that is missing candidates is kept only briefly: long enough to spare TMDB, short enough to heal. */
+const PARTIAL_TTL_MS = 5 * 60 * 1000;
 const CACHE_SIZE = 200;
 
 /** Finished lists, for a few hours. TMDB's own responses are cached for a day by the fetch cache. */
 const finished = new TtlCache<number, CollaboratorSuggestions>(CACHE_SIZE, CACHE_TTL_MS);
+/** Lists some of whose candidates could not be loaded, for a few minutes. */
+const partial = new TtlCache<number, CollaboratorSuggestions>(CACHE_SIZE, PARTIAL_TTL_MS);
 /** Lists being computed right now, so a burst of requests for one person does the work once. */
-const running = new Map<number, Promise<CollaboratorSuggestions>>();
+const running = new Map<number, Promise<SuggestionResult>>();
+
+/** A list, and whether every candidate made it into it (false: some filmographies failed to load). */
+export interface SuggestionResult {
+  suggestions: CollaboratorSuggestions;
+  complete: boolean;
+}
 
 /** Forgets every remembered list (for tests). */
 export function resetSuggestionCache(): void {
   finished.clear();
+  partial.clear();
   running.clear();
 }
 
@@ -67,13 +83,13 @@ function fulfilledOrThrow<T>(settled: PromiseSettledResult<T>[]): T[] {
  * films (their top 25 by vote count), by the same counting as the graph. Credits of films that
  * fail to load are skipped; if none load, this throws.
  */
-async function liveCandidates(subject: PersonTimeline, today: string): Promise<number[]> {
+async function liveCandidates(subject: PersonTimeline, today: string, signal?: AbortSignal): Promise<number[]> {
   const films = subject.films
     .filter((film) => !film.minor && isReleased(film.releaseDate, today))
     .sort((a, b) => b.voteCount - a.voteCount || b.releaseDate.localeCompare(a.releaseDate) || a.id - b.id)
     .slice(0, LIVE_FILMS);
 
-  const credits = fulfilledOrThrow(await mapLimited(films, CONCURRENCY, (film) => getFilmCredits(film.id)));
+  const credits = fulfilledOrThrow(await mapLimited(films, CONCURRENCY, (film) => getFilmCredits(film.id, signal)));
 
   // TMDB's popularity of each person breaks ties between equal counts.
   const popularity = new Map<number, number>();
@@ -88,19 +104,24 @@ async function liveCandidates(subject: PersonTimeline, today: string): Promise<n
   );
 }
 
-async function compute(personId: number): Promise<{ suggestions: CollaboratorSuggestions; complete: boolean }> {
-  const subject = await getPersonMovieCredits(personId);
+async function compute(personId: number, signal?: AbortSignal): Promise<SuggestionResult> {
+  const subject = await getPersonMovieCredits(personId, { signal });
   const today = todayIso();
 
   const fromGraph = await graphCandidates(personId);
   const source = fromGraph ? "graph" : "live";
-  const candidateIds = fromGraph ?? (await liveCandidates(subject, today));
+  const candidateIds = fromGraph ?? (await liveCandidates(subject, today, signal));
 
-  // The same filmographies the pair page loads, so the counts match what a click shows.
-  const settled = await mapLimited(candidateIds, CONCURRENCY, (id) => getPersonMovieCredits(id));
+  // Candidates skip the short-film lookup. A film counts as shared only if both people have a
+  // non-minor credit on it, and the subject's own lookup (above) already marks the shorts they
+  // share, so the counts match the pair page. Sixteen more lookups would also queue in the shared
+  // short-film lane ahead of a visitor's page, whose 3s budget counts that wait.
+  const settled = await mapLimited(candidateIds, CONCURRENCY, (id) => getPersonMovieCredits(id, { shorts: false, signal }));
   const timelines = fulfilledOrThrow(settled);
   const results = suggestFromTimelines(subject, timelines, { today });
-  return { suggestions: { source, results }, complete: timelines.length === candidateIds.length };
+  // Incomplete too when the subject's short-film lookup was cut short or capped: the counts then include a few shorts.
+  const complete = timelines.length === candidateIds.length && !subject.shortsIncomplete;
+  return { suggestions: { source, results }, complete };
 }
 
 /**
@@ -109,19 +130,27 @@ async function compute(personId: number): Promise<{ suggestions: CollaboratorSug
  * their best-known films), each one then counted exactly from the two filmographies and made
  * varied by role. Throws a TmdbError when TMDB cannot answer (404 for an unknown person).
  *
- * Remembered for a few hours, except when some candidates could not be loaded: that list is
- * incomplete, so the next request tries again.
+ * Remembered for a few hours; when some candidates could not be loaded (or a short-film lookup
+ * was cut short) the list is incomplete and is remembered for a few minutes only, after which the
+ * next request tries again. `complete` says which, so the API route can give a shared cache the
+ * same two lifetimes.
+ *
+ * `signal` is the route's time budget (see ROUTE_BUDGET_MS), passed to every TMDB call: candidates
+ * not loaded by the time it aborts are left out, so the list is partial. (A computation already
+ * under way for the same person keeps the signal of the request that started it.)
  */
-export function suggestCollaborators(personId: number): Promise<CollaboratorSuggestions> {
-  const remembered = finished.get(personId);
-  if (remembered) return Promise.resolve(remembered);
+export function suggestCollaboratorsChecked(personId: number, signal?: AbortSignal): Promise<SuggestionResult> {
+  const done = finished.get(personId);
+  if (done) return Promise.resolve({ suggestions: done, complete: true });
+  const incomplete = partial.get(personId);
+  if (incomplete) return Promise.resolve({ suggestions: incomplete, complete: false });
 
   let pending = running.get(personId);
   if (!pending) {
-    pending = compute(personId)
-      .then(({ suggestions, complete }) => {
-        if (complete) finished.set(personId, suggestions);
-        return suggestions;
+    pending = compute(personId, signal)
+      .then((result) => {
+        (result.complete ? finished : partial).set(personId, result.suggestions);
+        return result;
       })
       .finally(() => running.delete(personId));
     running.set(personId, pending);

@@ -24,6 +24,9 @@ import {
 } from "@/lib/seo";
 import { sharedFilms, sharedFilmsPairwise } from "@/lib/shared";
 
+// Seconds this function may run; why this value: see REQUEST_DEADLINE_MS in src/lib/tmdb.ts.
+export const maxDuration = 20;
+
 type Query = Record<string, string | string[] | undefined>;
 type Props = {
   params: Promise<{ people: string }>;

@@ -12,7 +12,7 @@ import { GET } from "@/app/api/collaborators/[id]/route";
 import { resetSuggestionCache } from "@/lib/collaborators";
 import { loadCollaboratorGraph } from "@/lib/collaborators-index";
 import type { GraphEntry } from "@/lib/collaborators-format";
-import { TmdbError, getFilmCredits, getPersonMovieCredits } from "@/lib/tmdb";
+import { ROUTE_BUDGET_MS, TmdbError, getFilmCredits, getPersonMovieCredits } from "@/lib/tmdb";
 import type { RawFilmCredits } from "@/lib/tmdb-types";
 import type { CollaboratorSuggestions, Credit, Film, PersonTimeline, RoleKey } from "@/lib/types";
 
@@ -77,6 +77,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
   loadGraph.mockReset();
   personCredits.mockReset();
   filmCredits.mockReset();
@@ -249,12 +250,38 @@ describe("GET /api/collaborators/[id]: partial TMDB failure", () => {
     expect((await body(res)).results.map((r) => r.id)).toEqual([10, 12]);
   });
 
-  it("does not remember an incomplete list, so the next request tries again", async () => {
+  it("sends a short shared-cache lifetime for an incomplete list and the hour-long one once it is complete", async () => {
+    failing.add(11);
+    const partial = await get(String(SUBJECT));
+    expect(partial.status).toBe(200);
+    expect(partial.headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=60");
+    expect((await body(partial)).results.map((r) => r.id)).toEqual([10, 12]);
+
+    // Served from the few-minutes memory, it is still marked incomplete.
+    const remembered = await get(String(SUBJECT));
+    expect(remembered.headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=60");
+
+    // Once the list heals, it gets the full header again.
+    failing.delete(11);
+    resetSuggestionCache();
+    const healed = await get(String(SUBJECT));
+    expect(healed.headers.get("Cache-Control")).toBe("public, s-maxage=3600, stale-while-revalidate=86400");
+    expect((await body(healed)).results.map((r) => r.id)).toEqual([10, 11, 12]);
+  });
+
+  it("remembers an incomplete list only for a few minutes (see collaborators.test.ts), then tries again", async () => {
     failing.add(11);
     await get(String(SUBJECT));
     failing.delete(11);
-    const data = await body(await get(String(SUBJECT)));
-    expect(data.results.map((r) => r.id)).toEqual([10, 11, 12]);
+
+    // Within those minutes the shorter list is served without asking TMDB again...
+    const again = await body(await get(String(SUBJECT)));
+    expect(again.results.map((r) => r.id)).toEqual([10, 12]);
+
+    // ...and once it is forgotten the full list comes back.
+    resetSuggestionCache();
+    const healed = await body(await get(String(SUBJECT)));
+    expect(healed.results.map((r) => r.id)).toEqual([10, 11, 12]);
   });
 
   it("answers 502 when every candidate fails: an outage is not an empty list", async () => {
@@ -353,5 +380,60 @@ describe("GET /api/collaborators/[id]: live fallback", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ source: "live", results: [] });
     expect(filmCredits).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/collaborators/[id]: the route budget", () => {
+  /** A TMDB call that never answers: it fails when `signal` aborts, or at once if it already has. */
+  const hang = (signal?: AbortSignal) =>
+    new Promise<never>((_resolve, reject) => {
+      const fail = () => reject(new TmdbError(504, "TMDB request timed out"));
+      if (signal?.aborted) fail();
+      else signal?.addEventListener("abort", fail, { once: true });
+    });
+
+  /** Runs the request on the fake clock and says when it settled. */
+  async function timedGet(id: string) {
+    vi.useFakeTimers();
+    // AbortSignal.timeout runs on a timer fake timers cannot see; this one aborts on the fake clock.
+    vi.spyOn(AbortSignal, "timeout").mockImplementation((ms) => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(new DOMException("The operation timed out", "TimeoutError")), ms);
+      return controller.signal;
+    });
+    const started = Date.now();
+    let settledAt = -1;
+    const res = get(id).then((response) => {
+      settledAt = Date.now() - started;
+      return response;
+    });
+    await vi.advanceTimersByTimeAsync(ROUTE_BUDGET_MS - 1);
+    expect(settledAt).toBe(-1);
+    await vi.advanceTimersByTimeAsync(1);
+    return { response: await res, settledAt };
+  }
+
+  it("gives a partial list, kept briefly, when candidates are still loading at the budget", async () => {
+    timelines.set(SUBJECT, timeline(SUBJECT, "Star", films("actor", range(1, 8))));
+    for (const id of [10, 11]) timelines.set(id, timeline(id, `Costar ${id}`, films("actor", [1, 2, 3])));
+    graph.set(SUBJECT, row([10, 3], [11, 3], [12, 3]));
+    personCredits.mockImplementation(async (id, options) => (id === 12 ? hang(options?.signal) : timelines.get(id)!));
+
+    const { response, settledAt } = await timedGet(String(SUBJECT));
+
+    expect(settledAt).toBe(ROUTE_BUDGET_MS);
+    expect(response.status).toBe(200);
+    expect((await body(response)).results.map((r) => r.id)).toEqual([10, 11]);
+    expect(response.headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=60");
+  });
+
+  it("settles by the budget against a TMDB that hangs on every film's credits: not after five rounds of 12s", async () => {
+    timelines.set(SUBJECT, timeline(SUBJECT, "Star", films("actor", range(1, 30))));
+    filmCredits.mockImplementation((_id, signal) => hang(signal));
+
+    const { response, settledAt } = await timedGet(String(SUBJECT));
+
+    expect(settledAt).toBe(ROUTE_BUDGET_MS);
+    expect(response.status).toBe(502);
   });
 });
