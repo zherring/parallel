@@ -1,5 +1,6 @@
 import { test, expect, MINOR_FILM_COUNT, PEOPLE_PATH, PIXEL, switcher, viewLink } from "./fixtures";
 import type { Page } from "next/experimental/testmode/playwright";
+import { collabStep, layerFactor, tierOf, xSpec } from "../../src/lib/depth-layout";
 
 // Activate the server-side fetch fixtures before any test navigates to a people page.
 test.beforeEach(async ({ next }) => { void next; });
@@ -83,6 +84,100 @@ test("the page's h1 is there for screen readers only: visually hidden, outside t
   await expect(scene(page).getByRole("heading")).toHaveCount(0);
   expect(await scene(page).evaluate((element) => [...element.querySelectorAll("*")].some((node) => getComputedStyle(node).position === "fixed"))).toBe(false);
 });
+
+// ---- the films made together grow with the screen: 136px wide up to a window of 1440, 4/3 of that at 1920, 230px at most; a phone's do not -------------------------------
+
+for (const [width, height, laid] of [
+  [1440, 900, 136],
+  [1920, 1080, 181.33],
+  [2560, 1440, 230],
+  [390, 844, 136],
+] as const) {
+  test.describe(`at ${width}px wide`, () => {
+    test.use({ viewport: { width, height }, hasTouch: width < 640, isMobile: width < 640 });
+
+    test(`the films made together are laid out ${laid}px wide, 2:3, on the centre line and the grown column steps, never on one another, with their labels clear`, async ({ page }) => {
+      await openDepth(page);
+      const region = scene(page);
+      const spec = xSpec(tierOf(width), 2);
+      const vmax = Math.max(width, height);
+      const measured = await region.evaluate((scroller) =>
+        [...scroller.querySelectorAll<HTMLElement>('button[data-layer="0"]')].map((button) => {
+          const li = button.closest<HTMLElement>("[data-poster]")!;
+          const box = button.getBoundingClientRect();
+          return {
+            id: li.dataset.poster!,
+            laidW: li.getBoundingClientRect().width / Number(li.style.getPropertyValue("--f")),
+            laidH: li.offsetHeight,
+            // The poster's `--col` is its column's steps from the centre line already (0, 1, -1, 2, ...).
+            col: Number(li.style.getPropertyValue("--col")),
+            centreX: box.left + box.width / 2,
+            centreY: box.top + box.height / 2,
+            box: { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height },
+          };
+        }),
+      );
+      expect(measured).toHaveLength(9);
+      const factor = layerFactor(0) * spec.collabScale;
+      for (const poster of measured) {
+        // As wide as the clamp makes it (`--collab-w`, drawn `layerFactor(0)` larger, and scaled down on a phone), and 2:3.
+        expect(poster.box.width, poster.id).toBeCloseTo(laid * factor, 0);
+        expect(poster.box.height / poster.box.width, poster.id).toBeCloseTo(1.5, 2);
+        expect(Math.abs(poster.laidH - Math.round(laid * 1.5)), poster.id).toBeLessThanOrEqual(1);
+        // On the centre line of the stage (the width less the rail) and the columns' steps from it (grown with the posters), kept inside the stage by the poster's
+        // width as drawn (a deep column of a crowd is held at the edge): the same sum as the CSS's.
+        const stage = (width - spec.rail) / 2;
+        const half = poster.box.width / 2;
+        const expected = Math.min(Math.max(stage + poster.col * collabStep(spec, vmax), spec.gutter + half), width - spec.rail - spec.gutter - half);
+        expect(Math.abs(poster.centreX - expected), poster.id).toBeLessThan(1.5);
+      }
+      // The first one is in the middle of the screen, as the scene opens on it: vertically centred on its date by its own height (a transform), whatever that is.
+      const first = measured.find((poster) => poster.id === "100")!;
+      expect(Math.abs(first.centreY - height / 2)).toBeLessThan(24);
+      // No two overlap, on the screen, whatever the sizes and the columns: the layout packs for the largest. (Where the stage is too narrow for a crowd's columns the scene holds
+      // the deepest at its edge, together: the fixture packs eight films into under two years, so its last two or three lie on one another, on a phone and on a laptop's
+      // window, as they always did. Those are the stage's, not the sizes': the ones that are where their columns put them are checked.)
+      const stageCentre = (width - spec.rail) / 2;
+      const placed = measured.filter((poster) => Math.abs(poster.centreX - (stageCentre + poster.col * collabStep(spec, vmax))) < 1.5);
+      if (width >= 1024) expect(placed.length).toBeGreaterThanOrEqual(width >= 1920 ? 8 : 6);
+      for (const a of placed) {
+        for (const b of placed) {
+          if (a.id >= b.id) continue;
+          const apart = a.box.right <= b.box.left + 0.5 || b.box.right <= a.box.left + 0.5 || a.box.bottom <= b.box.top + 0.5 || b.box.bottom <= a.box.top + 0.5;
+          expect(apart, `${a.id} and ${b.id}`).toBe(true);
+        }
+      }
+      // And their labels: under the bottom edge, no wider than the cap, on no other film's poster or label (see `expectLabelsClear`).
+      await expectLabelsClear(page);
+    });
+
+    test(`a film's node on the rail takes the scene to it, whatever size it is: its poster is centred on the screen, and its hover card opens under its label`, async ({ page }) => {
+      await openDepth(page);
+      const region = scene(page);
+      await page.locator('[data-rail-dot][data-film="104"]').dispatchEvent("click");
+      const centreOf = () =>
+        region.evaluate((scroller) => {
+          const box = scroller.querySelector<HTMLElement>('button[data-film="104"]')!.getBoundingClientRect();
+          return { y: box.top + box.height / 2, screen: scroller.clientHeight / 2 };
+        });
+      await expect.poll(async () => Math.abs((await centreOf()).y - (await centreOf()).screen)).toBeLessThan(3);
+      // The hover card is on the poster, which it keeps clear of: opened by hovering where the poster is, below its label (see `labelledRect`).
+      if (width >= 640) {
+        const box = (await region.locator('button[data-film="104"]').boundingBox())!;
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        const card = page.getByRole("tooltip");
+        await expect(card).toBeVisible();
+        const cardBox = (await card.boundingBox())!;
+        const label = (await region.locator('[data-poster="104"] [data-poster-caption]').boundingBox())!;
+        // Not over the poster or its label: under them (or, when there is no room under, over the poster's top).
+        const poster = box;
+        const clearOfPoster = cardBox.y >= poster.y + poster.height - 1 || cardBox.y + cardBox.height <= poster.y + 1;
+        expect(clearOfPoster).toBe(true);
+        expect(cardBox.y >= label.y + label.height - 1 || cardBox.y + cardBox.height <= poster.y + 1).toBe(true);
+      }
+    });
+  });
+}
 
 test("the films made together float in front: larger, with their own shadow, and above every layer behind", async ({ page }) => {
   await openDepth(page);
@@ -391,8 +486,17 @@ test("a mouse drag scrolls the scene, posters included, and the click that ends 
  */
 async function slideBackgroundPosterUnderCollab(page: Page, layer: number) {
   await page.locator('[data-rail-dot][data-film="200"]').dispatchEvent("click");
-  // The last film is too near the end of the axis to be centred: the scene scrolls to its end, and the film is on screen.
-  await expect.poll(() => scene(page).evaluate((scroller) => scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop)).toBeLessThan(2);
+  // The scene scrolls to the film: it is centred on the screen, or, being too near the end of the axis to be (`DEPTH.pad`, and the screen is tall), the scene is at its end.
+  await expect
+    .poll(() =>
+      scene(page).evaluate((scroller) => {
+        const box = scroller.querySelector<HTMLElement>('button[data-film="200"]')!.getBoundingClientRect();
+        const centred = Math.abs(box.top + box.height / 2 - scroller.clientHeight / 2) < 3;
+        const atEnd = scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop < 2;
+        return centred || atEnd;
+      }),
+    )
+    .toBe(true);
   return scene(page).evaluate((scroller, layerNumber) => {
     const frontButton = scroller.querySelector<HTMLElement>('button[data-film="200"]')!;
     const behind = scroller.querySelector<HTMLElement>(`button[data-layer="${layerNumber}"]`)!;

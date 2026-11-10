@@ -68,9 +68,11 @@ export function useFocusField(scrollerRef: RefObject<HTMLDivElement | null>, fil
       height = scroller.clientHeight;
       left = rect.left;
       top = rect.top;
-      // The spacing the scene's CSS has for this width (same numbers, same sum): where each poster is across.
+      // The spacing the scene's CSS has for this width (same numbers, same sum): where each poster is across. The posters it drives are the layers behind, whose
+      // size does not depend on the screen's; the larger side of the viewport is what the films made together grow with (`COLLAB_SIZE`), passed for the sum to be the CSS's.
       const spec = xSpec(tierOf(window.innerWidth), peopleCount);
-      for (const item of items) item.x = docCenterX(item.film, width, spec);
+      const vmax = Math.max(window.innerWidth, window.innerHeight);
+      for (const item of items) item.x = docCenterX(item.film, width, spec, vmax);
     };
     measure();
 

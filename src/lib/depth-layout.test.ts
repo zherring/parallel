@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { combineLanes } from "@/lib/combined-track";
 import {
+  COLLAB_SIZE,
   DEPTH,
   OBSCURITY_CUES,
   SOLO_COLUMNS,
@@ -9,6 +10,9 @@ import {
   bandFor,
   blurFor,
   columnIndex,
+  collabHeight,
+  collabStep,
+  collabWidth,
   columnOffset,
   depthLayout,
   depthPush,
@@ -339,6 +343,81 @@ describe("docCenterX", () => {
   });
 });
 
+describe("the size of the films made together", () => {
+  it("is 136px wide on a window of 1440 or less, as it always was, and 2:3", () => {
+    expect(COLLAB_SIZE).toEqual({ min: 136, vmax: 9.4444, max: 230, aspect: 1.5 });
+    for (const vmax of [0, 320, 390, 768, 1024, 1366]) expect(collabWidth(vmax)).toBe(136);
+    // Exactly the 136 it was at 1440 (and a hair over it just past: 9.4444% of 1441 is 136.09).
+    expect(collabWidth(1440)).toBe(136);
+    expect(collabHeight(1366)).toBe(204);
+    expect(DEPTH.collab).toEqual({ w: 136, h: 204 });
+  });
+
+  it("grows with the larger side of the viewport: about a third larger at 1920 (a 1080 screen), and no larger than 230px (from about 2430)", () => {
+    expect(collabWidth(1920) / collabWidth(1440)).toBeCloseTo(4 / 3, 3);
+    expect(collabWidth(1920)).toBeCloseTo(181.33, 2);
+    expect(collabHeight(1920)).toBeCloseTo(272, 1);
+    expect(collabWidth(2430)).toBeLessThan(230);
+    expect(collabWidth(2560)).toBe(230);
+    expect(collabWidth(7680)).toBe(230);
+    expect(collabHeight(7680)).toBe(DEPTH.collabMax.h);
+    // Never smaller as the screen gets larger.
+    let last = 0;
+    for (let vmax = 0; vmax <= 4000; vmax += 40) {
+      expect(collabWidth(vmax)).toBeGreaterThanOrEqual(last);
+      last = collabWidth(vmax);
+    }
+  });
+
+  it("is the largest the layout lays out: the packing and the pad are for DEPTH.collabMax", () => {
+    expect(DEPTH.collabMax).toEqual({ w: COLLAB_SIZE.max, h: COLLAB_SIZE.max * COLLAB_SIZE.aspect });
+    expect(collabHeight(Number.POSITIVE_INFINITY)).toBe(DEPTH.collabMax.h);
+  });
+
+  it("leaves a phone's alone: 136px whatever its size, its step as it was, and a tablet's and desktop's growing in step with the posters", () => {
+    const phone = xSpec("phone", 2);
+    expect(phone.collabFluid).toBe(false);
+    for (const vmax of [390, 844, 1100]) {
+      expect(collabWidth(vmax, phone.collabFluid)).toBe(136);
+      expect(collabStep(phone, vmax)).toBe(phone.stepCollab);
+    }
+    for (const tier of ["tablet", "desktop"] as const) {
+      const spec = xSpec(tier, 2);
+      expect(spec.collabFluid).toBe(true);
+      expect(collabStep(spec, 1000)).toBe(spec.stepCollab);
+      // The same ratio as the posters.
+      for (const vmax of [1440, 1920, 2560, 4000]) expect(collabStep(spec, vmax) / spec.stepCollab).toBeCloseTo(collabWidth(vmax) / 136, 9);
+    }
+    expect(collabStep(xSpec("desktop", 2), 1920)).toBeCloseTo(221.5, 0);
+    expect(collabStep(xSpec("desktop", 2), 2560)).toBeCloseTo(280.7, 1);
+  });
+
+  it("keeps the columns further apart than the posters, on every screen: the step grown with them clears them, as the smallest step clears the smallest", () => {
+    for (const tier of ["tablet", "desktop"] as const) {
+      const spec = xSpec(tier, 2);
+      for (const vmax of [1024, 1440, 1920, 2560, 3840]) {
+        expect(collabStep(spec, vmax) / layerFactor(0)).toBeGreaterThanOrEqual(collabWidth(vmax) * spec.collabScale - 1e-9);
+      }
+    }
+  });
+
+  it("places the films made together by the grown step and kept inside the stage by the grown width", () => {
+    const spec = xSpec("desktop", 2);
+    const item = (col: number) => ({ layer: 0, band: null, col, jitter: 0, w: DEPTH.collab.w, depth: layerDepth(0, 2) });
+    const onScreen = (col: number, width: number, vmax: number) => projectX(docCenterX(item(col), width, spec, vmax), width, posterFactor(item(col)));
+    // At 1920 a column over is the grown step away on screen (it is 166px at 1440 and 1.33 times that at 1920), where without `vmax` it is the smallest.
+    expect(onScreen(1, 1920, 1920) - onScreen(0, 1920, 1920)).toBeCloseTo(collabStep(spec, 1920), 6);
+    expect(onScreen(1, 1920, 0) - onScreen(0, 1920, 0)).toBeCloseTo(spec.stepCollab, 6);
+    // A deep column is held inside the stage by the poster as drawn (the larger one).
+    for (const col of [1, 2, 3, 4, 7]) {
+      const half = (collabWidth(2560) * spec.collabScale * posterFactor(item(col))) / 2;
+      const x = onScreen(col, 2560, 2560);
+      expect(x - half).toBeGreaterThanOrEqual(spec.gutter - 1e-6);
+      expect(x + half).toBeLessThanOrEqual(2560 - spec.rail - spec.gutter + 1e-6);
+    }
+  });
+});
+
 describe("depthSceneCss", () => {
   it("declares the spacing of each viewport, from the numbers the JS uses", () => {
     const css = depthSceneCss(2);
@@ -346,13 +425,37 @@ describe("depthSceneCss", () => {
       const spec = xSpec(tier, 2);
       expect(css).toContain(`--rail:${spec.rail}px`);
       expect(css).toContain(`--step-solo:${spec.stepSolo}px`);
-      expect(css).toContain(`--step-collab:${spec.stepCollab}px`);
+      // A tablet's and a desktop's films made together grow with the viewport (clamped, in vmax: the viewport's larger side) and their column step with them; a phone's do not.
+      if (spec.collabFluid) {
+        expect(css).toContain(`--step-collab:clamp(${spec.stepCollab}px,`);
+      } else {
+        expect(css).toContain(`--step-collab:${spec.stepCollab}px`);
+      }
       expect(css).toContain(`--collab-scale:${spec.collabScale}`);
       expect(css).toContain(`--band-0:${spec.bands[0]}`);
       expect(css).toContain(`--band-1:${spec.bands[1]}`);
     }
     expect(css).toContain(`@media (min-width:${TIER_MIN_WIDTH.tablet}px)`);
     expect(css).toContain(`@media (min-width:${TIER_MIN_WIDTH.desktop}px)`);
+  });
+
+  it("sizes the films made together with one clamp of the viewport's larger side (tablet and desktop), and a phone's fixed", () => {
+    const css = depthSceneCss(2);
+    // 136px up to a 1440 window, 9.4444% of the larger side after it, 230px at most; the same text for a tablet and a desktop (it is the same clamp).
+    expect(css.match(/--collab-w:clamp\(136px,9\.4444vmax,230px\)/g)).toHaveLength(2);
+    // The one phone rule has them fixed, and no vmax anywhere in it.
+    const phone = css.slice(0, css.indexOf("@media"));
+    expect(phone).toContain("--collab-w:136px");
+    expect(phone).not.toContain("vmax");
+    // The step grows by the same ratio: the desktop's 166px over the posters' 136px, in vmax, to the cap's step.
+    expect(css).toContain("--step-collab:clamp(166px,11.528vmax,280.735px)");
+    expect(css).toContain("--step-collab:clamp(146px,10.139vmax,246.912px)");
+  });
+
+  it("centres the films made together on their y with their own height (a transform), and sizes them in CSS, so the markup is one for every viewport", () => {
+    const css = depthSceneCss(2);
+    // The rule that places a poster across uses `--w` and `--ps`, which the films made together set from `--collab-w`.
+    expect(css).toContain("var(--w) * var(--ps) / 2");
   });
 
   it("declares one band per person and places posters with one rule", () => {
@@ -756,13 +859,50 @@ describe("depthLayout", () => {
       }
     });
 
+    it("the films made together never overlap, at any width: two in a column are a poster and its label apart, and two in different columns are a poster apart across, at every size the clamp reaches", () => {
+      const sparse = layout([[[1, "1990-01-01"], [2, "2000-01-01"], [3, "2010-01-01"]], [[1, "1990-01-01"], [2, "2000-01-01"], [3, "2010-01-01"]]]);
+      // Dense: a film every four months for nine years (about a third of a poster's height apart at 128px a year), and every ~6 months, and a real-looking cluster.
+      const monthly = Array.from({ length: 28 }, (_, i): [number, string] => [200 + i, `${2000 + Math.floor((i * 4) / 12)}-${String(1 + ((i * 4) % 12)).padStart(2, "0")}-01`]);
+      const cluster = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n): [number, string] => [300 + n, `${1970 + (n % 3)}-0${1 + (n % 9)}-15`]);
+      for (const l of [crowded("shared"), sparse, layout([monthly, monthly]), layout([cluster, cluster])]) {
+        const collab = l.films.filter((f) => f.layer === 0);
+        expect(collab.length).toBeGreaterThan(2);
+        for (const tier of ["phone", "tablet", "desktop"] as const) {
+          const spec = xSpec(tier, 2);
+          // From a phone, through the 1440 window the sizes were laid out for, to the largest and beyond.
+          for (const vmax of [390, 844, 1024, 1440, 1920, 2560, 3840, 7680]) {
+            const w = collabWidth(vmax, spec.collabFluid);
+            const h = collabHeight(vmax, spec.collabFluid);
+            // The tablet's and phone's scale is about the poster's centre: they are drawn smaller than laid out, never larger.
+            const drawnW = w * spec.collabScale;
+            const xOf = (f: DepthFilm) => columnOffset(f.col, collabStep(spec, vmax));
+            for (const a of collab) {
+              for (const b of collab) {
+                if (a === b) continue;
+                if (a.col === b.col) {
+                  // One column: the poster and its label's room (`collabGap`) apart down the axis, at this size.
+                  expect(Math.abs(a.y - b.y), `${vmax} ${tier}`).toBeGreaterThanOrEqual(h + DEPTH.collabGap - 1e-9);
+                } else {
+                  // Different columns: a step apart across, which is as much as a poster is wide (as drawn), or the same apart down the axis.
+                  const apartX = Math.abs(xOf(a) - xOf(b)) >= drawnW * layerFactor(0) - 1e-9;
+                  const apartY = Math.abs(a.y - b.y) >= h - 1e-9;
+                  expect(apartX || apartY, `${vmax} ${tier}`).toBe(true);
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
     it("leaves room under a film made together, for its label, before the next one in the column (and none of the solo gap)", () => {
       for (const l of [crowded("shared"), layout([[[1, "2000-01-01"], [2, "2001-06-01"], [3, "2003-01-01"]], [[1, "2000-01-01"], [2, "2001-06-01"], [3, "2003-01-01"]]])]) {
         const collab = l.films.filter((f) => f.layer === 0);
         for (const a of collab) {
           for (const b of collab) {
             if (a === b || a.col !== b.col) continue;
-            expect(Math.abs(a.y - b.y)).toBeGreaterThanOrEqual(DEPTH.collab.h + DEPTH.collabGap - 1e-9);
+            // The packing is for the largest the posters can be on any screen, so it holds on every one (see "the films made together never overlap, at any width").
+            expect(Math.abs(a.y - b.y)).toBeGreaterThanOrEqual(DEPTH.collabMax.h + DEPTH.collabGap - 1e-9);
           }
         }
       }
@@ -777,8 +917,9 @@ describe("depthLayout", () => {
 
     it("leaves room in the track above the first film made together (its poster) and below the last (its poster and its label)", () => {
       // Nothing hangs over the poster's top edge; the label hangs 6px under the bottom edge, three 22px lines at most. The layer is drawn `layerFactor(0)` larger.
-      const above = (DEPTH.collab.h / 2) * layerFactor(0);
-      const below = (DEPTH.collab.h / 2 + 6 + 3 * 22) * layerFactor(0);
+      // (On the largest screen: the posters grow with the viewport.)
+      const above = (DEPTH.collabMax.h / 2) * layerFactor(0);
+      const below = (DEPTH.collabMax.h / 2 + 6 + 3 * 22) * layerFactor(0);
       expect(DEPTH.pad).toBeGreaterThanOrEqual(above);
       expect(DEPTH.pad).toBeGreaterThanOrEqual(below);
     });

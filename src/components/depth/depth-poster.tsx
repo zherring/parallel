@@ -84,8 +84,11 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
   const ring = coloured && !shared && slots.length === 1 ? slots[0] : null;
   const ringColor = ring === null ? null : personColor(ring);
 
+  // The films several people made are as large as the viewport lets them be (`--collab-w`, see `depthSceneCss`): a size in CSS, 2:3, centred on `y` by the
+  // transform (the poster's height is not known here), as the same markup serves every viewport. Every other poster is a fixed size, placed by its top edge.
+  const fluid = layer === 0;
   const style = {
-    top: round(y - h / 2),
+    top: fluid ? round(y) : round(y - h / 2),
     // Where a poster is across is the same markup for every viewport: its band (a fraction of the stage), its column in steps
     // from the band and its jitter, which the scene's CSS (`depthSceneCss`) turns into `left` with the viewport's spacing and
     // its layer's `--f`. The films several people made sit on the centre line.
@@ -93,7 +96,7 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
     "--col": columnIndex(col),
     "--jit": round(jitter),
     "--step": layer === 0 ? "var(--step-collab)" : "var(--step-solo)",
-    "--w": `${w}px`,
+    "--w": fluid ? "var(--collab-w)" : `${w}px`,
     // The films several people made are drawn smaller on a small screen (the viewport's `--collab-scale`): about the poster's centre.
     // A page of one person has its posters up front and bigger, and scales them down the same way (`--solo-scale`, 1 on a page of several).
     "--ps": layer === 0 ? "var(--collab-scale)" : "var(--solo-scale)",
@@ -101,7 +104,7 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
     // for this to take; `--f` is then the poster's own factor, not the layer's, for the `left` rule above).
     transform:
       layer === 0
-        ? "scale(var(--collab-scale))"
+        ? "translateY(-50%) scale(var(--collab-scale))"
         : !coloured
           ? // One person's page: the posters are level, except a minor film, which is pushed back like any film of a page of several.
             push > 0
@@ -109,9 +112,9 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
             : "scale(var(--solo-scale))"
           : `translateZ(${-round(push)}px)`,
     "--f": Math.round(posterFactor(item) * 100_000) / 100_000,
-    "--lead": `${round(w / 2)}px`,
-    width: w,
-    height: h,
+    "--lead": fluid ? "calc(var(--collab-w) / 2)" : `${round(w / 2)}px`,
+    width: fluid ? "var(--collab-w)" : w,
+    height: fluid ? "calc(var(--collab-w) * 1.5)" : h,
     // How much the focus field has sharpened this poster, 0 to 1 (the posters it does not drive are always in focus), and the blur it is behind.
     "--focus": soft ? 0 : 1,
     // The more obscure the film, the fainter at rest and the softer (the blur of its soft image): see `restOpacityFor` and `blurFor`.

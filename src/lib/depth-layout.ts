@@ -9,9 +9,10 @@
  * the sub-row as a column: a poster's column is the sub-row `packFilms` gave it, laid out left and right of the layer's
  * centre line (`columnOffset`). Nothing here touches the DOM or reads the clock, and the layout is one for every
  * viewport, so the server and the browser render the same markup. What differs between a phone and a desktop is only
- * the horizontal spacing (`xSpec`: bands, column step), which CSS custom properties per breakpoint carry (`depthSceneCss`)
- * and which the focus field mirrors in numbers (`docCenterX`); the only other thing that needs the viewport is the
- * initial scroll (`anchorScrollTop`).
+ * the horizontal spacing (`xSpec`: bands, column step) and the size of the films several people made (they grow with a large
+ * screen: `COLLAB_SIZE`), which CSS custom properties per breakpoint carry (`depthSceneCss`) and which the focus field mirrors in
+ * numbers (`docCenterX`); the only other thing that needs the viewport is the initial scroll (`anchorScrollTop`). The packing of
+ * those films down the axis is for the largest they can be (`DEPTH.collabMax`), so that none overlap at any width.
  *
  * Within its person's layer a background poster is pushed further back the more obscure its film is (`obscurity`,
  * from TMDB's vote count), so a person's films read as a cloud with depth, and it is also fainter and softer: the cues
@@ -53,10 +54,22 @@ export const DEPTH = {
    */
   spread: 278,
   pxPerYear: 128,
-  /** Empty space before the first and after the last year, so the edge posters are not cut off. */
-  pad: 200,
-  /** Laid out at this size; the layer's factor (1.11) draws it about 151 x 227 px on a desktop (see `TIERS`' `collabScale` for smaller screens). */
+  /**
+   * Empty space before the first and after the last year, so the edge posters are not cut off: room, on the largest screen, for the first poster (half its height,
+   * drawn `layerFactor(0)` larger) and for the last one's poster and its label of three lines hanging under it (`collabMax`).
+   */
+  pad: 280,
+  /**
+   * The films several people made, at the smallest the viewport makes them (see `COLLAB_SIZE`: they grow with a large screen, in CSS): the layer's factor
+   * (1.11) draws it about 151 x 227 px on a desktop of 1440 (see `TIERS`' `collabScale` for smaller screens). It is the size the layout reports for them
+   * (`DepthFilm.w` and `h`); what the browser draws is `collabWidth`.
+   */
   collab: { w: 136, h: 204 },
+  /**
+   * The most the films several people made are laid out at, on a screen as large as `COLLAB_SIZE` lets them grow to: what the layout packs their columns
+   * down the axis for (see `depthLayout`), so that no two overlap at any width.
+   */
+  collabMax: { w: 230, h: 345 },
   solo: { w: 80, h: 120 },
   /**
    * A page of one person has nothing made together to put in front, so their own films take the front: this big (the
@@ -91,6 +104,14 @@ export const OBSCURITY_CUES = {
   phoneBlur: { best: 0.425, worst: 1.275 },
 } as const;
 
+/**
+ * How big the films several people made are laid out, on a tablet and a desktop: `clamp(min, vmax% of the viewport's larger side, max)` px wide and
+ * `aspect` times that tall (2:3). It is the smallest, 136px, up to a viewport of 1440 (136 is 9.4444% of it: a 1440 window is exactly as it was), 4/3 of that at 1920 and
+ * capped at 230px (from about 2435). A phone's are 136px whatever its size (`DepthTier`'s `collabFluid`). It is CSS (`--collab-w`, see `depthSceneCss`) so that the markup is
+ * the same on the server and in the browser; `collabWidth` is the same sum in JS.
+ */
+export const COLLAB_SIZE = { min: DEPTH.collab.w, vmax: 9.4444, max: DEPTH.collabMax.w, aspect: 1.5 } as const;
+
 /** Viewport widths (px) from which the `tablet` and `desktop` spacings apply: Tailwind's `sm` and `lg`. */
 export const TIER_MIN_WIDTH = { tablet: 640, desktop: 1024 } as const;
 
@@ -106,8 +127,13 @@ export interface XSpec {
   rail: number;
   /** Least air (px, on screen) between a poster and the left edge or the rail. */
   gutter: number;
-  /** Distance (px on screen) between two columns of the posters of films several people made. */
+  /**
+   * Distance (px on screen) between two columns of the posters of films several people made, at their smallest (`COLLAB_SIZE.min` wide): with `collabFluid` the
+   * step grows with them, by the same ratio (`collabStep`).
+   */
   stepCollab: number;
+  /** Whether the films several people made grow with a large viewport (`COLLAB_SIZE`): a tablet's and a desktop's do, a phone's do not. */
+  collabFluid: boolean;
   /** How much the posters of films several people made are scaled down about their centres (1 on a desktop): a phone's stage is narrower. */
   collabScale: number;
   /** The same for the posters of a page of one person (`DEPTH.single`); 1 on a page of several, whose own films keep their size. */
@@ -130,9 +156,9 @@ export interface XSpec {
  */
 const TIERS: Record<DepthTier, Omit<XSpec, "bands" | "soloScale" | "people"> & { stepSoloOne: number; singleScale: number; spread: number }> = {
   // A phone's `spread` is 1 (the desktop's bands, not drawn in): see `bandFor`'s test for what the 390px trio and quartet pages measured.
-  phone: { rail: 28, gutter: 4, stepCollab: 128, collabScale: 0.76, stepSolo: 70, stepSoloOne: 108, singleScale: 0.8, jitterSpan: 8, spread: 1 },
-  tablet: { rail: 60, gutter: 8, stepCollab: 146, collabScale: 0.9, stepSolo: 100, stepSoloOne: 190, singleScale: 0.9, jitterSpan: 20, spread: 0.9 },
-  desktop: { rail: 60, gutter: 8, stepCollab: 166, collabScale: 1, stepSolo: 120, stepSoloOne: 300, singleScale: 1, jitterSpan: 36, spread: 1 },
+  phone: { rail: 28, gutter: 4, stepCollab: 128, collabFluid: false, collabScale: 0.76, stepSolo: 70, stepSoloOne: 108, singleScale: 0.8, jitterSpan: 8, spread: 1 },
+  tablet: { rail: 60, gutter: 8, stepCollab: 146, collabFluid: true, collabScale: 0.9, stepSolo: 100, stepSoloOne: 190, singleScale: 0.9, jitterSpan: 20, spread: 0.9 },
+  desktop: { rail: 60, gutter: 8, stepCollab: 166, collabFluid: true, collabScale: 1, stepSolo: 120, stepSoloOne: 300, singleScale: 1, jitterSpan: 36, spread: 1 },
 };
 
 /** Columns a person's own films scatter over (the centre line and one to each side); a crowd of films takes more. */
@@ -318,12 +344,13 @@ export function bandFor(slot: number, peopleCount: number, tier: DepthTier = "de
 
 /** The spacing of the x axis for a viewport and a page of `peopleCount` people. */
 export function xSpec(tier: DepthTier, peopleCount: number): XSpec {
-  const { rail, gutter, stepCollab, collabScale, stepSolo, stepSoloOne, singleScale, jitterSpan } = TIERS[tier];
+  const { rail, gutter, stepCollab, collabFluid, collabScale, stepSolo, stepSoloOne, singleScale, jitterSpan } = TIERS[tier];
   const people = Math.min(Math.max(1, Math.trunc(peopleCount)), BANDS.length - 1);
   return {
     rail,
     gutter,
     stepCollab,
+    collabFluid,
     collabScale,
     soloScale: people === 1 ? singleScale : 1,
     people,
@@ -335,23 +362,62 @@ export function xSpec(tier: DepthTier, peopleCount: number): XSpec {
 }
 
 /**
+ * How wide (px, in the layer's own space, before the perspective and `collabScale`) the films several people made are laid out on a viewport whose larger side
+ * is `vmax` px: `COLLAB_SIZE`'s clamp, as the CSS works it out, or the smallest when the tier's are not fluid (`fluid`, a phone's) or the viewport is not known (0).
+ */
+export function collabWidth(vmax: number, fluid = true): number {
+  if (!fluid || !(vmax > 0)) return COLLAB_SIZE.min;
+  return Math.min(COLLAB_SIZE.max, Math.max(COLLAB_SIZE.min, (vmax * COLLAB_SIZE.vmax) / 100));
+}
+
+/** How tall the same posters are (2:3). */
+export function collabHeight(vmax: number, fluid = true): number {
+  return collabWidth(vmax, fluid) * COLLAB_SIZE.aspect;
+}
+
+/** The step between two of their columns on that viewport: the tier's (`XSpec.stepCollab`) grown by the same ratio as the posters, so neighbours stay as far apart as they were. */
+export function collabStep(spec: Pick<XSpec, "stepCollab" | "collabFluid">, vmax: number): number {
+  return (spec.stepCollab * collabWidth(vmax, spec.collabFluid)) / COLLAB_SIZE.min;
+}
+
+/**
  * Where a poster's centre is in its own plane (px from the left edge of the scroll area) on a viewport `width`
  * px wide: the number the CSS rule in `depthSceneCss` works out, for the focus field to project without reading the DOM.
  * What is chosen is where the poster is on screen: the stage fraction of its band, plus its column's steps and its jitter,
  * all in screen px; the poster's perspective (`f`, its own: `posterFactor`) maps its x to the screen's as `(x - width / 2) f + width / 2`,
  * so the offset from the centre is divided by `f`. The posters are kept inside the stage: the bounds are that mapping
- * undone for the least and greatest x a poster clear of the edge and the rail can be at.
+ * undone for the least and greatest x a poster clear of the edge and the rail can be at. `vmax`, the viewport's larger side, is what
+ * the films several people made are as large as (and as far apart in their columns) as: without it they are the smallest.
  */
-export function docCenterX(film: Pick<DepthFilm, "layer" | "band" | "col" | "jitter" | "w" | "depth">, width: number, spec: XSpec): number {
+export function docCenterX(
+  film: Pick<DepthFilm, "layer" | "band" | "col" | "jitter" | "w" | "depth">,
+  width: number,
+  spec: XSpec,
+  vmax = 0,
+): number {
   const f = posterFactor(film);
-  // What is kept inside the stage is the poster as drawn: the films several people made (and a page of one person's) are scaled down on a small screen.
-  const w = film.w * (film.layer === 0 ? spec.collabScale : spec.soloScale);
+  // What is kept inside the stage is the poster as drawn: the films several people made (which grow with a large screen) and a page of one person's are scaled down on a small screen.
+  const w = film.layer === 0 ? collabWidth(vmax, spec.collabFluid) * spec.collabScale : film.w * spec.soloScale;
   const q = film.band === null ? 0.5 : (spec.bands[Math.min(film.band, spec.bands.length - 1)] ?? 0.5);
-  const step = film.layer === 0 ? spec.stepCollab : spec.stepSolo;
+  const step = film.layer === 0 ? collabStep(spec, vmax) : spec.stepSolo;
   const x = width / 2 + ((width - spec.rail) * q - width / 2 + columnIndex(film.col) * step + film.jitter * spec.jitterSpan) / f;
   const least = width / 2 + (spec.gutter - width / 2) / f + w / 2;
   const greatest = width / 2 + (width / 2 - spec.rail - spec.gutter) / f - w / 2;
   return Math.max(least, Math.min(x, greatest));
+}
+
+/**
+ * The width of the films several people made and the step between their columns as CSS: `COLLAB_SIZE`'s clamp, and the tier's step grown by the same ratio, in `vmax`
+ * (the viewport's larger side); fixed for a tier that does not grow them.
+ */
+function collabDeclarations(spec: XSpec): string[] {
+  const round = (value: number) => Math.round(value * 1000) / 1000;
+  if (!spec.collabFluid) return [`--collab-w:${COLLAB_SIZE.min}px`, `--step-collab:${spec.stepCollab}px`];
+  const ratio = spec.stepCollab / COLLAB_SIZE.min;
+  return [
+    `--collab-w:clamp(${COLLAB_SIZE.min}px,${COLLAB_SIZE.vmax}vmax,${COLLAB_SIZE.max}px)`,
+    `--step-collab:clamp(${spec.stepCollab}px,${round(COLLAB_SIZE.vmax * ratio)}vmax,${round(COLLAB_SIZE.max * ratio)}px)`,
+  ];
 }
 
 /** The custom properties of one viewport's spacing, set on the scene. */
@@ -360,7 +426,7 @@ function specDeclarations(spec: XSpec): string {
   return [
     `--rail:${spec.rail}px`,
     `--gutter:${spec.gutter}px`,
-    `--step-collab:${spec.stepCollab}px`,
+    ...collabDeclarations(spec),
     `--collab-scale:${round(spec.collabScale)}`,
     `--solo-scale:${round(spec.soloScale)}`,
     `--step-solo:${spec.stepSolo}px`,
@@ -471,7 +537,9 @@ export function depthLayout(
       ? new Map(
           packFilms(
             group.map((entry) => entry.film),
-            { pxPerYear, axisStartYear: scale.axisStartYear, pad: scale.pad, cardWidth: size.h, gap: DEPTH.collabGap },
+            // The largest the posters can be on any screen (`COLLAB_SIZE` grows them with the viewport, in CSS, which this does not know): two in a column are
+            // that far apart at least, so that none overlap at any width. (On a smaller screen they are a little further apart than they need be.)
+            { pxPerYear, axisStartYear: scale.axisStartYear, pad: scale.pad, cardWidth: DEPTH.collabMax.h, gap: DEPTH.collabGap },
           ).map(({ film, x: y, row }) => [film.id, { y, col: row }]),
         )
       : scatterColumns(
