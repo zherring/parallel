@@ -53,7 +53,12 @@ interface ViewSwitcherProps {
  */
 export function ViewSwitcher({ view, hrefFor, onClickFor, labelled = false, className }: ViewSwitcherProps) {
   return (
-    <nav aria-label="Films view" className={cn("inline-flex shrink-0 items-center gap-0.5 rounded-md p-0.5", className)}>
+    <nav
+      aria-label="Films view"
+      // In the bar it is as tall as the bar's other controls (`--bar-h`, see `PeopleBar`), its three links square in what is left of that; in the phone's
+      // sheet, with its words, a row of 28px links.
+      className={cn("inline-flex shrink-0 items-center rounded-md", labelled ? "gap-0.5 p-0.5" : "h-(--bar-h) gap-1 p-1.5", className)}
+    >
       {FILMS_VIEWS.map((id) => {
         const option = OPTIONS[id];
         const current = id === view;
@@ -67,8 +72,8 @@ export function ViewSwitcher({ view, hrefFor, onClickFor, labelled = false, clas
             title={option.title}
             onClick={onClickFor?.(id)}
             className={cn(
-              "inline-flex h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded text-sm font-medium no-underline transition-colors motion-reduce:transition-none",
-              labelled ? "flex-1 px-2.5" : "w-7",
+              "inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded text-sm font-medium no-underline transition-colors motion-reduce:transition-none",
+              labelled ? "h-7 min-w-7 flex-1 px-2.5" : "aspect-square h-full",
               current ? "bg-border text-strong" : "text-muted hover:bg-surface hover:text-strong",
             )}
           >

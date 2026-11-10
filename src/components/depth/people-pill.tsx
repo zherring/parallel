@@ -290,7 +290,8 @@ export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillP
           // The pill's outline is on this box, and it is the whole of the closed pill: open, it is gone (faded, see `play`) and the
           // box stays where it is, so the heads have their places to fly back to.
           className={cn(
-            "flex w-fit max-w-full items-center rounded-full border border-border bg-canvas/80 p-1 backdrop-blur-md supports-[backdrop-filter]:bg-canvas/70",
+            // As tall as the bar's other controls (`--bar-h`, set by `PeopleBar`: 50px, 46px on a phone), which it is the measure of.
+            "flex h-(--bar-h) w-fit max-w-full items-center rounded-full border border-border bg-canvas/80 p-1 backdrop-blur-md supports-[backdrop-filter]:bg-canvas/70",
             phase === "open" && "opacity-0",
           )}
         >
@@ -340,7 +341,9 @@ export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillP
           <div
             data-pill-open
             inert={phase !== "open"}
-            className="absolute left-0 top-0 z-10 flex h-full w-[min(22rem,calc(100vw-3rem))] items-center gap-2"
+            // On a phone the bar has the home circle before the pill, and the field (as wide as the card, nearly the screen) would run off the right edge from
+            // the pill's own edge: it starts at the bar's own (over the circle's place, which steps aside), as does the card below.
+            className="absolute left-0 top-0 z-10 flex h-full w-[min(22rem,calc(100vw-3rem))] items-center gap-2 max-sm:-left-[calc(var(--bar-h)+0.75rem)]"
           >
             <div className="min-w-0 flex-1">
               <PersonSearch
@@ -373,7 +376,7 @@ export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillP
           aria-label="People"
           tabIndex={-1}
           // No overflow clipping, so nothing of the field's dropdown could be cut off by the card. The card's own box is `data-panel-bg`.
-          className="relative mt-2 w-[min(22rem,calc(100vw-3rem))] outline-none"
+          className="relative mt-2 w-[min(22rem,calc(100vw-3rem))] outline-none max-sm:-ml-[calc(var(--bar-h)+0.75rem)]"
         >
           <div
             aria-hidden

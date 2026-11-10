@@ -23,7 +23,7 @@ interface TogetherCountProps {
  */
 export function TogetherCount({ several, count, className, pillClassName }: TogetherCountProps) {
   if (!several) {
-    return <p className={cn("flex h-[34px] items-center whitespace-nowrap text-sm tabular-nums text-muted", className)}>{filmCountLabel(count)}</p>;
+    return <p className={cn("flex h-(--bar-h) items-center whitespace-nowrap text-sm tabular-nums text-muted", className)}>{filmCountLabel(count)}</p>;
   }
   const label = count > 0 ? `${filmCountLabel(count)} made together` : "No films made together";
   return (
@@ -31,7 +31,7 @@ export function TogetherCount({ several, count, className, pillClassName }: Toge
       role="img"
       aria-label={label}
       data-together-pill
-      className={cn("inline-flex h-[34px] shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3 text-sm max-sm:gap-1.5 max-sm:px-2.5", pillClassName, className)}
+      className={cn("inline-flex h-(--bar-h) shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3 text-sm max-sm:gap-1.5 max-sm:px-2.5", pillClassName, className)}
     >
       <span
         aria-hidden="true"

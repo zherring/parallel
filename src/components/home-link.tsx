@@ -10,7 +10,7 @@ import type { MouseEvent, ReactNode } from "react";
  * tab), so a plain click scrolls smoothly to the top instead, or instantly for visitors who prefer
  * reduced motion. Clicks with a modifier key or a non-primary button keep the browser's behavior.
  */
-export function HomeLink({ className, children }: { className?: string; children: ReactNode }) {
+export function HomeLink({ className, title, children }: { className?: string; title?: string; children: ReactNode }) {
   const pathname = usePathname();
 
   function onClick(event: MouseEvent<HTMLAnchorElement>) {
@@ -22,7 +22,7 @@ export function HomeLink({ className, children }: { className?: string; children
   }
 
   return (
-    <Link href="/" aria-label="Parallel home" onClick={onClick} className={className}>
+    <Link href="/" aria-label="Parallel home" title={title} onClick={onClick} className={className}>
       {children}
     </Link>
   );

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, ViewTransition, type RefObjec
 import { PeoplePill, type PillPerson } from "@/components/depth/people-pill";
 import { HomeLink } from "@/components/home-link";
 import { TogetherCount } from "@/components/together-count";
-import { Wordmark } from "@/components/wordmark";
+import { Wordmark, WordmarkMark } from "@/components/wordmark";
 import { cn } from "@/components/timeline/cn";
 import { ExportButton, type ExportList } from "@/components/timeline/export-button";
 import { FilmSettings } from "@/components/timeline/film-settings";
@@ -63,6 +63,9 @@ export const FLOATING = "border border-border bg-canvas/90";
 /** Steps out of the way while the people pill is open: its field and card take the room the bar's controls would be in. */
 const STEPS_ASIDE =
   "transition-[opacity,visibility] duration-150 motion-reduce:transition-none group-has-[[data-people-pill][data-open]]/bar:invisible group-has-[[data-people-pill][data-open]]/bar:opacity-0";
+/** The same, on a phone only: the home circle stays beside the open pill there is room for it (the pill's field and card cover its place on a phone, see `PeoplePill`). */
+const STEPS_ASIDE_ON_PHONE =
+  "max-sm:transition-[opacity,visibility] max-sm:duration-150 max-sm:motion-reduce:transition-none max-sm:group-has-[[data-people-pill][data-open]]/bar:invisible max-sm:group-has-[[data-people-pill][data-open]]/bar:opacity-0";
 
 /**
  * The page bar of a `/p/` page, fixed to the top of the screen, the same on every view (the flat Timeline, Table and Clippings, and the Depth
@@ -126,32 +129,36 @@ export function PeopleBar({
   return (
     <div
       data-people-bar
-      className="group/bar pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-3 pt-3"
+      // --bar-h: the one height of the bar's controls (the home circle, the people pill, the count, the switcher and the gear), the people pill's own:
+      // 32px heads (28px on a phone) in a 40px (36px) button, in a capsule with 4px of padding and a hairline. They are all as tall, so they line up.
+      className="group/bar pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-3 pt-3 [--bar-h:3.125rem] max-sm:[--bar-h:2.875rem]"
     >
       {backdrop && (
         <div aria-hidden="true" className="absolute inset-x-0 top-0 -z-10 h-[4.5rem] bg-gradient-to-b from-canvas via-canvas/90 to-transparent" />
       )}
       <div className="flex min-w-0 items-start gap-3">
         {/*
-          The way home, now that the site's header is gone: a small pill of its own, before the people pill. It does not step aside for the
-          open pill, whose field and card start at the people pill's own left edge, clear of it. Not on a phone: there the open card is as wide
-          as the screen less the margins (it would run off the right edge with this before it), and the heads should have the room, so the
-          gear's sheet holds the link instead.
+          The way home, now that the site's header is gone: a round button with the wordmark's green "ll" alone, before the people pill. On a
+          desktop it does not step aside for the open pill, whose field and card start at the people pill's own left edge, clear of it. On a phone
+          it is there too (it is only as wide as it is tall), and the open pill's field and card, which are as wide as the screen less the margins,
+          are drawn over its place, so it steps aside for them (see `PeoplePill`); the gear's sheet has the link too, with the name.
         */}
         <HomeLink
+          title="Parallel home"
           className={cn(
-            "pointer-events-auto mt-2 inline-flex h-[34px] shrink-0 items-center rounded-full px-3.5 no-underline transition-colors hover:bg-surface motion-reduce:transition-none max-sm:hidden",
+            "pointer-events-auto inline-flex size-(--bar-h) shrink-0 items-center justify-center rounded-full no-underline transition-colors hover:bg-surface motion-reduce:transition-none",
             FLOATING,
+            STEPS_ASIDE_ON_PHONE,
           )}
         >
-          <Wordmark className="text-base" />
+          <WordmarkMark className="text-2xl" />
         </HomeLink>
         <PeoplePill people={people} scrollerRef={scrollerRef} onToggleVisible={onToggleVisible} />
         {/* Right after the people: how many films they made together (or, for one person, how many films). It steps aside with the tabs for the open pill. */}
         <TogetherCount
           several={people.length > 1}
           count={filmCount}
-          className={cn("mt-2 max-sm:mt-1.5", STEPS_ASIDE)}
+          className={STEPS_ASIDE}
           pillClassName={FLOATING}
         />
         <SectionTabs
@@ -169,7 +176,7 @@ export function PeopleBar({
         At the right edge, or, on the Depth view, left of the year rail (3.75rem wide, 28px on a phone) with a gap: nothing there is ever over it.
         The cluster takes no pointer events itself, so that what is between its controls does not shield what is under it.
       */}
-      <div className={cn("pointer-events-none mt-2 flex shrink-0 items-center gap-2 max-sm:mt-1.5", rail && "mr-[3.75rem] max-sm:mr-6", STEPS_ASIDE)}>
+      <div className={cn("pointer-events-none flex shrink-0 items-center gap-2", rail && "mr-[3.75rem] max-sm:mr-6", STEPS_ASIDE)}>
         <ViewTransition name="people-bar-views" share="bar-glide" default="none">
           <div className="pointer-events-auto max-sm:hidden">
             <ViewSwitcher view={view} hrefFor={hrefFor} onClickFor={clickFor} className={FLOATING} />
@@ -179,7 +186,7 @@ export function PeopleBar({
           <div className="pointer-events-auto flex shrink-0">
             <FilmSettings
               label="Settings"
-              buttonClassName={cn("size-[34px]", FLOATING)}
+              buttonClassName={cn("size-[var(--bar-h)]", FLOATING)}
               scrollable={false}
               showAll={showAll}
               onShowAllChange={onShowAllChange}
