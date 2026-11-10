@@ -1309,3 +1309,49 @@ describe("filling the empty middle: the pull towards the centre", () => {
     });
   });
 });
+
+describe("how big a phone's posters can be", () => {
+  const spec = xSpec("phone", 2);
+  const factor = layerFactor(0);
+  /** How wide a film made together is drawn on a phone, at `times` its size. */
+  const drawn = (times = 1) => collabWidth(0, false) * spec.collabScale * factor * times;
+  /**
+   * The air (px, negative: overlap) between the centre column of the films made together and the nearer outer one, on a phone `width` wide: the outer column is a step
+   * from the centre, but never beyond the stage's edge (the poster is kept clear of the rail and the gutter).
+   */
+  const airBetween = (width: number, times = 1) => {
+    const stage = width - spec.rail;
+    const outer = Math.min(spec.stepCollab, stage / 2 - spec.gutter - drawn(times) / 2);
+    return outer - drawn(times);
+  };
+
+  it("holds three columns of the films made together side by side at 390 and wider, as drawn", () => {
+    expect(drawn()).toBeCloseTo(114.8, 1);
+    for (const width of [390, 414, 430]) expect(airBetween(width), `${width}`).toBeGreaterThanOrEqual(0);
+  });
+
+  it("is a little short on the narrowest phones (they overlap by a few px where three films crowd), as it was", () => {
+    for (const width of [360, 375]) {
+      expect(airBetween(width), `${width}`).toBeLessThan(0);
+      expect(airBetween(width), `${width}`).toBeGreaterThan(-12);
+    }
+  });
+
+  it("cannot hold them 1.3 times as big: the centre column and a side column would be on each other by 40px or more", () => {
+    expect(drawn(1.3)).toBeCloseTo(149.3, 1);
+    expect(airBetween(390, 1.3)).toBeLessThan(-40);
+    // ... and no column step makes them fit: three of them are wider than the stage.
+    expect(3 * drawn(1.3)).toBeGreaterThan(390 - spec.rail - 2 * spec.gutter);
+  });
+
+  it("cannot hold the other people's films 1.2 times as big, two people to a screen, three columns each", () => {
+    const stage = 390 - spec.rail - 2 * spec.gutter;
+    const wide = DEPTH.solo.w * layerFactor(1, undefined, 2) * 1.2;
+    // Each cluster is three columns a poster and its jitter apart (a step of at least `wide + jitter`); two clusters need more than the stage has.
+    const cluster = 2 * (wide + spec.jitterSpan) + wide;
+    expect(2 * cluster).toBeGreaterThan(stage + 100);
+    // As they are now, two clusters are over the stage by about as much as a poster's width.
+    const now = 2 * (2 * spec.stepSolo + DEPTH.solo.w * layerFactor(1, undefined, 2));
+    expect(now - stage).toBeLessThan(DEPTH.solo.w);
+  });
+});

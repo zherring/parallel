@@ -181,6 +181,10 @@ export interface XSpec {
  */
 const TIERS: Record<DepthTier, Omit<XSpec, "bands" | "far" | "soloScale" | "people"> & { stepSoloOne: number; singleScale: number; spread: number }> = {
   // A phone's `spread` is 1 (the desktop's bands, not drawn in): see `bandFor`'s test for what the 390px trio and quartet pages measured.
+  // The sizes are the largest that fit. A film made together is drawn 115px wide (136 x 0.76 x the layer's 1.11), and the stage left of the rail is 354px at 390: three
+  // columns of them, as a crowded stretch of the axis has, are 115 + 124 + 124 across with the outer two against the edges, and a poster 1.3 times as wide (149px) leaves the
+  // centre and a side column 43px on each other, in every stretch with two. Background posters scatter over three columns each and there are two people: six columns of 70px, which
+  // 354px barely holds (a step of 70, the jitter, and neighbouring people's bands overlap a little: see the phone's tests); at 1.2 times (84px, a step of 92) it is 150px short.
   phone: { rail: 28, gutter: 4, stepCollab: 128, collabFluid: false, collabScale: 0.76, stepSolo: 70, stepSoloOne: 108, singleScale: 0.8, jitterSpan: 8, spread: 1 },
   tablet: { rail: 60, gutter: 8, stepCollab: 146, collabFluid: true, collabScale: 0.9, stepSolo: 100, stepSoloOne: 190, singleScale: 0.9, jitterSpan: 20, spread: 0.9 },
   desktop: { rail: 60, gutter: 8, stepCollab: 166, collabFluid: true, collabScale: 1, stepSolo: 120, stepSoloOne: 300, singleScale: 1, jitterSpan: 36, spread: 1 },
