@@ -1,4 +1,4 @@
-import { test, expect, openPeople, scrollState, timeline, viewLink, PEOPLE_PATH } from "./fixtures";
+import { test, expect, collapseHero, openPeople, scrollState, timeline, viewLink, PEOPLE_PATH } from "./fixtures";
 
 // Activate the server-side fetch fixtures before any test navigates to a people page.
 test.beforeEach(async ({ next }) => { void next; });
@@ -75,7 +75,9 @@ test("the track's focus ring is for the keyboard, drawn inside its edge; a click
     return { style: css.outlineStyle, width: css.outlineWidth, offset: parseFloat(css.outlineOffset) };
   });
   expect((await ring()).style).toBe("none");
-  // A click on the empty surface focuses it (it is focusable for the arrow keys), but a mouse does not show a ring.
+  // A click on the empty surface focuses it (it is focusable for the arrow keys), but a mouse does not show a ring. (With the pair hero collapsed: while it is open its
+  // band is over the top of the track.)
+  await collapseHero(page);
   await page.mouse.click(700, 120);
   await expect(track).toBeFocused();
   expect((await ring()).style).toBe("none");

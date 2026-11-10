@@ -1,4 +1,4 @@
-import { test, expect, MINOR_FILM_COUNT, PEOPLE_PATH, PIXEL, switcher, viewLink } from "./fixtures";
+import { test, expect, MINOR_FILM_COUNT, PEOPLE_PATH, PIXEL, collapseHero, switcher, viewLink } from "./fixtures";
 import type { Page } from "next/experimental/testmode/playwright";
 import { collabStep, layerFactor, tierOf, xSpec } from "../../src/lib/depth-layout";
 
@@ -36,10 +36,20 @@ function shadowColours(value: string): { rgb: number[]; alpha: number }[] {
  * opens on the first collaboration (2000), not at the top of the axis (1990), so a position past 0 means the
  * initial scroll has happened.
  */
-async function openDepth(page: Page, search = "") {
+async function openDepthLanded(page: Page, search = "") {
   await page.goto(`${PEOPLE_PATH}?view=depth${search}`);
   await expect(scene(page)).toBeVisible();
   await expect.poll(async () => Number(await rail(page).getAttribute("aria-valuenow"))).toBeGreaterThan(0);
+}
+
+/**
+ * Opens the scene and moves it a little (60px), so that the pair hero, which is open over the top of the scene when it lands, has collapsed into the compact bar: the
+ * specs of the scene itself are about its posters, which the hero's band would cover, and about the people pill, which takes the names' place once the hero has collapsed.
+ * The hero is the subject of pair-hero.spec.ts, and `openDepthLanded` is the scene as it lands.
+ */
+async function openDepth(page: Page, search = "") {
+  await openDepthLanded(page, search);
+  await collapseHero(page, 60);
 }
 
 /**
@@ -56,16 +66,19 @@ async function showAllFilms(page: Page) {
 }
 
 test("the scene opens scrolled to the first collaboration", async ({ page }) => {
-  await openDepth(page);
+  await openDepthLanded(page);
   const region = scene(page);
 
   await expect.poll(() => region.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  // Collaborations are the layer at the screen plane, so the first one is level with the middle of the screen.
+  // Collaborations are the layer at the screen plane, so the first one is level with the middle of the screen: the middle of the room the pair hero's band leaves,
+  // which is open over the top of the scene when it lands (the first collaboration is never under it, whatever the room).
   const poster = region.getByRole("button", { name: FIRST_SHARED });
   await expect(poster).toBeVisible();
   const box = (await poster.boundingBox())!;
   const viewport = page.viewportSize()!;
-  expect(Math.abs(box.y + box.height / 2 - viewport.height / 2)).toBeLessThan(24);
+  const band = (await page.locator("[data-people-bar]").boundingBox())!;
+  expect(box.y).toBeGreaterThanOrEqual(band.y + band.height);
+  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
 
   // The depth: collaborations in front, then one layer behind per person.
   await expect(region.locator("ol")).toHaveCount(3);
@@ -101,7 +114,7 @@ for (const [width, height, laid] of [
     test.use({ viewport: { width, height }, hasTouch: width < 640, isMobile: width < 640 });
 
     test(`the films made together are laid out ${laid}px wide, 2:3, on the centre line and the grown column steps, never on one another, with their labels clear`, async ({ page }) => {
-      await openDepth(page);
+      await openDepthLanded(page);
       const region = scene(page);
       const spec = xSpec(tierOf(width), 2);
       const vmax = Math.max(width, height);
@@ -135,9 +148,12 @@ for (const [width, height, laid] of [
         const expected = Math.min(Math.max(stage + poster.col * collabStep(spec, vmax), spec.gutter + half), width - spec.rail - spec.gutter - half);
         expect(Math.abs(poster.centreX - expected), poster.id).toBeLessThan(1.5);
       }
-      // The first one is in the middle of the screen, as the scene opens on it: vertically centred on its date by its own height (a transform), whatever that is.
+      // The first one is where the scene opens on it: vertically centred on its date by its own height (a transform), whatever that is, and under the pair hero's band, which is
+      // open over the top of the scene when it lands.
       const first = measured.find((poster) => poster.id === "100")!;
-      expect(Math.abs(first.centreY - height / 2)).toBeLessThan(24);
+      const band = (await page.locator("[data-people-bar]").boundingBox())!;
+      expect(first.box.top).toBeGreaterThanOrEqual(band.y + band.height);
+      expect(first.box.bottom).toBeLessThanOrEqual(height);
       // No two overlap, on the screen, whatever the sizes and the columns: the layout packs for the largest. (Where the stage is too narrow for a crowd's columns the scene holds
       // the deepest at its edge, together: the fixture packs eight films into under two years, so its last two or three lie on one another, on a phone and on a laptop's
       // window, as they always did. Those are the stage's, not the sizes': the ones that are where their columns put them are checked.)
@@ -1527,34 +1543,31 @@ const settingsGear = (page: Page) => page.getByRole("button", { name: "Settings"
 const settingsSheet = (page: Page) => page.getByRole("dialog", { name: "Settings", exact: true });
 const minorToggle = (page: Page) => settingsSheet(page).getByRole("checkbox", { name: /Show shorts, music videos, cameos and uncredited/ });
 
-test("the bar has the home square, the people and the count, and the view switcher and the gear at the right, clear of the rail", async ({ page }) => {
+test("the bar has the back arrow, the people, and the view control and the gear at the right, clear of the rail", async ({ page }) => {
   await openDepth(page);
-  // The fixture pair has no quotes, so no Films | Quotes nav at all (not in the bar, and not down the left edge, which pages that have Quotes have).
+  // The fixture pair has no quotes, so the control has no Quotes segment (and there is no Films | Quotes nav at all, anywhere: it is gone).
   await expect(page.locator('nav[aria-label="Sections"]')).toHaveCount(0);
 
-  // The count is to the right of the pill, on its level and as tall as it; and the controls are left of the rail with room to spare, the switcher then the gear.
-  const pillBox = (await pill(page).boundingBox())!;
-  const countBox = (await page.locator("[data-together-pill]").boundingBox())!;
-  expect(countBox.x).toBeGreaterThan(pillBox.x + pillBox.width);
-  expect(Math.abs(countBox.y + countBox.height / 2 - (pillBox.y + pillBox.height / 2))).toBeLessThan(4);
-  expect(countBox.height).toBe(Math.round((await pill(page).locator("xpath=ancestor::div[@data-people-pill]").boundingBox())!.height));
+  // The controls are left of the rail with room to spare, the control then the gear.
   const railBox = (await page.locator("[data-depth-rail]").boundingBox())!;
   const switcherBox = (await switcher(page).boundingBox())!;
   const gearBox = (await settingsGear(page).boundingBox())!;
   expect(switcherBox.x + switcherBox.width).toBeLessThan(gearBox.x);
   expect(gearBox.x + gearBox.width).toBeLessThanOrEqual(railBox.x - 8);
+  // No pill of films made together any more: the count is in the pair hero's line.
+  await expect(page.locator("[data-together-pill]")).toHaveCount(0);
 
-  // Timeline, Focus, Table, in that order; Focus is the view this page is on, and the other two are links to the flat page.
-  await expect(switcher(page).getByRole("link")).toHaveText(["", "", ""]);
-  await expect(switcher(page).getByRole("link")).toHaveCount(3);
+  // Films, Timeline, Table, in that order, as words; Films is the view this page is on, and the other two are links to the flat page.
+  await expect(switcher(page).getByRole("link")).toHaveText(["Films", "Timeline", "Table"]);
   await expect(viewLink(page, "depth")).toHaveAttribute("aria-current", "page");
   await expect(viewLink(page, "timeline")).not.toHaveAttribute("aria-current", "page");
   await expect(viewLink(page, "table")).not.toHaveAttribute("aria-current", "page");
-  // Each has a tooltip, and nothing is called Lanes or Combined any more.
-  await expect(viewLink(page, "depth")).toHaveAttribute("title", /^Focus/);
+  // Each has a tooltip, and nothing is called Lanes or Combined or Focus any more.
+  await expect(viewLink(page, "depth")).toHaveAttribute("title", /^Films/);
   await expect(page.getByRole("group", { name: "Timeline layout", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Combined timeline", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Separate lanes", exact: true })).toHaveCount(0);
+  expect(await page.locator("body").innerText()).not.toContain("Focus");
 });
 
 test("the Table link lands on the table, with the people and the period", async ({ page }) => {
@@ -1570,14 +1583,14 @@ test("the Table link lands on the table, with the people and the period", async 
   await expect(page.getByRole("table")).toBeVisible();
 });
 
-test("the switcher round-trips Focus, Timeline, Focus, and the period goes along each way", async ({ page }) => {
+test("the switcher round-trips Films, Timeline, Films, and the period goes along each way", async ({ page }) => {
   await openDepth(page, "&from=2000&to=2001");
   await viewLink(page, "timeline").click();
 
-  // The flat Timeline, with the same switcher: Timeline is the one current there.
+  // The flat Timeline, with the same switcher: Timeline is the one current there, and the link said so (a plain address opens Films on a phone).
   await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
   await expect(viewLink(page, "depth")).not.toHaveAttribute("aria-current", "page");
-  await expect(page).toHaveURL(/\?from=2000&to=2001$/);
+  await expect(page).toHaveURL(/\?view=timeline&from=2000&to=2001$/);
   await expect(scene(page)).toHaveCount(0);
 
   await viewLink(page, "depth").click();
@@ -1600,8 +1613,8 @@ test("there is no Lanes option, in the Focus bar or on the flat timeline, and th
   await expect(switcher(page).getByRole("link")).toHaveCount(3);
 });
 
-test("the flat Timeline's switcher reaches Focus, with the period", async ({ page }) => {
-  await page.goto(`${PEOPLE_PATH}?from=2000&to=2001`);
+test("the flat Timeline's switcher reaches Films, with the period", async ({ page }) => {
+  await page.goto(`${PEOPLE_PATH}?from=2000&to=2001&view=timeline`);
   await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
   await viewLink(page, "depth").click();
   await expect(scene(page)).toBeVisible();
@@ -1620,8 +1633,8 @@ test("the gear opens the flat page's settings and Share: Show all films is on, a
   await expect(showAll).toBeEnabled();
   await expect(showAll).toHaveAccessibleDescription("Give every film a poster, adding rows as needed.");
   await expect(minorToggle(page)).not.toBeChecked();
-  // The view switcher is on the bar from `sm`: the sheet has the same links for a phone only.
-  await expect(sheet.getByRole("navigation", { name: "Films view", exact: true })).toBeHidden();
+  // The view control is on the bar from `sm`: the sheet has the same links for a phone only.
+  await expect(sheet.getByRole("navigation", { name: "Views", exact: true })).toBeHidden();
 
   // Share is the flat page's own menu, with its Period years.
   await sheet.getByRole("button", { name: "Share", exact: true }).click();
@@ -1826,22 +1839,23 @@ test("a page of one person has the same switcher, and nothing about lanes", asyn
   // The flat page of one person has the same control, to come back.
   await expect(viewLink(page, "depth")).toBeVisible();
   await expect(scene(page)).toHaveCount(0);
-  // One person has no films made together: the bar says how many films they have, as plain text (and not as a pill).
+  // One person has no films made together: the pair hero's line says how many films they have ("Actor · 16 films"), and nothing says "together".
   await expect(page.locator("[data-together-pill]")).toHaveCount(0);
-  await expect(page.locator("[data-people-bar]").getByText(/^\d+ films$/)).toBeVisible();
+  await expect(page.locator("[data-pair-subtitle]")).toHaveText(/^actor · \d+ films$/i);
 });
 
-const homeLink = (page: Page) => page.getByRole("link", { name: "Parallel home", exact: true });
+const homeLink = (page: Page) => page.getByRole("link", { name: "Back to Parallel home", exact: true });
 
-test("the home square is the first thing in the bar: a rounded square link to the landing page with the wordmark's green ll, before the people pill, as tall as it, and it stays when the pill opens", async ({ page }) => {
+test("the home arrow is the first thing in the bar: a rounded square link to the landing page holding a back arrow, before the people pill, as tall as it, and it stays when the pill opens", async ({ page }) => {
   await openDepth(page);
   const home = homeLink(page);
   await expect(home).toBeVisible();
   await expect(home).toHaveAttribute("href", "/");
-  await expect(home).toHaveAttribute("title", "Parallel home");
-  // The app's wordmark, as its mark alone: the two green l's.
-  expect((await home.evaluate((el) => (el as HTMLElement).innerText)).trim()).toBe("ll");
-  await expect(home.locator(".text-accent-green")).toHaveText("ll");
+  await expect(home).toHaveAttribute("title", "Back to Parallel home");
+  // A plain arrow: no text, no wordmark's green l's.
+  expect((await home.evaluate((el) => (el as HTMLElement).innerText)).trim()).toBe("");
+  await expect(home.locator("svg.lucide-arrow-left")).toHaveCount(1);
+  await expect(home.locator(".text-accent-green")).toHaveCount(0);
   const homeBox = (await home.boundingBox())!;
   // A rounded square: as wide as it is tall, with the bar's one corner radius (6px), not a circle.
   expect(homeBox.width).toBe(homeBox.height);
@@ -1873,7 +1887,6 @@ for (const width of [640, 768, 1024, 1440]) {
     for (const [name, locator] of [
       ["home", homeLink(page)],
       ["pill", pill(page)],
-      ["together", page.locator("[data-together-pill]")],
       ["switcher", switcher(page)],
       ["gear", settingsGear(page)],
       ["rail", page.locator("[data-depth-rail]")],
@@ -1889,8 +1902,8 @@ for (const width of [640, 768, 1024, 1440]) {
         expect(apart, `${a} and ${b} overlap`).toBe(true);
       }
     }
-    // Left to right: home, people, the pill of films made together, then the view switcher and the gear, clear of the rail; and the page does not scroll sideways.
-    const order = ["home", "pill", "together", "switcher", "gear", "rail"].map((name) => boxes.get(name)!.x);
+    // Left to right: home, people, then the view control and the gear, clear of the rail; and the page does not scroll sideways.
+    const order = ["home", "pill", "switcher", "gear", "rail"].map((name) => boxes.get(name)!.x);
     expect(order).toEqual([...order].sort((a, b) => a - b));
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
   });
@@ -1898,15 +1911,14 @@ for (const width of [640, 768, 1024, 1440]) {
 
 test("while the pill is open the bar's other controls step aside: nothing is under its field", async ({ page }) => {
   await openDepth(page);
-  await expect(page.locator("[data-together-pill]")).toBeVisible();
+  await expect(switcher(page)).toBeVisible();
   await pill(page).click();
   await expect(pillSearch(page)).toBeVisible();
-  await expect(page.locator("[data-together-pill]")).toBeHidden();
   await expect(switcher(page)).toBeHidden();
   await expect(settingsGear(page)).toBeHidden();
   await page.keyboard.press("Escape");
   await expect(pill(page)).toHaveAttribute("aria-expanded", "false");
-  await expect(page.locator("[data-together-pill]")).toBeVisible();
+  await expect(switcher(page)).toBeVisible();
   await expect(settingsGear(page)).toBeVisible();
 });
 
@@ -1977,7 +1989,7 @@ test("until its image arrives a poster is the dark surface tinted with its perso
   }
 });
 
-test("the plain address still renders the flat Timeline, with the switcher's three views", async ({ page }) => {
+test("the plain address still renders the flat Timeline on a desktop, with the control's three views", async ({ page }) => {
   await page.goto(PEOPLE_PATH);
   await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
   await expect(viewLink(page, "table")).toBeVisible();
@@ -2039,36 +2051,30 @@ test.describe("on a phone", () => {
     await expect(capsule(page)).toHaveCSS("opacity", "0");
   });
 
-  test("the bar is the heads, the count and the gear, and the gear's sheet holds the views, the settings and Share", async ({ page }) => {
+  test("the bar is the heads and the gear, and the gear's sheet holds the views, the settings and Share", async ({ page }) => {
     await openDepth(page);
 
-    // No tabs and no view switcher on the bar: the heads and the count at the left and the gear at the right, clear of the pill, the rail and the edges.
+    // No tabs and no view control on the bar: the heads at the left and the gear at the right, clear of the pill, the rail and the edges.
     await expect(page.locator('nav[aria-label="Sections"]')).toHaveCount(0);
     await expect(switcher(page)).toBeHidden();
-    // The count has its full words on a phone too: the dot, the number and "films together".
-    const together = page.locator("[data-together-pill]");
-    await expect(together).toBeVisible();
-    await expect(together).toHaveAccessibleName(/^\d+ films together$/);
-    expect(await together.evaluate((element) => (element as HTMLElement).innerText.trim())).toMatch(/^\d+ films together$/);
+    await expect(page.locator("[data-together-pill]")).toHaveCount(0);
     const pillBox = (await pill(page).boundingBox())!;
-    const countBox = (await together.boundingBox())!;
     const gearBox = (await settingsGear(page).boundingBox())!;
     const railBox = (await page.locator("[data-depth-rail]").boundingBox())!;
-    expect(countBox.x).toBeGreaterThan(pillBox.x + pillBox.width);
-    expect(gearBox.x).toBeGreaterThanOrEqual(countBox.x + countBox.width + 8);
+    expect(gearBox.x).toBeGreaterThanOrEqual(pillBox.x + pillBox.width + 8);
     expect(gearBox.x + gearBox.width).toBeLessThanOrEqual(railBox.x - 4);
     expect(gearBox.y).toBeGreaterThanOrEqual(0);
 
     await settingsGear(page).tap();
     const sheet = settingsSheet(page);
     await expect(sheet).toBeVisible();
-    // The same three-way choice as the bar's switcher, with its words (the fixture pair has no Quotes, so no Films | Quotes above it), Focus the current one.
-    const views = sheet.getByRole("navigation", { name: "Films view", exact: true });
-    await expect(views.getByRole("link")).toHaveText(["Timeline", "Focus", "Table"]);
+    // The same control as the bar's, with its words (the fixture pair has no Quotes, so no fourth segment), Films the current one.
+    const views = sheet.getByRole("navigation", { name: "Views", exact: true });
+    await expect(views.getByRole("link")).toHaveText(["Films", "Timeline", "Table"]);
     await expect(sheet.getByRole("navigation", { name: "Sections", exact: true })).toHaveCount(0);
-    await expect(views.getByRole("link", { name: "Focus view", exact: true })).toHaveAttribute("aria-current", "page");
-    await expect(views.getByRole("link", { name: "Table view", exact: true })).toHaveAttribute("href", /view=table/);
-    await expect(views.getByRole("link", { name: "Timeline view", exact: true })).toHaveAttribute("href", PEOPLE_PATH);
+    await expect(views.getByRole("link", { name: "Films", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(views.getByRole("link", { name: "Table", exact: true })).toHaveAttribute("href", /view=table/);
+    await expect(views.getByRole("link", { name: "Timeline", exact: true })).toHaveAttribute("href", `${PEOPLE_PATH}?view=timeline`);
     await expect(sheet.getByRole("button", { name: "Separate lanes", exact: true })).toHaveCount(0);
     await expect(minorToggle(page)).toBeVisible();
     await expect(sheet.getByRole("button", { name: "Share", exact: true })).toBeVisible();
@@ -2081,17 +2087,17 @@ test.describe("on a phone", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
 
     // A tap on Table goes to the table (the flat page's views are in its sheet on a phone too: there is no switcher on the bar to look for).
-    await views.getByRole("link", { name: "Table view", exact: true }).tap();
+    await views.getByRole("link", { name: "Table", exact: true }).tap();
     await expect(page).toHaveURL(/view=table/);
     // (A phone's table is a list of cards, not a `table`: the sheet's link, which says which view is on, is what to look at.)
     await settingsGear(page).tap();
-    await expect(settingsSheet(page).getByRole("link", { name: "Table view", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(settingsSheet(page).getByRole("link", { name: "Table", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(scene(page)).toHaveCount(0);
   });
 
-  test("a phone's bar has no home square: the heads' pill starts at the bar's left edge, the open pill's field and card stay on the screen, and the sheet has the way home with its name", async ({ page }) => {
+  test("a phone's bar has no home arrow: the heads' pill starts at the bar's left edge, the open pill's field and card stay on the screen, and the sheet has the way home with its name", async ({ page }) => {
     await openDepth(page);
-    const barHome = page.locator("[data-people-bar]").getByRole("link", { name: "Parallel home", exact: true });
+    const barHome = page.locator("[data-people-bar]").getByRole("link", { name: "Back to Parallel home", exact: true });
     await expect(barHome).toBeHidden();
     const capsuleBox = (await page.locator("[data-pill-capsule]").boundingBox())!;
     expect(capsuleBox.x).toBe(12);
@@ -2136,12 +2142,12 @@ test.describe("on a phone", () => {
     expect(last.y + last.height).toBeLessThanOrEqual(844);
     await expect(sheet.getByRole("combobox", { name: "From year", exact: true })).toBeVisible();
 
-    await sheet.getByRole("link", { name: "Timeline view", exact: true }).tap();
+    await sheet.getByRole("link", { name: "Timeline", exact: true }).tap();
     await expect(scene(page)).toHaveCount(0);
-    // The flat Timeline's bar has no room for the switcher on a phone either: it is in the sheet, with Timeline current.
+    // The flat Timeline's bar has no room for the control on a phone either: it is in the sheet, with Timeline current.
     await expect(switcher(page)).toBeHidden();
     await settingsGear(page).tap();
-    await expect(settingsSheet(page).getByRole("link", { name: "Timeline view", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(settingsSheet(page).getByRole("link", { name: "Timeline", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(scene(page)).toHaveCount(0);
   });
 
@@ -2230,6 +2236,8 @@ for (const [width, height] of [[1440, 900], [1600, 900], [1920, 1080]] as const)
   test(`the rail's year readout never meets the gear or the switcher, at the top, the middle or the bottom of the scene, ${width}px wide`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await openDepth(page);
+    // The rail's top edge eases from the hero's band to the top of the screen: wait for it.
+    await expect.poll(async () => (await page.locator("[data-depth-rail] > div").first().boundingBox())!.y).toBe(0);
     // The fixture's scene is short, so the rail's window is tall and its middle (where the readout is) never gets near the top. A long scene (a real
     // filmography is several thousand px of it) has a small window: the worst case is the smallest one, which is its 12px minimum.
     const rects = (shrink: boolean) =>
@@ -2240,10 +2248,10 @@ for (const [width, height] of [[1440, 900], [1600, 900], [1920, 1080]] as const)
           return { left: box.left, top: box.top, right: box.right, bottom: box.bottom };
         };
         return {
-          // The chip with the year in it, which hangs out left of the rail, level with the middle of the rail's window.
-          readout: rect(document.querySelector("[data-rail-readout]")!.parentElement),
+          // The chip with the year in it, which hangs out left of the rail, level with the middle of the rail's window (and kept under the bar's controls).
+          readout: rect(document.querySelector("[data-rail-readout-box]")),
           gear: rect(document.querySelector('[data-people-bar] button[aria-label="Settings"]')),
-          switcher: rect(document.querySelector('[data-people-bar] nav[aria-label="Films view"]')),
+          switcher: rect(document.querySelector('[data-people-bar] nav[aria-label="Views"]')),
           track: rect(document.querySelector("[data-depth-rail] > div")),
         };
       }, shrink);
@@ -2258,8 +2266,9 @@ for (const [width, height] of [[1440, 900], [1600, 900], [1920, 1080]] as const)
         const { readout, gear, switcher, track } = await rects(shrink);
         expect(meets(readout, gear), `${width} ${where} ${shrink ? "long scene" : "short scene"}: readout ${JSON.stringify(readout)} gear ${JSON.stringify(gear)}`).toBe(false);
         expect(meets(readout, switcher), `${width} ${where}: switcher`).toBe(false);
-        // The rail itself starts under the bar, so that nothing of it (its labels, its window, the readout) is level with the gear.
-        expect(track.top, `${width} ${where} ${shrink ? "long scene" : "short scene"}: the rail starts under the bar`).toBeGreaterThanOrEqual(gear.bottom);
+        // With the hero collapsed the rail runs to the top of the screen, the bar's controls left of it: nothing of what hangs out of it to the left (the readout) is level with them.
+        expect(track.top, `${width} ${where} ${shrink ? "long scene" : "short scene"}: the rail runs to the top of the screen`).toBe(0);
+        expect(readout.top, `${width} ${where}: the readout is under the bar's controls`).toBeGreaterThanOrEqual(gear.bottom);
       }
     }
   });

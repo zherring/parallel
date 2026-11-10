@@ -1,224 +1,150 @@
 import type { Page } from "next/experimental/testmode/playwright";
 import { PAIR, expect, test } from "./almodovar";
-import { FILMS_VIEW_KEY, bar, clippingsTab, filmsTab, scene, storedFilmsView, viewLink, type FilmsViewName } from "./fixtures";
+import { PEOPLE_PATH, test as scrollTest, bar, quotesLink, scene, switcher, viewLink, type FilmsViewName } from "./fixtures";
 
 /**
- * The page's top level is Films and Quotes; Films has three views (the Timeline, Focus and the Table), chosen with the bar's switcher, and its tab
- * goes to the one last used. These specs are about that: the memory (in `localStorage`, `parallel:films-view`), and the switcher from every view.
- * The pair is Almodóvar and Cruz, who have Quotes; every test gets a fresh browser context, so a view recorded in one is never there in the next:
- * a new visitor.
+ * The page's views are one segmented control in the bar: Films | Timeline | Table, and Quotes as its fourth segment for a pair that has quotes. "Films" is the
+ * Depth view (`?view=depth`: the address still says depth). These specs are about that control: its words and order, the one segment that is current, where each
+ * segment goes (the period kept), and the phone's sheet, which has the same four. The pair is Almodóvar and Cruz, who have Quotes; the Scroll pair of `fixtures.ts`
+ * has none.
  */
 
 // Activate the server-side fetch fixtures before any test navigates to a people page.
 test.beforeEach(async ({ next }) => {
   void next;
 });
+scrollTest.beforeEach(async ({ next }) => {
+  void next;
+});
 
-const QUERY: Record<FilmsViewName | "clippings", string> = { timeline: "", table: "?view=table", depth: "?view=depth", clippings: "?view=clippings" };
+const QUERY: Record<FilmsViewName | "clippings", string> = { timeline: "?view=timeline", table: "?view=table", depth: "?view=depth", clippings: "?view=clippings" };
 const PERIOD = "from=2001&to=2005";
-/** The address of a view of the pair with the period, as the bar writes it (the Timeline has no `view`). */
-const withPeriod = (view: FilmsViewName | "clippings") => `${PAIR}?${PERIOD}${view === "timeline" ? "" : `&view=${view}`}`;
 const params = (page: Page) => Object.fromEntries(new URL(page.url()).searchParams);
 
-/** Opens a view and waits until it is live: the flat page reads its view from the address bar once hydrated; Focus is its scene. */
+/** Opens a view and waits until it is live: the flat page reads its view from the address bar once hydrated; Films is its scene. */
 async function open(page: Page, view: FilmsViewName | "clippings", search = QUERY[view]) {
   await page.goto(`${PAIR}${search}`);
-  if (view === "clippings") {
-    await expect(clippingsTab(page)).toHaveAttribute("aria-current", "page");
-    return;
-  }
-  if (view === "depth") await expect(scene(page)).toBeVisible();
+  if (view === "clippings") await expect(quotesLink(page)).toHaveAttribute("aria-current", "page");
+  else if (view === "depth") await expect(scene(page)).toBeVisible();
   else await expect(viewLink(page, view)).toHaveAttribute("aria-current", "page");
-  // Recording a view is an effect of the live page.
-  await expect.poll(() => storedFilmsView(page)).toBe(view);
 }
 
-for (const start of ["timeline", "depth", "table"] as const) {
-  test(`the Films tab remembers the ${start} view across the Quotes and back, with the period`, async ({ page }) => {
-    await open(page, start, `?${PERIOD}${start === "timeline" ? "" : `&view=${start}`}`);
+test("the control is Films, Timeline, Table and Quotes, in that order, one nav, and Focus is nowhere on the page", async ({ page }) => {
+  await open(page, "timeline");
+  await expect(switcher(page)).toHaveCount(1);
+  await expect(switcher(page).getByRole("link")).toHaveText(["Films", "Timeline", "Table", "Quotes"]);
+  // Links with the words as their names, titles for the tooltips, and the addresses each goes to (the Timeline's says so, the Films view is depth).
+  const hrefs = await switcher(page).getByRole("link").evaluateAll((links) => links.map((link) => new URL((link as HTMLAnchorElement).href).search));
+  expect(hrefs).toEqual(["?view=depth", "?view=timeline", "?view=table", "?view=clippings"]);
+  await expect(viewLink(page, "depth")).toHaveAttribute("title", /^Films · /);
+  await expect(quotesLink(page)).toHaveAttribute("title", /^Quotes · /);
+  // No Focus anywhere: not in the bar, not in the gear's sheet, not in an aria-label or a title.
+  expect(await page.locator("body").innerText()).not.toContain("Focus");
+  expect(await page.locator('[aria-label*="Focus"], [title*="Focus"]').count()).toBe(0);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Settings", exact: true })).not.toContainText("Focus");
+});
 
-    await clippingsTab(page).click();
-    await expect(clippingsTab(page)).toHaveAttribute("aria-current", "page");
-    await expect(filmsTab(page)).not.toHaveAttribute("aria-current", /.+/);
-    await expect(scene(page)).toHaveCount(0);
-    expect(params(page)).toEqual({ from: "2001", to: "2005", view: "clippings" });
-    // The Quotes are not a films view: nothing was recorded by being there, and the Films tab points back at the one that was.
-    expect(await storedFilmsView(page)).toBe(start);
-    await expect(filmsTab(page)).toHaveAttribute("href", withPeriod(start).replace(`${PAIR}`, new URL(page.url()).pathname));
-
-    await filmsTab(page).click();
-    await expect(filmsTab(page)).toHaveAttribute("aria-current", "page");
-    if (start === "depth") {
-      await expect(scene(page)).toBeVisible();
-      await expect(page.locator("html")).toHaveAttribute("data-view", "depth");
-    } else {
-      await expect(scene(page)).toHaveCount(0);
-      await expect(viewLink(page, start)).toHaveAttribute("aria-current", "page");
-      await expect(page.locator(`[id$="-panel-${start}"]`)).toBeVisible();
-    }
-    expect(params(page)).toEqual({ from: "2001", to: "2005", ...(start === "timeline" ? {} : { view: start }) });
-    expect(await storedFilmsView(page)).toBe(start);
-  });
-}
-
-test("the Films tab goes to the view last used, and it is read from storage after the page loads (a plain, fresh visitor gets the Timeline)", async ({ page }) => {
-  // A new visitor: the Films tab is the page's own address, the Timeline, and visiting the Quotes records nothing.
-  await open(page, "clippings");
-  await expect(filmsTab(page)).toHaveAttribute("href", PAIR);
-  expect(await storedFilmsView(page)).toBeNull();
-
-  // Each films view, visited by its address (not by any control of the bar), is what the tab goes to next, after a reload too.
-  for (const view of ["table", "depth", "timeline", "table"] as const) {
+test("the Quotes segment is the current one on the Quotes, and the control is the same four segments on every view", async ({ page }) => {
+  for (const view of ["timeline", "table", "clippings", "depth"] as const) {
     await open(page, view);
-    await page.goto(`${PAIR}?view=clippings`);
-    await expect(clippingsTab(page)).toHaveAttribute("aria-current", "page");
-    await expect(filmsTab(page)).toHaveAttribute("href", `${PAIR}${QUERY[view]}`);
-    expect(await storedFilmsView(page)).toBe(view);
+    await expect(switcher(page).getByRole("link")).toHaveText(["Films", "Timeline", "Table", "Quotes"]);
+    // Exactly one segment is current: the view the page is on, Quotes included.
+    await expect(switcher(page).locator('[aria-current="page"]')).toHaveCount(1);
+    if (view === "clippings") await expect(quotesLink(page)).toHaveAttribute("aria-current", "page");
+    else await expect(viewLink(page, view)).toHaveAttribute("aria-current", "page");
   }
+  // No segment of its own beside the control: Quotes is not a separate link or box in the bar.
+  await expect(bar(page).getByRole("link", { name: "Quotes", exact: true })).toHaveCount(1);
 });
 
-test("visiting a films view records it, by any means: the address, the switcher and the Films tab; the Quotes and an unknown value do not", async ({ page }) => {
-  // By a typed address.
-  await open(page, "table");
-  expect(await storedFilmsView(page)).toBe("table");
-  // By the switcher, in place on the flat page and as a navigation to Focus.
-  await viewLink(page, "depth").click();
-  await expect(scene(page)).toBeVisible();
-  await expect.poll(() => storedFilmsView(page)).toBe("depth");
-  await viewLink(page, "timeline").click();
-  await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
-  await expect.poll(() => storedFilmsView(page)).toBe("timeline");
-  await viewLink(page, "table").click();
-  await expect.poll(() => storedFilmsView(page)).toBe("table");
-  // By the browser's Back, which the flat page's views are in the history of (a navigation to Focus is one): Table, Focus, then Back.
-  await viewLink(page, "depth").click();
-  await expect(scene(page)).toBeVisible();
-  await page.goBack();
-  await expect(viewLink(page, "table")).toHaveAttribute("aria-current", "page");
-  await expect.poll(() => storedFilmsView(page)).toBe("table");
-
-  // The Quotes are no films view.
-  await clippingsTab(page).click();
-  await expect(clippingsTab(page)).toHaveAttribute("aria-current", "page");
-  expect(await storedFilmsView(page)).toBe("table");
-
-  // A value the store does not know (another version's, say) is the Timeline, and the Films tab says so.
-  await page.evaluate((key) => window.localStorage.setItem(key, "separate"), FILMS_VIEW_KEY);
-  await page.goto(`${PAIR}?view=clippings`);
-  await expect(clippingsTab(page)).toHaveAttribute("aria-current", "page");
-  await expect(filmsTab(page)).toHaveAttribute("href", PAIR);
+scrollTest("a pair without quotes has the three segments, and no Quotes anywhere in the bar", async ({ page }) => {
+  await page.goto(PEOPLE_PATH);
+  await expect(switcher(page).getByRole("link")).toHaveText(["Films", "Timeline", "Table"]);
+  await expect(quotesLink(page)).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Quotes", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Settings", exact: true }).getByRole("link", { name: "Quotes", exact: true })).toHaveCount(0);
 });
 
-test("a plain address is never redirected to the remembered view: the page's own default is the flat Timeline", async ({ page }) => {
-  await open(page, "depth");
-  await page.goto(PAIR);
-  await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
-  await expect(scene(page)).toHaveCount(0);
-  expect(new URL(page.url()).search).toBe("");
-  // Being on the Timeline is a visit to it: it is what the Films tab goes to now.
-  await expect.poll(() => storedFilmsView(page)).toBe("timeline");
-});
-
-test("the first client render matches the server's, whatever view is remembered: no hydration warning, and the tab goes there afterwards", async ({ page }) => {
-  const problems: string[] = [];
-  page.on("console", (message) => {
-    if (message.type() === "error" || message.type() === "warning") problems.push(message.text());
-  });
-  page.on("pageerror", (error) => problems.push(error.message));
-  await page.addInitScript((key) => {
-    if (window.location.search.includes("clippings")) window.localStorage.setItem(key, "depth");
-  }, FILMS_VIEW_KEY);
-  await page.goto(`${PAIR}?view=clippings`);
-  await expect(clippingsTab(page)).toHaveAttribute("aria-current", "page");
-  await expect(filmsTab(page)).toHaveAttribute("href", `${PAIR}?view=depth`);
-  expect(problems.filter((text) => /hydrat|did not match|mismatch/i.test(text))).toEqual([]);
-});
-
-test("without browser storage the Films tab still remembers the view for the session", async ({ page }) => {
-  // localStorage that throws on every access, as in a window with site data blocked.
-  await page.addInitScript(() => {
-    Object.defineProperty(window, "localStorage", {
-      get() {
-        throw new DOMException("blocked", "SecurityError");
-      },
-    });
-  });
-  await page.goto(PAIR);
-  await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
-  await viewLink(page, "depth").click();
-  await expect(scene(page)).toBeVisible();
-  await clippingsTab(page).click();
-  await expect(clippingsTab(page)).toHaveAttribute("aria-current", "page");
-  await expect(filmsTab(page)).toHaveAttribute("href", `${PAIR}?view=depth`);
-  await filmsTab(page).click();
-  await expect(scene(page)).toBeVisible();
-});
-
-// ---- the switcher, from every view ---------------------------------------------------------------------------------
+// ---- the control, from every view -------------------------------------------------------------------------------------
 
 const STARTS = ["timeline", "table", "clippings", "depth"] as const;
-const TARGETS = ["timeline", "depth", "table"] as const;
+const TARGETS = ["depth", "timeline", "table", "clippings"] as const;
+const label = (view: string) => (view === "depth" ? "Films" : view === "clippings" ? "Quotes" : view);
 
 for (const start of STARTS) {
   for (const target of TARGETS) {
-    test(`the switcher goes from the ${start === "depth" ? "Focus" : start} view to ${target === "depth" ? "Focus" : target}, and keeps the period`, async ({ page }) => {
-      await open(page, start, `?${PERIOD}${start === "timeline" ? "" : `&view=${start}`}`);
-      // The three views are there on every view, the Quotes too, where none is current (the bar is the same size on all four).
-      await expect(bar(page).getByRole("navigation", { name: "Films view", exact: true }).getByRole("link")).toHaveCount(3);
-
-      await viewLink(page, target).click();
-      await expect(viewLink(page, target)).toHaveAttribute("aria-current", "page");
-      for (const other of TARGETS.filter((view) => view !== target)) await expect(viewLink(page, other)).not.toHaveAttribute("aria-current", /.+/);
-      await expect(filmsTab(page)).toHaveAttribute("aria-current", "page");
-      await expect(clippingsTab(page)).not.toHaveAttribute("aria-current", /.+/);
-
+    test(`the control goes from ${label(start)} to ${label(target)}, and keeps the period`, async ({ page }) => {
+      await open(page, start, `?${PERIOD}&view=${start}`);
+      const segment = target === "clippings" ? quotesLink(page) : viewLink(page, target);
+      await segment.click();
+      await expect(segment).toHaveAttribute("aria-current", "page");
+      await expect(switcher(page).locator('[aria-current="page"]')).toHaveCount(1);
       if (target === "depth") await expect(scene(page)).toBeVisible();
       else await expect(scene(page)).toHaveCount(0);
-      // The period goes along; the view is the address's (the Timeline has none), and nothing of the one that was left (a sort, a quote, the Quotes) stays.
-      expect(params(page)).toEqual({ from: "2001", to: "2005", ...(target === "timeline" ? {} : { view: target }) });
+      // The period goes along, and the view is written out (the Timeline's too); nothing of the one that was left (a sort, a quote) stays.
+      expect(params(page)).toEqual({ from: "2001", to: "2005", view: target });
       expect(new URL(page.url()).pathname).toBe(PAIR);
-      // It is the view the Films tab goes to from now on.
-      await expect.poll(() => storedFilmsView(page)).toBe(target);
     });
   }
 }
 
-test("a click with a modifier on a switcher link is the browser's, not the page's: the link opens elsewhere and the page stays", async ({ page }) => {
-  await open(page, "timeline", `?${PERIOD}`);
+test("a click with a modifier on a segment is the browser's, not the page's: the link opens elsewhere and the page stays", async ({ page }) => {
+  await open(page, "timeline", `?${PERIOD}&view=timeline`);
   const [popup] = await Promise.all([page.context().waitForEvent("page"), viewLink(page, "table").click({ modifiers: ["ControlOrMeta"] })]);
   await popup.waitForLoadState("domcontentloaded");
   expect(Object.fromEntries(new URL(popup.url()).searchParams)).toEqual({ from: "2001", to: "2005", view: "table" });
   await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
-  expect(params(page)).toEqual({ from: "2001", to: "2005" });
+  expect(params(page)).toEqual({ from: "2001", to: "2005", view: "timeline" });
+});
+
+test("the remembered view is gone: nothing is written to the browser's storage, and a plain address is never redirected to the last view", async ({ page }) => {
+  await open(page, "table");
+  await viewLink(page, "depth").click();
+  await expect(scene(page)).toBeVisible();
+  expect(await page.evaluate(() => Object.keys(window.localStorage).filter((key) => key.startsWith("parallel:films-view")))).toEqual([]);
+  // A desktop's plain address is the Timeline, whatever view was used last.
+  await page.goto(PAIR);
+  await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
+  await expect(scene(page)).toHaveCount(0);
 });
 
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test("the gear's sheet is the switcher and the Films | Quotes choice: the same round trip, with the period", async ({ page }) => {
+  test("the gear's sheet has the same four segments, in the same order: the same round trip, with the period", async ({ page }) => {
     await page.goto(`${PAIR}?view=depth&${PERIOD}`);
     await expect(scene(page)).toBeVisible();
-    await expect.poll(() => storedFilmsView(page)).toBe("depth");
     const gear = page.getByRole("button", { name: "Settings", exact: true });
     const sheet = page.getByRole("dialog", { name: "Settings", exact: true });
+    const control = sheet.getByRole("navigation", { name: "Views", exact: true });
 
-    // Focus → Table (the sheet's three-way choice) → Quotes (its Films | Quotes row) → Films, which is the Table.
+    // The bar has no control on a phone; the sheet has it, four segments.
+    await expect(switcher(page)).toBeHidden();
     await gear.tap();
-    await sheet.getByRole("navigation", { name: "Films view", exact: true }).getByRole("link", { name: "Table view", exact: true }).tap();
+    await expect(control.getByRole("link")).toHaveText(["Films", "Timeline", "Table", "Quotes"]);
+    await expect(control.locator('[aria-current="page"]')).toHaveText("Films");
+
+    // Films → Table → Quotes → Timeline → Films.
+    await control.getByRole("link", { name: "Table", exact: true }).tap();
     await expect(scene(page)).toHaveCount(0);
-    await expect.poll(() => storedFilmsView(page)).toBe("table");
     expect(params(page)).toEqual({ from: "2001", to: "2005", view: "table" });
 
     await gear.tap();
-    await sheet.getByRole("navigation", { name: "Sections", exact: true }).getByRole("link", { name: "Quotes", exact: true }).tap();
+    await control.getByRole("link", { name: "Quotes", exact: true }).tap();
     await expect(sheet).toBeHidden();
-    await expect(page.locator('nav[aria-label="Sections"] a[href*="view=clippings"]')).toHaveAttribute("aria-current", "page");
     expect(params(page)).toEqual({ from: "2001", to: "2005", view: "clippings" });
+    await gear.tap();
+    await expect(control.locator('[aria-current="page"]')).toHaveText("Quotes");
+
+    await control.getByRole("link", { name: "Timeline", exact: true }).tap();
+    await expect(sheet).toBeHidden();
+    expect(params(page)).toEqual({ from: "2001", to: "2005", view: "timeline" });
 
     await gear.tap();
-    await sheet.getByRole("navigation", { name: "Sections", exact: true }).getByRole("link", { name: "Films", exact: true }).tap();
-    await expect(sheet).toBeHidden();
-    await expect(page.locator('nav[aria-label="Films view"] a[aria-label="Table view"]')).toHaveAttribute("aria-current", "page");
-    expect(params(page)).toEqual({ from: "2001", to: "2005", view: "table" });
+    await control.getByRole("link", { name: "Films", exact: true }).tap();
+    await expect(scene(page)).toBeVisible();
+    expect(params(page)).toEqual({ from: "2001", to: "2005", view: "depth" });
   });
 });

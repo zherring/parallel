@@ -89,22 +89,43 @@ export const timeline = (page: Page) => page.getByRole("region", { name: "Film t
 /** The page bar, which every view of a `/p/` page has. */
 export const bar = (page: Page) => page.locator("[data-people-bar]");
 
-/** The three views of Films, as the bar's switcher names them (see `ViewSwitcher`): Timeline, Focus (the Depth view) and Table. */
+/** The three films views, as the bar's control names them (see `ViewSwitcher`): Films (the Depth view), Timeline and Table. */
 export type FilmsViewName = "timeline" | "depth" | "table";
-const SWITCHER_LABEL: Record<FilmsViewName, string> = { timeline: "Timeline view", depth: "Focus view", table: "Table view" };
-/** The view switcher in the bar (not on a phone's bar: its sheet has the same links, see `ViewSwitcher`). */
-export const switcher = (page: Page) => bar(page).getByRole("navigation", { name: "Films view", exact: true });
+const SWITCHER_LABEL: Record<FilmsViewName, string> = { timeline: "Timeline", depth: "Films", table: "Table" };
+/** The view control in the bar: Films | Timeline | Table, and Quotes as its fourth segment for a pair that has quotes (not on a phone's bar: its sheet has the same links, see `ViewSwitcher`). */
+export const switcher = (page: Page) => bar(page).getByRole("navigation", { name: "Views", exact: true });
 export const viewLink = (page: Page, view: FilmsViewName) => switcher(page).getByRole("link", { name: SWITCHER_LABEL[view], exact: true });
-/** The bar's two sections: Films, and the Quotes for a pair that has them. */
-export const sections = (page: Page) => bar(page).getByRole("navigation", { name: "Sections", exact: true });
-export const filmsTab = (page: Page) => sections(page).getByRole("link", { name: "Films", exact: true });
-export const clippingsTab = (page: Page) => sections(page).getByRole("link", { name: "Quotes", exact: true });
+/** The control's Quotes segment (only for a pair that has quotes). */
+export const quotesLink = (page: Page) => switcher(page).getByRole("link", { name: "Quotes", exact: true });
 /** The Depth view's scene. */
 export const scene = (page: Page) => page.getByRole("region", { name: "Film timeline. Scroll down for later years.", exact: true });
 
-/** The films view the page last recorded for the Films tab. */
-export const FILMS_VIEW_KEY = "parallel:films-view";
-export const storedFilmsView = (page: Page) => page.evaluate((key) => window.localStorage.getItem(key), FILMS_VIEW_KEY);
+/** The pair hero's state, as the bar says it: "expanded" on arrival, "collapsed" once the view's main scroller has moved 48px or more from where it landed. */
+export const heroState = (page: Page) => bar(page).getAttribute("data-hero");
+
+/** The pair hero's body: the portraits, the note and the chips (in the bar's band on the Timeline and Films, in the page on the Table and the Quotes). */
+export const heroBody = (page: Page) => page.locator("[data-hero-body]");
+
+/**
+ * The view's main scroller moves by `delta` px, the way the visitor moves it: the Films scene down, the Timeline's track sideways, the page (Table, Quotes) down. A Timeline
+ * whose track has nothing to scroll in either direction (a short career on a wide screen) cannot move: the visitor presses on it instead, which also collapses the hero.
+ */
+export async function scrollView(page: Page, delta: number) {
+  await page.evaluate((by) => {
+    const scene = document.querySelector<HTMLElement>("[data-depth-scene]");
+    const track = [...document.querySelectorAll<HTMLElement>('[aria-label^="Film timeline. Scroll sideways"]')].find((element) => element.getClientRects().length > 0);
+    if (scene) scene.scrollTop += by;
+    else if (track && track.scrollWidth <= track.clientWidth + 1 && track.scrollHeight <= track.clientHeight + 1) track.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    else if (track) track.scrollLeft += by;
+    else window.scrollBy(0, by);
+  }, delta);
+}
+
+/** Moves the view's main scroller (120px unless told otherwise), past the 48px that collapses the hero, and waits for the hero to have collapsed into the compact bar. */
+export async function collapseHero(page: Page, by = 120) {
+  await scrollView(page, by);
+  await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
+}
 
 /** Wait for hydration via a real state transition, not a sleep or private React fields. */
 export async function openPeople(page: Page, search = "") {
