@@ -1,16 +1,15 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FilmPanel } from "@/components/film-panel/film-panel";
 import { PageHeadline } from "@/components/page-headline";
-import { FLOATING, PeopleBar } from "@/components/people-bar";
+import { PeopleBar } from "@/components/people-bar";
 import { FilmsSection } from "@/components/timeline/films-section";
 import { PeoplePanel, type PanelLayout, type PanelPerson } from "@/components/timeline/people-panel";
 import type { BioPerson } from "@/components/timeline/person-bio";
-import { LayoutToggle, type Layout } from "@/components/timeline/layout-toggle";
 import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
-import { useLayoutPref } from "@/components/timeline/use-layout-pref";
+import { recordFilmsView } from "@/components/timeline/use-films-view-pref";
 import { useFilmsTable } from "@/components/timeline/use-films-table";
 import { useUrlPeriod } from "@/components/timeline/use-period";
 import { useViewTab } from "@/components/timeline/use-view-tab";
@@ -21,11 +20,10 @@ import type { PairClippings } from "@/lib/clippings";
 import { voiceClippings } from "@/lib/clippings-view";
 import { toggleHidden } from "@/lib/combined-track";
 import type { PairCritics } from "@/lib/critics";
-import { depthSearch } from "@/lib/depth-url";
+import { pageViewHref } from "@/lib/depth-url";
 import { effectiveTrackMode } from "@/lib/film-prefs";
-import { layoutPrefOf } from "@/lib/layout-pref";
 import { personRows, sharedRows } from "@/lib/film-rows";
-import { availableViews, hasClippingsTab, quoteIdsOf, searchWithView, showingMessage, type View } from "@/lib/films-view";
+import { hasClippingsTab, parseView, quoteIdsOf, showingMessage, type PageView } from "@/lib/films-view";
 import { laneSummary, removePersonHref } from "@/lib/lanes";
 import { periodLabel, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss } from "@/lib/person-colors";
@@ -59,19 +57,22 @@ export function PeopleView(props: Props) {
 }
 
 function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critics }: Props) {
-  const router = useRouter();
   const pathname = usePathname();
   const search = useSearchParams().toString();
   // The display preferences are shared with the Depth view (`?view=depth`), which a visitor moves to and from: see `useFilmPrefs`.
   const [{ includeMinor, showAll, trackMode }, setPrefs] = useFilmPrefs(timelines.map((t) => t.person.id).join("+"));
-  // The layout the visitor last chose, which the Timeline tab (in the page bar) goes to: the layout control sets it.
-  const [layoutPref, chooseLayout] = useLayoutPref();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const timelineRef = useRef<TimelineHandle>(null);
   const clippingsTab = hasClippingsTab(clippings, critics);
-  const [view, setView] = useViewTab(clippingsTab, quoteIdsOf(clippings, critics));
-  const views = useMemo(() => availableViews(clippingsTab), [clippingsTab]);
+  const quoteIds = useMemo(() => quoteIdsOf(clippings, critics), [clippings, critics]);
+  const [view, setView] = useViewTab(clippingsTab, quoteIds);
+  // Visiting a films view records it, by any means (a link, a typed address, the bar): the Films tab goes to the one last used. From the address bar itself,
+  // as `useViewTab` reads it: after a client-side navigation to this page the render before the effect can still hold the address it came from.
+  useEffect(() => {
+    const visited = parseView(window.location.search, quoteIds);
+    if (visited !== "clippings") recordFilmsView(visited);
+  }, [view, quoteIds]);
   /** Counts up each time the visitor chooses a view: the films section brings the page back to its top (see `FilmsSection`). */
   const [revealTick, setRevealTick] = useState(0);
   const [urlPeriod, setPeriod] = useUrlPeriod();
@@ -179,20 +180,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     });
   }, [panelLayout]);
 
-  // The layout control: Combined and Lanes redraw this timeline; Focus is the Depth view, the same page on `?view=depth`, with its period.
-  const handleLayoutChange = useCallback(
-    (layout: Layout) => {
-      chooseLayout(layoutPrefOf(layout));
-      if (layout === "focus") {
-        router.push(`${window.location.pathname}${depthSearch(window.location.search)}`);
-        return;
-      }
-      timelineRef.current?.rememberCenter();
-      setPrefs({ trackMode: layout });
-    },
-    [chooseLayout, router, setPrefs],
-  );
-
   const handlePanelLayoutChange = useCallback((layout: PanelLayout) => {
     timelineRef.current?.rememberCenter();
     setPanelLayout(layout);
@@ -232,27 +219,16 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     [people, multi, shared.length, soloFilmCount, filmYears],
   );
 
-  // The page bar's views: tabs of this page's panels (the section's, which carry the ids). Timeline is the layout the visitor last chose: the
-  // Depth view for Focus (the same page on `?view=depth`, with its period, not a panel of this one), the flat timeline for Combined.
-  const headingId = multi ? "together" : "films";
-  const hrefFor = useCallback(
-    (next: View) => {
-      if (next === "timeline" && layoutPref === "focus") return `${pathname}${depthSearch(search)}`;
-      return `${pathname}${searchWithView(search, next)}`;
-    },
-    [pathname, search, layoutPref],
-  );
+  // The page bar's views are links to this page's addresses (the period kept): the Timeline, Table and Clippings are panels of this page, which the
+  // bar chooses in place with a plain click; Focus (the same page on `?view=depth`) is another render of it, so a link that navigates.
+  const hrefFor = useCallback((next: PageView) => pageViewHref(pathname, search, next), [pathname, search]);
   const selectView = useCallback(
-    (next: View) => {
-      if (next === view) return;
-      if (next === "timeline" && layoutPref === "focus") {
-        router.push(`${window.location.pathname}${depthSearch(window.location.search)}`);
-        return;
-      }
+    (next: PageView) => {
+      if (next === view || next === "depth") return;
       setRevealTick((tick) => tick + 1);
       setView(next);
     },
-    [view, layoutPref, router, setView],
+    [view, setView],
   );
   const exportList = useMemo(
     () => ({ films: table.rows, today, names: people.map((person) => person.name) }),
@@ -275,17 +251,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         Show full career
       </button>
     </p>
-  );
-
-  // The layout control, in the page bar on the Timeline (the Depth view's bar has it too, see `DepthChrome`), left of the gear.
-  const layoutToggle = (labelled: boolean) => (
-    <LayoutToggle
-      layout={multi ? shownTrackMode : "combined"}
-      several={multi}
-      onChange={handleLayoutChange}
-      labelled={labelled}
-      className={labelled ? "w-full" : FLOATING}
-    />
   );
 
   const timeline = (
@@ -334,12 +299,10 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       */}
       <PeopleBar
         people={panelPeople}
-        views={views}
+        clippings={clippingsTab}
         view={view}
         hrefFor={hrefFor}
-        panels={{ idBase: headingId, onSelect: selectView }}
-        layoutToggle={layoutToggle}
-        layoutShown={view === "timeline"}
+        onSelect={selectView}
         showAll={showAll}
         onShowAllChange={handleShowAllChange}
         includeMinor={includeMinor}

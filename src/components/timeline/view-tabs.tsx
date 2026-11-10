@@ -1,22 +1,39 @@
 "use client";
 
-import { ChartNoAxesGantt, Quote, Table2 } from "lucide-react";
+import { Clapperboard, Quote } from "lucide-react";
 import Link from "next/link";
-import { useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
-import { VIEW_LABELS, viewForKey, type View } from "@/lib/films-view";
+import type { MouseEvent, ReactNode } from "react";
 import { cn } from "./cn";
 
-/** The icon of each view, beside its label (in the page bar's tabs, and in its settings sheet's links to the views). */
-export const VIEW_ICONS: Record<View, ReactNode> = {
-  timeline: <ChartNoAxesGantt aria-hidden="true" className="size-4 shrink-0" />,
-  table: <Table2 aria-hidden="true" className="size-4 shrink-0" />,
-  clippings: <Quote aria-hidden="true" className="size-4 shrink-0" />,
+/** A plain left click, with no modifier key: the one a page may take over. A click that opens the link elsewhere (a new tab, a new window) is the browser's. */
+export function isPlainClick(event: MouseEvent): boolean {
+  return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+}
+
+/**
+ * The `onClick` of a link to a view the page shows in place (the flat page's views are panels of the page, see `useViewTab`): a plain click
+ * chooses the view here instead of following the link. None without `choose`, and the link then navigates.
+ */
+export function inPlace(choose: (() => void) | undefined): ((event: MouseEvent<HTMLAnchorElement>) => void) | undefined {
+  if (!choose) return undefined;
+  return (event) => {
+    if (!isPlainClick(event)) return;
+    event.preventDefault();
+    choose();
+  };
+}
+
+/** The page's top level: Films (the Timeline, Focus and Table), and the Clippings for a page that has them. */
+export type Section = "films" | "clippings";
+
+const ICON = "size-4 shrink-0";
+const SECTION_ICONS: Record<Section, ReactNode> = {
+  films: <Clapperboard aria-hidden="true" className={ICON} />,
+  clippings: <Quote aria-hidden="true" className={ICON} />,
 };
+const SECTION_LABELS: Record<Section, string> = { films: "Films", clippings: "Clippings" };
 
-export const viewTabId = (idBase: string, view: View) => `${idBase}-tab-${view}`;
-export const viewPanelId = (idBase: string, view: View) => `${idBase}-panel-${view}`;
-
-/** One view's button or link: the same box whether it is a tab of the flat page or a link of the Depth view, so the bar does not change when the page does. */
+/** One section's link: the same box whichever view the page is on, so the bar does not change when the page does. */
 function itemClass(current: boolean, compact: boolean): string {
   return cn(
     "inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded px-3 text-sm font-medium transition-colors motion-reduce:transition-none",
@@ -25,113 +42,48 @@ function itemClass(current: boolean, compact: boolean): string {
   );
 }
 
-function ItemContent({ view, current, compact }: { view: View; current: boolean; compact: boolean }) {
-  return (
-    <>
-      <span className={current ? "text-accent-green" : undefined}>{VIEW_ICONS[view]}</span>
-      <span className={compact ? "max-lg:sr-only" : undefined}>{VIEW_LABELS[view]}</span>
-    </>
-  );
-}
-
-interface ViewTabsProps {
-  /** Prefix for the element ids, so the tabs and their panels are unique on the page. */
-  idBase: string;
-  view: View;
-  /** The tabs, in order: Timeline and Table, and Clippings when the page has quotes or critics (see `availableViews`). */
-  views: readonly View[];
-  onChange: (view: View) => void;
-  /** The tab list's box: the page bar gives it its outline and its place. */
+interface SectionTabsProps {
+  /** Whether the page has Clippings (see `hasClippingsTab`). Without, Films stands alone: the bar's footprint is the same on every page. */
+  clippings: boolean;
+  /** The section the page is on: Films for the Timeline, Focus and Table. */
+  section: Section;
+  /** Where Films goes: the films view the visitor used last (see `films-view-pref`). */
+  filmsHref: string;
+  clippingsHref: string;
+  /** When given, a plain click chooses the section in place instead of following the link (see `inPlace`). */
+  onFilms?: (event: MouseEvent<HTMLAnchorElement>) => void;
+  onClippings?: (event: MouseEvent<HTMLAnchorElement>) => void;
+  /** The nav's box: the page bar gives it its outline and its place. */
   className?: string;
   /** Words beside the icons only from the large breakpoint up (the bar has less room than a phone's sheet). */
   compact?: boolean;
 }
 
 /**
- * The Timeline / Table (/ Clippings) switch of a flat page, in the page bar: a small segmented control that follows the
- * WAI-ARIA tabs pattern with automatic activation (arrow keys move and select, Left and Right
- * wrap, Home and End jump to the ends; only the selected tab is in the Tab order). The panels
- * live in the films section (both are in the markup, the inactive one hidden), see `FilmsSection`.
+ * The page's top-level navigation, in the page bar: Films and Clippings, a small segmented control of two links (Films alone for a page
+ * without Clippings). The Films link is current on the Timeline, Focus and Table; it goes to the films view last used, so a visit to the
+ * Clippings is a round trip. They are links, not tabs: Films is three views, one of which (Focus) is another page render.
  */
-export function ViewTabs({ idBase, view, views, onChange, className, compact = false }: ViewTabsProps) {
-  const tabRefs = useRef<Record<View, HTMLButtonElement | null>>({ timeline: null, table: null, clippings: null });
-
-  function onKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    if (event.altKey || event.ctrlKey || event.metaKey) return;
-    const next = viewForKey(event.key, view, views);
-    if (next === null) return;
-    event.preventDefault();
-    onChange(next);
-    tabRefs.current[next]?.focus();
-  }
-
+export function SectionTabs({ clippings, section, filmsHref, clippingsHref, onFilms, onClippings, className, compact = false }: SectionTabsProps) {
+  const items: { id: Section; href: string; onClick?: (event: MouseEvent<HTMLAnchorElement>) => void }[] = [
+    { id: "films", href: filmsHref, onClick: onFilms },
+    ...(clippings ? [{ id: "clippings" as const, href: clippingsHref, onClick: onClippings }] : []),
+  ];
   return (
-    <div role="tablist" aria-label="Films view" className={className}>
-      {views.map((id) => {
-        const selected = id === view;
-        return (
-          <button
-            key={id}
-            ref={(element) => {
-              tabRefs.current[id] = element;
-            }}
-            type="button"
-            role="tab"
-            id={viewTabId(idBase, id)}
-            aria-selected={selected}
-            aria-controls={viewPanelId(idBase, id)}
-            tabIndex={selected ? 0 : -1}
-            onClick={() => onChange(id)}
-            onKeyDown={onKeyDown}
-            className={itemClass(selected, compact)}
-          >
-            <ItemContent view={id} current={selected} compact={compact} />
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-interface ViewLinksProps {
-  views: readonly View[];
-  /** The view this page is on. */
-  view: View;
-  /** The address of each view's page. */
-  hrefFor: (view: View) => string;
-  /** When given, a plain click chooses the view here instead of following the link (the flat page's views are panels of the page); a click with a modifier key still opens the link. */
-  onSelect?: (view: View) => void;
-  className?: string;
-  compact?: boolean;
-}
-
-/**
- * The page's views as links: the same labels, icons and addresses as the tabs, for where there are no panels to switch between (the Depth
- * view, whose Table and Clippings are the flat page) or no room for the tabs (a phone's settings sheet, which lists them as a row of
- * choices). They are links, not tabs.
- */
-export function ViewLinks({ views, view, hrefFor, onSelect, className, compact = false }: ViewLinksProps) {
-  return (
-    <nav aria-label="Views" className={className}>
-      {views.map((id) => {
-        const current = id === view;
-        const choose = onSelect
-          ? (event: MouseEvent<HTMLAnchorElement>) => {
-              if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-              event.preventDefault();
-              onSelect(id);
-            }
-          : undefined;
+    <nav aria-label="Sections" className={className}>
+      {items.map(({ id, href, onClick }) => {
+        const current = id === section;
         return (
           <Link
             key={id}
-            href={hrefFor(id)}
+            href={href}
             prefetch={false}
             aria-current={current ? "page" : undefined}
-            onClick={choose}
+            onClick={onClick}
             className={itemClass(current, compact)}
           >
-            <ItemContent view={id} current={current} compact={compact} />
+            <span className={current ? "text-accent-green" : undefined}>{SECTION_ICONS[id]}</span>
+            <span className={compact ? "max-lg:sr-only" : undefined}>{SECTION_LABELS[id]}</span>
           </Link>
         );
       })}

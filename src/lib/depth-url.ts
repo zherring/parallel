@@ -8,7 +8,7 @@
  * itself writes (a person removed, a switch to the flat page) keep or drop it as they need to.
  */
 
-import { DEPTH_VIEW, VIEW_PARAM, searchWithView } from "@/lib/films-view";
+import { DEPTH_VIEW, VIEW_PARAM, searchWithView, type PageView } from "@/lib/films-view";
 import { parsePeriodParams, rawPeriodSearch } from "@/lib/period";
 
 export { DEPTH_VIEW };
@@ -36,6 +36,15 @@ export function depthSearch(search: string): string {
   const params = new URLSearchParams(rawPeriodSearch(parsePeriodParams(search)));
   params.set(VIEW_PARAM, DEPTH_VIEW);
   return `?${params.toString()}`;
+}
+
+/**
+ * The address of `view` for the page at `pathname` that the visitor is on now (`search` is its query, with or without the "?"): what the bar's
+ * links to the views write. The period (`?from=&to=`) goes along to every view; Focus takes nothing else (a sort, a quote and the view it leaves
+ * are the other views' own), and the others keep the rest of the query as `searchWithView` does.
+ */
+export function pageViewHref(pathname: string, search: string, view: PageView): string {
+  return `${pathname}${view === DEPTH_VIEW ? depthSearch(search) : searchWithView(search, view)}`;
 }
 
 /** `href` with `view=depth` set (kept last, before a hash), so a link the Depth view writes lands on the Depth view. */

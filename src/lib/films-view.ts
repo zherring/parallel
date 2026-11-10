@@ -2,7 +2,7 @@
  * The views of a page's films, "Timeline" and "Table" (and, for a pair with curated quotes, critics
  * or reading, "Clippings"), as tabs of one section: which view a
  * URL selects, how a tab change is written back to the URL, how the view is carried when the
- * visitor adds a person, the film count of the headline and the tab keys. Pure, so the rules are
+ * visitor adds a person and the film count of the headline. Pure, so the rules are
  * testable and the server and the browser agree on them.
  *
  * The URL carries the view as `?view=table`. Timeline is the default and is left out, except where
@@ -13,9 +13,8 @@
 
 import { DIR_PARAM, SORT_PARAM } from "@/lib/films-table";
 import { filmCountLabel } from "@/lib/format";
-import { nextTabIndex } from "@/lib/tabs";
 
-/** The views, in tab order. The first one is the default (and what the server always renders). */
+/** The views of the flat page, in order. The first one is the default (and what the server always renders). */
 export const VIEWS = ["timeline", "table", "clippings"] as const;
 export type View = (typeof VIEWS)[number];
 
@@ -74,6 +73,28 @@ export const VIEW_PARAM = "view";
  * The view is only carried from page to page (see `carryView`); the Depth page has no tabs.
  */
 export const DEPTH_VIEW = "depth";
+
+/**
+ * The page's top level is two sections, Films and (for a pair that has quotes or critics) Clippings. Films has three views of the same
+ * films: the flat Timeline, Focus (the Depth view, `?view=depth`) and the Table. The view switcher in the page bar chooses between them,
+ * and the Films tab goes to the one the visitor used last (see `films-view-pref`).
+ */
+export const FILMS_VIEWS = ["timeline", DEPTH_VIEW, "table"] as const;
+export type FilmsView = (typeof FILMS_VIEWS)[number];
+
+export const FILMS_VIEW_LABELS: Record<FilmsView, string> = {
+  timeline: "Timeline",
+  depth: "Focus",
+  table: "Table",
+};
+
+/** Every view a `/p/` page can be on: the three of Films, and the Clippings. */
+export type PageView = FilmsView | "clippings";
+
+/** Whether the view is one of Films' (Timeline, Focus, Table) rather than the Clippings. */
+export function isFilmsView(view: PageView): view is FilmsView {
+  return view !== "clippings";
+}
 
 /** The quote a link to the Clippings opens on (`?view=clippings&quote=<id>`, see `quoteLinkSearch`). It belongs to that view alone. */
 export const QUOTE_PARAM = "quote";
@@ -169,15 +190,6 @@ export function carryView(href: string, currentSearch: string): string {
   const path = hash === -1 ? href : href.slice(0, hash);
   const rest = hash === -1 ? "" : href.slice(hash);
   return `${path}${path.includes("?") ? "&" : "?"}${VIEW_PARAM}=${carried}${rest}`;
-}
-
-/**
- * The view to move to for a key pressed on a tab: ArrowLeft and ArrowRight wrap around, Home and
- * End jump to the first and last. null for any other key. `available` is the tabs on offer, in order.
- */
-export function viewForKey(key: string, current: View, available: readonly View[] = BASE_VIEWS): View | null {
-  const index = nextTabIndex(key, available.indexOf(current), available.length);
-  return index === null ? null : available[index];
 }
 
 /**

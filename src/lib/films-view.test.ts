@@ -6,6 +6,8 @@ import {
   BASE_VIEWS,
   DEFAULT_VIEW,
   DEPTH_VIEW,
+  FILMS_VIEWS,
+  FILMS_VIEW_LABELS,
   VIEWS,
   VIEW_LABELS,
   availableViews,
@@ -13,13 +15,13 @@ import {
   hasClippingsTab,
   headlineCount,
   isFilmView,
+  isFilmsView,
   parseView,
   quoteIdsOf,
   resolveView,
   searchWithView,
   showingMessage,
   showsPeriodNote,
-  viewForKey,
   viewParams,
 } from "@/lib/films-view";
 
@@ -28,6 +30,19 @@ describe("VIEWS", () => {
     expect(VIEWS).toEqual(["timeline", "table", "clippings"]);
     expect(DEFAULT_VIEW).toBe("timeline");
     expect(VIEW_LABELS).toEqual({ timeline: "Timeline", table: "Table", clippings: "Clippings" });
+  });
+});
+
+describe("FILMS_VIEWS", () => {
+  it("is Timeline, Focus and Table, in the order of the switcher; Focus is the Depth view", () => {
+    expect(FILMS_VIEWS).toEqual(["timeline", "depth", "table"]);
+    expect(FILMS_VIEWS[1]).toBe(DEPTH_VIEW);
+    expect(FILMS_VIEW_LABELS).toEqual({ timeline: "Timeline", depth: "Focus", table: "Table" });
+  });
+
+  it("are the views of Films, and the Clippings are not one of them", () => {
+    expect(FILMS_VIEWS.every(isFilmsView)).toBe(true);
+    expect(isFilmsView("clippings")).toBe(false);
   });
 });
 
@@ -286,50 +301,6 @@ describe("carryView", () => {
   it("appends to a query that is already there, and keeps a hash last", () => {
     expect(carryView(`${href}?a=1`, "?view=table")).toBe(`${href}?a=1&view=table`);
     expect(carryView(`${href}#x`, "?view=table")).toBe(`${href}?view=table#x`);
-  });
-});
-
-describe("viewForKey", () => {
-  it("moves between the two tabs with the arrow keys, wrapping", () => {
-    expect(viewForKey("ArrowRight", "timeline")).toBe("table");
-    expect(viewForKey("ArrowRight", "table")).toBe("timeline");
-    expect(viewForKey("ArrowLeft", "timeline")).toBe("table");
-    expect(viewForKey("ArrowLeft", "table")).toBe("timeline");
-  });
-
-  it("jumps to the ends with Home and End", () => {
-    expect(viewForKey("Home", "table")).toBe("timeline");
-    expect(viewForKey("End", "timeline")).toBe("table");
-    expect(viewForKey("Home", "timeline")).toBe("timeline");
-    expect(viewForKey("End", "table")).toBe("table");
-  });
-
-  it("ignores every other key", () => {
-    for (const key of ["Enter", " ", "Tab", "ArrowDown", "ArrowUp", "a", "Escape"]) {
-      expect(viewForKey(key, "timeline")).toBeNull();
-    }
-  });
-
-  describe("with the Clippings tab", () => {
-    const three = availableViews(true);
-
-    it("moves across all three tabs, wrapping", () => {
-      expect(viewForKey("ArrowRight", "timeline", three)).toBe("table");
-      expect(viewForKey("ArrowRight", "table", three)).toBe("clippings");
-      expect(viewForKey("ArrowRight", "clippings", three)).toBe("timeline");
-      expect(viewForKey("ArrowLeft", "timeline", three)).toBe("clippings");
-      expect(viewForKey("ArrowLeft", "clippings", three)).toBe("table");
-    });
-
-    it("jumps to the ends, Clippings being the last", () => {
-      expect(viewForKey("End", "timeline", three)).toBe("clippings");
-      expect(viewForKey("Home", "clippings", three)).toBe("timeline");
-    });
-
-    it("never reaches Clippings on a page without it", () => {
-      expect(viewForKey("ArrowRight", "table")).toBe("timeline");
-      expect(viewForKey("End", "timeline", availableViews(false))).toBe("table");
-    });
   });
 });
 

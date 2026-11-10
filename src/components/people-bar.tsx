@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, ViewTransition, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, ViewTransition, type RefObject } from "react";
 import { PeoplePill, type PillPerson } from "@/components/depth/people-pill";
 import { HomeLink } from "@/components/home-link";
 import { Wordmark } from "@/components/wordmark";
@@ -8,38 +8,30 @@ import { cn } from "@/components/timeline/cn";
 import { ExportButton, type ExportList } from "@/components/timeline/export-button";
 import { FilmSettings } from "@/components/timeline/film-settings";
 import { ShareMenu } from "@/components/timeline/share-menu";
-import { ViewLinks, ViewTabs } from "@/components/timeline/view-tabs";
-import { isFilmView, type View } from "@/lib/films-view";
+import { useFilmsViewPref } from "@/components/timeline/use-films-view-pref";
+import { SectionTabs, inPlace } from "@/components/timeline/view-tabs";
+import { ViewSwitcher } from "@/components/timeline/view-switcher";
+import { DEPTH_VIEW, isFilmsView, type PageView } from "@/lib/films-view";
 import type { ShareInput } from "@/lib/share";
 
 interface PeopleBarProps {
   people: readonly PillPerson[];
   /** The Depth view's scroller, for the pill to close on. None on the flat pages: the window scrolls there. */
   scrollerRef?: RefObject<HTMLDivElement | null>;
-  /** The views the page offers, in order: Timeline and Table, and Clippings for a pair that has quotes or critics (see `availableViews`). */
-  views: readonly View[];
-  /** The view this page is on (the Depth view is the Timeline's). */
-  view: View;
+  /** Whether the page has a Clippings section: a pair with quotes or critics (see `hasClippingsTab`). Without it the bar's Films tab stands alone. */
+  clippings: boolean;
+  /** The view this page is on: Timeline, Focus (the Depth view, `depth`) or Table, which are Films, or the Clippings. */
+  view: PageView;
   /** The address of each view's page. */
-  hrefFor: (view: View) => string;
+  hrefFor: (view: PageView) => string;
   /**
-   * The flat page's views are panels of the page: the bar's views are tabs of them (the panels carry the ids, see `FilmsSection`), which choose the view
-   * in place. Without it (the Depth view, whose Table and Clippings are the flat page) they are links.
+   * The flat page's views (Timeline, Table, Clippings) are panels of the page, which the bar's links choose in place (see `useViewTab`), as
+   * a plain click: the link still opens in a new tab with a modifier. Focus is another page render, so it is always a plain link. Without this
+   * (the Focus page, whose every other view is the flat page) every view is a link.
    */
-  panels?: { idBase: string; onSelect: (view: View) => void };
+  onSelect?: (view: PageView) => void;
   /**
-   * The layout control (Focus, Combined), for the views that have it in the bar: the Timeline, flat and Depth (Focus). `labelled` is the
-   * sheet's wider one, with its words. The flat page passes it on every view and says on which it applies (`layoutShown`).
-   */
-  layoutToggle?: (labelled: boolean) => ReactNode;
-  /**
-   * Whether the layout control applies to the view the page is on (the flat Table and Clippings are not about the timeline's layout). The
-   * flat page keeps the control mounted, out of sight and inert, on those, so that choosing between the Timeline and the other views fades it
-   * in and out in place instead of making it jump. The Depth view's is always shown.
-   */
-  layoutShown?: boolean;
-  /**
-   * The Depth view's year rail is at the right edge (3.75rem wide, 28px on a phone), and the gear, with the layout control before it, sits clear of it.
+   * The Depth view's year rail is at the right edge (3.75rem wide, 28px on a phone), and the gear, with the view switcher before it, sits clear of it.
    * Without a rail (the flat pages) the gear hugs the right edge, with the same gutter the home pill has at the left.
    */
   rail?: boolean;
@@ -69,18 +61,21 @@ const STEPS_ASIDE =
 
 /**
  * The page bar of a `/p/` page, fixed to the top of the screen, the same on every view (the flat Timeline, Table and Clippings, and the Depth
- * view): a small pill home (the site's header is hidden on these pages, see globals.css), the people pill and the page's views beside it at the
- * left, and at the right the gear, and in front of it, on the Depth view, the layout control (Focus, Combined). Everything at the left is in the
- * same place and size on every view. The gear is where its view puts it: on the Depth view clear of the year rail (`rail`), with the layout
- * control before it; on the flat pages, which have no rail, at the right edge, with the gutter the home pill has at the left. Between the flat
- * views it does not move; between a flat view and the Depth view it glides (and the layout control comes and goes), as a view transition: the
- * bar is a different one on each page, so the gear and the control are named for React to pair them up across the navigation (see `ViewTransition`
- * and the `bar-` rules in globals.css). The Depth view puts the bar before its scroller, never inside it (perspective would turn `fixed` into
- * `absolute`); the bar takes no pointer events of its own, only what is in it does, so the scene is draggable up to the controls' edges.
+ * view): a small pill home (the site's header is hidden on these pages, see globals.css), the people pill and the page's two sections, Films and
+ * Clippings, beside it at the left, and at the right the view switcher (Timeline, Focus, Table) and the gear. Everything at the left is in the
+ * same place and size on every view, and so is everything at the right but for what the Depth view's rail asks of it: the gear, with the switcher
+ * before it, sits clear of the year rail on Focus (`rail`), and at the right edge on the flat pages, with the gutter the home pill has at the left.
+ * Between the flat views they do not move; between a flat view and Focus they glide, as a view transition: the bar is a different one on each page,
+ * so the gear and the switcher are named for React to pair them up across the navigation (see `ViewTransition` and the `bar-` rules in globals.css).
+ * The Depth view puts the bar before its scroller, never inside it (perspective would turn `fixed` into `absolute`); the bar takes no pointer events
+ * of its own, only what is in it does, so the scene is draggable up to the controls' edges.
+ *
+ * The Films link goes to the films view last used (see `films-view-pref`), and the switcher is on the Clippings too, where none of its views is the
+ * current one and choosing one goes to it: that keeps the bar's footprint the same on every view.
  *
  * The gear opens the film settings (Show all films and Include minor credits), Share (with its Period choice) and Export (the list as a CSV
- * file), on every view alike. On a phone there is no room for the home pill, the views and the layout control on the bar, so the bar holds
- * the pill's heads and the gear alone, and the gear's sheet holds the views, the layout control and the way home too.
+ * file), on every view alike. On a phone there is no room for the home pill, the sections and the switcher on the bar, so the bar holds
+ * the pill's heads and the gear alone, and the gear's sheet holds the views and the way home too.
  *
  * The bar is as wide as the page's viewport (`inset-x-0`: a flat page with a scrollbar of its own ends the bar at the scrollbar, where the gear's
  * gutter is measured from; the Depth view's scroller hides its own) and sits over the page at `z-30`, under the panels and dialogs.
@@ -88,12 +83,10 @@ const STEPS_ASIDE =
 export function PeopleBar({
   people,
   scrollerRef,
-  views,
+  clippings,
   view,
   hrefFor,
-  panels,
-  layoutToggle,
-  layoutShown = true,
+  onSelect,
   rail = false,
   showAll,
   onShowAllChange,
@@ -106,17 +99,10 @@ export function PeopleBar({
 }: PeopleBarProps) {
   const [status, setStatus] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  /**
-   * Whether the layout control fades when it comes or goes in place. Off until the page has settled: the flat page reads its view from the
-   * address bar once it has hydrated (a link to `?view=table` is the Timeline's HTML first), and that is not a change to animate.
-   */
-  const [settled, setSettled] = useState(false);
+  // The films view the visitor used last: where the Films tab goes (the server and the first client render say the Timeline, as the stored one is read after).
+  const filmsView = useFilmsViewPref();
 
   useEffect(() => () => clearTimeout(timer.current), []);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => setSettled(true));
-    return () => cancelAnimationFrame(frame);
-  }, []);
   /** What Share and Export report (a link copied, a file downloaded), in the sheet, for a few seconds; a live region, so it is also spoken. */
   const announce = useCallback((message: string) => {
     clearTimeout(timer.current);
@@ -125,7 +111,10 @@ export function PeopleBar({
   }, []);
 
   const sectionTitle = "mb-2 text-xs font-medium uppercase tracking-wide text-muted";
-  const exports = isFilmView(view);
+  const exports = isFilmsView(view);
+  /** A plain click on a link to `to` chooses it here when the page shows it in place (Focus never is: it is another page render). */
+  const clickFor = (to: PageView) => inPlace(onSelect && to !== DEPTH_VIEW ? () => onSelect(to) : undefined);
+  const section = view === "clippings" ? "clippings" : "films";
 
   return (
     <div
@@ -151,44 +140,27 @@ export function PeopleBar({
           <Wordmark className="text-base" />
         </HomeLink>
         <PeoplePill people={people} scrollerRef={scrollerRef} />
-        {panels ? (
-          <ViewTabs
-            idBase={panels.idBase}
-            view={view}
-            views={views}
-            onChange={panels.onSelect}
-            compact
-            className={cn("pointer-events-auto mt-1.5 inline-flex shrink-0 rounded-md p-0.5 max-sm:hidden", FLOATING, STEPS_ASIDE)}
-          />
-        ) : (
-          <ViewLinks
-            views={views}
-            view={view}
-            hrefFor={hrefFor}
-            compact
-            className={cn("pointer-events-auto mt-1.5 inline-flex shrink-0 rounded-md p-0.5 max-sm:hidden", FLOATING, STEPS_ASIDE)}
-          />
-        )}
+        <SectionTabs
+          clippings={clippings}
+          section={section}
+          filmsHref={hrefFor(filmsView)}
+          clippingsHref={hrefFor("clippings")}
+          onFilms={clickFor(filmsView)}
+          onClippings={clickFor("clippings")}
+          compact
+          className={cn("pointer-events-auto mt-1.5 inline-flex shrink-0 rounded-md p-0.5 max-sm:hidden", FLOATING, STEPS_ASIDE)}
+        />
       </div>
       {/*
         At the right edge, or, on the Depth view, left of the year rail (3.75rem wide, 28px on a phone) with a gap: nothing there is ever over it.
-        The cluster takes no pointer events itself, so that the layout control, out of sight on the Table and Clippings, does not shield what is under it.
+        The cluster takes no pointer events itself, so that what is between its controls does not shield what is under it.
       */}
       <div className={cn("pointer-events-none mt-2 flex shrink-0 items-center gap-2 max-sm:mt-1.5", rail && "mr-[3.75rem] max-sm:mr-6", STEPS_ASIDE)}>
-        {layoutToggle && (
-          <ViewTransition name="people-bar-layout" share="bar-glide" enter="bar-control-in" exit="bar-control-out" default="none">
-            <div
-              inert={!layoutShown}
-              className={cn(
-                "pointer-events-auto max-sm:hidden",
-                settled && "transition-[opacity,visibility] duration-200 motion-reduce:transition-none",
-                !layoutShown && "invisible opacity-0",
-              )}
-            >
-              {layoutToggle(false)}
-            </div>
-          </ViewTransition>
-        )}
+        <ViewTransition name="people-bar-views" share="bar-glide" default="none">
+          <div className="pointer-events-auto max-sm:hidden">
+            <ViewSwitcher view={view} hrefFor={hrefFor} onClickFor={clickFor} className={FLOATING} />
+          </div>
+        </ViewTransition>
         <ViewTransition name="people-bar-gear" share="bar-glide" default="none">
           <div className="pointer-events-auto flex shrink-0">
             <FilmSettings
@@ -204,21 +176,20 @@ export function PeopleBar({
                 <div className="sm:hidden">
                   <h2 className={sectionTitle}>Views</h2>
                   {/* Choosing a view on the flat page leaves the sheet over it: it closes (see `FilmSettings`). */}
-                  <div data-close-sheet>
-                    <ViewLinks
-                      views={views}
-                      view={view}
-                      hrefFor={hrefFor}
-                      onSelect={panels?.onSelect}
-                      className="grid auto-cols-fr grid-flow-col gap-0.5 rounded-md bg-surface p-0.5"
-                    />
+                  <div data-close-sheet className="flex flex-col gap-2">
+                    {clippings && (
+                      <SectionTabs
+                        clippings
+                        section={section}
+                        filmsHref={hrefFor(filmsView)}
+                        clippingsHref={hrefFor("clippings")}
+                        onFilms={clickFor(filmsView)}
+                        onClippings={clickFor("clippings")}
+                        className="grid auto-cols-fr grid-flow-col gap-0.5 rounded-md bg-surface p-0.5"
+                      />
+                    )}
+                    <ViewSwitcher view={view} hrefFor={hrefFor} onClickFor={clickFor} labelled className="flex w-full bg-surface" />
                   </div>
-                  {layoutToggle && layoutShown && (
-                    <>
-                      <h2 className={cn(sectionTitle, "mt-3")}>Layout</h2>
-                      {layoutToggle(true)}
-                    </>
-                  )}
                   <hr className="my-3 border-border" />
                 </div>
               }

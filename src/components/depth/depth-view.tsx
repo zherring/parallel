@@ -20,7 +20,7 @@ import { demoteMinor, minorOnlyIds } from "@/lib/depth-minor";
 import { DEPTH_VIEW, withDepth } from "@/lib/depth-url";
 import { personRows, sharedRows } from "@/lib/film-rows";
 import { DEFAULT_SORT, sortFilms } from "@/lib/films-table";
-import { availableViews, hasClippingsTab, showingMessage } from "@/lib/films-view";
+import { hasClippingsTab, showingMessage } from "@/lib/films-view";
 import { laneSummary, removePersonHref } from "@/lib/lanes";
 import { outsidePeriodIds, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss, personSlots } from "@/lib/person-colors";
@@ -121,10 +121,10 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
   const period = useMemo(() => resolvePeriod(urlPeriod, periodSpan), [urlPeriod, periodSpan]);
   const outsideIds = useMemo(() => outsidePeriodIds(entries.map((entry) => entry.film), period), [entries, period]);
 
-  // The settings' footing: the page's views (Clippings only for a pair that has some), and what Share posts about, as on the flat page: the
+  // The settings' footing: whether the page has Clippings (a pair that has some), and what Share posts about, as on the flat page: the
   // films a pair made together, or a person's films, as the link opens them (minor credits out).
   const multi = people.length > 1;
-  const views = useMemo(() => availableViews(hasClippingsTab(clippings, critics)), [clippings, critics]);
+  const clippingsTab = hasClippingsTab(clippings, critics);
   const share = useMemo<ShareInput>(
     () => ({ people, count: multi ? shared.length : timelines[0].films.filter((film) => !film.minor).length, years: filmYears }),
     [people, multi, shared.length, timelines, filmYears],
@@ -199,13 +199,11 @@ function DepthViewInner({ timelines, shared, today, clippings, critics }: Props)
       <DepthChrome
         people={pillPeople}
         scrollerRef={scrollerRef}
-        views={views}
-        several={multi}
+        clippings={clippingsTab}
         showAll={showAll}
         onShowAllChange={handleShowAllChange}
         includeMinor={includeMinor}
         onIncludeMinorChange={handleIncludeMinorChange}
-        onTrackModeChange={(trackMode) => setPrefs({ trackMode })}
         settingsMessage={settingsMessage}
         share={share}
         exportList={exportList}

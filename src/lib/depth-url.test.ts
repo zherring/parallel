@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEPTH_VIEW, depthSearch, flatSearch, isDepthView, withDepth } from "@/lib/depth-url";
+import { DEPTH_VIEW, depthSearch, flatSearch, isDepthView, pageViewHref, withDepth } from "@/lib/depth-url";
 
 describe("isDepthView", () => {
   it("is true for view=depth only", () => {
@@ -71,5 +71,36 @@ describe("withDepth", () => {
     expect(withDepth("/p/1032-martin-scorsese+3661-thelma-schoonmaker")).toBe(
       "/p/1032-martin-scorsese+3661-thelma-schoonmaker?view=depth",
     );
+  });
+});
+
+describe("pageViewHref", () => {
+  const path = "/p/1032-martin-scorsese+3661-thelma-schoonmaker";
+
+  it("is the page's own address for the Timeline, Table and Clippings, the view written the way the tabs write it", () => {
+    expect(pageViewHref(path, "", "timeline")).toBe(path);
+    expect(pageViewHref(path, "", "table")).toBe(`${path}?view=table`);
+    expect(pageViewHref(path, "", "clippings")).toBe(`${path}?view=clippings`);
+    expect(pageViewHref(path, "", "depth")).toBe(`${path}?view=depth`);
+  });
+
+  /** The query of an address, as parameters (their order is not the point). */
+  const query = (href: string) => Object.fromEntries(new URL(href, "https://parallel.test").searchParams);
+
+  it("keeps the period on every view, whichever view the visitor is leaving", () => {
+    const period = { from: "1990", to: "2000" };
+    for (const from of ["?from=1990&to=2000", "?from=1990&to=2000&view=depth", "?view=clippings&from=1990&to=2000", "?view=table&from=1990&to=2000"]) {
+      expect(query(pageViewHref(path, from, "timeline")), from).toEqual(period);
+      expect(query(pageViewHref(path, from, "table")), from).toEqual({ ...period, view: "table" });
+      expect(query(pageViewHref(path, from, "clippings")), from).toEqual({ ...period, view: "clippings" });
+      expect(query(pageViewHref(path, from, "depth")), from).toEqual({ ...period, view: "depth" });
+    }
+  });
+
+  it("leaves a quote behind when the Clippings are left, and a sort when Focus is chosen", () => {
+    expect(query(pageViewHref(path, "?view=clippings&quote=short-one&from=1990&to=2000", "table"))).toEqual({ view: "table", from: "1990", to: "2000" });
+    expect(query(pageViewHref(path, "?view=table&sort=year&dir=desc&from=1990&to=2000", "depth"))).toEqual({ from: "1990", to: "2000", view: "depth" });
+    // A sort in the query would read as the Table's: the Timeline says so outright.
+    expect(query(pageViewHref(path, "?view=table&sort=year&dir=desc", "timeline"))).toEqual({ view: "timeline", sort: "year", dir: "desc" });
   });
 });
