@@ -172,35 +172,53 @@ export function viewParams(query: Record<string, ParamValue>): URLSearchParams {
 
 /**
  * The query string (with its "?", or "" when it is empty) after switching to `view`: every other
- * parameter is kept. Table writes `view=table`; Timeline writes nothing, unless a sort is in the
- * query, where it writes `view=timeline` so the sort does not pull the visitor back to the table.
+ * parameter is kept. The view is always written out, the Timeline's `view=timeline` too: a link that names no view
+ * opens the device's default (Films on a phone, the Timeline elsewhere, see `opensDepth`), so a link to the Timeline
+ * has to say so, or a phone would bounce it to Films; and a sort in the query would open the Table.
  * A quote (`quote=<id>`) belongs to the Clippings alone, so any other view drops it: the address bar
  * then no longer names a quote that is not on screen (and a copied link does not unfurl as one).
  */
 export function searchWithView(search: string, view: View): string {
   const params = new URLSearchParams(search);
   if (view !== "clippings") params.delete(QUOTE_PARAM);
-  if (view !== DEFAULT_VIEW) params.set(VIEW_PARAM, view);
-  else if (hasSortParams(params)) params.set(VIEW_PARAM, view);
-  else params.delete(VIEW_PARAM);
+  params.set(VIEW_PARAM, view);
   const text = params.toString();
   return text ? `?${text}` : "";
 }
 
 /**
  * `href` for a navigation to another page of people (a person added from a search, a chip or a
- * film's cast), carrying the view the visitor is on: `currentSearch` is the query of the page they
- * leave. Only the Table and the Depth view need carrying (Timeline is what a page without `view`
- * opens; the Clippings are the pair's own), and the sort does not travel, since the films it ordered are not the films of the new page.
+ * film's cast, or one removed), carrying the view the visitor is on: `currentSearch` is the query of the page they
+ * leave. The Films view (Depth) and the Table are carried, and so is the Timeline when the address names it (`view=timeline`, which is
+ * how every link to it is written): a page that names no view opens the device's default, which is the view the visitor is on exactly when
+ * they came by the plain address, so a plain address stays plain. The Quotes are the pair's own and stay behind, and the sort does not
+ * travel, since the films it ordered are not the films of the new page.
  */
 export function carryView(href: string, currentSearch: string): string {
-  const carried = new URLSearchParams(currentSearch).get(VIEW_PARAM) === DEPTH_VIEW ? DEPTH_VIEW : parseView(currentSearch);
-  // Timeline is what a page without `view` opens; the Clippings belong to the pair they are about, so they stay behind.
-  if (carried !== DEPTH_VIEW && carried !== "table") return href;
+  const named = new URLSearchParams(currentSearch).get(VIEW_PARAM);
+  const parsed = parseView(currentSearch);
+  const carried = named === DEPTH_VIEW ? DEPTH_VIEW : parsed === "timeline" && named !== "timeline" ? null : parsed;
+  if (carried === null || carried === "clippings") return href;
   const hash = href.indexOf("#");
   const path = hash === -1 ? href : href.slice(0, hash);
   const rest = hash === -1 ? "" : href.slice(hash);
   return `${path}${path.includes("?") ? "&" : "?"}${VIEW_PARAM}=${carried}${rest}`;
+}
+
+/**
+ * Whether the address names a view of its own, so that the device's default does not decide: `view=` one of the views (Films, which is `depth`, included),
+ * a quote of the page's own (`quoteIds`, which opens the Quotes) or a sort (which opens the Table). A `view` the page does not know names none.
+ */
+export function namesView(
+  search: string | URLSearchParams | Record<string, ParamValue>,
+  quoteIds: Iterable<string> = [],
+): boolean {
+  const params = paramsOf(search);
+  const view = params.get(VIEW_PARAM);
+  if (view === DEPTH_VIEW || VIEWS.some((named) => named === view)) return true;
+  const quote = params.get(QUOTE_PARAM)?.trim();
+  if (quote) for (const id of quoteIds) if (id === quote) return true;
+  return hasSortParams(params);
 }
 
 /**

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEPTH_VIEW, depthSearch, flatSearch, isDepthView, pageViewHref, withDepth } from "@/lib/depth-url";
+import { DEPTH_VIEW, depthSearch, flatSearch, isDepthView, opensDepth, pageViewHref, withDepth } from "@/lib/depth-url";
 
 describe("isDepthView", () => {
   it("is true for view=depth only", () => {
@@ -21,16 +21,52 @@ describe("isDepthView", () => {
 });
 
 describe("flatSearch", () => {
-  it("drops view=depth and keeps the period and any other parameter", () => {
-    expect(flatSearch("?view=depth")).toBe("");
-    expect(flatSearch("view=depth")).toBe("");
-    expect(flatSearch("?view=depth&from=1990&to=2000")).toBe("?from=1990&to=2000");
-    expect(flatSearch("?from=1990&view=depth&to=2000&a=1")).toBe("?from=1990&to=2000&a=1");
+  it("turns view=depth into view=timeline, said outright, and keeps the period and any other parameter", () => {
+    expect(flatSearch("?view=depth")).toBe("?view=timeline");
+    expect(flatSearch("view=depth")).toBe("?view=timeline");
+    expect(flatSearch("?view=depth&from=1990&to=2000")).toBe("?view=timeline&from=1990&to=2000");
+    expect(flatSearch("?from=1990&view=depth&to=2000&a=1")).toBe("?from=1990&view=timeline&to=2000&a=1");
   });
 
-  it("is the same query when it was not the Depth view", () => {
-    expect(flatSearch("")).toBe("");
-    expect(flatSearch("?from=1990&to=2000")).toBe("?from=1990&to=2000");
+  it("names the Timeline even when the query named no view: a plain address opens Films on a phone", () => {
+    expect(flatSearch("")).toBe("?view=timeline");
+    expect(flatSearch("?from=1990&to=2000")).toBe("?from=1990&to=2000&view=timeline");
+  });
+});
+
+describe("opensDepth", () => {
+  const quotes = ["a-quote"];
+
+  it("opens Films on a phone, and the Timeline everywhere else, for an address that names no view", () => {
+    expect(opensDepth({}, quotes, true)).toBe(true);
+    expect(opensDepth({}, quotes, false)).toBe(false);
+    // A period or any other parameter names no view.
+    expect(opensDepth({ from: "1990", to: "2000" }, quotes, true)).toBe(true);
+    expect(opensDepth({ from: "1990", to: "2000" }, quotes, false)).toBe(false);
+    expect(opensDepth({ utm_source: "x" }, quotes, true)).toBe(true);
+  });
+
+  it("lets a view the address names win over the device, in both directions", () => {
+    expect(opensDepth({ view: "depth" }, quotes, false)).toBe(true);
+    expect(opensDepth({ view: "depth" }, quotes, true)).toBe(true);
+    for (const view of ["timeline", "table", "clippings"]) {
+      expect(opensDepth({ view }, quotes, true), view).toBe(false);
+      expect(opensDepth({ view }, quotes, false), view).toBe(false);
+    }
+  });
+
+  it("takes the first of a repeated view", () => {
+    expect(opensDepth({ view: ["table", "depth"] }, quotes, true)).toBe(false);
+    expect(opensDepth({ view: ["depth", "table"] }, quotes, false)).toBe(true);
+  });
+
+  it("counts a sort, and a quote of the page's own, as naming a view (the Table and the Quotes)", () => {
+    expect(opensDepth({ sort: "rating", dir: "desc" }, quotes, true)).toBe(false);
+    expect(opensDepth({ quote: "a-quote" }, quotes, true)).toBe(false);
+    // A quote the page does not have, and a view it does not know, name nothing.
+    expect(opensDepth({ quote: "not-its" }, quotes, true)).toBe(true);
+    expect(opensDepth({ view: "bogus" }, quotes, true)).toBe(true);
+    expect(opensDepth({ view: "bogus" }, quotes, false)).toBe(false);
   });
 });
 
@@ -77,8 +113,8 @@ describe("withDepth", () => {
 describe("pageViewHref", () => {
   const path = "/p/1032-martin-scorsese+3661-thelma-schoonmaker";
 
-  it("is the page's own address for the Timeline, Table and Clippings, the view written the way the tabs write it", () => {
-    expect(pageViewHref(path, "", "timeline")).toBe(path);
+  it("is the page's own address with the view written out, for every view: the Timeline's too, since a plain address opens Films on a phone", () => {
+    expect(pageViewHref(path, "", "timeline")).toBe(`${path}?view=timeline`);
     expect(pageViewHref(path, "", "table")).toBe(`${path}?view=table`);
     expect(pageViewHref(path, "", "clippings")).toBe(`${path}?view=clippings`);
     expect(pageViewHref(path, "", "depth")).toBe(`${path}?view=depth`);
@@ -90,7 +126,7 @@ describe("pageViewHref", () => {
   it("keeps the period on every view, whichever view the visitor is leaving", () => {
     const period = { from: "1990", to: "2000" };
     for (const from of ["?from=1990&to=2000", "?from=1990&to=2000&view=depth", "?view=clippings&from=1990&to=2000", "?view=table&from=1990&to=2000"]) {
-      expect(query(pageViewHref(path, from, "timeline")), from).toEqual(period);
+      expect(query(pageViewHref(path, from, "timeline")), from).toEqual({ ...period, view: "timeline" });
       expect(query(pageViewHref(path, from, "table")), from).toEqual({ ...period, view: "table" });
       expect(query(pageViewHref(path, from, "clippings")), from).toEqual({ ...period, view: "clippings" });
       expect(query(pageViewHref(path, from, "depth")), from).toEqual({ ...period, view: "depth" });

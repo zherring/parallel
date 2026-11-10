@@ -18,6 +18,7 @@ import {
   headlineCount,
   isFilmView,
   isFilmsView,
+  namesView,
   parseView,
   quoteIdsOf,
   resolveView,
@@ -106,7 +107,7 @@ describe("the clippings view in the URL", () => {
   it("is selected by ?view=clippings and written back the same way", () => {
     expect(parseView("?view=clippings")).toBe("clippings");
     expect(searchWithView("", "clippings")).toBe("?view=clippings");
-    expect(searchWithView("?view=clippings", "timeline")).toBe("");
+    expect(searchWithView("?view=clippings", "timeline")).toBe("?view=timeline");
     expect(searchWithView("?foo=1&view=clippings", "table")).toBe("?foo=1&view=table");
   });
 
@@ -207,7 +208,7 @@ describe("parseView", () => {
     });
 
     it("is dropped again by a change of view, which writes nothing that would bring the Clippings back", () => {
-      expect(searchWithView("?quote=short-one", "timeline")).toBe("");
+      expect(searchWithView("?quote=short-one", "timeline")).toBe("?view=timeline");
       expect(searchWithView("?quote=short-one", "table")).toBe("?view=table");
       expect(parseView(searchWithView("?quote=short-one", "timeline"), ["short-one"])).toBe("timeline");
       expect(parseView(searchWithView("?quote=short-one", "table"), ["short-one"])).toBe("table");
@@ -249,21 +250,22 @@ describe("searchWithView", () => {
     expect(searchWithView("?view=timeline", "table")).toBe("?view=table");
   });
 
-  it("writes nothing for the timeline, the default", () => {
-    expect(searchWithView("", "timeline")).toBe("");
-    expect(searchWithView("?view=table", "timeline")).toBe("");
+  it("writes view=timeline for the timeline too: a plain address opens Films on a phone, so a link to the Timeline has to say so", () => {
+    expect(searchWithView("", "timeline")).toBe("?view=timeline");
+    expect(searchWithView("?view=table", "timeline")).toBe("?view=timeline");
+    expect(searchWithView("?view=depth", "timeline")).toBe("?view=timeline");
   });
 
   it("keeps the other parameters", () => {
     expect(searchWithView("?foo=1", "table")).toBe("?foo=1&view=table");
-    expect(searchWithView("?foo=1&view=table", "timeline")).toBe("?foo=1");
+    expect(searchWithView("?foo=1&view=table", "timeline")).toBe("?foo=1&view=timeline");
   });
 
   it("keeps a quote on the Clippings and drops it from any other view, which has no quote on screen", () => {
     expect(searchWithView("?view=clippings&quote=a-quote", "clippings")).toBe("?view=clippings&quote=a-quote");
-    expect(searchWithView("?view=clippings&quote=a-quote", "timeline")).toBe("");
+    expect(searchWithView("?view=clippings&quote=a-quote", "timeline")).toBe("?view=timeline");
     expect(searchWithView("?view=clippings&quote=a-quote", "table")).toBe("?view=table");
-    expect(searchWithView("?foo=1&quote=a-quote&view=clippings", "timeline")).toBe("?foo=1");
+    expect(searchWithView("?foo=1&quote=a-quote&view=clippings", "timeline")).toBe("?foo=1&view=timeline");
   });
 
   it("keeps the table's sort when the view changes", () => {
@@ -304,15 +306,46 @@ describe("carryView", () => {
     expect(carryView(`${href}#x`, "?view=depth")).toBe(`${href}?view=depth#x`);
   });
 
-  it("leaves the href alone for the timeline, which is what a page without a view opens", () => {
+  it("carries the timeline when the address names it, as every link to it does: on a phone a plain address would open Films", () => {
+    expect(carryView(href, "?view=timeline")).toBe(`${href}?view=timeline`);
+    expect(carryView(href, "?view=timeline&from=1990&to=2000")).toBe(`${href}?view=timeline`);
+    expect(carryView(href, "?view=timeline&sort=rating&dir=desc")).toBe(`${href}?view=timeline`);
+  });
+
+  it("leaves the href plain for a plain address, which opens the same view on the same device", () => {
     expect(carryView(href, "")).toBe(href);
-    expect(carryView(href, "?view=timeline")).toBe(href);
-    expect(carryView(href, "?view=timeline&sort=rating&dir=desc")).toBe(href);
+    expect(carryView(href, "?from=1990&to=2000")).toBe(href);
+  });
+
+  it("leaves the quotes behind", () => {
+    expect(carryView(href, "?view=clippings")).toBe(href);
+    expect(carryView(href, "?quote=a-quote")).toBe(href);
   });
 
   it("appends to a query that is already there, and keeps a hash last", () => {
     expect(carryView(`${href}?a=1`, "?view=table")).toBe(`${href}?a=1&view=table`);
     expect(carryView(`${href}#x`, "?view=table")).toBe(`${href}?view=table#x`);
+  });
+});
+
+describe("namesView", () => {
+  it("is true for each view the address says outright, Films (depth) included", () => {
+    for (const view of ["depth", "timeline", "table", "clippings"]) expect(namesView(`?view=${view}`), view).toBe(true);
+  });
+
+  it("is true for a sort, and for a quote of the page's own, which open the Table and the Quotes without saying so", () => {
+    expect(namesView("?sort=rating&dir=desc")).toBe(true);
+    expect(namesView("?quote=a", ["a", "b"])).toBe(true);
+    expect(namesView("?quote=c", ["a", "b"])).toBe(false);
+  });
+
+  it("is false for no query, a period, another parameter or a view the page does not know", () => {
+    for (const search of ["", "?", "?from=1990&to=2000", "?utm_source=x", "?view=bogus", "?view="]) expect(namesView(search), search).toBe(false);
+  });
+
+  it("reads a page's searchParams too, and the first of a repeated parameter", () => {
+    expect(namesView({ view: ["table", "depth"] })).toBe(true);
+    expect(namesView({ view: undefined, from: "1990" })).toBe(false);
   });
 });
 
