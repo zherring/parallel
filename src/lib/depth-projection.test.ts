@@ -137,7 +137,7 @@ describe("inWindow", () => {
 });
 
 describe("per-poster factors", () => {
-  // Posters of one layer (the first person's, 320px back) pushed back by 0, a quarter, a half and all of the spread.
+  // Posters of one layer (the first person's, `DEPTH.z[1]` back) pushed back by 0, a quarter, a half and all of the spread.
   const depths = [0, 0.25, 0.5, 1].map((o) => DEPTH.z[1] + depthPush(o));
   const fs = depths.map((depth) => posterFactor({ depth }));
 

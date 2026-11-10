@@ -453,12 +453,12 @@ const drawnAs = (page: Page, id: string) =>
 
 test("hovering a background poster brings it to full opacity and sharpness where it is: no growth, no lift, no copy, and its card opens", async ({ page }) => {
   await openDepth(page);
-  // The most obscure film of the page: 0.45 at rest and soft, on its layer's plane 320px further back.
+  // The most obscure film of the page: 0.45 at rest and soft, on its layer's plane 278px further back (the whole spread).
   const centre = await scrollToCentre(page, 1014);
   const rest = await drawnAs(page, "1014");
   expect(rest).toMatchObject({ pinned: false, focus: 0 });
   expect(rest.opacity).toBeCloseTo(0.45, 2);
-  expect(rest.liTransform).toBe("translateZ(-320px)");
+  expect(rest.liTransform).toBe("translateZ(-278px)");
 
   await page.mouse.move(centre.x, centre.y);
   await expect.poll(async () => (await drawnAs(page, "1014")).opacity).toBeCloseTo(1, 2);
@@ -567,16 +567,16 @@ test("background posters rest at 0.8 for the best-known film and fade, blur and 
   await showAllFilms(page);
   const [famous, middling, obscure, nothing] = await Promise.all([1000, 1005, 1010, 1014].map((id) => lookOf(page, id)));
 
-  // The best-known background film of the page: 0.8 at rest, about 1px of blur, on its layer's plane (320px back, factor 1000/1320).
+  // The best-known background film of the page: 0.8 at rest, about 0.85px of blur, on its layer's plane (148px back, factor 1000/1148).
   expect(famous.opacity).toBeCloseTo(0.8, 2);
-  expect(famous.blur).toBeCloseTo(1, 2);
+  expect(famous.blur).toBeCloseTo(0.85, 2);
   expect(famous.transform).toBe("translateZ(0px)");
-  expect(famous.f).toBeCloseTo(1000 / 1320, 4);
-  // The film with no votes: faintest (0.45), softest (3px) and furthest back (the layer's plane plus the whole spread, 320px).
+  expect(famous.f).toBeCloseTo(1000 / 1148, 4);
+  // The film with no votes: faintest (0.45), softest (2.55px) and furthest back (the layer's plane plus the whole spread, 278px).
   expect(nothing.opacity).toBeCloseTo(0.45, 2);
-  expect(nothing.blur).toBeCloseTo(3, 2);
-  expect(nothing.transform).toBe("translateZ(-320px)");
-  expect(nothing.f).toBeCloseTo(1000 / 1640, 4);
+  expect(nothing.blur).toBeCloseTo(2.55, 2);
+  expect(nothing.transform).toBe("translateZ(-278px)");
+  expect(nothing.f).toBeCloseTo(1000 / 1426, 4);
   // And monotonic in between, on every cue.
   for (const [nearer, further] of [[famous, middling], [middling, obscure], [obscure, nothing]]) {
     expect(further.opacity).toBeLessThan(nearer.opacity);
@@ -1540,7 +1540,7 @@ test("turning on minor credits in the gear adds them as background posters, fain
     const look = await lookOf(page, id);
     expect(look.opacity).toBeLessThan(0.55);
     expect(look.opacity).toBeGreaterThanOrEqual(0.45);
-    expect(look.blur).toBeGreaterThan(2);
+    expect(look.blur).toBeGreaterThan(1.7);
   }
   expect((await lookOf(page, 1100)).f).toBeLessThan((await lookOf(page, 1001)).f);
   await expect(scene(page).locator('[data-poster="300"] button')).not.toHaveAttribute("data-layer", "0");
@@ -1986,10 +1986,10 @@ test.describe("on a phone", () => {
   test("posters are as faint and soft as their film is obscure, gently, and the middle of the screen brings one to full opacity", async ({ page }) => {
     await openDepth(page);
     const [famous, nothing] = await Promise.all([1000, 1014].map((id) => lookOf(page, id)));
-    // The same opacities as on a desktop, a gentler blur (0.5px to 1.5px: it is what costs on a phone).
+    // The same opacities as on a desktop, a gentler blur (0.425px to 1.275px: it is what costs on a phone; the poster writes it to two decimals).
     expect([famous.opacity, nothing.opacity].map((value) => Math.round(value * 100) / 100)).toEqual([0.8, 0.45]);
-    expect(famous.blur).toBeCloseTo(0.5, 2);
-    expect(nothing.blur).toBeCloseTo(1.5, 2);
+    expect(famous.blur).toBeCloseTo(0.425, 1);
+    expect(nothing.blur).toBeCloseTo(1.275, 1);
     expect(nothing.f).toBeLessThan(famous.f);
 
     // A finger has no hover: the band through the middle of the screen is the focus. Scrolled to the middle, a poster is fully opaque and sharp;

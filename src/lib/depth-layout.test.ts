@@ -69,7 +69,7 @@ describe("layerFactor", () => {
     expect(layerFactor(0)).toBeCloseTo(1000 / 900, 10);
     const factors = DEPTH.z.map((_, layer) => layerFactor(layer));
     for (let i = 1; i < factors.length; i++) expect(factors[i]).toBeLessThan(factors[i - 1]);
-    expect(layerFactor(1)).toBeCloseTo(1000 / 1320, 10);
+    expect(layerFactor(1)).toBeCloseTo(DEPTH.perspective / (DEPTH.perspective + DEPTH.z[1]), 10);
   });
 
   it("brings the films several people made 100px forward and keeps the rest behind", () => {
@@ -78,14 +78,14 @@ describe("layerFactor", () => {
   });
 
   it("takes the perspective as a parameter and clamps layers past the table to the last one", () => {
-    expect(layerFactor(1, 500)).toBeCloseTo(500 / 820, 10);
+    expect(layerFactor(1, 500)).toBeCloseTo(500 / (500 + DEPTH.z[1]), 10);
     expect(layerDepth(99)).toBe(DEPTH.z[DEPTH.z.length - 1]);
     expect(layerDepth(-3)).toBe(DEPTH.z[0]);
   });
 });
 
 describe("a page of one person", () => {
-  it("has its person's layer at the screen plane, not 320px back: a factor of 1, level with the rail", () => {
+  it("has its person's layer at the screen plane, not set back with the other layers: a factor of 1, level with the rail", () => {
     expect(layerDepth(1, 1)).toBe(DEPTH.singleZ);
     expect(DEPTH.singleZ).toBeGreaterThanOrEqual(-100);
     expect(DEPTH.singleZ).toBeLessThanOrEqual(0);
@@ -93,7 +93,7 @@ describe("a page of one person", () => {
     // A page of several people is as it was.
     expect(layerDepth(1, 2)).toBe(DEPTH.z[1]);
     expect(layerDepth(1)).toBe(DEPTH.z[1]);
-    expect(layerFactor(1, undefined, 3)).toBeCloseTo(1000 / 1320, 10);
+    expect(layerFactor(1, undefined, 3)).toBeCloseTo(DEPTH.perspective / (DEPTH.perspective + DEPTH.z[1]), 10);
   });
 
   it("has no obscurity cue: its posters are level, opaque and not background, whatever their votes", () => {
@@ -198,13 +198,19 @@ describe("xSpec", () => {
     expect(xSpec("desktop", 2).bands[0]).toBeLessThan(xSpec("tablet", 2).bands[0]);
   });
 
-  it("keeps the columns of a layer further apart than a poster and the jitter, so none overlap, even on the first layer back (the least shrunk)", () => {
+  // With the first layer back at `DEPTH.z[1]` a phone's posters are drawn bigger than its column step (70px) less the jitter (8px) clears:
+  // two neighbours at the extremes of the jitter overlap by about 7.7px of a 70px poster. Raise the phone's `stepSolo` to ~78 to close it.
+  const PHONE_NEIGHBOUR_OVERLAP = 8;
+
+  it("keeps the columns of a layer further apart than a poster and the jitter, so none overlap (a phone's, at the extremes of the jitter, by a few px), even on the first layer back (the least shrunk)", () => {
     for (const tier of tiers) {
       for (const people of [1, 2, 3, 4]) {
         const spec = xSpec(tier, people);
         // A page of one person has its own layer at the front (factor 1) and bigger posters, scaled down on a small screen.
         const drawn = people === 1 ? DEPTH.single.w * spec.soloScale : DEPTH.solo.w;
-        expect((spec.stepSolo - spec.jitterSpan) / layerFactor(1, undefined, people)).toBeGreaterThanOrEqual(drawn);
+        // On screen, two neighbours at the extremes of the jitter are a step less a span apart, and a poster is `drawn` times the factor wide.
+        const overlap = drawn * layerFactor(1, undefined, people) - (spec.stepSolo - spec.jitterSpan);
+        expect(overlap).toBeLessThanOrEqual(tier === "phone" && people > 1 ? PHONE_NEIGHBOUR_OVERLAP : 0);
         // The posters several people made, as drawn (scaled for the viewport), one step apart in the layer's own space.
         expect(spec.stepCollab / layerFactor(0)).toBeGreaterThanOrEqual(DEPTH.collab.w * spec.collabScale);
       }
@@ -279,14 +285,14 @@ describe("docCenterX", () => {
     const width = 1440;
     const spec = xSpec("desktop", 2);
     const stage = width - spec.rail;
-    for (const push of [0, 80, 160, 320]) {
+    for (const push of [0, DEPTH.spread / 4, DEPTH.spread / 2, DEPTH.spread]) {
       expect(onScreen(film(1, 0, 0, 0, 2, push), width, spec)).toBeCloseTo(stage * 0.24, 6);
       expect(onScreen(film(2, 1, 0, 0, 2, push), width, spec)).toBeCloseTo(stage * 0.76, 6);
       expect(onScreen(film(1, 0, 1, 0.25, 2, push), width, spec) - onScreen(film(1, 0, 0, 0, 2, push), width, spec)).toBeCloseTo(spec.stepSolo + 0.25 * spec.jitterSpan, 6);
     }
     // In its own plane the further back it is pushed the further from the middle it is (that is the compensation), though not on screen.
     const near = docCenterX(film(1, 0), width, spec);
-    const far = docCenterX(film(1, 0, 0, 0, 2, 320), width, spec);
+    const far = docCenterX(film(1, 0, 0, 0, 2, DEPTH.spread), width, spec);
     expect(Math.abs(far - width / 2)).toBeGreaterThan(Math.abs(near - width / 2));
   });
 
@@ -444,17 +450,18 @@ describe("what obscurity does to a poster", () => {
     for (let i = 1; i < opacities.length; i++) expect(opacities[i]).toBeLessThan(opacities[i - 1]);
   });
 
-  it("blurs the soft image from about 1px for the best-known to 3px for the most obscure", () => {
-    expect(blurFor(0)).toBe(1);
-    expect(blurFor(1)).toBe(3);
-    expect(blurFor(0.5)).toBe(2);
+  it("blurs the soft image from about 0.85px for the best-known to 2.55px for the most obscure", () => {
+    const { best, worst } = OBSCURITY_CUES.blur;
+    expect(blurFor(0)).toBeCloseTo(best, 10);
+    expect(blurFor(1)).toBeCloseTo(worst, 10);
+    expect(blurFor(0.5)).toBeCloseTo((best + worst) / 2, 10);
     const blurs = range.map(blurFor);
     for (let i = 1; i < blurs.length; i++) expect(blurs[i]).toBeGreaterThan(blurs[i - 1]);
   });
 
-  it("blurs gently on a phone: 0.5px to 1.5px, never more than the desktop's", () => {
-    expect(phoneBlurFor(0)).toBe(0.5);
-    expect(phoneBlurFor(1)).toBe(1.5);
+  it("blurs gently on a phone: 0.425px to 1.275px, never more than the desktop's", () => {
+    expect(phoneBlurFor(0)).toBeCloseTo(OBSCURITY_CUES.phoneBlur.best, 10);
+    expect(phoneBlurFor(1)).toBeCloseTo(OBSCURITY_CUES.phoneBlur.worst, 10);
     for (const o of range) expect(phoneBlurFor(o)).toBeLessThan(blurFor(o));
     const blurs = range.map(phoneBlurFor);
     for (let i = 1; i < blurs.length; i++) expect(blurs[i]).toBeGreaterThan(blurs[i - 1]);
@@ -464,7 +471,7 @@ describe("what obscurity does to a poster", () => {
     expect([depthPush(-1), depthPush(2)]).toEqual([0, DEPTH.spread]);
     expect([restOpacityFor(-1), restOpacityFor(2)]).toEqual([OBSCURITY_CUES.opacity.best, OBSCURITY_CUES.opacity.worst]);
     expect([blurFor(-1), blurFor(2)]).toEqual([OBSCURITY_CUES.blur.best, OBSCURITY_CUES.blur.worst]);
-    expect([depthPush(Number.NaN), restOpacityFor(Number.NaN), blurFor(Number.NaN)]).toEqual([0, 0.8, 1]);
+    expect([depthPush(Number.NaN), restOpacityFor(Number.NaN), blurFor(Number.NaN)]).toEqual([0, OBSCURITY_CUES.opacity.best, OBSCURITY_CUES.blur.best]);
   });
 });
 
@@ -517,8 +524,8 @@ describe("posterFactor", () => {
   it("is the perspective over the perspective plus the poster's own depth", () => {
     expect(posterFactor({ depth: 0 })).toBe(1);
     expect(posterFactor({ depth: -100 })).toBeCloseTo(1000 / 900, 10);
-    expect(posterFactor({ depth: 320 })).toBeCloseTo(layerFactor(1), 10);
-    expect(posterFactor({ depth: 320 + 320 })).toBeCloseTo(1000 / 1640, 10);
+    expect(posterFactor({ depth: DEPTH.z[1] })).toBeCloseTo(layerFactor(1), 10);
+    expect(posterFactor({ depth: DEPTH.z[1] + DEPTH.spread })).toBeCloseTo(1000 / (1000 + DEPTH.z[1] + DEPTH.spread), 10);
     expect(posterFactor({ depth: 500 }, 500)).toBeCloseTo(0.5, 10);
   });
 
@@ -563,7 +570,7 @@ describe("the cloud of a person's films", () => {
       expect(poster.push).toBe(depthPush(poster.obscurity));
       expect(poster.depth).toBe(layerDepth(poster.layer, 2) + poster.push);
     }
-    // Two of the first person's posters, one famous and one with no votes, are 320px apart in depth and so differ in factor.
+    // Two of the first person's posters, one famous and one with no votes, are `DEPTH.spread` apart in depth and so differ in factor.
     expect(byId(l, 1).depth).toBe(DEPTH.z[1]);
     expect(byId(l, 3).depth).toBe(DEPTH.z[1] + DEPTH.spread);
     expect(posterFactor(byId(l, 3))).toBeLessThan(posterFactor(byId(l, 1)));

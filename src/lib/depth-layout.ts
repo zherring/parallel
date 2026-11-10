@@ -45,13 +45,13 @@ export const DEPTH = {
    * The first is negative: the films several people made float 100px in front of the screen plane (`translateZ(+100px)`),
    * drawn a ninth larger than they are laid out and moving a ninth faster than the scroll.
    */
-  z: [-100, 320, 640, 900, 1100],
+  z: [-100, 148, 427, 652, 826],
   /**
    * How far (px) behind its layer the most obscure film of a person is pushed (`depthPush`): the best-known stay on the layer's
    * plane. It is the gap between layers 1 and 2 (and 0 and 1), so the first person's cloud ends where the second's begins, and
-   * it overlaps the next person's by only 60 and 120px for slots 3 and 4, whose layers are closer together.
+   * it overlaps the next person's by only 53 and 104px for slots 3 and 4, whose layers are closer together.
    */
-  spread: 320,
+  spread: 278,
   pxPerYear: 128,
   /** Empty space before the first and after the last year, so the edge posters are not cut off. */
   pad: 200,
@@ -87,8 +87,8 @@ export const DEPTH = {
  */
 export const OBSCURITY_CUES = {
   opacity: { best: 0.8, worst: 0.45 },
-  blur: { best: 1, worst: 3 },
-  phoneBlur: { best: 0.5, worst: 1.5 },
+  blur: { best: 0.85, worst: 2.55 },
+  phoneBlur: { best: 0.425, worst: 1.275 },
 } as const;
 
 /** Viewport widths (px) from which the `tablet` and `desktop` spacings apply: Tailwind's `sm` and `lg`. */
@@ -217,7 +217,7 @@ export function layerFactor(layer: number, perspective: number = DEPTH.perspecti
 
 /**
  * Distance behind the screen plane (px) of a layer (negative in front of it); layers past the table share the last
- * one's. On a page of one person there are no films made together, and the person's own layer is not 320px back but at
+ * one's. On a page of one person there are no films made together, and the person's own layer is not 148px back but at
  * `DEPTH.singleZ`, the front.
  */
 export function layerDepth(layer: number, peopleCount: number = 2): number {
@@ -291,12 +291,12 @@ export function restOpacityFor(obscurity: number): number {
   return lerp(OBSCURITY_CUES.opacity.best, OBSCURITY_CUES.opacity.worst, obscurity);
 }
 
-/** Blur (px) of a background poster's soft image while it is out of focus: about 1px for the best-known to 3px for the most obscure. */
+/** Blur (px) of a background poster's soft image while it is out of focus: about 0.85px for the best-known to 2.55px for the most obscure. */
 export function blurFor(obscurity: number): number {
   return lerp(OBSCURITY_CUES.blur.best, OBSCURITY_CUES.blur.worst, obscurity);
 }
 
-/** The same on a phone, where a blur is what costs: gentler, 0.5px to 1.5px. */
+/** The same on a phone, where a blur is what costs: gentler, 0.425px to 1.275px. */
 export function phoneBlurFor(obscurity: number): number {
   return lerp(OBSCURITY_CUES.phoneBlur.best, OBSCURITY_CUES.phoneBlur.worst, obscurity);
 }
