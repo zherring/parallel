@@ -56,7 +56,7 @@ export interface PersonTimeline {
   films: Film[];
   /**
    * Set when the short-film lookup was cut short or lost a page, so some shorts may count as
-   * ordinary credits (see `getShortMovieIds`). Absent otherwise. Whatever is derived from a
+   * ordinary credits (see `getPersonMovieCredits`). Absent otherwise. Whatever is derived from a
    * timeline that has it should not be kept for long.
    */
   shortsIncomplete?: true;

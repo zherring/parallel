@@ -24,9 +24,7 @@ import {
 } from "@/lib/seo";
 import { sharedFilms, sharedFilmsPairwise } from "@/lib/shared";
 
-// Seconds this function may run. Set explicitly because the platform's default may be shorter than
-// the 12s a TMDB request is given (REQUEST_DEADLINE_MS in src/lib/tmdb.ts), which would then never
-// fire. Keep it above that with room to render; src/app/max-duration.test.ts checks.
+// Seconds this function may run; why this value: see REQUEST_DEADLINE_MS in src/lib/tmdb.ts.
 export const maxDuration = 20;
 
 type Query = Record<string, string | string[] | undefined>;

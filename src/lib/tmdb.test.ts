@@ -8,7 +8,6 @@ import {
   getFilmDetails,
   getMovieMetrics,
   getPersonMovieCredits,
-  getShortMovieIds,
   __resetTmdbClientStateForTests,
   searchPeople,
   searchPeopleWithPopularity,
@@ -24,6 +23,27 @@ const json = (body: unknown, status = 200, headers: Record<string, string> = {})
 const networkError = (code = "ECONNRESET") =>
   new TypeError("fetch failed", { cause: Object.assign(new Error(`read ${code}`), { code }) });
 
+/**
+ * The ids the short-film lookup found, read through the public getPersonMovieCredits: its person
+ * and movie_credits requests are answered here, so `fetchMock` sees only the discover requests,
+ * and a film of the canned credits (ids 1 to 100) comes back minor exactly when discover listed it.
+ */
+let answerPersonRequests = false;
+const personRequests = (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+  const path = new URL(String(input)).pathname;
+  if (answerPersonRequests && /^\/3\/person\/\d+$/.test(path)) return Promise.resolve(json({ id: 1, name: "A" }));
+  if (answerPersonRequests && /^\/3\/person\/\d+\/movie_credits$/.test(path)) {
+    const crew = Array.from({ length: 100 }, (_, i) => ({ id: i + 1, title: "T", release_date: "2000-01-01", poster_path: null, job: "Director" }));
+    return Promise.resolve(json({ cast: [], crew }));
+  }
+  return fetchMock(input, init);
+};
+async function shortMovieIds(personId: number): Promise<Set<number>> {
+  answerPersonRequests = true;
+  const { films } = await getPersonMovieCredits(personId);
+  return new Set(films.filter((film) => film.minor).map((film) => film.id));
+}
+
 const lastCall = (n = 0) => {
   const [url, init] = fetchMock.mock.calls[n];
   return { url: new URL(String(url)), init: init as RequestInit & { next?: { revalidate: number } } };
@@ -31,7 +51,8 @@ const lastCall = (n = 0) => {
 
 beforeEach(() => {
   __resetTmdbClientStateForTests();
-  vi.stubGlobal("fetch", fetchMock);
+  vi.stubGlobal("fetch", personRequests);
+  answerPersonRequests = false;
   vi.stubEnv("TMDB_READ_ACCESS_TOKEN", TOKEN);
   vi.useFakeTimers();
 });
@@ -163,7 +184,7 @@ describe("searchPeopleWithPopularity", () => {
   });
 });
 
-describe("getShortMovieIds", () => {
+describe("the short-film lookup", () => {
   const discoverPage = (ids: number[], total_pages: number) => json({ page: 1, total_pages, results: ids.map((id) => ({ id })) });
   const pageOf = (n: number) => Number(lastCall(n).url.searchParams.get("page"));
 
@@ -171,7 +192,7 @@ describe("getShortMovieIds", () => {
 
   it("asks discover for the person's under-40-minute movies, with auth and a day of caching", async () => {
     fetchMock.mockResolvedValueOnce(discoverPage([1], 1));
-    await getShortMovieIds(7467);
+    await shortMovieIds(7467);
 
     const { url, init } = lastCall();
     expect(url.origin + url.pathname).toBe("https://api.themoviedb.org/3/discover/movie");
@@ -190,7 +211,7 @@ describe("getShortMovieIds", () => {
 
   it("makes a single request when there is one page", async () => {
     fetchMock.mockResolvedValueOnce(discoverPage([5, 6], 1));
-    await expect(getShortMovieIds(1)).resolves.toEqual(new Set([5, 6]));
+    await expect(shortMovieIds(1)).resolves.toEqual(new Set([5, 6]));
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -199,7 +220,7 @@ describe("getShortMovieIds", () => {
       const page = Number(new URL(String(input)).searchParams.get("page"));
       return discoverPage([page * 10, page * 10 + 1], 3);
     });
-    const ids = await getShortMovieIds(1);
+    const ids = await shortMovieIds(1);
 
     expect(ids).toEqual(new Set([10, 11, 20, 21, 30, 31]));
     expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -217,7 +238,7 @@ describe("getShortMovieIds", () => {
       pending--;
       return discoverPage([page], 4);
     });
-    await getShortMovieIds(1);
+    await shortMovieIds(1);
     expect(peak).toBe(2);
   });
 
@@ -226,31 +247,16 @@ describe("getShortMovieIds", () => {
       const page = Number(new URL(String(input)).searchParams.get("page"));
       return discoverPage([page], 500);
     });
-    const ids = await getShortMovieIds(1);
+    const ids = await shortMovieIds(1);
 
     expect(fetchMock).toHaveBeenCalledTimes(10);
     expect(ids).toEqual(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]));
   });
 
-  it("reads up to 3 pages per person when more than 2 people are being loaded, 10 otherwise", async () => {
-    fetchMock.mockImplementation(async (input) => {
-      const page = Number(new URL(String(input)).searchParams.get("page"));
-      return discoverPage([page], 500);
-    });
-
-    for (const [peopleOnPage, pages] of [[1, 10], [2, 10], [3, 3], [4, 3]] as const) {
-      fetchMock.mockClear();
-      __resetTmdbClientStateForTests();
-      const ids = await getShortMovieIds(1, { peopleOnPage });
-      expect(fetchMock, `${peopleOnPage} people`).toHaveBeenCalledTimes(pages);
-      expect(ids.size).toBe(pages);
-    }
-  });
-
   it("degrades to an empty set when the first page fails, without throwing or leaking the token", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     fetchMock.mockResolvedValue(json({}, 503));
-    const promise = getShortMovieIds(7467);
+    const promise = shortMovieIds(7467);
     await vi.runAllTimersAsync();
 
     await expect(promise).resolves.toEqual(new Set());
@@ -262,7 +268,7 @@ describe("getShortMovieIds", () => {
   it("degrades to an empty set on a network error", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     fetchMock.mockRejectedValue(networkError());
-    const promise = getShortMovieIds(1);
+    const promise = shortMovieIds(1);
     await vi.runAllTimersAsync();
     await expect(promise).resolves.toEqual(new Set());
   });
@@ -270,7 +276,7 @@ describe("getShortMovieIds", () => {
   it("degrades to an empty set on a malformed response", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     fetchMock.mockResolvedValue(json(null));
-    await expect(getShortMovieIds(1)).resolves.toEqual(new Set());
+    await expect(shortMovieIds(1)).resolves.toEqual(new Set());
   });
 
   it("keeps the pages that loaded when a later page fails", async () => {
@@ -279,31 +285,30 @@ describe("getShortMovieIds", () => {
       if (page === 2) return json({}, 404);
       return discoverPage([page], 3);
     });
-    await expect(getShortMovieIds(1)).resolves.toEqual(new Set([1, 3]));
+    await expect(shortMovieIds(1)).resolves.toEqual(new Set([1, 3]));
   });
 
   it("retries a 429 on the first page like any other call", async () => {
     fetchMock.mockResolvedValueOnce(json({}, 429)).mockResolvedValueOnce(discoverPage([9], 1));
-    const promise = getShortMovieIds(1);
+    const promise = shortMovieIds(1);
     await vi.runAllTimersAsync();
     await expect(promise).resolves.toEqual(new Set([9]));
   });
 });
 
 describe("getPersonMovieCredits", () => {
-  it("passes how many people are on the page on to the short-movie lookup", async () => {
+  it("skips the short-film lookup when asked: only the person and the credits are requested, and nothing is marked incomplete", async () => {
     fetchMock.mockImplementation(async (input) => {
-      const url = new URL(String(input));
-      if (url.pathname.includes("discover")) return json({ page: 1, total_pages: 50, results: [] });
-      return json(url.pathname.endsWith("movie_credits") ? { cast: [], crew: [] } : { id: 1, name: "A" });
+      const { pathname } = new URL(String(input));
+      return json(pathname.endsWith("movie_credits") ? { cast: [], crew: [] } : { id: 1, name: "A" });
     });
-    await getPersonMovieCredits(1, { peopleOnPage: 4 });
-    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes("/discover/"))).toHaveLength(3);
+    const timeline = await getPersonMovieCredits(1, { shorts: false });
 
-    fetchMock.mockClear();
-    __resetTmdbClientStateForTests();
-    await getPersonMovieCredits(2);
-    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes("/discover/"))).toHaveLength(10);
+    expect(fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual(
+      expect.arrayContaining(["/3/person/1", "/3/person/1/movie_credits"]),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(timeline.shortsIncomplete).toBeUndefined();
   });
 
   afterEach(() => vi.restoreAllMocks());

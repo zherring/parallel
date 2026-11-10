@@ -2,9 +2,7 @@ import { OG_SIZE } from "@/lib/og-theme";
 import { renderPairOgImage } from "@/lib/og-render";
 import { loadPeople } from "@/lib/people";
 
-// Seconds this function may run. Set explicitly because the platform's default may be shorter than
-// the 12s a TMDB request is given (REQUEST_DEADLINE_MS in src/lib/tmdb.ts), which would then never
-// fire. Keep it above that with room to render; src/app/max-duration.test.ts checks.
+// Seconds this function may run; why this value: see REQUEST_DEADLINE_MS in src/lib/tmdb.ts.
 export const maxDuration = 20;
 
 export const alt = "Film collaborations on Parallel";

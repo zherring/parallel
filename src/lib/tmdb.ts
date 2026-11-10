@@ -1,6 +1,7 @@
 import "server-only";
+import { cache } from "react";
 import { normalizeFilmDetails, normalizeMovieCredits, normalizePerson } from "@/lib/normalize";
-import { classifyConnectionError, retryDelayMs, retryFits } from "@/lib/retry";
+import { MIN_ATTEMPT_MS, classifyConnectionError, retryDelayMs, retryFits } from "@/lib/retry";
 import { Semaphore } from "@/lib/semaphore";
 import type {
   RawDiscoverMovies,
@@ -32,11 +33,12 @@ const ATTEMPT_TIMEOUT_MS = 8000;
  * The most time one request takes in all, from the moment it is asked for: waiting for a limiter
  * slot, every attempt and every wait between attempts. Past it the failure is thrown.
  *
- * It has to stay well under the `maxDuration` (20 seconds) exported by every page and route that
- * can reach TMDB: if the platform ends the function first, this deadline never fires and the
- * visitor gets a platform timeout instead of our error. The 8 seconds in between are for what
- * runs after TMDB answers (or after the deadline: the error response, or rendering a page). Keep
- * the two in step; `src/app/max-duration.test.ts` checks them.
+ * Every page and route that can reach TMDB exports a `maxDuration` above this: if the platform
+ * ends the function first, this deadline never fires and the visitor gets a platform timeout
+ * instead of our error. 20 seconds where one round of requests is made (8 to spare for the error
+ * response or the render); 60 on the two routes that make several rounds in turn (the film-metrics
+ * batch, 50 films 8 at a time; the collaborator suggestions, a person and then 16 more).
+ * `src/app/max-duration.test.ts` lists them and checks.
  */
 export const REQUEST_DEADLINE_MS = 12_000;
 /** A 404 is remembered this long: the id does not exist, asking again will not change that. */
@@ -51,10 +53,6 @@ const USER_AGENT = "Parallel/1.0 (+https://github.com/zherring/parallel)";
 const SHORT_MAX_MINUTES = 39;
 /** 20 results per page: 200 short movies per person is far more than anyone has. */
 const MAX_DISCOVER_PAGES = 10;
-/** With more than this many people in one request (a page, a fan-out)... */
-const FULL_REFINEMENT_MAX_PEOPLE = 2;
-/** ...only this many discover pages are read per person (60 short movies), not MAX_DISCOVER_PAGES. */
-const CROWDED_DISCOVER_PAGES = 3;
 /**
  * The whole short-film lookup of one person, its chained page requests included, gives up after
  * this long, whatever REQUEST_DEADLINE_MS says: the lookup only sharpens a page, so a slow TMDB must
@@ -156,10 +154,8 @@ interface Call {
 type ErrorCause =
   | "timeout"
   | "network"
-  /** A 200 whose body is not JSON (an HTML error page from a proxy, a cut-off body). */
-  | "unreadable"
-  /** The deadline passed while waiting for a slot, so TMDB was never asked. */
-  | "queue";
+  /** The deadline, not TMDB, ended it: it passed in the queue, or the attempt was left under MIN_ATTEMPT_MS. */
+  | "deadline";
 
 type Attempt =
   | { kind: "ok"; text: string }
@@ -170,15 +166,6 @@ type Attempt =
 interface Deadline {
   at: number;
   expired: AbortSignal;
-}
-
-function isJson(text: string): boolean {
-  try {
-    JSON.parse(text);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -194,36 +181,34 @@ function isJson(text: string): boolean {
  *
  * The wait for either queue counts toward the request's `deadline`: a request still queued when
  * it passes leaves the queue without being sent. Once it has a slot, the attempt gets
- * min(ATTEMPT_TIMEOUT_MS, time left). `bypassCache` skips the Next data cache (for retrying a
- * cached body that turned out unreadable).
+ * min(ATTEMPT_TIMEOUT_MS, time left).
  *
  * Only failures of the connection are returned, as retryable: our timeout, the deadline, a
- * network error, an unreadable body. Anything else thrown (a bug of ours, a bad header) is
- * rethrown as it is, and so is a TmdbError 504 when the caller's own `signal` aborted.
+ * network error. Anything else thrown (a bug of ours, a bad header) is rethrown as it is, and so
+ * is a TmdbError 504 when the caller's own `signal` aborted.
  */
-async function attemptOnce(call: Call, deadline: Deadline, bypassCache: boolean): Promise<Attempt> {
+async function attemptOnce(call: Call, deadline: Deadline): Promise<Attempt> {
   const { url, path, revalidate, token, signal, lane } = call;
   const { limiter, refinements } = client();
   let timeout: AbortSignal | undefined;
   let sent = false;
+  let squeezed = false;
   try {
     const queueSignal = signal ? AbortSignal.any([signal, deadline.expired]) : deadline.expired;
     const send = () =>
       limiter.run(async (): Promise<Attempt> => {
         // A slot that came too late is no use: do not send an attempt that has no time to finish.
         const left = deadline.at - Date.now();
-        if (left <= 0) return { kind: "error", cause: "queue" };
+        if (left <= 0) return { kind: "error", cause: "deadline" };
         sent = true;
+        squeezed = left < MIN_ATTEMPT_MS;
         timeout = AbortSignal.timeout(Math.min(ATTEMPT_TIMEOUT_MS, left));
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "User-Agent": USER_AGENT },
-          ...(bypassCache ? { cache: "no-store" as const } : { next: { revalidate } }),
+          next: { revalidate },
           signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
         });
-        if (res.ok) {
-          const text = await res.text();
-          return isJson(text) ? { kind: "ok", text } : { kind: "error", cause: "unreadable" };
-        }
+        if (res.ok) return { kind: "ok", text: await res.text() };
         await res.body?.cancel().catch(() => {});
         return { kind: "http", status: res.status, retryAfter: res.headers.get("retry-after") };
       }, queueSignal);
@@ -231,11 +216,12 @@ async function attemptOnce(call: Call, deadline: Deadline, bypassCache: boolean)
   } catch (error) {
     if (signal?.aborted) throw new TmdbError(504, `TMDB request to ${path} timed out`);
     if (!sent) {
-      if (deadline.expired.aborted) return { kind: "error", cause: "queue" };
+      if (deadline.expired.aborted) return { kind: "error", cause: "deadline" };
       throw error;
     }
     if (timeout?.aborted || (error instanceof Error && error.name === "TimeoutError")) {
-      return { kind: "error", cause: "timeout" };
+      // An attempt the deadline left under MIN_ATTEMPT_MS says nothing about TMDB: not remembered.
+      return { kind: "error", cause: squeezed ? "deadline" : "timeout" };
     }
     const cause = classifyConnectionError(error);
     if (cause) return { kind: "error", cause };
@@ -249,10 +235,8 @@ function describeFailure(outcome: Exclude<Attempt, { kind: "ok" }>, path: string
   }
   switch (outcome.cause) {
     case "timeout":
-    case "queue":
+    case "deadline":
       return { status: 504, message: `TMDB request to ${path} timed out` };
-    case "unreadable":
-      return { status: 502, message: `TMDB request to ${path} returned an unreadable response` };
     case "network":
       return { status: 502, message: `TMDB request to ${path} failed (network error)` };
   }
@@ -269,13 +253,13 @@ function warnAboutCredentials(status: number): void {
 
 /**
  * The body of a successful response to `call.url`, after up to MAX_ATTEMPTS tries. 429, 5xx,
- * network errors, timeouts and unreadable 200s are retried: after the wait Retry-After asks for
- * (up to 10s), else after ~500ms, then ~1500ms. The whole request, from this call on, is held to
+ * network errors and timeouts are retried: after the wait Retry-After asks for (up to 10s), else
+ * after ~500ms, then ~1500ms. The whole request, from this call on, is held to
  * REQUEST_DEADLINE_MS: time queued for a slot, attempts and waits all count, each attempt is cut
  * off at min(ATTEMPT_TIMEOUT_MS, time left), and a retry is made only if its wait plus
  * MIN_ATTEMPT_MS still fits. Other 4xx are final. A 404, and a request that is still failing once
- * it is out of tries or time, are remembered so the next ask fails at once (not one that never
- * got a slot: TMDB was not asked, so nothing is known about it).
+ * it is out of tries or time, are remembered so the next ask fails at once (not one the deadline
+ * ended: it never got a slot, or an attempt of MIN_ATTEMPT_MS, so nothing is known about TMDB).
  */
 async function requestText(call: Call): Promise<string> {
   const { notFound, unavailable } = client();
@@ -284,10 +268,9 @@ async function requestText(call: Call): Promise<string> {
     at: Date.now() + REQUEST_DEADLINE_MS,
     expired: AbortSignal.timeout(REQUEST_DEADLINE_MS),
   };
-  let bypassCache = false;
 
   for (let attempt = 1; ; attempt++) {
-    const outcome = await attemptOnce(call, deadline, bypassCache);
+    const outcome = await attemptOnce(call, deadline);
     if (outcome.kind === "ok") return outcome.text;
 
     const failure = describeFailure(outcome, call.path);
@@ -299,15 +282,9 @@ async function requestText(call: Call): Promise<string> {
       throw new TmdbError(failure.status, failure.message);
     }
 
-    // The Next data cache keeps 200s, so a cached unreadable body would come back on every retry:
-    // the retries skip it. That heals this request, but the bad 200 itself stays in the data cache
-    // until it revalidates (on purpose: there is no API to evict one entry, and revalidating the
-    // path would throw away every good one with it).
-    if (outcome.kind === "error" && outcome.cause === "unreadable") bypassCache = true;
-
     const delay = retryDelayMs(attempt, outcome.kind === "http" ? outcome.retryAfter : null, Date.now());
     if (attempt >= MAX_ATTEMPTS || !retryFits(delay, deadline.at - Date.now())) {
-      if (!(outcome.kind === "error" && outcome.cause === "queue")) unavailable.set(key, failure);
+      if (!(outcome.kind === "error" && outcome.cause === "deadline")) unavailable.set(key, failure);
       throw new TmdbError(failure.status, failure.message);
     }
     // The caller's own deadline cuts a wait short too (a long Retry-After must not outlast it).
@@ -320,6 +297,11 @@ async function requestText(call: Call): Promise<string> {
  * the same rules: at most MAX_CONCURRENT_REQUESTS on the wire, the retries, timeouts and deadline
  * described on `requestText`, and the Next data cache (`next.revalidate`, which only keeps 200s)
  * in front. A failure that was just seen for the same URL is thrown again without calling TMDB.
+ *
+ * A 200 that is not JSON (an HTML page from a proxy) is a 502, remembered 45s like the other failures
+ * and not retried. Next's data cache keeps 200s, so such a body can sit in it until it revalidates
+ * (there is no API to evict one entry, and revalidating the path would drop every good one with it):
+ * until then the URL fails each time the 45s memory has lapsed.
  *
  * `signal` is the caller's own deadline (the search route gives up after 1.5s): when it aborts,
  * this fails with a 504 and is neither retried nor remembered. A call without one shares the
@@ -346,7 +328,18 @@ async function tmdbGet<T>(
   const known = notFound.get(key) ?? unavailable.get(key);
   if (known) throw new TmdbError(known.status, known.message);
 
-  if (signal) return JSON.parse(await requestText({ url, path, revalidate, token, signal, lane })) as T;
+  // Each caller parses for itself, so none can change what another one holds.
+  const parse = (text: string): T => {
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      const failure = { status: 502, message: `TMDB request to ${path} returned an unreadable response` };
+      unavailable.set(key, failure);
+      throw new TmdbError(failure.status, failure.message);
+    }
+  };
+
+  if (signal) return parse(await requestText({ url, path, revalidate, token, signal, lane }));
 
   let pending = inflight.get(key);
   if (!pending) {
@@ -355,8 +348,7 @@ async function tmdbGet<T>(
     );
     inflight.set(key, pending);
   }
-  // Each caller parses for itself, so none can change what another one holds.
-  return JSON.parse(await pending) as T;
+  return parse(await pending);
 }
 
 function searchPeopleRaw(query: string, signal?: AbortSignal): Promise<RawSearchPeople> {
@@ -421,10 +413,9 @@ export async function getPerson(id: number): Promise<PersonSummary> {
  * up, it is kept out of the way of the requests the page does need:
  * - Its requests wait in their own lane, two at a time (see `attemptOnce`), however many people
  *   and pages are asked for.
- * - The whole lookup, page after page, is given REFINEMENT_BUDGET_MS (3 seconds). When that runs
- *   out it resolves at once with the pages it has by then (maybe none), whatever TMDB is doing.
- * - With more than two people in the request (`peopleOnPage`: a 3 or 4 person page, the
- *   collaborator suggestions' fan-out) it reads 3 pages per person (60 short movies), not 10.
+ * - The whole lookup, page after page, is given REFINEMENT_BUDGET_MS (3 seconds), the wait in the
+ *   lane included. When that runs out it resolves at once with the pages it has by then (maybe
+ *   none), whatever TMDB is doing.
  *
  * A lookup that is cut short, or that lost a page, leaves some shorts counting as ordinary
  * credits on that render. Nothing derived from it is kept for long: the Next data cache holds raw
@@ -432,19 +423,7 @@ export async function getPerson(id: number): Promise<PersonSummary> {
  * ones again, and `getPersonMovieCredits` marks the timeline `shortsIncomplete` so the caches
  * downstream (collaborator suggestions, OG cards) keep it briefly.
  */
-export async function getShortMovieIds(
-  personId: number,
-  options: { peopleOnPage?: number } = {},
-): Promise<Set<number>> {
-  return (await lookUpShortMovies(personId, options)).ids;
-}
-
-/** The short-movie ids found, and whether the lookup got everything it set out to read. */
-async function lookUpShortMovies(
-  personId: number,
-  { peopleOnPage = 1 }: { peopleOnPage?: number } = {},
-): Promise<{ ids: Set<number>; complete: boolean }> {
-  const maxPages = peopleOnPage > FULL_REFINEMENT_MAX_PEOPLE ? CROWDED_DISCOVER_PAGES : MAX_DISCOVER_PAGES;
+async function lookUpShortMovies(personId: number): Promise<{ ids: Set<number>; complete: boolean }> {
   const budget = AbortSignal.timeout(REFINEMENT_BUDGET_MS);
   // Registered before any request is made, so it runs first when the budget ends.
   let cutShort = false;
@@ -487,7 +466,7 @@ async function lookUpShortMovies(
       const first = await query(1);
       collect(first);
 
-      const count = Math.min(first.total_pages ?? 1, maxPages);
+      const count = Math.min(first.total_pages ?? 1, MAX_DISCOVER_PAGES);
       const rest = await Promise.allSettled(
         Array.from({ length: Math.max(0, count - 1) }, (_, i) => query(i + 2)),
       );
@@ -514,25 +493,28 @@ async function lookUpShortMovies(
 }
 
 /**
- * A person with their movie credits. `peopleOnPage` is how many people are being loaded together
- * (for the cap on short-movie pages, see `getShortMovieIds`); pass an options object rather than
+ * A person with their movie credits. `shorts: false` skips the short-film lookup (see
+ * `lookUpShortMovies`): shorts then count as ordinary credits. Pass an options object rather than
  * letting `.map` hand over its index.
+ *
+ * `cache()` makes `generateMetadata` and the page of one render share a person's load (the
+ * discover lookup carries a signal, so neither our in-flight map nor Next's fetch dedupe would).
+ * It is keyed by the arguments, so it is per person, whatever form the page's slug takes.
  */
-export async function getPersonMovieCredits(
-  id: number,
-  options: { peopleOnPage?: number } = {},
-): Promise<PersonTimeline> {
-  const [person, credits, shorts] = await Promise.all([
-    getPerson(id),
-    tmdbGet<RawMovieCredits>(`/person/${id}/movie_credits`, DAY),
-    lookUpShortMovies(id, options),
-  ]);
-  return {
-    person,
-    films: normalizeMovieCredits(credits, shorts.ids),
-    ...(shorts.complete ? {} : { shortsIncomplete: true as const }),
-  };
-}
+export const getPersonMovieCredits = cache(
+  async (id: number, { shorts: withShorts = true } = {}): Promise<PersonTimeline> => {
+    const [person, credits, shorts] = await Promise.all([
+      getPerson(id),
+      tmdbGet<RawMovieCredits>(`/person/${id}/movie_credits`, DAY),
+      withShorts ? lookUpShortMovies(id) : { ids: new Set<number>(), complete: true },
+    ]);
+    return {
+      person,
+      films: normalizeMovieCredits(credits, shorts.ids),
+      ...(shorts.complete ? {} : { shortsIncomplete: true as const }),
+    };
+  },
+);
 
 /**
  * The cast and crew of one film (`/movie/{id}/credits`), cached for a day like the other film

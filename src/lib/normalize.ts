@@ -53,7 +53,7 @@ export function normalizePerson(raw: RawPerson): PersonSummary {
  * Merges a person's cast and crew credits into one Film per movie.
  *
  * Anything on a short movie is minor, whatever the person did on it: `shortMovieIds` is
- * the set of movie ids TMDB reports as under 40 minutes (see `getShortMovieIds`), and
+ * the set of movie ids TMDB reports as under 40 minutes (see `getPersonMovieCredits`), and
  * obscure movies TMDB flags as a "video" (music videos, video compilations, extras) are
  * treated the same way, since their runtime is often missing or long.
  */

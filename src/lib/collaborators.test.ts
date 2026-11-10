@@ -62,21 +62,25 @@ describe("suggestCollaboratorsChecked completeness", () => {
     expect((await suggestCollaboratorsChecked(SUBJECT)).complete).toBe(false);
   });
 
-  it("is incomplete, and kept 5 minutes only, when a short-film lookup behind it was cut short", async () => {
-    for (const cutShort of [SUBJECT, CANDIDATES[2]]) {
-      resetSuggestionCache();
-      credits.mockReset();
-      credits.mockImplementation(async (id) => ({ ...timeline(id), ...(id === cutShort ? { shortsIncomplete: true as const } : {}) }));
-      expect((await suggestCollaboratorsChecked(SUBJECT)).complete, `person ${cutShort}`).toBe(false);
+  it("is incomplete, and kept 5 minutes only, when the person's short-film lookup was cut short", async () => {
+    credits.mockImplementation(async (id) => ({ ...timeline(id), ...(id === SUBJECT ? { shortsIncomplete: true as const } : {}) }));
+    expect((await suggestCollaboratorsChecked(SUBJECT)).complete).toBe(false);
 
-      const calls = credits.mock.calls.length;
-      await vi.advanceTimersByTimeAsync(5 * MINUTE - 1);
-      await suggestCollaboratorsChecked(SUBJECT);
-      expect(credits).toHaveBeenCalledTimes(calls);
-      await vi.advanceTimersByTimeAsync(1);
-      await suggestCollaboratorsChecked(SUBJECT);
-      expect(credits.mock.calls.length).toBeGreaterThan(calls);
-    }
+    const calls = credits.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(5 * MINUTE - 1);
+    await suggestCollaboratorsChecked(SUBJECT);
+    expect(credits).toHaveBeenCalledTimes(calls);
+    await vi.advanceTimersByTimeAsync(1);
+    await suggestCollaboratorsChecked(SUBJECT);
+    expect(credits.mock.calls.length).toBeGreaterThan(calls);
+  });
+
+  it("skips the short-film lookup for the candidates but not for the person", async () => {
+    loadAllBut([]);
+    await suggestCollaboratorsChecked(SUBJECT);
+
+    expect(credits.mock.calls.find(([id]) => id === SUBJECT)).toEqual([SUBJECT]);
+    for (const id of CANDIDATES) expect(credits.mock.calls.find(([called]) => called === id)).toEqual([id, { shorts: false }]);
   });
 });
 

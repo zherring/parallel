@@ -112,17 +112,15 @@ async function compute(personId: number): Promise<SuggestionResult> {
   const source = fromGraph ? "graph" : "live";
   const candidateIds = fromGraph ?? (await liveCandidates(subject, today));
 
-  // The same filmographies the pair page loads, so the counts match what a click shows (but with
-  // the short-movie lookup capped at 3 pages each: it is 16 people at once, see getShortMovieIds).
-  const peopleOnPage = candidateIds.length + 1;
-  const settled = await mapLimited(candidateIds, CONCURRENCY, (id) => getPersonMovieCredits(id, { peopleOnPage }));
+  // Candidates skip the short-film lookup. A film counts as shared only if both people have a
+  // non-minor credit on it, and the subject's own lookup (above) already marks the shorts they
+  // share, so the counts match the pair page. Sixteen more lookups would also queue in the shared
+  // short-film lane ahead of a visitor's page, whose 3s budget counts that wait.
+  const settled = await mapLimited(candidateIds, CONCURRENCY, (id) => getPersonMovieCredits(id, { shorts: false }));
   const timelines = fulfilledOrThrow(settled);
   const results = suggestFromTimelines(subject, timelines, { today });
-  // Incomplete too when a short-film lookup was cut short: the counts then include a few shorts.
-  const complete =
-    timelines.length === candidateIds.length &&
-    !subject.shortsIncomplete &&
-    timelines.every((timeline) => !timeline.shortsIncomplete);
+  // Incomplete too when the subject's short-film lookup was cut short: the counts then include a few shorts.
+  const complete = timelines.length === candidateIds.length && !subject.shortsIncomplete;
   return { suggestions: { source, results }, complete };
 }
 

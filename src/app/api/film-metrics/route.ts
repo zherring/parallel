@@ -4,10 +4,8 @@ import { parseIdList } from "@/lib/film-metrics-batch";
 import { TmdbError, getMovieMetrics } from "@/lib/tmdb";
 import type { FilmMetrics } from "@/lib/types";
 
-// Seconds this function may run. Set explicitly because the platform's default may be shorter than
-// the 12s a TMDB request is given (REQUEST_DEADLINE_MS in src/lib/tmdb.ts), which would then never
-// fire. Keep it above that with room to render; src/app/max-duration.test.ts checks.
-export const maxDuration = 20;
+// Seconds this function may run; why this value: see REQUEST_DEADLINE_MS in src/lib/tmdb.ts.
+export const maxDuration = 60;
 
 /** Films looked up at TMDB at once: enough to finish 50 in about a second without a burst of 50. */
 const CONCURRENCY = 8;

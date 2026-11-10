@@ -10,9 +10,7 @@ import { loadPeople } from "@/lib/people";
 import { parsePeriodParams, resolvePeriod, searchWithPeriod, spanOfYears } from "@/lib/period";
 import { todayIso } from "@/lib/released";
 
-// Seconds this function may run. Set explicitly because the platform's default may be shorter than
-// the 12s a TMDB request is given (REQUEST_DEADLINE_MS in src/lib/tmdb.ts), which would then never
-// fire. Keep it above that with room to render; src/app/max-duration.test.ts checks.
+// Seconds this function may run; why this value: see REQUEST_DEADLINE_MS in src/lib/tmdb.ts.
 export const maxDuration = 20;
 
 /** What a redirect from here may be cached for: it only depends on the URL and on the films, which change slowly. */

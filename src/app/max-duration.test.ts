@@ -26,24 +26,31 @@ const entries = sources(APP)
   .filter((path) => ENTRY.test(path))
   .filter((path) => REACHES_TMDB.test(readFileSync(join(APP, path), "utf8")));
 
+/**
+ * Seconds each entry may run. 20 where one round of TMDB requests is made; 60 on the two routes
+ * that make several in turn (a person, then 16 candidates; 50 films, 8 at a time).
+ */
+const EXPECTED: Record<string, number> = {
+  "api/collaborators/[id]/route.ts": 60,
+  "api/film-metrics/[id]/route.ts": 20,
+  "api/film-metrics/route.ts": 60,
+  "api/movie/[id]/route.ts": 20,
+  "api/search/route.ts": 20,
+  "p/[people]/og/route.tsx": 20,
+  "p/[people]/opengraph-image.tsx": 20,
+  "p/[people]/page.tsx": 20,
+};
+
 describe("maxDuration of everything that can reach TMDB", () => {
   it("finds the pair page, its cards and every TMDB api route", () => {
-    expect(entries.sort()).toEqual([
-      "api/collaborators/[id]/route.ts",
-      "api/film-metrics/[id]/route.ts",
-      "api/film-metrics/route.ts",
-      "api/movie/[id]/route.ts",
-      "api/search/route.ts",
-      "p/[people]/og/route.tsx",
-      "p/[people]/opengraph-image.tsx",
-      "p/[people]/page.tsx",
-    ]);
+    expect(entries.sort()).toEqual(Object.keys(EXPECTED).sort());
   });
 
-  it.each(entries)("%s sets maxDuration at least 5s above the TMDB deadline", (path) => {
+  it.each(entries)("%s sets the maxDuration listed above, at least 5s above the TMDB deadline", (path) => {
     const source = readFileSync(join(APP, path), "utf8");
     const match = /^export const maxDuration = (\d+);$/m.exec(source);
     expect(match, `${path} must export maxDuration`).not.toBeNull();
+    expect(Number(match![1])).toBe(EXPECTED[path]);
     expect(Number(match![1]) * 1000).toBeGreaterThanOrEqual(REQUEST_DEADLINE_MS + HEADROOM_MS);
   });
 });
