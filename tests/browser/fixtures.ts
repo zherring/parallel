@@ -86,11 +86,29 @@ export { expect };
 
 export const timeline = (page: Page) => page.getByRole("region", { name: "Film timeline. Scroll sideways to see more years.", exact: true });
 
+/** The page bar, which every view of a `/p/` page has. */
+export const bar = (page: Page) => page.locator("[data-people-bar]");
+
+/** The three views of Films, as the bar's switcher names them (see `ViewSwitcher`): Timeline, Focus (the Depth view) and Table. */
+export type FilmsViewName = "timeline" | "depth" | "table";
+const SWITCHER_LABEL: Record<FilmsViewName, string> = { timeline: "Timeline view", depth: "Focus view", table: "Table view" };
+/** The view switcher in the bar (not on a phone's bar: its sheet has the same links, see `ViewSwitcher`). */
+export const switcher = (page: Page) => bar(page).getByRole("navigation", { name: "Films view", exact: true });
+export const viewLink = (page: Page, view: FilmsViewName) => switcher(page).getByRole("link", { name: SWITCHER_LABEL[view], exact: true });
+/** The bar's two sections: Films, and the Clippings for a pair that has them. */
+export const sections = (page: Page) => bar(page).getByRole("navigation", { name: "Sections", exact: true });
+export const filmsTab = (page: Page) => sections(page).getByRole("link", { name: "Films", exact: true });
+export const clippingsTab = (page: Page) => sections(page).getByRole("link", { name: "Clippings", exact: true });
+/** The Depth view's scene. */
+export const scene = (page: Page) => page.getByRole("region", { name: "Film timeline. Scroll down for later years.", exact: true });
+
+/** The films view the page last recorded for the Films tab. */
+export const FILMS_VIEW_KEY = "parallel:films-view";
+export const storedFilmsView = (page: Page) => page.evaluate((key) => window.localStorage.getItem(key), FILMS_VIEW_KEY);
+
 /** Wait for hydration via a real state transition, not a sleep or private React fields. */
 export async function openPeople(page: Page, search = "") {
   await page.goto(`${PEOPLE_PATH}${search}`);
-  const layout = page.getByRole("button", { name: "Combined timeline", exact: true });
-  await expect(layout).toHaveAttribute("aria-pressed", "true");
   const gear = page.getByRole("button", { name: "Settings", exact: true });
   await gear.click();
   await expect(page.getByRole("dialog", { name: "Settings", exact: true })).toBeVisible();

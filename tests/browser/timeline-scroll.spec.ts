@@ -1,4 +1,4 @@
-import { test, expect, openPeople, scrollState, timeline, PEOPLE_PATH } from "./fixtures";
+import { test, expect, openPeople, scrollState, timeline, viewLink, PEOPLE_PATH } from "./fixtures";
 
 // Activate the server-side fetch fixtures before any test navigates to a people page.
 test.beforeEach(async ({ next }) => { void next; });
@@ -22,8 +22,9 @@ test("a linked period finishes its programmatic zoom at the Combined baseline", 
 
 test("the first Timeline visit from Table initializes the Combined baseline", async ({ page }) => {
   await page.goto(`${PEOPLE_PATH}?view=table`);
-  await expect(page.getByRole("tab", { name: "Table", exact: true })).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("tab", { name: "Timeline", exact: true }).click();
+  await expect(viewLink(page, "table")).toHaveAttribute("aria-current", "page");
+  await viewLink(page, "timeline").click();
+  await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
   await expectBaseline(timeline(page));
 });
 
@@ -41,14 +42,15 @@ test("manual zoom preserves vertical exploration with Show all films enabled", a
   expect((await scrollState(track)).max).toBeGreaterThan(50);
 });
 
-test("an individual caret preserves the centred year when undocking the People column", async ({ page }) => {
+test("the combined track has no left column: the timeline is as wide as the page, with the bar's gutter, and no room is kept at its left", async ({ page }) => {
   await openPeople(page);
-  await page.getByRole("button", { name: "Expand every person's details", exact: true }).click();
   const track = timeline(page);
-  await expect.poll(async () => (await scrollState(track)).inset).toBe(272);
-  const before = await scrollState(track);
-  expect(before.centre).toBeGreaterThan(500); // Not at the clamped start of the axis.
-  await page.getByRole("button", { name: "Collapse Scroll Alpha", exact: true }).click();
-  await expect.poll(async () => (await scrollState(track)).inset).toBe(296);
-  await expect.poll(async () => Math.abs((await scrollState(track)).centre - before.centre)).toBeLessThanOrEqual(1);
+  // No people column, no card over the corner: the track starts at the box's own left edge.
+  await expect(page.getByRole("complementary", { name: "People", exact: true })).toHaveCount(0);
+  await expect.poll(async () => (await scrollState(track)).inset).toBe(0);
+  const viewport = page.viewportSize()!;
+  const box = (await track.boundingBox())!;
+  // The page's own gutter (12px, the bar's), both sides: the Table and Clippings are the ones with a reading column.
+  expect(Math.round(box.x)).toBe(12);
+  expect(Math.round(viewport.width - (box.x + box.width))).toBe(12);
 });
