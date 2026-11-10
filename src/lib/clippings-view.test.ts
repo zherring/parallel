@@ -128,7 +128,7 @@ describe("filterCritics", () => {
 describe("filterOptions", () => {
   it("offers All and both directions, with family names for the buttons and full names for the tooltips", () => {
     expect(filterOptions([aOnB, aOnB2, bOnA], people)).toEqual([
-      { id: "all", label: "All", title: "All clippings", count: 3 },
+      { id: "all", label: "All", title: "All quotes", count: 3 },
       { id: "first", label: "Spielberg on Williams", title: "Steven Spielberg on John Williams", count: 2 },
       { id: "second", label: "Williams on Spielberg", title: "John Williams on Steven Spielberg", count: 1 },
     ]);
@@ -142,7 +142,7 @@ describe("filterOptions", () => {
 
   it("adds Critics, with a count, when the pair has critics' quotes too", () => {
     expect(filterOptions([aOnB, aOnB2, bOnA], people, 4)).toEqual([
-      { id: "all", label: "All", title: "All clippings", count: 7 },
+      { id: "all", label: "All", title: "All quotes", count: 7 },
       { id: "first", label: "Spielberg on Williams", title: "Steven Spielberg on John Williams", count: 2 },
       { id: "second", label: "Williams on Spielberg", title: "John Williams on Steven Spielberg", count: 1 },
       { id: "critics", label: "Critics", title: "Critics and scholars on the collaboration", count: 4 },
@@ -173,10 +173,10 @@ describe("filterOptions", () => {
 });
 
 describe("clippingsCountMessage", () => {
-  it("counts the clippings shown", () => {
-    expect(clippingsCountMessage(3)).toBe("Showing 3 clippings");
-    expect(clippingsCountMessage(1)).toBe("Showing 1 clipping");
-    expect(clippingsCountMessage(0)).toBe("Showing 0 clippings");
+  it("counts the quotes shown", () => {
+    expect(clippingsCountMessage(3)).toBe("Showing 3 quotes");
+    expect(clippingsCountMessage(1)).toBe("Showing 1 quote");
+    expect(clippingsCountMessage(0)).toBe("Showing 0 quotes");
   });
 });
 

@@ -149,7 +149,7 @@ function Quotes({
   return (
     <>
       {options.length > 0 && (
-        <div role="group" aria-label="Show clippings by speaker" className="flex flex-wrap gap-2">
+        <div role="group" aria-label="Show quotes by speaker" className="flex flex-wrap gap-2">
           {options.map((option) => {
             const selected = option.id === filter;
             // A dot in the colour of the voice the button shows: a person's, a neutral one for the critics, none for "All".

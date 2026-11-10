@@ -36,7 +36,7 @@ describe("ViewSwitcher", () => {
     expect(html).not.toMatch(/<button\b/);
   });
 
-  it("marks the view the page is on as current, and none for the Clippings", () => {
+  it("marks the view the page is on as current, and none for the Quotes", () => {
     for (const [view, expected] of [
       ["timeline", [true, false, false]],
       ["depth", [false, true, false]],
@@ -71,24 +71,24 @@ describe("ViewSwitcher", () => {
 });
 
 describe("SectionTabs", () => {
-  it("is Films and Clippings for a page that has them, Films current on the Timeline, Focus and Table", () => {
+  it("is Films and Quotes for a page that has them, Films current on the Timeline, Focus and Table", () => {
     const links = linksOf(tabs());
     expect(links.map((link) => link.href)).toEqual(["/p/a", "/p/a?view=clippings"]);
     expect(links.map((link) => link.current)).toEqual([true, false]);
     expect(tabs()).toContain('<nav aria-label="Sections"');
     expect(tabs()).toContain(">Films<");
-    expect(tabs()).toContain(">Clippings<");
+    expect(tabs()).toContain(">Quotes<");
   });
 
-  it("marks Clippings current on the Clippings", () => {
+  it("marks Quotes current on the Quotes", () => {
     expect(linksOf(tabs({ section: "clippings" })).map((link) => link.current)).toEqual([false, true]);
   });
 
-  it("is Films alone for a page without Clippings, so that the bar is the same size on every page", () => {
+  it("is Films alone for a page without Quotes, so that the bar is the same size on every page", () => {
     const html = tabs({ clippings: false });
     expect(linksOf(html)).toHaveLength(1);
     expect(html).toContain(">Films<");
-    expect(html).not.toContain("Clippings");
+    expect(html).not.toContain("Quotes");
     expect(linksOf(html)[0].current).toBe(true);
   });
 

@@ -31,7 +31,7 @@ const SECTION_ICONS: Record<Section, ReactNode> = {
   films: <Clapperboard aria-hidden="true" className={ICON} />,
   clippings: <Quote aria-hidden="true" className={ICON} />,
 };
-const SECTION_LABELS: Record<Section, string> = { films: "Films", clippings: "Clippings" };
+const SECTION_LABELS: Record<Section, string> = { films: "Films", clippings: "Quotes" };
 
 /** One section's link: the same box whichever view the page is on, so the bar does not change when the page does. */
 function itemClass(current: boolean, compact: boolean): string {

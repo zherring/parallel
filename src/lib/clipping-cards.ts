@@ -135,8 +135,8 @@ export function buildClippingCards(
   return cards.sort(compareCards);
 }
 
-/** "10 clippings", "1 clipping"; "Further reading" for a pair that has only pieces to read. */
+/** "10 quotes", "1 quote"; "Further reading" for a pair that has only pieces to read. */
 export function clippingCountLabel(count: number): string {
   if (count === 0) return "Further reading";
-  return `${count} ${count === 1 ? "clipping" : "clippings"}`;
+  return `${count} ${count === 1 ? "quote" : "quotes"}`;
 }

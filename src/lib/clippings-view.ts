@@ -129,16 +129,16 @@ export function filterOptions(clippings: readonly Clipping[], people: Pair, crit
     title: `${people[index].name} on ${people[1 - index].name}`,
     count: counts[index],
   });
-  const options: FilterOption[] = [{ id: "all", label: "All", title: "All clippings", count: clippings.length + criticCount }];
+  const options: FilterOption[] = [{ id: "all", label: "All", title: "All quotes", count: clippings.length + criticCount }];
   if (counts[0] > 0) options.push({ id: "first", ...direction(0) });
   if (counts[1] > 0) options.push({ id: "second", ...direction(1) });
   if (criticCount > 0) options.push({ id: "critics", label: "Critics", title: "Critics and scholars on the collaboration", count: criticCount });
   return options;
 }
 
-/** What a polite live region says after the filter is changed: "Showing 3 clippings". */
+/** What a polite live region says after the filter is changed: "Showing 3 quotes". */
 export function clippingsCountMessage(count: number): string {
-  return `Showing ${count} ${count === 1 ? "clipping" : "clippings"}`;
+  return `Showing ${count} ${count === 1 ? "quote" : "quotes"}`;
 }
 
 /** The year of a "YYYY", "YYYY-MM" or "YYYY-MM-DD" date; null for anything else (or a month or day that is not two digits). */

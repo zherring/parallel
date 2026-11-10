@@ -29,7 +29,7 @@ describe("VIEWS", () => {
   it("lists the timeline first and defaults to it", () => {
     expect(VIEWS).toEqual(["timeline", "table", "clippings"]);
     expect(DEFAULT_VIEW).toBe("timeline");
-    expect(VIEW_LABELS).toEqual({ timeline: "Timeline", table: "Table", clippings: "Clippings" });
+    expect(VIEW_LABELS).toEqual({ timeline: "Timeline", table: "Table", clippings: "Quotes" });
   });
 });
 

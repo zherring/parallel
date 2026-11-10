@@ -23,7 +23,7 @@ export const DEFAULT_VIEW: View = "timeline";
 export const VIEW_LABELS: Record<View, string> = {
   timeline: "Timeline",
   table: "Table",
-  clippings: "Clippings",
+  clippings: "Quotes",
 };
 
 /** The views every page has; Clippings is added for a pair that has something for it, see `availableViews`. */
