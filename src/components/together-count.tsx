@@ -14,8 +14,8 @@ interface TogetherCountProps {
 
 /**
  * How many films the page has, in the page bar, right after the people pill. For a pair (or more) it is a small pill: a green dot, the green
- * of the films made together in the scene and the timeline (`lit`), and "30 films made together"; with none it has a muted grey dot and says
- * "No films made together". On a phone it shrinks to the dot and the number, the full words being its accessible name. For one person it is
+ * of the films made together in the scene and the timeline (`lit`), and "30 films together"; with none it has a muted grey dot and says
+ * "No films together". The same words on a phone. For one person it is
  * plain muted text, "30 films". It is not interactive, and takes no pointer events: the page under the bar stays draggable up to it.
  *
  * The number is the headline's count (the table's rows, see `PageHeadline`), passed in: the page works it out once, and the Timeline, Focus
@@ -25,7 +25,7 @@ export function TogetherCount({ several, count, className, pillClassName }: Toge
   if (!several) {
     return <p className={cn("flex h-(--bar-h) items-center whitespace-nowrap text-sm tabular-nums text-muted", className)}>{filmCountLabel(count)}</p>;
   }
-  const label = count > 0 ? `${filmCountLabel(count)} made together` : "No films made together";
+  const label = count > 0 ? `${filmCountLabel(count)} together` : "No films together";
   return (
     <p
       role="img"
@@ -41,13 +41,10 @@ export function TogetherCount({ several, count, className, pillClassName }: Toge
         {count > 0 ? (
           <>
             <span className="tabular-nums">{count}</span>
-            <span className="max-sm:hidden"> {count === 1 ? "film" : "films"} made together</span>
+            <span> {count === 1 ? "film" : "films"} together</span>
           </>
         ) : (
-          <>
-            <span className="sm:hidden">0</span>
-            <span className="max-sm:hidden">No films made together</span>
-          </>
+          "No films together"
         )}
       </span>
     </p>

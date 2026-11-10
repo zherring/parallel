@@ -4,8 +4,8 @@ import { bar, scene, storedFilmsView, viewLink } from "./fixtures";
 
 /**
  * The page bar of a `/p/` page is the same on every view: the flat Timeline, Table and Quotes, and the Depth view (Focus). These tests measure
- * it. The home square, the people pill and the pill of films made together are in the same place on all four, and as tall as the switcher and the
- * gear (one height, the people pill's); at the right, the view switcher (Timeline, Focus, Table) and the gear are where their view puts them (at the
+ * it. The home square (from `sm` up: a phone's bar has none, its sheet has the way home), the people pill and the pill of films together are in
+ * the same place on all four, and as tall as the switcher and the gear (one height, the people pill's); at the right, the view switcher (Timeline, Focus, Table) and the gear are where their view puts them (at the
  * right edge on the flat views, left of the year rail on Focus), and are on every view, the Quotes too; between a flat view and Focus they glide (a
  * view transition), and the tests watch that happen. The Films | Quotes nav is not in the bar's row but down the left edge under the home square
  * (see section-nav.spec.ts), the same on every view. They check what goes with the bar too: the h1 (visually hidden, on every view) and what is no
@@ -109,9 +109,9 @@ for (const [label, viewport] of [
       }
 
       const timeline = measured.timeline;
-      // It is the bar: the home square, the people, the count and the gear are there on every view and on a phone, the section nav and the switcher only from the
-      // small breakpoint up (a phone's gear holds them).
-      expect(timeline.home).not.toBeNull();
+      // It is the bar: the people, the count and the gear are there on every view and on a phone, the home square, the section nav and the switcher only from the
+      // small breakpoint up (a phone's gear holds them, and the way home).
+      expect(timeline.home === null).toBe(label === "phone");
       expect(timeline.people).not.toBeNull();
       expect(timeline.together).not.toBeNull();
       expect(timeline.gear).not.toBeNull();
@@ -126,19 +126,23 @@ for (const [label, viewport] of [
       // The count comes right after the people, on their level.
       expect(timeline.together!.x).toBeGreaterThan(timeline.people!.x + timeline.people!.width);
       expect(Math.abs(timeline.together!.y + timeline.together!.height / 2 - (timeline.people!.y + timeline.people!.height / 2))).toBeLessThan(2);
-      // The home square comes first, then the people.
-      expect(timeline.home!.x).toBe(12);
-      expect(timeline.home!.width).toBe(timeline.home!.height);
-      expect(timeline.people!.x).toBeGreaterThan(timeline.home!.x + timeline.home!.width);
+      // The home square comes first, then the people; on a phone the people are first, at the bar's own left gutter.
+      if (label === "phone") {
+        expect(timeline.people!.x).toBe(12);
+      } else {
+        expect(timeline.home!.x).toBe(12);
+        expect(timeline.home!.width).toBe(timeline.home!.height);
+        expect(timeline.people!.x).toBeGreaterThan(timeline.home!.x + timeline.home!.width);
+      }
 
       // One height: the home square, the people pill, the count pill, the switcher and the gear are as tall as each other (the people pill's own: 50px, 46px on a phone),
       // on every view, and on one line.
       for (const view of ALL_VIEWS) {
         const { home, people, together: count, switcher: views, gear } = measured[view];
-        const row = [home, people, count, gear, ...(label === "desktop" ? [views] : [])];
+        const row = [...(label === "desktop" ? [home, views] : []), people, count, gear];
         for (const box of row) {
           expect(box!.height, `the height on ${view}`).toBe(label === "phone" ? 46 : 50);
-          expect(box!.y, `the top on ${view}`).toBe(home!.y);
+          expect(box!.y, `the top on ${view}`).toBe(people!.y);
         }
       }
 
@@ -148,7 +152,7 @@ for (const [label, viewport] of [
         expect(measured[view].switcher, `the switcher on ${view}`).toEqual(timeline.switcher);
         expect(measured[view].switcherItems, `the switcher's items on ${view}`).toEqual(timeline.switcherItems);
       }
-      const leftGutter = timeline.home!.x;
+      const leftGutter = (timeline.home ?? timeline.people)!.x;
       expect(leftGutter).toBe(12);
       for (const view of ["timeline", "table", "clippings"] as const) {
         const gear = measured[view].gear!;
@@ -184,10 +188,15 @@ for (const [label, viewport] of [
       }
     });
 
-    test("the home button is a rounded square holding only the wordmark's green ll, named Parallel home, on every view and on a phone", async ({ page }) => {
+    test("the home button is a rounded square holding only the wordmark's green ll, named Parallel home, on every view; a phone's bar has none", async ({ page }) => {
       for (const view of ALL_VIEWS) {
         await openView(page, view);
         const home = bar(page).getByRole("link", { name: "Parallel home", exact: true });
+        if (label === "phone") {
+          // Not on the screen (the bar's room is the people pill's and the count's); the gear's sheet has the way home.
+          await expect(home, view).toBeHidden();
+          continue;
+        }
         await expect(home, view).toBeVisible();
         await expect(home, view).toHaveAttribute("href", "/");
         await expect(home, view).toHaveAttribute("title", "Parallel home");
@@ -205,7 +214,7 @@ for (const [label, viewport] of [
         });
         // A rounded square (the bar's one corner radius: not a circle), the page bar's own height, and the mark the green of the wordmark, large enough to read as a mark.
         expect(look.width, view).toBe(look.height);
-        expect(look.height, view).toBe(label === "phone" ? 46 : 50);
+        expect(look.height, view).toBe(50);
         expect(look.radius, view).toBe(BAR_RADIUS);
         expect(look.radius, view).toBeLessThan(look.height / 4);
         expect(look.mark, view).toBe(look.green);
@@ -242,7 +251,8 @@ for (const [label, viewport] of [
         });
         // One token, and it is a rounded rectangle: well under half the bar's height.
         expect(look.token, view).toBe(BAR_RADIUS);
-        for (const control of ["home", "people", "together", "gear"] as const) expect(look[control], `${view}: ${control}`).toBe(look.token);
+        // (The home square is not on a phone's bar.)
+        for (const control of ["people", "together", "gear", ...(label === "desktop" ? (["home"] as const) : [])] as const) expect(look[control], `${view}: ${control}`).toBe(look.token);
         // The switcher is not on a phone's bar (the gear's sheet has the views); where it is, its box has the radius and its segments are concentric with it.
         expect(look.switcher === null, view).toBe(label === "phone");
         if (look.switcher !== null) {
@@ -342,7 +352,7 @@ for (const [label, viewport] of [
         await openView(page, view);
         await expect(headline(page), view).toHaveCount(1);
         await expect(headline(page), view).toHaveText(HEADLINE);
-        // sr-only: a one-pixel box, clipped (the bar's pills say it for the eye: the names in the people pill, "12 films made together" after it).
+        // sr-only: a one-pixel box, clipped (the bar's pills say it for the eye: the names in the people pill, "12 films together" after it).
         const look = await headline(page).evaluate((element) => {
           const css = getComputedStyle(element);
           return { position: css.position, width: css.width, height: css.height, overflow: css.overflow };
@@ -364,10 +374,10 @@ for (const [label, viewport] of [
       for (const view of ALL_VIEWS) {
         await openView(page, view);
         await expect(together(page), view).toHaveCount(1);
-        await expect(together(page), view).toHaveAccessibleName(`${FILM_COUNT} films made together`);
-        // The words are the pill's from `sm`; a phone has the dot and the number (what shows: the words are `display: none` there, in the markup and not on the screen).
+        await expect(together(page), view).toHaveAccessibleName(`${FILM_COUNT} films together`);
+        // The same words on a phone as on a desktop.
         const shown = await together(page).evaluate((element) => (element as HTMLElement).innerText.trim());
-        expect(shown, view).toBe(label === "desktop" ? `${FILM_COUNT} films made together` : `${FILM_COUNT}`);
+        expect(shown, view).toBe(`${FILM_COUNT} films together`);
         // The green of the films made together (`lit`), as a dot.
         const dot = await together(page).locator("span").first().evaluate((element) => getComputedStyle(element).backgroundColor);
         expect(dot, view).toBe("rgb(0, 224, 84)");
@@ -543,6 +553,86 @@ test.describe("Export and Share are in the gear on every view", () => {
     await expect(settingsSheet(page).getByRole("status").last()).toContainText("Downloaded pedro-almodovar-penelope-cruz-shared-films.csv with 12 films");
   });
 });
+
+/** Whether two boxes share any area (touching edges is not overlap). */
+const intersects = (a: Box, b: Box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+test.describe("the home square is the bar's from `sm` (640px) up, and not on a phone's", () => {
+  for (const [width, shown] of [
+    [639, false],
+    [640, true],
+  ] as const) {
+    test(`at ${width}px the home square is ${shown ? "in the bar, before the people pill" : "not in the bar: the people pill starts at its left edge"}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      for (const view of ["timeline", "focus"] as const) {
+        await openView(page, view);
+        const home = bar(page).getByRole("link", { name: "Parallel home", exact: true });
+        const { people } = await measureBar(page);
+        if (shown) {
+          await expect(home, view).toBeVisible();
+          const homeBox = (await home.boundingBox())!;
+          expect(homeBox.x, view).toBe(12);
+          expect(people!.x, view).toBeGreaterThan(homeBox.x + homeBox.width);
+        } else {
+          await expect(home, view).toBeHidden();
+          expect(people!.x, view).toBe(12);
+        }
+      }
+    });
+  }
+});
+
+// With the full words ("12 films together") on a phone and no home square, the bar's row is the people pill, the count and the gear (left of the rail on Focus).
+for (const [width, height] of [
+  [390, 844],
+  [360, 780],
+] as const) {
+  test.describe(`a phone's bar at ${width}px`, () => {
+    test.use({ viewport: { width, height }, hasTouch: true, isMobile: true });
+
+    test("holds the people pill at its natural width, the count and the gear without overlap, and the count is at the same x on every view", async ({ page }) => {
+      const measured = {} as Record<ViewName, BarBoxes>;
+      const holds = {} as Record<ViewName, boolean>;
+      let rail: Box | null = null;
+      for (const view of ALL_VIEWS) {
+        await openView(page, view);
+        measured[view] = await measureBar(page);
+        // Every head is inside the capsule: a pill that is squeezed lets its heads run out of it.
+        holds[view] = await bar(page).evaluate((root) => {
+          const capsule = root.querySelector("[data-pill-capsule]")!.getBoundingClientRect();
+          const heads = [...root.querySelectorAll("[data-pill-head]")].map((head) => head.getBoundingClientRect());
+          return heads.length > 0 && heads.every((head) => head.left >= capsule.left && head.right <= capsule.right);
+        });
+        if (view === "focus") rail = round(await page.locator("[data-depth-rail]").boundingBox());
+      }
+      expect(rail).not.toBeNull();
+
+      const timeline = measured.timeline;
+      for (const view of ALL_VIEWS) {
+        const { home, people, together: count, gear } = measured[view];
+        // No home square, so the people pill is the bar's first, at its gutter; and it is not squeezed: its width is the one it has on the Timeline, where there is room.
+        expect(home, `the home square on ${view}`).toBeNull();
+        expect(people!.x, `the people pill's left on ${view}`).toBe(12);
+        expect(people!.width, `the people pill's width on ${view}`).toBe(timeline.people!.width);
+        expect(holds[view], `the heads are inside the people pill on ${view}`).toBe(true);
+        // The count is at the same x on every view, whole (its words are not wrapped: one line, the bar's height), and clear of the pill and the gear.
+        expect(count!.x, `the count's left on ${view}`).toBe(timeline.together!.x);
+        expect(count!.width, `the count's width on ${view}`).toBe(timeline.together!.width);
+        expect(count!.height, `the count's height on ${view}`).toBe(46);
+        expect(count!.x - (people!.x + people!.width), `the gap between the people pill and the count on ${view}`).toBe(12);
+        expect(intersects(count!, gear!), `the count and the gear on ${view}`).toBe(false);
+        expect(gear!.x - (count!.x + count!.width), `the room between the count and the gear on ${view}`).toBeGreaterThanOrEqual(8);
+      }
+      // On Focus the gear is left of the year rail, and the count is not over it either.
+      const focus = measured.focus;
+      expect(intersects(focus.gear!, rail!), "the gear and the rail").toBe(false);
+      expect(intersects(focus.together!, rail!), "the count and the rail").toBe(false);
+      expect(rail!.x - (focus.gear!.x + focus.gear!.width)).toBeGreaterThanOrEqual(8);
+      // The page does not scroll sideways.
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+    });
+  });
+}
 
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });

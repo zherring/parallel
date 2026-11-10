@@ -342,9 +342,9 @@ export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillP
           <div
             data-pill-open
             inert={phase !== "open"}
-            // On a phone the bar has the home square before the pill, and the field (as wide as the card, nearly the screen) would run off the right edge from
-            // the pill's own edge: it starts at the bar's own (over the square's place, which steps aside), as does the card below.
-            className="absolute left-0 top-0 z-10 flex h-full w-[min(22rem,calc(100vw-3rem))] items-center gap-2 [--search-radius:var(--bar-radius)] max-sm:-left-[calc(var(--bar-h)+0.75rem)]"
+            // Starts at the pill's own left edge. On a phone that is the bar's own (there is no home square before the pill there), and the field, as
+            // wide as the card, nearly the screen, ends clear of the right edge, over the count and the gear, which step aside.
+            className="absolute left-0 top-0 z-10 flex h-full w-[min(22rem,calc(100vw-3rem))] items-center gap-2 [--search-radius:var(--bar-radius)]"
           >
             <div className="min-w-0 flex-1">
               <PersonSearch
@@ -377,7 +377,7 @@ export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillP
           aria-label="People"
           tabIndex={-1}
           // No overflow clipping, so nothing of the field's dropdown could be cut off by the card. The card's own box is `data-panel-bg`.
-          className="relative mt-2 w-[min(22rem,calc(100vw-3rem))] outline-none max-sm:-ml-[calc(var(--bar-h)+0.75rem)]"
+          className="relative mt-2 w-[min(22rem,calc(100vw-3rem))] outline-none"
         >
           <div
             aria-hidden

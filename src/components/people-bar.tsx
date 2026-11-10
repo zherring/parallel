@@ -33,7 +33,7 @@ interface PeopleBarProps {
   onSelect?: (view: PageView) => void;
   /**
    * The Depth view's year rail is at the right edge (3.75rem wide, 28px on a phone), and the gear, with the view switcher before it, sits clear of it.
-   * Without a rail (the flat pages) the gear hugs the right edge, with the same gutter the home pill has at the left.
+   * Without a rail (the flat pages) the gear hugs the right edge, with the same gutter the bar's first control (the home square, the people pill on a phone) has at the left.
    */
   rail?: boolean;
   /** Shows or hides a person's films: the eye in the people pill's rows, on the views that have films to hide (see `PeoplePill`). None: no eyes. */
@@ -63,16 +63,13 @@ export const FLOATING = "border border-border bg-canvas/90";
 /** Steps out of the way while the people pill is open: its field and card take the room the bar's controls would be in. */
 const STEPS_ASIDE =
   "transition-[opacity,visibility] duration-150 motion-reduce:transition-none group-has-[[data-people-pill][data-open]]/bar:invisible group-has-[[data-people-pill][data-open]]/bar:opacity-0";
-/** The same, on a phone only: the home square stays beside the open pill there is room for it (the pill's field and card cover its place on a phone, see `PeoplePill`). */
-const STEPS_ASIDE_ON_PHONE =
-  "max-sm:transition-[opacity,visibility] max-sm:duration-150 max-sm:motion-reduce:transition-none max-sm:group-has-[[data-people-pill][data-open]]/bar:invisible max-sm:group-has-[[data-people-pill][data-open]]/bar:opacity-0";
 
 /**
  * The page bar of a `/p/` page, fixed to the top of the screen, the same on every view (the flat Timeline, Table and Clippings, and the Depth
- * view): a small pill home (the site's header is hidden on these pages, see globals.css), the people pill, the count of the films they made
+ * view): a small square home, from `sm` up (the site's header is hidden on these pages, see globals.css), the people pill, the count of the films they made
  * together (`TogetherCount`) and the page's two sections, Films and Clippings, beside it at the left, and at the right the view switcher (Timeline, Focus, Table) and the gear. Everything at the left is in the
  * same place and size on every view, and so is everything at the right but for what the Depth view's rail asks of it: the gear, with the switcher
- * before it, sits clear of the year rail on Focus (`rail`), and at the right edge on the flat pages, with the gutter the home pill has at the left.
+ * before it, sits clear of the year rail on Focus (`rail`), and at the right edge on the flat pages, with the gutter the bar's first control has at the left.
  * Between the flat views they do not move; between a flat view and Focus they glide, as a view transition: the bar is a different one on each page,
  * so the gear and the switcher are named for React to pair them up across the navigation (see `ViewTransition` and the `bar-` rules in globals.css).
  * The Depth view puts the bar before its scroller, never inside it (perspective would turn `fixed` into `absolute`); the bar takes no pointer events
@@ -82,8 +79,8 @@ const STEPS_ASIDE_ON_PHONE =
  * current one and choosing one goes to it: that keeps the bar's footprint the same on every view.
  *
  * The gear opens the film settings (Show all films and Include minor credits), Share (with its Period choice) and Export (the list as a CSV
- * file), on every view alike. On a phone there is no room for the home pill, the sections and the switcher on the bar, so the bar holds
- * the pill's heads and the gear alone, and the gear's sheet holds the views and the way home too.
+ * file), on every view alike. On a phone there is no room for the home square, the sections and the switcher on the bar, so the bar holds
+ * the people pill, the count (with its full words) and the gear, and the gear's sheet holds the views and the way home too.
  *
  * The bar is as wide as the page's viewport (`inset-x-0`: a flat page with a scrollbar of its own ends the bar at the scrollbar, where the gear's
  * gutter is measured from; the Depth view's scroller hides its own) and sits over the page at `z-30`, under the panels and dialogs.
@@ -138,16 +135,16 @@ export function PeopleBar({
       <div className="flex min-w-0 items-start gap-3">
         {/*
           The way home, now that the site's header is gone: a rounded square (the bar's radius) with the wordmark's green "ll" alone, before the people pill. On a
-          desktop it does not step aside for the open pill, whose field and card start at the people pill's own left edge, clear of it. On a phone
-          it is there too (it is square), and the open pill's field and card, which are as wide as the screen less the margins,
-          are drawn over its place, so it steps aside for them (see `PeoplePill`); the gear's sheet has the link too, with the name.
+          desktop it does not step aside for the open pill, whose field and card start at the people pill's own left edge, clear of it. Not on a phone: the
+          bar's room there is the people pill's and the count's (the count says its full words), so the pill starts at the bar's own left edge, the same on
+          every view, and the gear's sheet has the way home, with the name.
         */}
         <HomeLink
           title="Parallel home"
           className={cn(
             "pointer-events-auto inline-flex size-(--bar-h) shrink-0 items-center justify-center rounded-(--bar-radius) no-underline transition-colors hover:bg-surface motion-reduce:transition-none",
             FLOATING,
-            STEPS_ASIDE_ON_PHONE,
+            "max-sm:hidden",
           )}
         >
           <WordmarkMark className="text-2xl" />

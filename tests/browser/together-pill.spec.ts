@@ -2,7 +2,7 @@ import type { Page } from "next/experimental/testmode/playwright";
 import { PEOPLE_PATH, bar, expect, scene, test, timeline, viewLink } from "./fixtures";
 
 /**
- * The pill after the people pill, "9 films made together", is the page's count of the films the people made together: the headline's, the table's rows.
+ * The pill after the people pill, "9 films together", is the page's count of the films the people made together: the headline's, the table's rows.
  * It has to say the same as the green films in the Timeline and in Focus, and the people pill's rows hold the eyes that show or hide a person's films
  * on the Timeline (they were the legend card's). The pair is the fixture's Scroll Alpha and Scroll Beta: nine films together, sixteen of their own each,
  * a cameo both have (a minor credit: it counts only with "Include minor credits" on).
@@ -41,33 +41,33 @@ test.describe("the number in the pill is the number of green films", () => {
   test("it is the Timeline's, Focus's and the Table's: nine films, in all three", async ({ page }) => {
     await page.goto(PEOPLE_PATH);
     await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
-    await expect(pill(page)).toHaveAccessibleName(`${SHARED} films made together`);
-    await expect(pill(page)).toHaveText(`${SHARED} films made together`);
+    await expect(pill(page)).toHaveAccessibleName(`${SHARED} films together`);
+    await expect(pill(page)).toHaveText(`${SHARED} films together`);
     await expect(greenOnTimeline(page)).toHaveCount(SHARED);
 
     await viewLink(page, "table").click();
     await expect(page.getByRole("table")).toBeVisible();
     expect(await tableRows(page)).toBe(SHARED);
-    await expect(pill(page)).toHaveAccessibleName(`${SHARED} films made together`);
+    await expect(pill(page)).toHaveAccessibleName(`${SHARED} films together`);
 
     await viewLink(page, "depth").click();
     await expect(scene(page)).toBeVisible();
     await expect(greenInFocus(page)).toHaveCount(SHARED);
-    await expect(pill(page)).toHaveAccessibleName(`${SHARED} films made together`);
+    await expect(pill(page)).toHaveAccessibleName(`${SHARED} films together`);
   });
 
   test("with the minor credits on, the cameo both have is one more, in the pill, the Timeline and the Table", async ({ page }) => {
     await page.goto(PEOPLE_PATH);
     await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
     await setMinor(page, true);
-    await expect(pill(page)).toHaveAccessibleName(`${SHARED + 1} films made together`);
+    await expect(pill(page)).toHaveAccessibleName(`${SHARED + 1} films together`);
     await expect(greenOnTimeline(page)).toHaveCount(SHARED + 1);
     await viewLink(page, "table").click();
     await expect(page.getByRole("table")).toBeVisible();
     expect(await tableRows(page)).toBe(SHARED + 1);
-    await expect(pill(page)).toHaveAccessibleName(`${SHARED + 1} films made together`);
+    await expect(pill(page)).toHaveAccessibleName(`${SHARED + 1} films together`);
     await setMinor(page, false);
-    await expect(pill(page)).toHaveAccessibleName(`${SHARED} films made together`);
+    await expect(pill(page)).toHaveAccessibleName(`${SHARED} films together`);
   });
 
   test("a page of one person has the plain count of their films instead, the same on every view", async ({ page }) => {
@@ -141,7 +141,7 @@ test.describe("the eyes in the people pill", () => {
     await page.keyboard.press("Escape");
     await expect(peopleCard(page)).toBeHidden();
     // The count is of the films the page lists, which the eyes do not change.
-    await expect(pill(page)).toHaveAccessibleName(`${SHARED} films made together`);
+    await expect(pill(page)).toHaveAccessibleName(`${SHARED} films together`);
     await expect(page.locator('[data-pill-head="90000002"] > *')).toHaveClass(/opacity-50/);
     await expect(page.locator('[data-pill-head="90000001"] > *')).not.toHaveClass(/opacity-50/);
 

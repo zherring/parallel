@@ -2045,16 +2045,17 @@ test.describe("on a phone", () => {
     // No tabs and no view switcher on the bar: the heads and the count at the left and the gear at the right, clear of the pill, the rail and the edges.
     await expect(page.locator('nav[aria-label="Sections"]')).toHaveCount(0);
     await expect(switcher(page)).toBeHidden();
-    // The count is the dot and the number alone on a phone, with the whole words for its name.
+    // The count has its full words on a phone too: the dot, the number and "films together".
     const together = page.locator("[data-together-pill]");
     await expect(together).toBeVisible();
-    await expect(together).toHaveAccessibleName(/^\d+ films made together$/);
-    // (What shows: the words are `display: none` from the small breakpoint down, so they are in the markup and not on the screen.)
-    expect(await together.evaluate((element) => (element as HTMLElement).innerText.trim())).toMatch(/^\d+$/);
+    await expect(together).toHaveAccessibleName(/^\d+ films together$/);
+    expect(await together.evaluate((element) => (element as HTMLElement).innerText.trim())).toMatch(/^\d+ films together$/);
     const pillBox = (await pill(page).boundingBox())!;
+    const countBox = (await together.boundingBox())!;
     const gearBox = (await settingsGear(page).boundingBox())!;
     const railBox = (await page.locator("[data-depth-rail]").boundingBox())!;
-    expect(gearBox.x).toBeGreaterThan(pillBox.x + pillBox.width + 8);
+    expect(countBox.x).toBeGreaterThan(pillBox.x + pillBox.width);
+    expect(gearBox.x).toBeGreaterThanOrEqual(countBox.x + countBox.width + 8);
     expect(gearBox.x + gearBox.width).toBeLessThanOrEqual(railBox.x - 4);
     expect(gearBox.y).toBeGreaterThanOrEqual(0);
 
@@ -2088,22 +2089,16 @@ test.describe("on a phone", () => {
     await expect(scene(page)).toHaveCount(0);
   });
 
-  test("the home square is on the bar of a phone too, as tall as the heads' pill; it steps aside for the open pill, whose card stays on the screen, and the sheet has the way home with its name", async ({ page }) => {
+  test("a phone's bar has no home square: the heads' pill starts at the bar's left edge, the open pill's field and card stay on the screen, and the sheet has the way home with its name", async ({ page }) => {
     await openDepth(page);
     const barHome = page.locator("[data-people-bar]").getByRole("link", { name: "Parallel home", exact: true });
-    await expect(barHome).toBeVisible();
-    const homeBox = (await barHome.boundingBox())!;
+    await expect(barHome).toBeHidden();
     const capsuleBox = (await page.locator("[data-pill-capsule]").boundingBox())!;
-    expect(homeBox.width).toBe(homeBox.height);
-    expect(homeBox.height).toBe(capsuleBox.height);
-    expect(homeBox.x).toBe(12);
-    expect(homeBox.x + homeBox.width).toBeLessThan(capsuleBox.x);
+    expect(capsuleBox.x).toBe(12);
 
-    // The open pill's field and card are as wide as the screen less the margins, so they start at the bar's edge, over the square's place: it steps
-    // aside for them, and they do not run off the right edge.
+    // The open pill's field and card are as wide as the screen less the margins, and start at the pill's own left edge, the bar's: they do not run off the right edge.
     await pill(page).tap();
     await expect(peopleCard(page)).toBeVisible();
-    await expect(barHome).toBeHidden();
     const cardBox = (await peopleCard(page).boundingBox())!;
     const fieldBox = (await page.locator("[data-pill-open]").boundingBox())!;
     for (const box of [cardBox, fieldBox]) {
@@ -2111,10 +2106,11 @@ test.describe("on a phone", () => {
       expect(box.x + box.width).toBeLessThanOrEqual(390);
     }
     expect(Math.round(fieldBox.x)).toBe(12);
+    expect(Math.round(cardBox.x)).toBe(12);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
     await page.keyboard.press("Escape");
     await expect(peopleCard(page)).toBeHidden();
-    await expect(barHome).toBeVisible();
+    await expect(barHome).toBeHidden();
 
     await settingsGear(page).tap();
     const sheet = settingsSheet(page);
