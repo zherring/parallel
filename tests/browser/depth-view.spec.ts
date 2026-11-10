@@ -1465,15 +1465,15 @@ test("the flat Timeline's switcher reaches Focus, with the period", async ({ pag
   await expect(page).toHaveURL(/\?from=2000&to=2001&view=depth$/);
 });
 
-test("the gear opens the flat page's settings and Share: Show all films is off, as on the flat page, and the period is in Share", async ({ page }) => {
+test("the gear opens the flat page's settings and Share: Show all films is on, as on the flat page, and the period is in Share", async ({ page }) => {
   await openDepth(page);
   await settingsGear(page).click();
   const sheet = settingsSheet(page);
   await expect(sheet).toBeVisible();
 
-  // "Show all films" is the flat page's checkbox, with its words and its hint, off to begin with and free to change: both settings are off.
+  // "Show all films" is the flat page's checkbox, with its words and its hint, on to begin with and free to change; the minor credits are off.
   const showAll = sheet.getByRole("checkbox", { name: "Show all films", exact: true });
-  await expect(showAll).not.toBeChecked();
+  await expect(showAll).toBeChecked();
   await expect(showAll).toBeEnabled();
   await expect(showAll).toHaveAccessibleDescription("Give every film a poster, adding rows as needed.");
   await expect(minorToggle(page)).not.toBeChecked();
@@ -1545,13 +1545,19 @@ async function flatFilms(page: Page) {
 }
 
 test("with Show all films off, Focus has a poster for the films the flat timeline gives a card and none for the ones it leaves as nodes, with minor credits off or on", async ({ page }) => {
-  // The flat page first: its films, and the ones it leaves as nodes, with the minor credits off and on.
+  // The flat page first, every film on it (Show all films is on to begin with, so it has no bare nodes), then with it turned off: its films, and the ones it
+  // leaves as nodes, with the minor credits off and on.
   await page.goto(PEOPLE_PATH);
   await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
-  const flatOff = await flatFilms(page);
+  const flatEvery = await flatFilms(page);
+  expect(flatEvery.nodes).toEqual([]);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const flatDialog = page.getByRole("dialog", { name: "Settings", exact: true });
-  await expect(flatDialog.getByRole("checkbox", { name: "Show all films", exact: true })).not.toBeChecked();
+  await expect(flatDialog.getByRole("checkbox", { name: "Show all films", exact: true })).toBeChecked();
+  await flatDialog.getByRole("checkbox", { name: "Show all films", exact: true }).uncheck();
+  await expect.poll(async () => (await flatFilms(page)).nodes.length).toBeGreaterThan(0);
+  const flatOff = await flatFilms(page);
+  expect(flatOff.all).toEqual(flatEvery.all);
   await flatDialog.getByRole("checkbox", { name: /Show shorts, music videos, cameos and uncredited/ }).check();
   await page.keyboard.press("Escape");
   await expect.poll(async () => (await flatFilms(page)).all.length).toBe(flatOff.all.length + MINOR_FILM_COUNT);
@@ -1585,19 +1591,21 @@ test("with Show all films off, Focus has a poster for the films the flat timelin
 
 const settingsSheetShowAll = (page: Page) => settingsSheet(page).getByRole("checkbox", { name: "Show all films", exact: true });
 
-test("Show all films in Focus changes the number of posters, never the films made together, and keeps the year at the middle of the screen", async ({ page }) => {
+test("Show all films in Focus (on to begin with) changes the number of posters, never the films made together, and keeps the year at the middle of the screen", async ({ page }) => {
   await openDepth(page);
   const posters = scene(page).locator("[data-poster]");
   const togetherIds = async () =>
     (await scene(page).locator("ol").first().locator("[data-poster]").evaluateAll((all) => all.map((poster) => (poster as HTMLElement).dataset.poster))).sort();
-  const fewer = await posters.count();
+  // On to begin with: every film has a poster. Off, the films the flat timeline leaves as nodes have none.
+  const more = await posters.count();
   const together = await togetherIds();
   const centreBefore = await scene(page).evaluate((scroller) => scroller.scrollTop + scroller.clientHeight / 2);
 
   await settingsGear(page).click();
-  await expect(settingsSheetShowAll(page)).not.toBeChecked();
-  await settingsSheetShowAll(page).check();
-  await expect.poll(() => posters.count()).toBeGreaterThan(fewer);
+  await expect(settingsSheetShowAll(page)).toBeChecked();
+  await settingsSheetShowAll(page).uncheck();
+  await expect.poll(() => posters.count()).toBeLessThan(more);
+  const fewer = await posters.count();
   // The films made together keep their posters either way: they are placed first, ahead of the cap.
   expect(await togetherIds()).toEqual(together);
   // The sheet stays open, and the year in the middle of the screen stays there.
@@ -1605,26 +1613,29 @@ test("Show all films in Focus changes the number of posters, never the films mad
   const centreAfter = await scene(page).evaluate((scroller) => scroller.scrollTop + scroller.clientHeight / 2);
   expect(Math.abs(centreAfter - centreBefore)).toBeLessThan(2);
 
-  await settingsSheetShowAll(page).uncheck();
-  await expect.poll(() => posters.count()).toBe(fewer);
+  await settingsSheetShowAll(page).check();
+  await expect.poll(() => posters.count()).toBe(more);
+  expect(fewer).toBeLessThan(more);
 });
 
 test("Show all films is shared with the flat page, as the minor credits are", async ({ page }) => {
   await openDepth(page);
+  // Turned off in Focus (it is on to begin with): the flat page has it off.
   await settingsGear(page).click();
-  await settingsSheetShowAll(page).check();
+  await expect(settingsSheetShowAll(page)).toBeChecked();
+  await settingsSheetShowAll(page).uncheck();
   await page.keyboard.press("Escape");
   await viewLink(page, "timeline").click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const flatDialog = page.getByRole("dialog", { name: "Settings", exact: true });
-  await expect(flatDialog.getByRole("checkbox", { name: "Show all films", exact: true })).toBeChecked();
-  // Off here: Focus has it off too.
-  await flatDialog.getByRole("checkbox", { name: "Show all films", exact: true }).uncheck();
+  await expect(flatDialog.getByRole("checkbox", { name: "Show all films", exact: true })).not.toBeChecked();
+  // On again here: Focus has it on too.
+  await flatDialog.getByRole("checkbox", { name: "Show all films", exact: true }).check();
   await page.keyboard.press("Escape");
   await viewLink(page, "depth").click();
   await expect(scene(page)).toBeVisible();
   await settingsGear(page).click();
-  await expect(settingsSheetShowAll(page)).not.toBeChecked();
+  await expect(settingsSheetShowAll(page)).toBeChecked();
 });
 
 test("a setting made in the gear is there on the flat page, and the other way round", async ({ page }) => {

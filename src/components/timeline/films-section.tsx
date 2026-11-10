@@ -13,8 +13,8 @@ import type { FilmsTableModel } from "./use-films-table";
 import { useViewTab } from "./use-view-tab";
 
 /**
- * The Table and the Clippings are read in a column (72rem wide, with the gutter the page has), centred; the Timeline is as wide as the page: its
- * years have all the room there is.
+ * The Table and the Quotes are read in a column (72rem wide, with the gutter the page has), centred; the Timeline is not in the flow at all: it is the
+ * whole screen.
  */
 const COLUMN = "mx-auto w-full max-w-[70.5rem] px-1";
 
@@ -56,14 +56,15 @@ interface FilmsSectionProps {
 /**
  * The films of a page as one section with two views, Timeline and Table, shown one at a time (and a third, Clippings, for a pair with curated
  * quotes (`clippings`) or critics writing about their collaboration (`critics`)). The links to the views are in the page bar (`PeopleBar`, the
- * same on every view of the page, with Export and Share in its gear); the section is what is under the bar: a line for the period note, then the
- * selected view, then the small source note. The section's heading is for screen readers.
+ * same on every view of the page, with Export and Share in its gear); the section is what is under the bar. The Timeline is the whole screen, fixed
+ * under the bar like the Depth view's scene, with the period note and the empty-state message floating at its top; the Table and the Quotes are in
+ * the flow, in a reading column, with the Table's source note under it. The section's heading is for screen readers.
  *
  * The panels are always mounted (the server renders them all, the inactive ones `hidden`): the table's
  * film titles and credits are in the HTML whichever view is selected, and the timeline keeps its
  * zoom and scroll position while the table is shown. The server and the first
  * client render show the Timeline; the address bar (`?view=`) is read after hydration, see
- * `useViewTab`. While the Clippings are selected the period note and the source note are left out.
+ * `useViewTab`.
  */
 export function FilmsSection({
   headingId,
@@ -94,18 +95,17 @@ export function FilmsSection({
   }, [revealTick]);
 
   const hidden = (panel: View) => view !== panel;
-  // What goes with the panels lines up with the one on show.
-  const aligned = view === "timeline" ? undefined : COLUMN;
 
   return (
     <section ref={sectionRef} aria-labelledby={headingId}>
       <h2 id={headingId} className="sr-only">
         {together ? "Films together" : "Films"}
       </h2>
-      <div className="min-h-5 min-w-0 text-sm text-body">{note && showsPeriodNote(view) && note}</div>
+      {/* The line the Table and the Quotes start under (the Timeline is out of the flow: it is the screen's). */}
+      <div className="min-h-5" />
 
-      {rows.length === 0 && isFilmView(view) && (
-        <div className={aligned}>
+      {rows.length === 0 && isFilmView(view) && view !== "timeline" && (
+        <div className={COLUMN}>
           <p className="mt-4 max-w-xl text-body">{empty}</p>
         </div>
       )}
@@ -113,11 +113,29 @@ export function FilmsSection({
       <div
         id={viewPanelId(headingId, "timeline")}
         hidden={hidden("timeline")}
-        // The timeline's own layers (its controls are `z-[65]` and above) stay in its own stacking context, under the page bar
-        // that is fixed over the top of the page, as they are under everything else outside it.
-        className="isolate mt-2"
+        data-fullscreen-panel
+        // The Timeline is the whole screen, as the Depth view's scene is: fixed, edge to edge, under the page bar that is over its top. Its own layers (its
+        // controls are `z-[65]` and above) stay in its own stacking context, under the bar, as they are under everything else outside it.
+        className="fixed inset-0 z-10 isolate"
       >
         {timeline}
+        {/*
+          What the page says about the films, under the bar and over the track: the period it is showing ("Showing 1966–1981 · Show full career") and, for a pair
+          that made none together, what to do. They take the pointer themselves, and the rest of the strip does not (the track under it is draggable).
+        */}
+        {(note || rows.length === 0) && (
+          <div
+            className="pointer-events-none absolute inset-x-0 z-[70] flex flex-col items-center gap-2 px-3"
+            style={{ top: "calc(0.75rem + var(--bar-h) + 0.5rem)" }}
+          >
+            {note && showsPeriodNote(view) && (
+              <div className="pointer-events-auto rounded-full border border-border bg-canvas/90 px-3 py-1 text-sm text-body">{note}</div>
+            )}
+            {rows.length === 0 && (
+              <p className="pointer-events-auto max-w-xl rounded-lg border border-border bg-canvas/90 px-3 py-2 text-sm text-body">{empty}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div id={viewPanelId(headingId, "table")} hidden={hidden("table")} className={cn("mt-2", COLUMN)}>
@@ -131,7 +149,7 @@ export function FilmsSection({
         </div>
       )}
 
-      <div hidden={!isFilmView(view)} className={cn("mt-5", aligned)}>
+      <div hidden={view !== "table"} className={cn("mt-5", COLUMN)}>
         {rows.length > 0 && (
           <p className="text-xs text-muted">
             Rating and box office from TMDB: the audience score, and the worldwide gross with how many times it covered

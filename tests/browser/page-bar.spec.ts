@@ -286,8 +286,8 @@ for (const [label, viewport] of [
         // No second, visible copy of it: the only text on the page that reads as the whole headline is the h1's.
         await expect(page.locator("h1")).toHaveCount(1);
         await expect(page.getByText(HEADLINE, { exact: true }), view).toHaveCount(1);
-        // The page's content is clear of the bar (the headline used to be what stood between them).
-        if (view !== "focus") {
+        // The page's content is clear of the bar (the headline used to be what stood between them). The Timeline is the whole screen: its track has a top padding for that.
+        if (view !== "focus" && view !== "timeline") {
           const people = (await bar(page).getByRole("button", { name: /^People on this page/ }).boundingBox())!;
           const panel = (await page.locator(`[id$="-panel-${view}"]`).boundingBox())!;
           expect(panel.y, view).toBeGreaterThanOrEqual(people.y + people.height);

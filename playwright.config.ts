@@ -8,8 +8,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: "list",
   // The dev server compiles a route's client code on the first request: a client-side navigation to a view this run has not shown yet (Focus to the
-  // flat Timeline, the other way round) can take more than the default 5s while other workers are compiling too.
-  expect: { timeout: 15_000 },
+  // flat Timeline, the other way round) takes 20s on a cold server while other workers are compiling too, more than the defaults (30s a test, 5s an assertion).
+  timeout: 60_000,
+  expect: { timeout: 30_000 },
   use: {
     baseURL: "http://127.0.0.1:3102",
     viewport: { width: 1440, height: 600 },

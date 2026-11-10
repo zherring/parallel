@@ -129,9 +129,8 @@ export function PeopleBar({
   return (
     <div
       data-people-bar
-      // --bar-h: the one height of the bar's controls (the home circle, the people pill, the count, the switcher and the gear), the people pill's own:
-      // 32px heads (28px on a phone) in a 40px (36px) button, in a capsule with 4px of padding and a hairline. They are all as tall, so they line up.
-      className="group/bar pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-3 pt-3 [--bar-h:3.125rem] max-sm:[--bar-h:2.875rem]"
+      // The bar's controls are all `--bar-h` tall (the root's, see globals.css), so they line up.
+      className="group/bar pointer-events-none fixed inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-3 pt-3"
     >
       {backdrop && (
         <div aria-hidden="true" className="absolute inset-x-0 top-0 -z-10 h-[4.5rem] bg-gradient-to-b from-canvas via-canvas/90 to-transparent" />

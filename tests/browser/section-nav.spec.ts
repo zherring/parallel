@@ -111,22 +111,35 @@ test.describe("at 1440px", () => {
   });
 
   test("the flat views' content clears it: nothing is under the nav", async ({ page }) => {
+    await open(page, "timeline");
+    const navBox = await box(nav(page));
     for (const view of ["timeline", "table", "clippings"] as const) {
       await open(page, view);
-      const navBox = await box(nav(page));
       const panel = page.locator(`[id$="-panel-${view}"]`);
       await expect(panel, view).toBeVisible();
-      // The panel's own box, and the first thing in it that is drawn (the timeline's bordered box, the table, the first quote or filter).
-      const first = view === "timeline" ? page.getByRole("region", { name: "Film timeline. Scroll sideways to see more years.", exact: true }) : view === "table" ? page.getByRole("table") : panel.locator("li, button").first();
+      if (view === "timeline") continue;
+      // The first thing in the panel that is drawn: the table, the first quote or filter.
+      const first = view === "table" ? page.getByRole("table") : panel.locator("li, button").first();
       const firstBox = await box(first);
       expect(firstBox.x, view).toBeGreaterThanOrEqual(navBox.x + navBox.width + 4);
       expect(firstBox.y + firstBox.height, view).toBeGreaterThan(navBox.y);
     }
-    // The Timeline keeps the page's other gutter (12px) at the right: the extra padding is at the left only, 7rem, from `sm`.
+    // The Timeline is the whole screen and has the nav floating over it: its track starts 7rem in (the lane's left spacer, empty), so the earliest film is clear of
+    // the nav at load, and the track's own scroll stays at the left edge of the screen.
     await open(page, "timeline");
-    const timelineBox = await box(page.getByRole("region", { name: "Film timeline. Scroll sideways to see more years.", exact: true }));
-    expect(Math.round(timelineBox.x)).toBe(112);
-    expect(Math.round(1440 - (timelineBox.x + timelineBox.width))).toBe(12);
+    const track = page.getByRole("region", { name: "Film timeline. Scroll sideways to see more years.", exact: true });
+    const trackBox = await box(track);
+    expect(Math.round(trackBox.x)).toBe(0);
+    expect(Math.round(trackBox.width)).toBe(1440);
+    const inset = await track.evaluate((element) => (element.firstElementChild!.lastElementChild!.firstElementChild as HTMLElement).offsetWidth);
+    expect(inset).toBe(112);
+    expect(inset).toBeGreaterThanOrEqual(navBox.x + navBox.width);
+    // The first film's card, with the track at its left edge, is right of the nav.
+    await track.evaluate((element) => {
+      element.scrollLeft = 0;
+    });
+    const firstCard = await box(track.locator("li > button[data-film]").first());
+    expect(firstCard.x).toBeGreaterThanOrEqual(navBox.x + navBox.width);
   });
 
   test("on Focus it floats over the scene and takes no pointer events but on its links: a press beside the text reaches the scene", async ({ page }) => {
@@ -211,10 +224,12 @@ test.describe("on a phone", () => {
   test("there is no left nav: the gear's sheet has Films | Quotes, and the content has no extra padding", async ({ page }) => {
     await open(page, "timeline");
     await expect(nav(page)).toBeHidden();
-    // The timeline is as wide as the page, with the bar's 12px gutters.
-    const timelineBox = await box(page.getByRole("region", { name: "Film timeline. Scroll sideways to see more years.", exact: true }));
-    expect(Math.round(timelineBox.x)).toBe(12);
-    expect(Math.round(390 - (timelineBox.x + timelineBox.width))).toBe(12);
+    // The timeline is the whole screen, with no start inset (there is no nav over it).
+    const track = page.getByRole("region", { name: "Film timeline. Scroll sideways to see more years.", exact: true });
+    const timelineBox = await box(track);
+    expect(Math.round(timelineBox.x)).toBe(0);
+    expect(Math.round(timelineBox.width)).toBe(390);
+    expect(await track.evaluate((element) => (element.firstElementChild!.lastElementChild!.firstElementChild as HTMLElement).offsetWidth)).toBe(0);
 
     await page.getByRole("button", { name: "Settings", exact: true }).tap();
     const sheet = page.getByRole("dialog", { name: "Settings", exact: true });

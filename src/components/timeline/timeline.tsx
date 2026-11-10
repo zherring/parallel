@@ -31,6 +31,7 @@ import { shortName } from "@/lib/short-name";
 import {
   AXIS_HEIGHT,
   DEFAULT_ZOOM,
+  LANE_PAD_TOP,
   DOT_HIT_SIZE,
   MAX_ZOOM,
   MIN_ZOOM,
@@ -107,6 +108,8 @@ interface TimelineProps {
   combined?: boolean;
   /** Shared with both layouts and the table's settings gear: give every film a poster. */
   showAll: boolean;
+  /** The page has the section nav (Films | Quotes) floating over its left edge from `sm`: the combined track starts 7rem in, clear of it. */
+  startInset?: boolean;
   /**
    * Everyone on the page, in URL order: the remove links, and their palette slots (see
    * `personSlots`), which colour the combined track and, in the separate layout, each lane's films
@@ -190,6 +193,7 @@ export function Timeline({
   lanes,
   combined = false,
   showAll,
+  startInset = false,
   people,
   includeMinor,
   today,
@@ -770,21 +774,18 @@ export function Timeline({
   };
 
   return (
-    <div ref={rootRef}>
+    // The whole of its panel, which is the screen (see `FilmsSection`): the track, which takes what is left, and the pinned bar under it.
+    <div ref={rootRef} className="flex h-full flex-col">
       {/*
-        --chrome: what sits above the timeline (the page's top, which clears the page bar, and the line for the period note), plus the
-        pinned bar below it. The scroller is as tall as what is left of the viewport, so that the year axis at its bottom edge shows
-        right above the bar when the page is at the top, instead of under it (but never shorter than 26rem; a phone scrolls
-        the page instead).
-
         The track's left spacer (--lane-head) is the width of the lane headers, which the timeline has where a lane has a person to
-        name (one person's page, and the separate lanes that are parked): the combined track is everyone's and has none, so its films
-        have the whole width of the box. The same inset tells the scroll/zoom and minimap math how much of the viewport is unobstructed.
+        name (one person's page, and the separate lanes that are parked). The combined track is everyone's and has none; with the section nav
+        floating over the page's left edge (`startInset`, from `sm`) it has 7rem of empty track instead, so that the earliest film starts clear of
+        it. The same inset tells the scroll/zoom and minimap math how much of the viewport is unobstructed.
       */}
       <div
         className={cn(
-          "relative isolate [--chrome:12.5rem]",
-          isCombined ? "[--lane-head:0px]" : "[--lane-head:84px] sm:[--lane-head:224px]",
+          "relative isolate flex min-h-0 flex-1 flex-col",
+          isCombined ? (startInset ? "[--lane-head:0px] sm:[--lane-head:7rem]" : "[--lane-head:0px]") : "[--lane-head:84px] sm:[--lane-head:224px]",
         )}
       >
         {layout.legend.length > 0 && (
@@ -818,12 +819,17 @@ export function Timeline({
           onFocus={handleFocus}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
+          // The screen's, edge to edge: no box, no border. The scroller is focusable (arrow keys scroll it): its ring is for the keyboard only
+          // (`focus-visible`), drawn inside its edge (the `!`s: the page's own `:focus-visible` rule is unlayered CSS and would win), not the page's usual ring round the outside.
           className={cn(
-            "max-h-[clamp(26rem,calc(100dvh-var(--chrome)),1100px)] cursor-grab overflow-auto overscroll-x-contain [scroll-padding-left:var(--lane-head)] [scroll-padding-bottom:44px] [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin] data-[panning]:select-none [&[data-panning]_*]:cursor-grabbing! [&_[data-lane-head]]:cursor-auto",
-            "rounded-lg border border-border bg-canvas",
+            "min-h-0 flex-1 cursor-grab overflow-auto overscroll-contain bg-canvas outline-none [scroll-padding-left:var(--lane-head)] [scroll-padding-bottom:44px] [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin] focus-visible:outline-solid! focus-visible:outline-2! focus-visible:-outline-offset-2! focus-visible:outline-focus/60! data-[panning]:select-none [&[data-panning]_*]:cursor-grabbing! [&_[data-lane-head]]:cursor-auto",
           )}
         >
-          <div className="relative flex min-h-full min-w-full flex-col" style={{ width: `calc(var(--lane-head) + ${width}px)` }}>
+          {/* Row 1 starts clear of the page bar, with a little room: the top padding is the bar's bottom edge and 10px, less the lane's own 18px. */}
+          <div
+            className="relative flex min-h-full min-w-full flex-col"
+            style={{ width: `calc(var(--lane-head) + ${width}px)`, paddingTop: `calc(0.75rem + var(--bar-h) + 0.625rem - ${LANE_PAD_TOP}px)` }}
+          >
             {/* Keep the films and their SVG together above the bottom-aligned year axis when the box is taller than they are. */}
             <div className="relative mt-auto shrink-0">
             {/*
@@ -1053,22 +1059,24 @@ export function Timeline({
         <div
           aria-hidden
           className={cn(
-            "pointer-events-none absolute inset-y-px z-[60] w-10 bg-linear-to-r from-canvas to-transparent transition-opacity duration-150 motion-reduce:transition-none",
-            "left-[calc(var(--lane-head)+1px)]",
+            "pointer-events-none absolute inset-y-0 z-[60] w-10 bg-linear-to-r from-canvas to-transparent transition-opacity duration-150 motion-reduce:transition-none",
+            "left-[var(--lane-head)]",
             edges.left ? "opacity-100" : "opacity-0",
           )}
         />
         <div
           aria-hidden
           className={cn(
-            "pointer-events-none absolute inset-y-px right-px z-[60] w-12 rounded-r-lg bg-linear-to-l from-canvas to-transparent transition-opacity duration-150 motion-reduce:transition-none",
+            // To the screen's right edge (the scroller's own scrollbar is thin, and over the fade the posters do not end in a hard line).
+            "pointer-events-none absolute inset-y-0 right-0 z-[60] w-12 bg-linear-to-l from-canvas to-transparent transition-opacity duration-150 motion-reduce:transition-none",
             edges.right ? "opacity-100" : "opacity-0",
           )}
         />
       </div>
 
-      {/* After the timeline, so that the pinned bar follows the lanes in reading and tab order. */}
+      {/* After the timeline, so that the pinned bar follows the lanes in reading and tab order. It is the last of the screen, under the track. */}
       <MinimapBar
+        pinned
         scrollerRef={scrollerRef}
         cornerRef={cornerRef}
         scrollerId={scrollerId}

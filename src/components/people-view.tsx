@@ -236,6 +236,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       lanes={visibleLanes}
       combined={combined}
       showAll={showAll}
+      startInset={clippingsTab}
       people={people}
       includeMinor={includeMinor}
       today={today}

@@ -113,7 +113,17 @@ body:has([data-people-bar]) > header {
  */
 :root {
   view-transition-name: none;
+  /*
+   * The one height of the page bar's controls (the home circle, the people pill, the count, the switcher and the gear), the people pill's own: 32px heads
+   * (28px on a phone) in a 40px (36px) button, in a capsule with 4px of padding and a hairline. It is the root's, so that the pages know where the bar ends.
+   */
+  --bar-h: 3.125rem;
   --bar-spring: linear(0, 0.04, 0.139, 0.273, 0.419, 0.563, 0.695, 0.809, 0.902, 0.973, 1.024, 1.057, 1.076, 1.083, 1.082, 1.075, 1.064, 1.052, 1.04, 1.029, 1.019, 1.01, 1.004, 0.999, 0.996, 0.994, 0.993, 0.993, 0.994, 0.994, 1);
+}
+@media (width < 40rem) {
+  :root {
+    --bar-h: 2.875rem;
+  }
 }
 /* The page stays usable under a transition. */
 ::view-transition {
@@ -141,6 +151,13 @@ body:has([data-people-bar]) > header {
  * (src/components/depth/depth-view.tsx sets the attribute). The flat views keep it: it is at the bottom of the page.
  */
 :root[data-view="depth"] body > footer {
+  display: none;
+}
+/*
+ * The flat Timeline is a full-screen panel too (src/components/timeline/films-section.tsx marks it `data-fullscreen-panel`), fixed over the page like the
+ * Depth view's scene: the footer is under it, out of the tab order too, for as long as it is the view shown (`hidden` while the Table or the Quotes are).
+ */
+body:has([data-fullscreen-panel]:not([hidden])) > footer {
   display: none;
 }
 
