@@ -7,10 +7,14 @@ import { PIXEL, bar, collapseHero, heroBody, timeline } from "./fixtures";
  * The masthead of a page of one person: the pair hero's own component and layout with one portrait. Their name and portrait open their details; under the name their
  * main roles, the years they were active and the count of their films; the three best-known films (by TMDB votes) as chips and "+N more"; and the start of their TMDB
  * biography, in whole sentences, with a More that opens the panel. It collapses on scroll as the pair hero does, and the lane header under it no longer says the biography.
+ * The chips are as many as fit whole on the one line (three on a desktop, one or two on a phone), with "+N more" counting the rest; More is at the end of the biography's last
+ * line, never alone under the portrait.
  */
 
 const SOLO = "/p/90000061-solo-masthead";
 const QUIET = "/p/90000062-solo-quiet";
+/** A person whose films have long titles, as Gene Wilder's do ("Willy Wonka & the Chocolate Factory"): the chips on a phone have to choose. */
+const LONG = "/p/90000063-solo-longtitles";
 
 /** The sentences of the biography: the first two fit within the hero's 240 characters together, the third does not. */
 const SENTENCES = [
@@ -39,9 +43,37 @@ const cast: RawCastCredit[] = films.map((film) => ({ ...film, order: 0, characte
 // A director credit on two of them: an actor still, by the films (the main role is the one on the most).
 const crew: RawCrewCredit[] = films.slice(0, 2).map((film) => ({ ...film, job: "Director" }));
 
+/** The long-titled films, best known first (the votes fall with the list). */
+const LONG_TITLES = [
+  "Willy Wonka & the Chocolate Factory",
+  "Young Frankenstein",
+  "Blazing Saddles",
+  "The Adventure of Sherlock Holmes' Smarter Brother",
+  "Silver Streak",
+  "Stir Crazy",
+  "The Woman in Red",
+  "Start the Revolution Without Me",
+];
+const LONG_COUNT = LONG_TITLES.length;
+const longCast: RawCastCredit[] = LONG_TITLES.map((longTitle, index) => ({
+  id: 200 + index,
+  title: longTitle,
+  release_date: `${1970 + index * 2}-05-01`,
+  poster_path: `/poster-${200 + index}.png`,
+  vote_count: 9000 - index * 1000,
+  order: 0,
+  character: "Lead",
+}));
+
 const people: Record<string, { id: number; name: string; biography: string }> = {
   "90000061": { id: 90000061, name: "Solo Masthead", biography: BIOGRAPHY },
   "90000062": { id: 90000062, name: "Solo Quiet", biography: "" },
+  "90000063": { id: 90000063, name: "Solo Longtitles", biography: BIOGRAPHY },
+};
+const credits: Record<string, { cast: RawCastCredit[]; crew: RawCrewCredit[] }> = {
+  "90000061": { cast, crew },
+  "90000062": { cast, crew },
+  "90000063": { cast: longCast, crew: [] },
 };
 
 const test = base.extend({
@@ -56,7 +88,7 @@ const test = base.extend({
       const match = url.pathname.match(/^\/3\/person\/(\d+)(\/movie_credits)?$/);
       if (match && people[match[1]]) {
         if (!match[2]) return Response.json({ ...people[match[1]], profile_path: null, birthday: "1960-01-01" });
-        return Response.json({ cast, crew });
+        return Response.json(credits[match[1]]);
       }
       if (url.pathname === "/3/discover/movie") return Response.json({ total_pages: 1, results: [] });
       return "abort";
@@ -78,6 +110,51 @@ const note = (page: Page) => heroBody(page).locator('[data-hero-note="bio"]');
 const more = (page: Page) => note(page).getByRole("button", { name: "More about Solo Masthead", exact: true });
 const chips = (page: Page) => heroBody(page).locator("[data-hero-chip]");
 const pill = (page: Page) => bar(page).getByRole("button", { name: /^People on this page/ });
+
+/**
+ * The chip line as the visitor has it: how many chips are on it (those with a box), where each one's and "+N more"'s top is (all the same on one line), how many characters of
+ * each title are left before its ellipsis, the count the "+N more" chip says, and whether anything of the line is cut off at its end or scrolls.
+ */
+const chipLine = (page: Page) =>
+  heroBody(page).evaluate((body) => {
+    const group = body.querySelector<HTMLElement>('[role="group"]')!;
+    const groupRight = group.getBoundingClientRect().right;
+    const shown = (element: HTMLElement) => element.getClientRects().length > 0;
+    const chips = [...body.querySelectorAll<HTMLElement>("[data-hero-chip]")].filter(shown);
+    const more = [...body.querySelectorAll<HTMLElement>("[data-hero-more]")].filter(shown);
+    /** The characters of the title that are set before the ellipsis: the last whose end is clear of the room the ellipsis takes. */
+    const kept = (chip: HTMLElement) => {
+      const span = chip.firstElementChild as HTMLElement;
+      const text = span.firstChild as Text;
+      if (span.scrollWidth <= span.clientWidth) return text.length;
+      const probe = document.createElement("span");
+      probe.textContent = "\u2026";
+      probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap";
+      span.append(probe);
+      const ellipsis = probe.getBoundingClientRect().width;
+      probe.remove();
+      const limit = span.getBoundingClientRect().right - ellipsis;
+      const range = document.createRange();
+      let count = 0;
+      for (let end = 1; end <= text.length; end += 1) {
+        range.setStart(text, 0);
+        range.setEnd(text, end);
+        if (range.getBoundingClientRect().right <= limit + 0.5) count = end;
+      }
+      return count;
+    };
+    return {
+      tops: [...new Set([...chips, ...more].map((item) => item.offsetTop))],
+      chips: chips.length,
+      titles: chips.map((chip) => (chip.firstElementChild as HTMLElement).textContent),
+      kept: chips.map(kept),
+      moreCount: more.length === 1 ? Number(/\+(\d+)/.exec(more[0].innerText)?.[1]) : 0,
+      mores: more.length,
+      cutOff: [...chips, ...more].some((item) => item.getBoundingClientRect().right > groupRight + 0.5),
+      scrolls: group.scrollWidth > group.clientWidth,
+      pageScrolls: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  });
 const panel = (page: Page, name = "Solo Masthead") => page.getByRole("dialog", { name, exact: true });
 
 /** Waits until the page is live: a state transition (the gear's sheet opening and closing), not a sleep. */
@@ -231,6 +308,46 @@ test.describe("at 1440px wide", () => {
   });
 });
 
+test.describe("the chips at 1440px wide, and as the window changes", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("a desktop has room for three chips, whole or cut at the chip's own 16rem, and the rest is in '+N more'", async ({ page }) => {
+    await openView(page, LONG, "timeline");
+    const line = await chipLine(page);
+    expect(line).toMatchObject({ chips: 3, mores: 1, moreCount: LONG_COUNT - 3, tops: [expect.any(Number)], cutOff: false, scrolls: false });
+    // The longest title is cut by the chip's maximum width, and keeps more than ten characters of it.
+    for (const kept of line.kept) expect(kept).toBeGreaterThanOrEqual(10);
+    expect(line.titles[0]).toBe(LONG_TITLES[0]);
+    await expect(chips(page).first()).toContainText("Willy Wonka & the Choc");
+  });
+
+  test("the count follows the window: one or two chips when it narrows to a phone, three again when it widens, and the films add up each time", async ({ page }) => {
+    await openView(page, LONG, "timeline");
+    await expect(chips(page)).toHaveCount(3);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(async () => (await chipLine(page)).chips).toBeLessThanOrEqual(2);
+    const narrow = await chipLine(page);
+    expect(narrow.chips).toBeGreaterThanOrEqual(1);
+    expect(narrow.chips + narrow.moreCount).toBe(LONG_COUNT);
+    expect(narrow).toMatchObject({ mores: 1, tops: [expect.any(Number)], cutOff: false, scrolls: false, pageScrolls: false });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect.poll(async () => (await chipLine(page)).chips).toBe(3);
+    const wide = await chipLine(page);
+    expect(wide.chips + wide.moreCount).toBe(LONG_COUNT);
+  });
+
+  test("+N more opens every film and hands focus to the first one it added, whatever the count on the line was", async ({ page }) => {
+    await openView(page, LONG, "timeline");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(async () => (await chipLine(page)).chips).toBeLessThanOrEqual(2);
+    const before = (await chipLine(page)).chips;
+    await heroBody(page).locator("[data-hero-more]").click();
+    await expect(chips(page)).toHaveCount(LONG_COUNT);
+    await expect(heroBody(page).locator("[data-hero-more]")).toHaveCount(0);
+    await expect(chips(page).nth(before)).toBeFocused();
+  });
+});
+
 test.describe("at 390px wide", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
@@ -274,5 +391,79 @@ test.describe("at 390px wide", () => {
     const barBox = await box(bar(page));
     const name = await box(page.locator("[data-lane-head] h2"));
     expect(intersects(barBox, name)).toBe(false);
+  });
+
+  for (const [path, count] of [
+    [SOLO, FILM_COUNT],
+    [LONG, LONG_COUNT],
+  ] as const) {
+    for (const view of ["timeline", "table", "depth"]) {
+      test(`${path === LONG ? "long titles" : "short titles"}, ${view}: the chips on the line are whole, one line with '+N more', every film is on it or in the count, and the masthead is 220px at most`, async ({ page }) => {
+        await openView(page, path, view);
+        await expect(note(page)).toBeVisible();
+        const line = await chipLine(page);
+        // At least one chip, and no more than the cap; with a phone's width, one or two.
+        expect(line.chips).toBeGreaterThanOrEqual(1);
+        expect(line.chips).toBeLessThanOrEqual(2);
+        // Whole: no title is cut to fewer than ten characters (the ellipsis is allowed after that).
+        for (const [index, kept] of line.kept.entries()) expect(kept, `the title of chip ${index + 1}, ${line.titles[index]}`).toBeGreaterThanOrEqual(10);
+        // One line: the chips and "+N more" have the same top, nothing is cut off the end, nothing scrolls.
+        expect(line).toMatchObject({ mores: 1, tops: [expect.any(Number)], cutOff: false, scrolls: false, pageScrolls: false });
+        // Every film is a chip or in the count.
+        expect(line.chips + line.moreCount).toBe(count);
+        expect(await mastheadBottom(page)).toBeLessThanOrEqual(220);
+      });
+    }
+  }
+
+  test("long titles at 390: one chip with its title cut at the end, which keeps the first twenty characters or so, and '+7 more'", async ({ page }) => {
+    await openView(page, LONG, "timeline");
+    const line = await chipLine(page);
+    expect(line.chips).toBe(1);
+    expect(line.moreCount).toBe(LONG_COUNT - 1);
+    expect(line.titles[0]).toBe(LONG_TITLES[0]);
+    expect(line.kept[0]).toBeGreaterThanOrEqual(18);
+  });
+
+  test("More is on the last line of the biography, with its last word, never alone under the portrait, however long the text is", async ({ page }) => {
+    await openView(page, SOLO, "table");
+    await expect(note(page)).toBeVisible();
+    // Cut the text a word at a time (the page is only looked at, not changed), so that the last line takes every length from one word to a full one: the lengths at which More does
+    // not fit after the last word are the ones that used to put it on a line of its own.
+    const verdicts = await note(page).evaluate((element) => {
+      const button = element.querySelector<HTMLElement>("[data-person-more]")!;
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      const texts: Text[] = [];
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) if (!button.contains(node) && (node.textContent ?? "").trim() !== "") texts.push(node as Text);
+      const lead = texts.reduce((longest, text) => (text.length > longest.length ? text : longest));
+      const original = lead.data;
+      const words = original.trimEnd().split(" ");
+      const results: { words: number; shared: boolean; lines: number }[] = [];
+      for (let count = 4; count <= words.length; count += 1) {
+        lead.data = `${words.slice(0, count).join(" ")} `;
+        const last = texts[texts.length - 1];
+        const range = document.createRange();
+        range.selectNodeContents(last);
+        const rects = [...range.getClientRects()];
+        const line = rects[rects.length - 1];
+        const top = button.getBoundingClientRect().top;
+        results.push({ words: count, shared: top >= line.top - 2 && top < line.bottom, lines: rects.length });
+      }
+      lead.data = original;
+      return results;
+    });
+    expect(verdicts.length).toBeGreaterThan(10);
+    expect(verdicts.filter((verdict) => !verdict.shared)).toEqual([]);
+  });
+});
+
+test.describe("at 390px wide, before the page is live", () => {
+  test.use({ viewport: { width: 390, height: 844 }, javaScriptEnabled: false });
+
+  test("the page the server sends already has the phone's line: one chip and '+N more', on one line, and the count is right", async ({ page }) => {
+    await page.goto(`${LONG}?view=table`);
+    const line = await chipLine(page);
+    expect(line).toMatchObject({ chips: 1, mores: 1, moreCount: LONG_COUNT - 1, tops: [expect.any(Number)], cutOff: false, scrolls: false, pageScrolls: false });
+    expect(line.kept[0]).toBeGreaterThanOrEqual(10);
   });
 });

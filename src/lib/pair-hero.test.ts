@@ -6,12 +6,14 @@ import { getHeroNote } from "@/lib/pair-hero-note";
 import { getPairDescription } from "@/lib/pair-descriptions";
 import {
   CHIP_LIMIT,
+  CHIP_MIN_WIDTH,
   COLLAPSE_PX,
   QUOTE_CHARS,
   SOLO_ROLE_LIMIT,
   activeYears,
   bestKnownChips,
   featuredClipping,
+  fitChipCount,
   fitsHero,
   heroBioText,
   heroCollapsed,
@@ -23,6 +25,7 @@ import {
   pickHeroNote,
   quoteHref,
   soloRolesLabel,
+  splitLastWord,
   visibleChips,
   type HeroChip,
   type RankedFilm,
@@ -607,6 +610,89 @@ describe("visibleChips", () => {
 
   it("takes another limit", () => {
     expect(visibleChips(chips(10), false, 5)).toEqual({ shown: chips(10).slice(0, 5), hidden: 5 });
+  });
+});
+
+describe("fitChipCount", () => {
+  const MORE = 88;
+  const GAP = 6;
+  /** A 358px line (a 390px phone): the three chips are as wide as the numbers say. */
+  const fit = (widths: number[], available: number, extra: Partial<Parameters<typeof fitChipCount>[0]> = {}) =>
+    fitChipCount({ widths, moreWidth: MORE, available, gap: GAP, ...extra });
+
+  it("is the cap where three fit whole, with room to spare", () => {
+    expect(fit([180, 180, 180], 1200, { films: 31 })).toBe(CHIP_LIMIT);
+    expect(fit([256, 256, 256], 1200, { films: 31 })).toBe(CHIP_LIMIT);
+    // Never more than the cap, however much room there is: the chips beyond it are not measured.
+    expect(fit([100, 100, 100, 100, 100], 4000, { films: 5 })).toBe(CHIP_LIMIT);
+  });
+
+  it("is two on a phone with short titles, and one with long ones", () => {
+    expect(fit([100, 110, 100], 358, { films: 31 })).toBe(2);
+    expect(fit([256, 256, 256], 358, { films: 31 })).toBe(1);
+    // The second chip may give up the end of its title, but not below the minimum: 256 + 6 + 150 + 6 + 88 = 506.
+    expect(fit([256, 256, 256], 505, { films: 31 })).toBe(1);
+    expect(fit([256, 256, 256], 507, { films: 31 })).toBe(2);
+  });
+
+  it("lets the last chip give up the end of its title, down to the minimum, and never lets a short title give up anything", () => {
+    // 100 whole, then 300 (cut at the chip's own maximum in reality; here just wide) squeezed to 150: 100 + 6 + 150 + 6 + 88 = 350, a hair of slack.
+    expect(fit([100, 300, 300], 351, { films: 31 })).toBe(2);
+    expect(fit([100, 300, 300], 349, { films: 31 })).toBe(1);
+    // A chip narrower than the minimum is its own width: 100 + 6 + 90 + 6 + 88 = 290.
+    expect(fit([100, 90, 300], 291, { films: 31 })).toBe(2);
+    expect(fit([100, 90, 300], 289, { films: 31 })).toBe(1);
+    expect(CHIP_MIN_WIDTH).toBeGreaterThanOrEqual(130);
+  });
+
+  it("needs no '+N more' chip when every film is on the line", () => {
+    // Two films, both fit with no more chip: 100 + 6 + 100 + 1 = 207, but 207 + 6 + 88 for a "+N more" chip would not be.
+    expect(fit([100, 100], 210)).toBe(2);
+    expect(fit([100, 100], 210, { films: 3 })).toBe(1);
+    // Three films that fit exactly, no more chip: 100 + 6 + 100 + 6 + 100 + 1 = 313.
+    expect(fit([100, 100, 100], 313)).toBe(3);
+    expect(fit([100, 100, 100], 312)).toBe(2);
+  });
+
+  it("is always at least one chip with any film, and none with none", () => {
+    expect(fit([256], 40)).toBe(1);
+    expect(fit([256, 256, 256], 40, { films: 31 })).toBe(1);
+    expect(fit([], 358)).toBe(0);
+  });
+
+  it("takes another limit and another minimum", () => {
+    expect(fit([100, 100, 100], 1200, { films: 31, limit: 2 })).toBe(2);
+    expect(fit([100, 300], 280, { films: 31, minWidth: 40 })).toBe(2);
+    expect(fit([100, 300], 280, { films: 31, minWidth: 150 })).toBe(1);
+  });
+
+  it("counts the films left out against every film, not only the measured ones", () => {
+    // Three measured chips of 31 films: with all three on the line, 28 are left out, so the "+N more" chip is on it.
+    expect(fit([100, 100, 100], 310, { films: 31 })).toBe(2);
+    expect(fit([100, 100, 100], 313, { films: 3 })).toBe(3);
+  });
+});
+
+describe("splitLastWord", () => {
+  it("cuts a text before its last word", () => {
+    expect(splitLastWord("He began on the stage in Chicago.")).toEqual(["He began on the stage in", "Chicago."]);
+    expect(splitLastWord("Born in 1933 \u2026")).toEqual(["Born in 1933", "\u2026"]);
+  });
+
+  it("is the whole text as the last word when it is one word, and nothing for nothing", () => {
+    expect(splitLastWord("Director")).toEqual(["", "Director"]);
+    expect(splitLastWord("")).toEqual(["", ""]);
+  });
+
+  it("ignores space at the end, and keeps the spaces inside", () => {
+    expect(splitLastWord("An actor.  \n")).toEqual(["An", "actor."]);
+    expect(splitLastWord("Two  spaces here")).toEqual(["Two  spaces", "here"]);
+  });
+
+  it("joins back into the text it was cut from", () => {
+    const text = "Gene Wilder (born Jerome Silberman; June 11, 1933 \u2013 August 29, 2016) was an American actor.";
+    const [lead, last] = splitLastWord(text);
+    expect(`${lead} ${last}`).toBe(text);
   });
 });
 

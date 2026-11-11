@@ -8,7 +8,8 @@
  *  - which note the hero shows, by the chain quote (the first one that fits whole, never cut), description, blurb, biography, nothing (`pickHeroNote`);
  *  - each person's main role in the films the people made together, and the subtitle that joins them (`mainRoleLabels`, `heroSubtitle`); for one person,
  *    their main roles and active years (`soloRolesLabel`, `activeYears`);
- *  - the film chips, in release order, the first three and a "+N more" for the rest (`orderChips`, `visibleChips`); for one person the best known first (`bestKnownChips`);
+ *  - the film chips, in release order, as many of the first three as fit whole on one line and a "+N more" for the rest (`orderChips`, `visibleChips`, `fitChipCount`); for one person the
+ *    best known first (`bestKnownChips`);
  *  - when the hero is expanded and when it has collapsed into the compact bar (`heroCollapsed`).
  */
 
@@ -88,6 +89,16 @@ export function heroBioText(biography: string | null | undefined, maxChars = QUO
   if (typeof biography !== "string") return null;
   const text = stripBiographyCredit(biography);
   return text ? bioSnippet(text, maxChars) : null;
+}
+
+/**
+ * A text cut before its last word: `[everything before it, the last word]`. The masthead sets the biography's More after the last word in a span that does not break, so the two
+ * wrap together and More is never alone on a line of its own. A text of a single word is `["", word]`.
+ */
+export function splitLastWord(text: string): [string, string] {
+  const trimmed = text.trimEnd();
+  const cut = trimmed.search(/\s\S*$/);
+  return cut < 0 ? ["", trimmed] : [trimmed.slice(0, cut), trimmed.slice(cut + 1)];
 }
 
 /** What `pickHeroNote` chooses among: each is null when the pair has none. */
@@ -225,8 +236,49 @@ export function heroSubtitle(roles: readonly string[], count: number, several: b
 
 // ---- the chips --------------------------------------------------------------------------------------------------------------------------
 
-/** How many film chips the hero shows before "+N more". */
+/** The most film chips the hero shows before "+N more", however much room there is: where fewer fit whole on the line (a phone) it shows fewer (`fitChipCount`). */
 export const CHIP_LIMIT = 3;
+
+/**
+ * The narrowest (px) a chip is set when its title has to give up its end: room for about ten characters of the title, the ellipsis, the year and the chip's padding. A chip
+ * never goes narrower, so a title is never reduced to "Y.." beside its year: there is a chip fewer instead.
+ */
+export const CHIP_MIN_WIDTH = 150;
+
+/** What `fitChipCount` weighs: the room on the line and the widths (px) of what has to go on it. */
+export interface ChipFitInput {
+  /** The width each chip would have to itself, in order (a long title is already cut at the chip's own maximum width). */
+  widths: readonly number[];
+  /** The width of the "+N more" chip, at its widest (the one with the most digits). */
+  moreWidth: number;
+  /** How many films there are in all, when more than `widths` has (only the first few, the ones that can go on the line, are measured): what is not on the line is "+N more". */
+  films?: number;
+  /** The room the chips and the "+N more" chip have between them, and the gap between neighbours. */
+  available: number;
+  gap: number;
+  /** At most this many chips: the cap (`CHIP_LIMIT`). */
+  limit?: number;
+  /** The narrowest the last chip may be set (`CHIP_MIN_WIDTH`). */
+  minWidth?: number;
+}
+
+/** A pixel of slack: the widths come from layout, which rounds, and a line that is a hair short would cut the last chip's title for nothing. */
+const FIT_SLACK_PX = 1;
+
+/**
+ * How many film chips go on the one line, before "+N more" (which counts every film left out): as many as fit whole, up to `limit`, but always at least one (with any film at all).
+ * Whole means that the first chips have their full width and the last may give up the end of its title, down to `minWidth`, so a title keeps at least about ten characters (and
+ * a short title, which needs less than that, never gives up anything). "+N more" takes its place after them unless every film is shown.
+ */
+export function fitChipCount({ widths, moreWidth, films = widths.length, available, gap, limit = CHIP_LIMIT, minWidth = CHIP_MIN_WIDTH }: ChipFitInput): number {
+  for (let count = Math.min(widths.length, limit); count >= 2; count -= 1) {
+    const whole = widths.slice(0, count - 1).reduce((sum, width) => sum + width, 0);
+    const last = Math.min(widths[count - 1], minWidth);
+    const more = count < films ? gap + moreWidth : 0;
+    if (whole + last + gap * (count - 1) + more + FIT_SLACK_PX <= available) return count;
+  }
+  return Math.min(widths.length, 1);
+}
 
 /** One film as a chip: what it says and what finds the film in the view. */
 export interface HeroChip {
@@ -250,7 +302,7 @@ export interface RankedFilm extends HeroChip {
 
 /**
  * One person's films as chips, the best known first: the most TMDB votes (the same measure that picks the posters of a shared card, see `pickTimelineFilms`), and films
- * with as many in release order, then by title and id, so that the order is the same on every render. The first `CHIP_LIMIT` are the ones the hero shows.
+ * with as many in release order, then by title and id, so that the order is the same on every render. The hero shows as many of the first `CHIP_LIMIT` as fit its line (`fitChipCount`).
  */
 export function bestKnownChips(films: readonly RankedFilm[]): HeroChip[] {
   return [...films]
@@ -259,8 +311,8 @@ export function bestKnownChips(films: readonly RankedFilm[]): HeroChip[] {
 }
 
 /**
- * The chips to draw and how many are left out: the first `limit`, then `hidden` for the "+N more" chip; with `expanded` (or no more than `limit`
- * films) all of them and nothing hidden.
+ * The chips to draw and how many are left out: the first `limit` (the count that fit the line, see `fitChipCount`), then `hidden` for the "+N more" chip; with `expanded` (or no
+ * more than `limit` films) all of them and nothing hidden.
  */
 export function visibleChips<T>(chips: readonly T[], expanded: boolean, limit = CHIP_LIMIT): { shown: T[]; hidden: number } {
   if (expanded || chips.length <= limit) return { shown: [...chips], hidden: 0 };
