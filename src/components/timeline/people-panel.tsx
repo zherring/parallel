@@ -112,7 +112,7 @@ export function PeoplePanel({
       {visibleCount > 1 && (
         <p className="flex shrink-0 items-center gap-1.5 border-t border-border px-3 py-2 text-xs text-muted">
           <span aria-hidden className="size-2.5 shrink-0 rounded-full bg-lit shadow-[0_0_6px_var(--lit-glow)]" />
-          Green: made together
+          Green: made together by everyone shown
         </p>
       )}
     </aside>

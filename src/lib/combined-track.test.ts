@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { combineLanes, combinedMinimapFilms, describeCombined, toggleHidden } from "@/lib/combined-track";
+import {
+  PARTIAL_TICK_COLOR,
+  combineLanes,
+  combinedMinimapFilms,
+  describeCombined,
+  toggleHidden,
+} from "@/lib/combined-track";
 import { PERSON_COLORS, personColor, personColorCss, personGlow, personSlots } from "@/lib/person-colors";
 import type { Credit, Film } from "@/lib/types";
 
@@ -23,9 +29,15 @@ function film(id: number, releaseDate: string, credits: Credit[] = [director]): 
 const people = [{ id: 10 }, { id: 20 }, { id: 30 }];
 const slotOf = personSlots(people);
 const lanes = [
-  { person: people[0], films: [film(1, "1990-01-01"), film(2, "2000-01-01"), film(4, "2030-01-01")] },
-  { person: people[1], films: [film(2, "2000-01-01"), film(3, "1995-01-01"), film(4, "2030-01-01")] },
-  { person: people[2], films: [film(3, "1995-01-01")] },
+  {
+    person: people[0],
+    films: [film(1, "1990-01-01"), film(2, "2000-01-01"), film(4, "2030-01-01"), film(5, "1998-01-01"), film(6, "2031-01-01")],
+  },
+  {
+    person: people[1],
+    films: [film(2, "2000-01-01"), film(3, "1995-01-01"), film(4, "2030-01-01"), film(5, "1998-01-01"), film(6, "2031-01-01")],
+  },
+  { person: people[2], films: [film(3, "1995-01-01"), film(5, "1998-01-01"), film(6, "2031-01-01")] },
 ];
 
 describe("person colours", () => {
@@ -49,15 +61,22 @@ describe("person colours", () => {
 describe("combineLanes", () => {
   it("merges the lanes into one list, oldest first, with each film's contributors", () => {
     const films = combineLanes(lanes, slotOf, TODAY);
-    expect(films.map((f) => f.film.id)).toEqual([1, 3, 2, 4]);
+    expect(films.map((f) => f.film.id)).toEqual([1, 3, 5, 2, 4, 6]);
     expect(films.find((f) => f.film.id === 3)).toMatchObject({ personIds: [20, 30], slots: [1, 2] });
   });
 
-  it("calls a released film shared when two or more visible people made it, and never an upcoming one", () => {
+  it("calls a released film shared only when every visible person made it, and never an upcoming one", () => {
     const byId = new Map(combineLanes(lanes, slotOf, TODAY).map((f) => [f.film.id, f]));
     expect(byId.get(1)?.shared).toBe(false);
-    expect(byId.get(2)?.shared).toBe(true);
-    expect(byId.get(3)?.shared).toBe(true);
+    // Two of the three made these: not green.
+    expect(byId.get(2)?.shared).toBe(false);
+    expect(byId.get(2)?.personIds).toEqual([10, 20]);
+    expect(byId.get(3)?.shared).toBe(false);
+    expect(byId.get(3)?.personIds).toEqual([20, 30]);
+    expect(byId.get(5)?.shared).toBe(true);
+    // All three are making it, but it is not out: not green.
+    expect(byId.get(6)?.shared).toBe(false);
+    expect(byId.get(6)?.personIds).toEqual([10, 20, 30]);
     expect(byId.get(4)?.shared).toBe(false);
     expect(byId.get(4)?.personIds).toEqual([10, 20]);
   });
@@ -67,6 +86,12 @@ describe("combineLanes", () => {
     const films = combineLanes([second, lanes[2]], slotOf, TODAY);
     expect(films.find((f) => f.film.id === 2)).toMatchObject({ shared: false, slots: [1] });
     expect(films.find((f) => f.film.id === 3)).toMatchObject({ shared: true, slots: [1, 2] });
+    expect(films.find((f) => f.film.id === 5)).toMatchObject({ shared: true, slots: [1, 2] });
+
+    // Hiding the third person leaves a pair that made film 2 together: now green.
+    const pair = combineLanes([first, second], slotOf, TODAY);
+    expect(pair.find((f) => f.film.id === 2)?.shared).toBe(true);
+    expect(pair.find((f) => f.film.id === 3)?.shared).toBe(false);
 
     const alone = combineLanes([first], slotOf, TODAY);
     expect(alone.every((f) => !f.shared)).toBe(true);
@@ -146,9 +171,9 @@ describe("combinedMinimapFilms", () => {
     { person: people[0], films: [film(1, "1990-01-01"), film(2, "2000-01-01"), film(3, "2030-01-01")] },
     { person: people[1], films: [film(2, "2000-01-01"), film(3, "2030-01-01"), film(4, "2010-01-01")] },
   ];
-  const marks = combinedMinimapFilms(combineLanes(pair, slots, TODAY));
+  const marks = combinedMinimapFilms(combineLanes(pair, slots, TODAY), TODAY);
 
-  it("puts the films several people made in shared, without a colour", () => {
+  it("puts the films every visible person made in shared, without a colour", () => {
     expect(marks.shared.map((mark) => mark.id)).toEqual([2]);
     expect(marks.shared[0]).toMatchObject({ title: "Film 2", year: 2000, releaseDate: "2000-01-01", color: undefined });
   });
@@ -159,6 +184,20 @@ describe("combinedMinimapFilms", () => {
       [4, personColor(1)],
       // Announced by both: not shared yet, and no single colour to give it.
       [3, undefined],
+    ]);
+  });
+
+  it("keeps released partial collaborations as muted ticks beside the all-person nodes", () => {
+    const three = combinedMinimapFilms(combineLanes(lanes, slotOf, TODAY), TODAY);
+    expect(three.shared.map((mark) => mark.id)).toEqual([5]);
+    expect(three.ticks.map((mark) => [mark.id, mark.color])).toEqual([
+      [1, personColor(0)],
+      // Released, but only two of the three made them: muted (and still drawn beside the green node).
+      [3, PARTIAL_TICK_COLOR],
+      [2, PARTIAL_TICK_COLOR],
+      // Upcoming, so it has no mark beside the green nodes.
+      [4, undefined],
+      [6, undefined],
     ]);
   });
 });
