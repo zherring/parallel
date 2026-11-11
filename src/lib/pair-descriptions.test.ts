@@ -69,7 +69,7 @@ describe("the curated descriptions", () => {
   const entries = Object.entries(PAIR_DESCRIPTIONS);
 
   it("are the fifty pairs researched so far", () => {
-    expect(entries).toHaveLength(50);
+    expect(entries).toHaveLength(99);
     expect(Object.keys(PAIR_DESCRIPTIONS)).toContain("525+74401");
     expect(Object.keys(PAIR_DESCRIPTIONS)).toContain("3146+3147");
   });
