@@ -139,37 +139,13 @@ export function PeopleBar({
 
   const reduced = useMediaQuery(REDUCED_MOTION);
   const barRef = useRef<HTMLDivElement>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   const overlay = hero.body !== null;
   const expanded = !hero.collapsed;
-
-  // While the band is open over the view, the Films view's year rail starts at its bottom edge (`--rail-top`, see globals.css, which eases it there and
-  // back to the top of the screen). The band's bottom is worked out as it will be once the body is fully open (its row's height is easing, its content's
-  // is not), so the rail and the band move together instead of the rail following the band frame by frame.
-  useLayoutEffect(() => {
-    const root = document.documentElement;
-    if (!overlay || !expanded) {
-      root.style.removeProperty("--rail-top");
-      return;
-    }
-    const place = () => {
-      const bar = barRef.current;
-      const wrap = wrapRef.current;
-      const content = contentRef.current;
-      if (!bar || !wrap || !content) return;
-      const bottom = bar.getBoundingClientRect().bottom - wrap.getBoundingClientRect().height + content.offsetHeight;
-      root.style.setProperty("--rail-top", `${Math.round(bottom)}px`);
-    };
-    place();
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(place);
-    if (barRef.current) observer?.observe(barRef.current);
-    if (contentRef.current) observer?.observe(contentRef.current);
-    return () => {
-      observer?.disconnect();
-      root.style.removeProperty("--rail-top");
-    };
-  }, [overlay, expanded]);
+  /**
+   * Where the hero's band ends on the right: at the screen's edge, or, on the Films view, at the year rail's left edge (the rail runs the full height of the screen,
+   * from its top, over nothing of the band: it is not pushed down by the hero, and the band, which is solid, never hides it).
+   */
+  const bandEnd = rail ? "right-[3.75rem] max-sm:right-7" : "right-0";
 
   // The hero collapses: each person's avatar in the pill flies in from where their portrait is, shrinking to the pill's size (FLIP, with the pill's spring).
   // Expanding is the reverse by cross-fade alone. Not for a visitor who asked for less motion, and not from a portrait that is off the screen.
@@ -218,14 +194,16 @@ export function PeopleBar({
             aria-hidden="true"
             data-hero-band
             className={cn(
-              "absolute inset-0 -z-10 bg-canvas transition-opacity duration-300 motion-reduce:transition-none",
+              "absolute inset-y-0 left-0 -z-10 bg-canvas transition-opacity duration-300 motion-reduce:transition-none",
+              bandEnd,
               expanded ? "pointer-events-auto opacity-100" : "opacity-0",
             )}
           />
           <div
             aria-hidden="true"
             className={cn(
-              "absolute inset-x-0 top-full h-6 bg-gradient-to-b from-canvas to-transparent transition-opacity duration-300 motion-reduce:transition-none",
+              "absolute left-0 top-full h-6 bg-gradient-to-b from-canvas to-transparent transition-opacity duration-300 motion-reduce:transition-none",
+              bandEnd,
               expanded ? "opacity-100" : "opacity-0",
             )}
           />
@@ -328,15 +306,15 @@ export function PeopleBar({
       {overlay && (
         // The body eases open and shut (the grid row from its content's height to nothing, no measuring); shut, it is inert and not shown.
         <div
-          ref={wrapRef}
           inert={!expanded}
           className={cn(
             "grid transition-[grid-template-rows,opacity,visibility] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none",
             expanded ? "grid-rows-[1fr] opacity-100" : "invisible grid-rows-[0fr] opacity-0",
           )}
         >
-          <div className="-mx-1.5 min-h-0 overflow-hidden px-1.5">
-            <div ref={contentRef} className="pointer-events-auto pb-3 pt-3 max-sm:pb-2 max-sm:pt-1.5">
+          {/* On the Films view the body ends where the gear does, clear of the year rail (3.75rem wide, 28px on a phone): its right padding is the rail's width. */}
+          <div className={cn("-mx-1.5 min-h-0 overflow-hidden px-1.5", rail && "mr-[3.375rem] max-sm:mr-[1.125rem]")}>
+            <div className="pointer-events-auto pb-3 pt-3 max-sm:pb-2 max-sm:pt-1.5">
               {hero.body}
             </div>
           </div>

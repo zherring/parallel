@@ -63,7 +63,7 @@ const round = (box: Box | null): Box | null =>
 async function measureBar(page: Page) {
   if ((await heroState(page)) !== "collapsed") await collapseHero(page);
   const root = bar(page);
-  // The hero's body eases away over 300ms, and the Films view's rail with it: wait until the bar is its compact self and the rail is at the top of the screen.
+  // The hero's body eases away over 300ms: wait until the bar is its compact self (the Films view's rail is at the top of the screen, open hero or collapsed).
   const compact = (page.viewportSize()?.width ?? 1440) < 640 ? 58 : 62;
   await expect.poll(async () => (await root.boundingBox())!.height).toBe(compact);
   if ((await page.locator("[data-depth-rail]").count()) > 0) await expect.poll(async () => (await page.locator("[data-depth-rail] > div").first().boundingBox())!.y).toBe(0);
@@ -153,8 +153,8 @@ for (const [label, viewport] of [
         expect(viewport.width - (gear.x + gear.width), `the gear's right gutter on ${view}`).toBe(leftGutter);
       }
 
-      // On Films it is left of the year rail, with room to spare, and the same size and height as on the flat views; and the rail runs to the top of the screen now that the hero
-      // has collapsed (the bar's controls are left of it).
+      // On Films it is left of the year rail, with room to spare, and the same size and height as on the flat views; and the rail runs to the top of the screen
+      // (the bar's controls are left of it).
       const focusGear = measured.focus.gear!;
       expect(rail).not.toBeNull();
       expect(rail!.x - (focusGear.x + focusGear.width)).toBeGreaterThanOrEqual(8);

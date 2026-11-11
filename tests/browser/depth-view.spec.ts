@@ -2256,8 +2256,6 @@ for (const [width, height] of [[1440, 900], [1600, 900], [1920, 1080]] as const)
   test(`the rail's year readout never meets the gear or the switcher, at the top, the middle or the bottom of the scene, ${width}px wide`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await openDepth(page);
-    // The rail's top edge eases from the hero's band to the top of the screen: wait for it.
-    await expect.poll(async () => (await page.locator("[data-depth-rail] > div").first().boundingBox())!.y).toBe(0);
     // The fixture's scene is short, so the rail's window is tall and its middle (where the readout is) never gets near the top. A long scene (a real
     // filmography is several thousand px of it) has a small window: the worst case is the smallest one, which is its 12px minimum.
     const rects = (shrink: boolean) =>
@@ -2279,14 +2277,14 @@ for (const [width, height] of [[1440, 900], [1600, 900], [1920, 1080]] as const)
 
     for (const where of ["top", "middle", "bottom"] as const) {
       await scene(page).evaluate((scroller, at) => {
-        scroller.scrollTop = at === "top" ? 60 : at === "middle" ? (scroller.scrollHeight - scroller.clientHeight) / 2 : scroller.scrollHeight;
+        scroller.scrollTop = at === "top" ? 0 : at === "middle" ? (scroller.scrollHeight - scroller.clientHeight) / 2 : scroller.scrollHeight;
       }, where);
       await page.waitForTimeout(150);
       for (const shrink of [true, false]) {
         const { readout, gear, switcher, track } = await rects(shrink);
         expect(meets(readout, gear), `${width} ${where} ${shrink ? "long scene" : "short scene"}: readout ${JSON.stringify(readout)} gear ${JSON.stringify(gear)}`).toBe(false);
         expect(meets(readout, switcher), `${width} ${where}: switcher`).toBe(false);
-        // With the hero collapsed the rail runs to the top of the screen, the bar's controls left of it: nothing of what hangs out of it to the left (the readout) is level with them.
+        // The rail runs to the top of the screen, the bar's controls left of it, open hero or collapsed: nothing of what hangs out of it to the left (the readout) is level with them.
         expect(track.top, `${width} ${where} ${shrink ? "long scene" : "short scene"}: the rail runs to the top of the screen`).toBe(0);
         expect(readout.top, `${width} ${where}: the readout is under the bar's controls`).toBeGreaterThanOrEqual(gear.bottom);
       }

@@ -1,6 +1,6 @@
 import type { Locator, Page } from "next/experimental/testmode/playwright";
 import { FILM_COUNT, HEADLINE, NAMES, PAIR, expect, test } from "./almodovar";
-import { bar, collapseHero, heroBody, heroState, quotesLink, scene, scrollView, switcher } from "./fixtures";
+import { bar, collapseHero, heroBody, heroState, quotesLink, scene, switcher } from "./fixtures";
 import { getHeroNote } from "../../src/lib/pair-hero-note";
 
 /**
@@ -470,55 +470,42 @@ test.describe("at 1440px wide", () => {
     expect(poster.y).toBeGreaterThanOrEqual(band);
   });
 
-  test("the year rail starts at the hero's bottom edge while it is open, runs to the top of the screen once it has collapsed, and comes back", async ({ page }) => {
+  test("the year rail runs the full height of the screen from its top, with the hero open or collapsed: the band ends at its left edge, the hero clears it, and a press on it is on the rail", async ({ page }) => {
     await openView(page, "focus");
     const track = page.locator("[data-depth-rail] > div").first();
-    const bandBottom = async () => (await box(bar(page))).y + (await box(bar(page))).height;
-    await expect.poll(async () => Math.abs((await box(track)).y - (await bandBottom()))).toBeLessThanOrEqual(1);
+    const railBox = async () => box(track);
+    const check = async (state: string) => {
+      const rail = await railBox();
+      // From the top of the screen to near its bottom (the rail's own 8px of margin), not pushed down by the hero.
+      expect(rail.y, `${state}: top`).toBe(0);
+      expect(rail.y + rail.height, `${state}: bottom`).toBeGreaterThanOrEqual((page.viewportSize()?.height ?? 0) - 12);
+      // Nothing of the hero is under it: the band and the body end at its left edge, and so does the gear.
+      const band = await box(page.locator("[data-hero-band]"));
+      expect(band.x + band.width, `${state}: the band's right edge`).toBeLessThanOrEqual(rail.x);
+      expect((await box(settingsGear(page))).x + (await box(settingsGear(page))).width, `${state}: the gear`).toBeLessThanOrEqual(rail.x);
+      // A point at the rail's top is the rail's, and the gear's is the gear's (clickable beside it).
+      const hits = await page.evaluate(
+        ([rx, gx, gy]) => ({
+          rail: document.elementFromPoint(rx, 30)?.closest("[data-depth-rail]") !== null,
+          gear: document.elementFromPoint(gx, gy)?.closest("button")?.getAttribute("aria-label"),
+        }),
+        [rail.x + rail.width / 2, (await box(settingsGear(page))).x + 10, (await box(settingsGear(page))).y + 10] as const,
+      );
+      expect(hits.rail, `${state}: a press at the rail's top`).toBe(true);
+      expect(hits.gear, `${state}: a press on the gear`).toBe("Settings");
+    };
+    expect(await heroState(page)).toBe("expanded");
+    await check("open");
+    // The hero's body is clear of the rail too.
+    const body = await box(heroBody(page));
+    expect(body.x + body.width).toBeLessThanOrEqual((await railBox()).x);
 
     await collapseHero(page);
-    await expect.poll(async () => (await box(track)).y).toBe(0);
-    const landed = await landing(page, "focus");
-    void landed;
-    // Back near where it landed: the rail starts under the band again.
-    const mid = await scene(page).evaluate((element) => element.scrollTop);
-    await scrollTo(page, "focus", mid - 120);
+    await check("collapsed");
+    // Back within 48px of the start: open again, and the rail has not moved.
+    await scrollTo(page, "focus", 20);
     await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
-    await expect.poll(async () => Math.abs((await box(track)).y - (await bandBottom()))).toBeLessThanOrEqual(1);
-  });
-
-  test("the rail's top edge eases with the hero: it is between the two places on the way, and a visitor who asked for less motion gets it at once", async ({ page }) => {
-    const sample = async () =>
-      page.evaluate(
-        () =>
-          new Promise<number[]>((resolve) => {
-            const track = document.querySelector("[data-depth-rail] > div")!;
-            const tops: number[] = [];
-            const start = performance.now();
-            const step = () => {
-              tops.push(Math.round(track.getBoundingClientRect().top));
-              if (performance.now() - start < 700) requestAnimationFrame(step);
-              else resolve(tops);
-            };
-            requestAnimationFrame(step);
-          }),
-      );
-
-    await openView(page, "focus");
-    const open = Math.round((await box(bar(page))).height);
-    const running = sample();
-    await scrollView(page, 120);
-    const tops = await running;
-    expect(tops.at(-1)).toBe(0);
-    expect(tops.some((top) => top > 0 && top < open - 1), `on the way: ${tops.join(",")}`).toBe(true);
-
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await openView(page, "focus");
-    const instant = sample();
-    await scrollView(page, 120);
-    const jumped = await instant;
-    expect(jumped.every((top) => top === 0 || Math.abs(top - open) <= 1), `reduced: ${jumped.join(",")}`).toBe(true);
-    expect(jumped.at(-1)).toBe(0);
+    await check("open again");
   });
 
   test("the year readout is clear of the bar's controls, with the hero open and collapsed, wherever the scene is scrolled", async ({ page }) => {
@@ -579,14 +566,20 @@ test.describe("at 390px wide", () => {
     });
   }
 
-  test("the hero does not cover the first collaboration's poster on Films, and the year rail starts under the hero, then runs to the top once it has collapsed", async ({ page }) => {
+  test("the hero does not cover the first collaboration's poster on Films, and the year rail runs from the top of the screen beside the hero, open or collapsed", async ({ page }) => {
     await openView(page, "focus");
     const band = (await box(bar(page))).y + (await box(bar(page))).height;
     expect((await box(scene(page).locator('[data-film="100"]'))).y).toBeGreaterThanOrEqual(band);
     const track = page.locator("[data-depth-rail] > div").first();
-    await expect.poll(async () => Math.abs((await box(track)).y - band)).toBeLessThanOrEqual(1);
+    const rail = await box(track);
+    expect(rail.y).toBe(0);
+    // The band and the hero's body end at the rail's left edge, and so does the gear.
+    expect((await box(page.locator("[data-hero-band]"))).x + (await box(page.locator("[data-hero-band]"))).width).toBeLessThanOrEqual(rail.x);
+    const body = await box(heroBody(page));
+    expect(body.x + body.width).toBeLessThanOrEqual(rail.x);
+    expect((await box(settingsGear(page))).x + (await box(settingsGear(page))).width).toBeLessThanOrEqual(rail.x);
     await collapseHero(page);
-    await expect.poll(async () => (await box(track)).y).toBe(0);
+    expect((await box(track)).y).toBe(0);
   });
 
   test("the year readout and the rail's labels are clear of the bar's controls, with the hero open and collapsed", async ({ page }) => {
