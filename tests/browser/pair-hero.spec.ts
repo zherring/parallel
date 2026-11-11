@@ -402,11 +402,11 @@ test.describe("at 1440px wide", () => {
 
       // The portrait is the same opener, for the mouse and the touch (the name is the keyboard's way in).
       const cruz = page.getByRole("dialog", { name: NAMES[1], exact: true });
-      await heroBody(page).getByRole("button", { name: `Biography of ${NAMES[1]}`, exact: true }).click();
+      await heroBody(page).getByRole("button", { name: `Details for ${NAMES[1]}`, exact: true }).click();
       await expect(cruz).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(cruz).toBeHidden();
-      await expect(heroBody(page).getByRole("button", { name: `Biography of ${NAMES[1]}`, exact: true })).toBeFocused();
+      await expect(heroBody(page).getByRole("button", { name: `Details for ${NAMES[1]}`, exact: true })).toBeFocused();
     });
   }
 

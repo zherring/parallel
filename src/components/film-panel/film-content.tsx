@@ -2,6 +2,7 @@
 
 import type { ReactNode, RefObject } from "react";
 import { PersonAvatar } from "@/components/person-avatar";
+import { Portrait } from "@/components/portrait";
 import { filmMetaLine, groupFilmCredits, tmdbMovieUrl, type PersonRow } from "@/lib/film-people";
 import { tmdbImage } from "@/lib/images";
 import { MAX_PEOPLE, addState, isTimelineFull } from "@/lib/people-nav";
@@ -73,18 +74,7 @@ export function FilmContent({ film, titleId, peopleInView, addingId, onAdd, scro
   return (
     <>
       <div className="flex gap-4">
-        <div className="aspect-[2/3] w-28 shrink-0 overflow-hidden rounded-md border border-border bg-surface sm:w-32">
-          {poster && (
-            <img
-              src={poster}
-              alt={`Poster for ${film.title}`}
-              width={342}
-              height={513}
-              decoding="async"
-              className="h-full w-full object-cover"
-            />
-          )}
-        </div>
+        <Portrait src={poster} alt={`Poster for ${film.title}`} />
         <div className="min-w-0 flex-1">
           <h2 id={titleId} className="text-xl font-semibold leading-tight text-strong">
             {film.title}

@@ -2,6 +2,9 @@ import { OG_SIZE } from "@/lib/og-theme";
 import { renderPairOgImage } from "@/lib/og-render";
 import { loadPeople } from "@/lib/people";
 
+// Seconds this function may run; why this value: see REQUEST_DEADLINE_MS in src/lib/tmdb.ts.
+export const maxDuration = 20;
+
 export const alt = "Film collaborations on Parallel";
 export const size = OG_SIZE;
 export const contentType = "image/png";

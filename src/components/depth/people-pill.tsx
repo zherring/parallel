@@ -11,11 +11,12 @@ import { cn } from "@/components/timeline/cn";
 import { PersonBio } from "@/components/timeline/person-bio";
 import { filmCountLabel, joinNames } from "@/lib/format";
 import { personColor } from "@/lib/person-colors";
+import type { OpenPerson } from "@/lib/side-panel";
 import type { PersonSummary } from "@/lib/types";
 
 /** One person of the page as the pill shows them. */
 export interface PillPerson {
-  /** The person, with the biography their name opens. */
+  /** The person, with the details their name opens. */
   person: PersonSummary;
   /** Palette slot: their position in the URL (see `personSlots`). */
   slot: number;
@@ -31,6 +32,8 @@ export interface PillPerson {
 
 interface PeoplePillProps {
   people: readonly PillPerson[];
+  /** A name or a portrait was pressed: open the person's details in the slide-out panel (it is over the pill, which stays open under it). */
+  onOpenPerson: OpenPerson;
   /**
    * Shows or hides a person's films: the eye in each row, where the view has films to hide (the flat Timeline of several people). Without it
    * the rows have no eye, and nobody is dimmed. Hiding the last person on the track is refused (that eye is disabled): it is never empty.
@@ -61,9 +64,9 @@ export function flipTransform(from: DOMRect, to: DOMRect): string {
   return `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${scale})`;
 }
 
-/** Whether the event is in a biography dialog (a native `<dialog>` on the body, see `PersonBio`), which is not inside the pill's box. */
-function inDialog(target: EventTarget | null): boolean {
-  return target instanceof Element && target.closest("dialog") !== null;
+/** Whether the event is in the slide-out panel a name or a portrait opened (a dialog on the body, see `SidePanel`), which is not inside the pill's box. */
+function inSidePanel(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest("[data-side-panel]") !== null;
 }
 
 function headRects(root: ParentNode, attribute: string): Map<string, DOMRect> {
@@ -89,7 +92,7 @@ function headRects(root: ParentNode, attribute: string): Map<string, DOMRect> {
  * It is laid out by `PeopleBar` (a fixed bar, a sibling of the Depth view's scroller, never inside it: perspective would turn `fixed` into
  * `absolute`); while it is open it has `data-open`, which the bar's other controls look for to step aside.
  */
-export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillProps) {
+export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible }: PeoplePillProps) {
   const reduced = useMediaQuery(REDUCED_MOTION);
 
   const panelId = useId();
@@ -252,16 +255,16 @@ export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillP
     const onPointerDown = (event: PointerEvent) => {
       // The field's dropdown hangs inside the pill's box (it is not portalled), so a press on it is a press inside.
       if (event.target instanceof Node && rootRef.current?.contains(event.target)) return;
-      // A biography a name opened (`PersonBio`) is a dialog on the body: a press in it is not one outside the pill, which stays open under it, for
+      // The panel a name opened (`PersonBio`) is a dialog on the body: a press in it is not one outside the pill, which stays open under it, for
       // the focus to come back to the name that opened it.
-      if (inDialog(event.target)) return;
+      if (inSidePanel(event.target)) return;
       requestClose(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       // A key the field handled (closing its list of results, clearing its text) is not for the pill as well.
       if (event.key !== "Escape" || event.defaultPrevented) return;
-      // An Escape in an open biography closes the biography (the dialog's own), not the pill under it.
-      if (inDialog(event.target)) return;
+      // An Escape in an open panel closes the panel (its own), not the pill under it.
+      if (inSidePanel(event.target)) return;
       requestClose(true);
     };
     scrollTarget.addEventListener("scroll", onScroll, { passive: true });
@@ -394,10 +397,10 @@ export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillP
                 return (
                   <li key={person.id} className="flex items-center gap-3 rounded-xl px-2 py-2">
                     <span data-row-head={person.id} className="inline-flex shrink-0 origin-top-left">
-                      {/* The portrait opens the biography, as the name does (and as the Clippings' names do). */}
+                      {/* The portrait opens the person's details, as the name does (and as the Quotes' names do). */}
                       <PersonBio
                         person={person}
-                        roles={roles}
+                        onOpen={onOpenPerson}
                         portrait={
                           <PersonAvatar
                             name={person.name}
@@ -411,10 +414,10 @@ export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillP
                       />
                     </span>
                     <div data-fade className={cn("min-w-0 flex-1", !visible && "opacity-60")}>
-                      {/* The name (up to two lines, the whole of it on hover) opening the biography, the roles in full, the film count. */}
+                      {/* The name (up to two lines, the whole of it on hover) opening the person's details, the roles in full, the film count. */}
                       <p title={person.name} className="line-clamp-2 break-words text-sm font-semibold leading-tight text-strong">
                         <span className="relative inline-block max-w-full align-top">
-                          <PersonBio person={person} roles={roles} nameTrigger />
+                          <PersonBio person={person} onOpen={onOpenPerson} nameTrigger />
                         </span>
                       </p>
                       {roles && <p className="mt-0.5 text-xs leading-snug text-body">{roles}</p>}

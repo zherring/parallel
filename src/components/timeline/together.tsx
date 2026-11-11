@@ -9,7 +9,7 @@ import type { PairShared } from "@/lib/shared";
 import type { PersonRef } from "@/lib/lanes";
 import { detailsButtonClass, linkClass, tmdbMovieUrl } from "./film-links";
 import { FilmsSection } from "./films-section";
-import type { BioPerson } from "./person-bio";
+import type { PersonPanelAccess } from "@/lib/side-panel";
 import type { FilmsTableModel } from "./use-films-table";
 
 interface TogetherProps {
@@ -34,8 +34,8 @@ interface TogetherProps {
   clippings?: VoicedClippings | null;
   /** What the critics have written about the collaboration, when there is any: the Clippings tab's critics' quotes and "More reading" (see `FilmsSection`). */
   critics?: PairCritics | null;
-  /** The page's people, for the names in the Clippings tab (see `FilmsSection`). */
-  bioPeople?: readonly BioPerson[];
+  /** The page's people and the opener for them, for the names in the Clippings tab (see `FilmsSection`). */
+  personPanel?: PersonPanelAccess;
 }
 
 const joinNames = (names: string[]) => new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(names);
@@ -53,7 +53,7 @@ export function Together({
   onSelect,
   clippings,
   critics,
-  bioPeople,
+  personPanel,
 }: TogetherProps) {
   const nameById = new Map(people.map((p) => [p.id, p.name]));
   const names = people.map((p) => p.name);
@@ -80,7 +80,7 @@ export function Together({
       onSelect={onSelect}
       clippings={clippings}
       critics={critics}
-      bioPeople={bioPeople}
+      personPanel={personPanel}
     >
       {pairwise.length > 0 && (
         <details className="mt-6 rounded-lg border border-border bg-surface">

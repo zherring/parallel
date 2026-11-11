@@ -9,8 +9,9 @@ import { useHeroCollapse } from "@/components/hero/use-hero-collapse";
 import { usePairHero } from "@/components/hero/use-pair-hero";
 import { PageHeadline } from "@/components/page-headline";
 import { PeopleBar } from "@/components/people-bar";
+import { PersonPanel } from "@/components/person-panel/person-panel";
+import { useRememberPressed } from "@/components/side-panel/side-panel";
 import { FilmsSection } from "@/components/timeline/films-section";
-import type { BioPerson } from "@/components/timeline/person-bio";
 import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
 import { useFilmsTable } from "@/components/timeline/use-films-table";
 import { useUrlPeriod } from "@/components/timeline/use-period";
@@ -34,6 +35,7 @@ import { personColorCss } from "@/lib/person-colors";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import type { ShareInput } from "@/lib/share";
 import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms, type PairShared } from "@/lib/shared";
+import { filmIdOf, openFilm, openPerson, personIdOf, type PanelTarget, type PersonPanelAccess } from "@/lib/side-panel";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
 interface Props {
@@ -67,8 +69,10 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   const search = useSearchParams().toString();
   // The display preferences are shared with the Depth view (`?view=depth`), which a visitor moves to and from: see `useFilmPrefs`.
   const [{ includeMinor, showAll, trackMode }, setPrefs] = useFilmPrefs(timelines.map((t) => t.person.id).join("+"));
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const triggerRef = useRef<HTMLElement | null>(null);
+  // The one slide-out panel: a film's details or a person's, never both.
+  const [panel, setPanel] = useState<PanelTarget | null>(null);
+  // Once for every panel: each hands focus back to the control that opened it, which this remembers.
+  useRememberPressed();
   const timelineRef = useRef<TimelineHandle>(null);
   const clippingsTab = hasClippingsTab(clippings, critics);
   const quoteIds = useMemo(() => quoteIdsOf(clippings, critics), [clippings, critics]);
@@ -148,12 +152,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     [lanes, includeMinor, hiddenIds, people, search],
   );
 
-  // The names in the Clippings tab open the same biography dialog as the people pill's rows, with the same roles.
-  const bioPeople: BioPerson[] = useMemo(
-    () => pillPeople.map(({ person, roles }) => ({ person, roles })),
-    [pillPeople],
-  );
-
   // Hiding someone changes the axis (it spans the films shown): keep the year in the middle where it is.
   const handleToggleVisible = useCallback(
     (personId: number) => {
@@ -169,18 +167,25 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   }, [setPrefs]);
   const handleShowAllChange = useCallback((next: boolean) => setPrefs({ showAll: next }), [setPrefs]);
 
-  const handleSelect = useCallback((id: number, trigger: HTMLElement) => {
-    triggerRef.current = trigger;
-    setSelectedId(id);
+  const handleSelect = useCallback((id: number) => {
+    setPanel(openFilm(id));
   }, []);
 
-  const handleClose = useCallback(() => {
-    setSelectedId(null);
-    const trigger = triggerRef.current;
-    triggerRef.current = null;
-    // Put focus back where the keyboard user left off.
-    if (trigger?.isConnected) requestAnimationFrame(() => trigger.focus({ preventScroll: true }));
+  const handleOpenPerson = useCallback((id: number) => {
+    setPanel(openPerson(id));
   }, []);
+
+  // The names in the Clippings tab, the hero and the people pill's rows open the same person panel, with the same roles.
+  const personPanel: PersonPanelAccess = useMemo(
+    () => ({
+      entries: pillPeople.map(({ person, roles }) => ({ person, roles })),
+      open: handleOpenPerson,
+    }),
+    [pillPeople, handleOpenPerson],
+  );
+
+  // The shell hands focus back to the opener itself (see SidePanel); this only closes.
+  const handleClose = useCallback(() => setPanel(null), []);
 
   // The years of the films a shared link is about (the ones its preview card shows): the Share menu's Period
   // choices, and what the page's own `?from=&to=` is resolved against, so the server and the browser agree.
@@ -224,7 +229,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
    * (a person's eye is off, so their films are not on the track). The hero collapses, so that it is not over what was brought into view.
    */
   const jumpToFilm = useCallback(
-    (filmId: number, trigger: HTMLElement) => {
+    (filmId: number) => {
       if (view === "timeline") {
         const target = timelineRef.current?.revealFilm(filmId);
         if (target) {
@@ -236,7 +241,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         collapse();
         return;
       }
-      handleSelect(filmId, trigger);
+      handleSelect(filmId);
     },
     [view, collapse, handleSelect],
   );
@@ -260,6 +265,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       chips={chips}
       together={multi}
       onChip={jumpToFilm}
+      onOpenPerson={handleOpenPerson}
     />
   );
 
@@ -296,8 +302,9 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       people={people}
       includeMinor={includeMinor}
       today={today}
-      selectedId={selectedId}
+      selectedId={filmIdOf(panel)}
       onSelect={handleSelect}
+      onOpenPerson={handleOpenPerson}
       period={period}
       periodSpan={periodSpan}
       periodYears={filmYears}
@@ -313,6 +320,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       */}
       <PeopleBar
         people={pillPeople}
+        onOpenPerson={handleOpenPerson}
         // The eyes are the pill's, where the films they show and hide are: the Timeline of several people (the Table and Clippings list films the
         // eyes do not change, and Focus draws them all).
         onToggleVisible={multi && view === "timeline" ? handleToggleVisible : undefined}
@@ -357,7 +365,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
             onSelect={handleSelect}
             clippings={voicedClippings}
             critics={critics}
-            bioPeople={bioPeople}
+            personPanel={personPanel}
           />
         ) : (
           <FilmsSection
@@ -378,9 +386,13 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
             onSelect={handleSelect}
           />
         )}
-
-        <FilmPanel filmId={selectedId} peopleInView={people} onClose={handleClose} />
       </div>
+      <FilmPanel filmId={filmIdOf(panel)} peopleInView={people} onClose={handleClose} />
+      <PersonPanel
+        entry={personPanel.entries.find((entry) => entry.person.id === personIdOf(panel)) ?? null}
+        peopleInView={people}
+        onClose={handleClose}
+      />
     </>
   );
 }

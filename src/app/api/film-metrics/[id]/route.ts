@@ -4,6 +4,9 @@ import { awardsFor } from "@/lib/awards";
 import { getMovieMetrics } from "@/lib/tmdb";
 import type { FilmMetrics } from "@/lib/types";
 
+// Seconds this function may run; why this value: see REQUEST_DEADLINE_MS in src/lib/tmdb.ts.
+export const maxDuration = 20;
+
 const MOVIE_ID = /^[1-9]\d{0,9}$/;
 
 /**

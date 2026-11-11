@@ -436,7 +436,7 @@ test.describe("what is no longer on the page", () => {
   });
 });
 
-test.describe("the people pill's rows open the biography, as names do everywhere else", () => {
+test.describe("the people pill's rows open the person's details, as names do everywhere else", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   for (const view of ["table", "focus"] as const) {
@@ -449,18 +449,18 @@ test.describe("the people pill's rows open the biography, as names do everywhere
       const name = card.getByRole("button", { name: "Pedro Almodóvar", exact: true });
       const bio = page.getByRole("dialog", { name: "Pedro Almodóvar", exact: true });
 
-      // A click on the name: the biography the people column's names and the Quotes' open, the same dialog (the TMDB link on the name, the text).
+      // A click on the name: the person panel the Quotes' names open, the same slide-out (the TMDB link on the name, the text).
       await name.click();
       await expect(bio).toBeVisible();
       await expect(bio.getByText("A biography.")).toBeVisible();
       await expect(bio.getByRole("heading").getByRole("link")).toHaveAttribute("href", "https://www.themoviedb.org/person/309");
       // Its Close button is a press outside the pill's box: the pill stays, and the focus goes back to the name.
-      await bio.getByRole("button", { name: "Close", exact: true }).click();
+      await bio.getByRole("button", { name: "Close person details", exact: true }).click();
       await expect(bio).toBeHidden();
       await expect(card).toBeVisible();
       await expect(name).toBeFocused();
 
-      // Escape closes the biography and not the pill under it; so does a press on the backdrop.
+      // Escape closes the panel and not the pill under it; so does a press on the backdrop.
       await name.click();
       await expect(bio).toBeVisible();
       await page.keyboard.press("Escape");
@@ -476,12 +476,12 @@ test.describe("the people pill's rows open the biography, as names do everywhere
 
       // The portrait is the same opener, for the mouse and the touch (the name beside it is the keyboard's).
       const cruz = page.getByRole("dialog", { name: "Penélope Cruz", exact: true });
-      await card.getByRole("button", { name: "Biography of Penélope Cruz", exact: true }).click();
+      await card.getByRole("button", { name: "Details for Penélope Cruz", exact: true }).click();
       await expect(cruz).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(cruz).toBeHidden();
       await expect(card).toBeVisible();
-      await expect(card.getByRole("button", { name: "Biography of Penélope Cruz", exact: true })).toBeFocused();
+      await expect(card.getByRole("button", { name: "Details for Penélope Cruz", exact: true })).toBeFocused();
 
       // Remove is still there, with the film count and roles beside the name as the people column writes them.
       await expect(card.getByRole("link", { name: "Remove Pedro Almodóvar", exact: true })).toHaveAttribute("href", /^\/p\/955-penelope-cruz/);

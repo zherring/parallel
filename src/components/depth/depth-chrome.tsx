@@ -8,9 +8,12 @@ import type { ExportList } from "@/components/timeline/export-button";
 import { DEPTH_VIEW, pageViewHref } from "@/lib/depth-url";
 import type { PageView } from "@/lib/films-view";
 import type { ShareInput } from "@/lib/share";
+import type { OpenPerson } from "@/lib/side-panel";
 
 interface DepthChromeProps {
   people: readonly PillPerson[];
+  /** A name or a portrait in the pill or the title was pressed: open the person's details in the slide-out panel. */
+  onOpenPerson: OpenPerson;
   /** The pair hero (see `PeopleBar`): its title, whether it has collapsed, and its body, which the scene is under. */
   hero: PeopleBarHero;
   /** The scene's scroller, for the pill to close on. */
@@ -40,6 +43,7 @@ interface DepthChromeProps {
  */
 export function DepthChrome({
   people,
+  onOpenPerson,
   hero,
   scrollerRef,
   clippings,
@@ -59,6 +63,7 @@ export function DepthChrome({
   return (
     <PeopleBar
       people={people}
+      onOpenPerson={onOpenPerson}
       hero={hero}
       scrollerRef={scrollerRef}
       clippings={clippings}

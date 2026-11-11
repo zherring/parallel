@@ -147,3 +147,5 @@ export function filmMetaLine(
 }
 
 export const tmdbMovieUrl = (id: number) => `https://www.themoviedb.org/movie/${id}`;
+
+export const tmdbPersonUrl = (id: number) => `https://www.themoviedb.org/person/${id}`;

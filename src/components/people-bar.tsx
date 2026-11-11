@@ -16,6 +16,7 @@ import { inPlace } from "@/components/timeline/view-tabs";
 import { ViewSwitcher } from "@/components/timeline/view-switcher";
 import { DEPTH_VIEW, isFilmsView, type PageView } from "@/lib/films-view";
 import type { ShareInput } from "@/lib/share";
+import type { OpenPerson } from "@/lib/side-panel";
 
 /** What the pair hero asks of the bar (see `PairHeroBody` and `useHeroCollapse`). */
 export interface PeopleBarHero {
@@ -35,6 +36,8 @@ export interface PeopleBarHero {
 
 interface PeopleBarProps {
   people: readonly PillPerson[];
+  /** A name or a portrait in the pill or the title was pressed: open the person's details in the slide-out panel (see `SidePanel`). */
+  onOpenPerson: OpenPerson;
   hero: PeopleBarHero;
   /** The Depth view's scroller, for the pill to close on. None on the flat pages: the window scrolls there. */
   scrollerRef?: RefObject<HTMLDivElement | null>;
@@ -105,6 +108,7 @@ const STEPS_ASIDE =
  */
 export function PeopleBar({
   people,
+  onOpenPerson,
   hero,
   scrollerRef,
   clippings,
@@ -237,14 +241,14 @@ export function PeopleBar({
               inert={expanded}
               className={cn("col-start-1 row-start-1 min-w-0 transition-[opacity,visibility] duration-200 motion-reduce:transition-none", expanded && "invisible opacity-0")}
             >
-              <PeoplePill people={people} scrollerRef={scrollerRef} onToggleVisible={onToggleVisible} />
+              <PeoplePill people={people} scrollerRef={scrollerRef} onToggleVisible={onToggleVisible} onOpenPerson={onOpenPerson} />
             </div>
             <div
               inert={!expanded}
               // Collapsed it takes no room either (a title of several lines on a narrow screen would make the compact bar taller than its controls).
               className={cn("col-start-1 row-start-1 min-w-0 transition-[opacity,visibility] duration-200 motion-reduce:transition-none", !expanded && "invisible h-0 overflow-hidden opacity-0")}
             >
-              <PairTitle people={people} subtitle={hero.subtitle} />
+              <PairTitle people={people} subtitle={hero.subtitle} onOpenPerson={onOpenPerson} />
             </div>
           </div>
         </div>

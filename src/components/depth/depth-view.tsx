@@ -11,6 +11,8 @@ import { FilmPanel } from "@/components/film-panel/film-panel";
 import { PairHeroBody } from "@/components/hero/pair-hero-body";
 import { useHeroCollapse } from "@/components/hero/use-hero-collapse";
 import { usePairHero } from "@/components/hero/use-pair-hero";
+import { PersonPanel } from "@/components/person-panel/person-panel";
+import { useRememberPressed } from "@/components/side-panel/side-panel";
 import { scrollBehavior } from "@/components/timeline/scroll-behavior";
 import { PageHeadline } from "@/components/page-headline";
 import type { ExportList } from "@/components/timeline/export-button";
@@ -34,6 +36,7 @@ import { personColorCss, personSlots } from "@/lib/person-colors";
 import { postersLeftOut } from "@/lib/poster-cap";
 import type { ShareInput } from "@/lib/share";
 import { sharedFilms, type PairShared } from "@/lib/shared";
+import { filmIdOf, openFilm, openPerson, personIdOf, type PanelTarget } from "@/lib/side-panel";
 import { centerYear, scrollLeftForCenter } from "@/lib/timeline-layout";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
@@ -72,8 +75,10 @@ export function DepthView(props: Props) {
 function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const scrollerId = useId();
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const triggerRef = useRef<HTMLElement | null>(null);
+  // The one slide-out panel: a film's details or a person's, never both.
+  const [panel, setPanel] = useState<PanelTarget | null>(null);
+  // Once for every panel: each hands focus back to the control that opened it, which this remembers.
+  useRememberPressed();
   const [urlPeriod] = useUrlPeriod();
   // "Include minor credits" and "Show all films" are the flat page's settings, held for both views (see `useFilmPrefs`).
   const [{ includeMinor, showAll }, setPrefs] = useFilmPrefs(timelines.map((t) => t.person.id).join("+"));
@@ -191,18 +196,19 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
     [capHasEffect, rememberCenter, setPrefs],
   );
 
-  const handleSelect = useCallback((id: number, trigger: HTMLElement) => {
-    triggerRef.current = trigger;
-    setSelectedId(id);
+  const handleSelect = useCallback((id: number) => {
+    setPanel(openFilm(id));
   }, []);
 
-  const handleClose = useCallback(() => {
-    setSelectedId(null);
-    const trigger = triggerRef.current;
-    triggerRef.current = null;
-    // Put focus back where the keyboard user left off.
-    if (trigger?.isConnected) requestAnimationFrame(() => trigger.focus({ preventScroll: true }));
+  const handleOpenPerson = useCallback((id: number) => {
+    setPanel(openPerson(id));
   }, []);
+
+  // The people pill's rows and the hero's names open the person panel, with the roles the pill gives them.
+  const personEntries = useMemo(() => pillPeople.map(({ person, roles }) => ({ person, roles })), [pillPeople]);
+
+  // The shell hands focus back to the opener itself (see SidePanel); this only closes.
+  const handleClose = useCallback(() => setPanel(null), []);
 
   // ---- the pair hero ------------------------------------------------------------------------------------------------------------------
   const pathname = usePathname();
@@ -227,12 +233,12 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
    * and the poster's button is focused. The hero collapses, so that it is not over the poster. A film that is not in the scene (a poster the cap left out) opens its panel.
    */
   const jumpToFilm = useCallback(
-    (filmId: number, trigger: HTMLElement) => {
+    (filmId: number) => {
       const scroller = scrollerRef.current;
       const item = layout.films.find((candidate) => candidate.film.id === filmId);
       const poster = scroller?.querySelector<HTMLElement>(`[data-film="${filmId}"]`);
       if (!scroller || !item || !poster) {
-        handleSelect(filmId, trigger);
+        handleSelect(filmId);
         return;
       }
       scroller.scrollTo({ top: scrollLeftToCenterTrackX(item.y, layout.trackHeight, scroller.clientHeight), behavior: scrollBehavior() });
@@ -249,6 +255,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
       chips={chips}
       together={multi}
       onChip={jumpToFilm}
+      onOpenPerson={handleOpenPerson}
     />
   );
 
@@ -259,6 +266,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
       {/* First in the tab order, as the site's header was; fixed chrome is a sibling of the scroller, never inside it. */}
       <DepthChrome
         people={pillPeople}
+        onOpenPerson={handleOpenPerson}
         hero={{ subtitle, collapsed, body: heroBody, onWheel: forwardWheel }}
         scrollerRef={scrollerRef}
         clippings={clippingsTab}
@@ -284,7 +292,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
         info={info}
         outsideIds={outsideIds}
         includeMinor={includeMinor}
-        selectedId={selectedId}
+        selectedId={filmIdOf(panel)}
         today={today}
         onSelect={handleSelect}
       />
@@ -296,7 +304,12 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
         shared={railFilms.shared}
         ticks={railFilms.ticks}
       />
-      <FilmPanel filmId={selectedId} peopleInView={people} onClose={handleClose} />
+      <FilmPanel filmId={filmIdOf(panel)} peopleInView={people} onClose={handleClose} />
+      <PersonPanel
+        entry={personEntries.find((entry) => entry.person.id === personIdOf(panel)) ?? null}
+        peopleInView={people}
+        onClose={handleClose}
+      />
     </>
   );
 }

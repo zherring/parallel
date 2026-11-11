@@ -71,6 +71,7 @@ import { FilmPopover, useFilmPopover, type PopoverTarget } from "./film-popover"
 import { LaneAvatars } from "./lane-avatars";
 import { LaneHeader } from "./lane-header";
 import { MinimapBar } from "./minimap";
+import type { OpenPerson } from "@/lib/side-panel";
 import { isSenderPeriod } from "./use-period";
 import { scrollBehavior } from "./scroll-behavior";
 import { useDragPan } from "./use-drag-pan";
@@ -128,6 +129,8 @@ interface TimelineProps {
   today: string;
   selectedId: number | null;
   onSelect: (id: number, trigger: HTMLElement) => void;
+  /** A lane header's More button was pressed (a page without the people column): open the person's details. */
+  onOpenPerson: OpenPerson;
   /**
    * The period in the page's URL (`?from=1978&to=1993`), already resolved against the films: the years of a link
    * someone shared, or the ones chosen in the Share menu's Period selects. Films outside it are dimmed. A period that
@@ -201,6 +204,7 @@ export function Timeline({
   today,
   selectedId,
   onSelect,
+  onOpenPerson,
   period = null,
   periodSpan = null,
   periodYears = [],
@@ -972,6 +976,7 @@ export function Timeline({
                         soloHref={multi ? peopleHref([person]) : null}
                         removeHref={removePersonHref(people, person.id)}
                         divider={laneIndex < trackLanes.length - 1}
+                        onOpenPerson={onOpenPerson}
                       />
                     )}
                     <div

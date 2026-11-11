@@ -10,6 +10,7 @@ import { splitCitations } from "@/lib/citations";
 import { truncateQuote } from "@/lib/clippings-view";
 import { CHIP_LIMIT, visibleChips, type HeroChip, type HeroNote } from "@/lib/pair-hero";
 import { personColor } from "@/lib/person-colors";
+import type { OpenPerson } from "@/lib/side-panel";
 
 /** The longest a quote is set in the hero; the link under it goes to the whole of it. */
 const QUOTE_CHARS = 240;
@@ -26,13 +27,15 @@ interface PairHeroBodyProps {
   chips: readonly HeroChip[];
   /** Whether the chips are the films the people made together (a pair) or a person's own films: it words the group's name. */
   together: boolean;
-  /** A chip pressed: the view brings that film into sight, or opens its panel (`trigger` is the chip, for the panel to hand focus back to). */
-  onChip: (filmId: number, trigger: HTMLElement) => void;
+  /** A chip pressed: the view brings that film into sight, or opens its panel (which hands focus back to the chip itself). */
+  onChip: (filmId: number) => void;
+  /** A portrait pressed: open the person's details in the slide-out panel. */
+  onOpenPerson: OpenPerson;
   className?: string;
 }
 
 /**
- * The pair hero's body, under the bar's row: a portrait for each person (a button that opens their biography, as their name does), beside them the note
+ * The pair hero's body, under the bar's row: a portrait for each person (a button that opens their details in the slide-out panel, as their name does), beside them the note
  * (the pair's first quote, else a curated description, else the pair's one-line blurb: see `pickHeroNote`), and a chip for each film. On a phone it is
  * short (the bar's row, with the names, the people pill and the gear, is the rest of the hero): small portraits float at the left of the note, which
  * wraps round them and under them whole.
@@ -40,7 +43,7 @@ interface PairHeroBodyProps {
  * The first `CHIP_LIMIT` chips are shown, on one line at every width; "+N more" is the rest, which it opens inline (and then they wrap). A chip takes the view to its film (see the views' own jump); the
  * hero is expanded when the visitor arrives and collapses as they scroll (see `useHeroCollapse`), at which point the people pill takes the names' place in the bar.
  */
-export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, together, onChip, className }: PairHeroBodyProps) {
+export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, together, onChip, onOpenPerson, className }: PairHeroBodyProps) {
   const [expanded, setExpanded] = useState(false);
   const chipsRef = useRef<HTMLDivElement>(null);
   const { shown, hidden } = visibleChips(chips, expanded);
@@ -55,12 +58,12 @@ export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, tog
       {/* A row of the portraits and the note; on a phone a block the portraits float in (`flow-root` holds them when there is no note beside them). */}
       <div className="flex min-w-0 items-center gap-5 max-sm:flow-root">
         <ul className="m-0 flex list-none items-start gap-3.5 p-1 max-sm:float-left max-sm:mr-2.5 max-sm:gap-2 max-sm:p-0">
-          {people.map(({ person, roles, slot }) => (
+          {people.map(({ person, slot }) => (
             <li key={person.id} data-hero-portrait={person.id} className="inline-flex">
-              {/* The portrait opens the biography, as the name does (and as the people pill's rows and the Quotes' names do). */}
+              {/* The portrait opens the person's details, as the name does (and as the people pill's rows and the Quotes' names do). */}
               <PersonBio
                 person={person}
-                roles={roles}
+                onOpen={onOpenPerson}
                 portraitClassName="rounded-(--bar-radius)"
                 portrait={
                   <PersonPortrait
@@ -93,7 +96,7 @@ export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, tog
               type="button"
               data-hero-chip={chip.id}
               title={`${chip.title} (${chip.year})`}
-              onClick={(event) => onChip(chip.id, event.currentTarget)}
+              onClick={() => onChip(chip.id)}
               className={CHIP}
             >
               <span className="truncate">{chip.title}</span>

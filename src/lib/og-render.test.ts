@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { OG_CACHE_CONTROL, OgCardView, renderPairOgImage } from "@/lib/og-render";
+import { OG_CACHE_CONTROL, OG_PARTIAL_CACHE_CONTROL, OgCardView, renderPairOgImage } from "@/lib/og-render";
 import { OG_CENTER_X, OG_WIDTH, buildOgCard, composition, headshotFan } from "@/lib/og-card";
 import type { Film, PersonTimeline } from "@/lib/types";
 
@@ -116,6 +116,14 @@ describe("the card as drawn", () => {
 });
 
 describe("the card as a response", () => {
+  it("is kept for a minute only when a short-film lookup behind it was cut short", async () => {
+    const complete = pair([2005, 2008, 2012]);
+    const cutShort = [{ ...complete[0], shortsIncomplete: true as const }, complete[1]];
+    const response = await renderPairOgImage({ timelines: cutShort });
+    expect(response.headers.get("cache-control")).toBe(OG_PARTIAL_CACHE_CONTROL);
+    expect(OG_PARTIAL_CACHE_CONTROL).toBe("public, s-maxage=60, stale-while-revalidate=60");
+  });
+
   it("is a 1200x630 PNG with the cache header every card has", async () => {
     // No portraits and no posters, so drawing it fetches nothing.
     const response = await renderPairOgImage({ timelines: pair([2005, 2008, 2012]) });
