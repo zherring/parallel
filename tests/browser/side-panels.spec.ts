@@ -193,6 +193,30 @@ for (const panel of cases) {
       await expectPageFree(page);
     });
 
+    test("slides out the way it came when closed, then is gone and the page is free", async ({ page }) => {
+      await openPage(page);
+      const { trigger, dialog } = await openPanel(page, panel);
+      // The slide-in has finished: whatever is recorded from here on is the exit.
+      await expect.poll(() => dialog.evaluate((element) => element.getAnimations().length)).toBe(0);
+      await page.evaluate(() => {
+        const seen: string[] = [];
+        (window as unknown as { __dialogTransforms: string[] }).__dialogTransforms = seen;
+        const animate = HTMLElement.prototype.animate;
+        HTMLElement.prototype.animate = function (this: HTMLElement, keyframes, options) {
+          if (this.getAttribute("role") === "dialog") for (const frame of (keyframes ?? []) as Keyframe[]) seen.push(String(frame.transform ?? ""));
+          return animate.call(this, keyframes, options);
+        };
+      });
+      await dialog.getByRole("button", { name: `Close ${panel.name} details`, exact: true }).click();
+      // Toward the right edge, where it came from at this width, rather than vanishing.
+      await expect
+        .poll(() => page.evaluate(() => (window as unknown as { __dialogTransforms: string[] }).__dialogTransforms))
+        .toContain("translateX(100%)");
+      await expect(dialog).toBeHidden();
+      await expect(trigger).toBeFocused();
+      await expectPageFree(page);
+    });
+
     test("closes from its own button and opens again", async ({ page }) => {
       await openPage(page);
       const first = await openPanel(page, panel);
