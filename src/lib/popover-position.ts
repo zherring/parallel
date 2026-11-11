@@ -62,6 +62,31 @@ export function placePopover(
   return { left: Math.round(left), top: Math.round(top), placement };
 }
 
+/** What `fitMenu` decides for a menu that hangs from its button. */
+export interface MenuFit {
+  /** The menu opens above its button (it does not fit below, and there is more room above). */
+  up: boolean;
+  /** The tallest it may be, px: the room on the side it opens to (a taller menu scrolls inside this). */
+  maxHeight: number;
+}
+
+/**
+ * Which side of its button a menu of `height` opens to, and how tall it may be there, so that every item of it is on the screen or one scroll away: below, as menus
+ * usually do, unless it does not fit there and has more room above (the rule `placePopover` has for a card); and never taller than the room on that side,
+ * which is the viewport's height less the button, the `gap` to it and the `margin` to the screen's edge. A menu with room on neither side takes the roomier one and scrolls.
+ */
+export function fitMenu(
+  button: Pick<Box, "top" | "bottom">,
+  height: number,
+  viewportHeight: number,
+  { gap = POPOVER_GAP, margin = POPOVER_MARGIN }: { gap?: number; margin?: number } = {},
+): MenuFit {
+  const roomBelow = Math.max(0, Math.floor(viewportHeight - margin - (button.bottom + gap)));
+  const roomAbove = Math.max(0, Math.floor(button.top - gap - margin));
+  const up = roomBelow < height && (roomAbove >= height || roomAbove > roomBelow);
+  return { up, maxHeight: up ? roomAbove : roomBelow };
+}
+
 /** Like Math.min(Math.max(v, min), max), but `min` wins when the range is empty (box larger than the viewport). */
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(value, max));

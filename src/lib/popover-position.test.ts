@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { POPOVER_GAP, POPOVER_MARGIN, placePopover, type Box } from "@/lib/popover-position";
+import { POPOVER_GAP, POPOVER_MARGIN, fitMenu, placePopover, type Box } from "@/lib/popover-position";
 
 const viewport = { width: 1440, height: 900 };
 const card = { width: 400, height: 240 };
@@ -117,5 +117,45 @@ describe("placePopover: keeping a side when the card's height changes", () => {
   it("still clamps into the viewport with a preference", () => {
     const result = placePopover(box(1420, 300), card, viewport, { prefer: "below" });
     expect(result.left + card.width).toBe(viewport.width - POPOVER_MARGIN);
+  });
+});
+
+describe("fitMenu", () => {
+  // A Share button 38px tall, with the 8px gap and 8px margin the Share menu keeps.
+  const menu = { gap: 8, margin: 8 };
+  const button = (top: number) => ({ top, bottom: top + 38 });
+
+  it("opens below, with the room under the button as its most, when it fits there", () => {
+    expect(fitMenu(button(100), 273, 844, menu)).toEqual({ up: false, maxHeight: 844 - 8 - (138 + 8) });
+  });
+
+  it("opens above when it does not fit below and does fit above (a phone 600px tall, Share at 371)", () => {
+    const fit = fitMenu(button(371), 273, 600, menu);
+    expect(fit).toEqual({ up: true, maxHeight: 371 - 8 - 8 });
+    // The menu, hung above the button with the gap, is wholly on the screen.
+    expect(371 - 8 - 273).toBeGreaterThanOrEqual(8);
+  });
+
+  it("opens below when it fits there exactly", () => {
+    const room = 600 - 8 - (138 + 8);
+    expect(fitMenu(button(100), room, 600, menu).up).toBe(false);
+    expect(fitMenu(button(100), room + 1, 600, menu).up).toBe(false);
+  });
+
+  it("takes the roomier side, capped to it, when it fits on neither", () => {
+    // 400px tall in a 500px screen: 500 - 8 - (138 + 8) = 346 below, 100 - 16 = 84 above.
+    expect(fitMenu(button(100), 400, 500, menu)).toEqual({ up: false, maxHeight: 346 });
+    // The button low on the screen: more room above than below.
+    expect(fitMenu(button(300), 400, 500, menu)).toEqual({ up: true, maxHeight: 284 });
+  });
+
+  it("stays below on a tie, and never gives a negative height", () => {
+    expect(fitMenu({ top: 100, bottom: 100 }, 300, 216, menu).up).toBe(false);
+    expect(fitMenu(button(5), 300, 20, menu)).toEqual({ up: false, maxHeight: 0 });
+  });
+
+  it("uses the popover's own gap and margin by default", () => {
+    const fit = fitMenu(button(371), 273, 600);
+    expect(fit.maxHeight).toBe(fit.up ? 371 - POPOVER_GAP - POPOVER_MARGIN : 600 - POPOVER_MARGIN - (409 + POPOVER_GAP));
   });
 });
