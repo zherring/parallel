@@ -8,15 +8,13 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-  type KeyboardEvent,
   type ReactNode,
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
+import { trapTab, useModalPage } from "./modal-page";
 
 const TRIGGER_SELECTOR = "button, a[href], [role='button'], [tabindex]";
-const FOCUSABLE_SELECTOR =
-  "a[href]:not([tabindex='-1']), button:not([disabled]):not([tabindex='-1']), input:not([disabled]):not([tabindex='-1']), select:not([disabled]):not([tabindex='-1']), textarea:not([disabled]):not([tabindex='-1']), [tabindex]:not([tabindex='-1'])";
 
 /** Safari and Firefox on macOS do not focus a button on click, so remember what was pressed. */
 let lastPressed: Element | null = null;
@@ -176,37 +174,8 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
     (scrollRef.current ?? panelRef.current)?.focus({ preventScroll: true });
   }, []);
 
-  // Lock page scroll without shifting the layout when the scrollbar disappears.
-  useEffect(() => {
-    if (closing) return;
-    const { body, documentElement } = document;
-    const previous = { overflow: body.style.overflow, paddingRight: body.style.paddingRight };
-    const scrollbar = window.innerWidth - documentElement.clientWidth;
-    body.style.overflow = "hidden";
-    if (scrollbar > 0) body.style.paddingRight = `${scrollbar}px`;
-    return () => {
-      body.style.overflow = previous.overflow;
-      body.style.paddingRight = previous.paddingRight;
-    };
-  }, [closing]);
-
-  // Everything else on the page is unreachable (keyboard, pointer and assistive tech) while open.
-  useEffect(() => {
-    if (closing) return;
-    const root = rootRef.current;
-    const inerted: Element[] = [];
-    for (const child of Array.from(document.body.children)) {
-      const skip =
-        child === root ||
-        child.hasAttribute("inert") ||
-        child.tagName.includes("-") || // custom elements, e.g. the Next dev overlay
-        ["SCRIPT", "STYLE", "LINK", "TEMPLATE", "NOSCRIPT"].includes(child.tagName);
-      if (skip) continue;
-      child.setAttribute("inert", "");
-      inerted.push(child);
-    }
-    return () => inerted.forEach((child) => child.removeAttribute("inert"));
-  }, [closing]);
+  // The page behind is locked and inert while open (the opener was read above: making it inert blurs whatever has focus).
+  useModalPage(rootRef, !closing);
 
   useEffect(() => {
     if (closing) return;
@@ -235,34 +204,6 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
     };
   }, [closing]);
 
-  function trapTab(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key !== "Tab") return;
-    const panel = panelRef.current;
-    const scroller = scrollRef.current;
-    if (!panel) return;
-    const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-    if (focusable.length === 0) {
-      event.preventDefault();
-      return;
-    }
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    const active = document.activeElement;
-    // The dialog and its scroll container take focus but are not in the tab order (tabindex -1).
-    // From the dialog, Shift+Tab has nothing before it to go to: wrap. From the scroll container,
-    // Tab goes to the first control inside it, or wraps when there is none; Shift+Tab goes to the
-    // close button before it.
-    const tabsOutOfScroller =
-      scroller !== null && active === scroller && !focusable.some((element) => scroller.contains(element));
-    if (event.shiftKey && (active === first || active === panel)) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && (active === last || tabsOutOfScroller)) {
-      event.preventDefault();
-      first.focus();
-    }
-  }
-
   return (
     // While it slides away the page underneath is live again: presses go through to it.
     <div
@@ -284,7 +225,7 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
         aria-labelledby={titleId}
         aria-busy={busy || undefined}
         tabIndex={-1}
-        onKeyDown={trapTab}
+        onKeyDown={(event) => trapTab(event, panelRef.current, scrollRef.current)}
         className="absolute inset-x-0 bottom-0 flex max-h-[90dvh] flex-col rounded-t-2xl border-t border-border bg-canvas shadow-2xl shadow-black/60 outline-none! md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-[30rem] md:rounded-none md:border-l md:border-t-0"
       >
         <div className="flex shrink-0 items-center justify-between border-b border-border py-1.5 pl-4 pr-2">

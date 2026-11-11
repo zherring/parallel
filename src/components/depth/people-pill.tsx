@@ -76,6 +76,83 @@ function headRects(root: ParentNode, attribute: string): Map<string, DOMRect> {
   return rects;
 }
 
+interface PersonRowProps {
+  entry: PillPerson;
+  /** The name and the portrait open the person's details in the slide-out panel. */
+  onOpenPerson: OpenPerson;
+  /** Whether their films are shown (the eye is on); a hidden person is faint, with a ring that is still their colour. */
+  visible: boolean;
+  /** The eye that shows or hides their films, where the view has films to hide (see `PeoplePill`). Without it the row has no eye. */
+  onToggleVisible?: (personId: number) => void;
+  /** The one person left on the track: their eye is disabled, since the track would be empty. */
+  onlyVisible?: boolean;
+}
+
+/**
+ * One person's row, in the open pill's card and in the full-screen people search (`PeopleOverlay`): their portrait (in their colour's ring) and name,
+ * both opening their details, their roles and film count, the eye where the view has one, and "Remove", the link to the page without them. Its heads and
+ * fades are marked (`data-row-head`, `data-fade`) for the pill's flight, which looks only inside its own card.
+ */
+export function PersonRow({ entry, onOpenPerson, visible, onToggleVisible, onlyVisible = false }: PersonRowProps) {
+  const { person, slot, roles, filmCount, removeHref } = entry;
+  return (
+    <li className="flex items-center gap-3 rounded-xl px-2 py-2">
+      <span data-row-head={person.id} className="inline-flex shrink-0 origin-top-left">
+        {/* The portrait opens the person's details, as the name does (and as the Quotes' names do). */}
+        <PersonBio
+          person={person}
+          onOpen={onOpenPerson}
+          portrait={
+            <PersonAvatar
+              name={person.name}
+              profilePath={person.profilePath}
+              size={40}
+              // A hidden person keeps a faint ring, so their colour is still how you find them again.
+              ringColor={visible ? personColor(slot) : `color-mix(in srgb, ${personColor(slot)} 35%, transparent)`}
+              className={cn(!visible && "opacity-50 grayscale")}
+            />
+          }
+        />
+      </span>
+      <div data-fade className={cn("min-w-0 flex-1", !visible && "opacity-60")}>
+        {/* The name (up to two lines, the whole of it on hover) opening the person's details, the roles in full, the film count. */}
+        <p title={person.name} className="line-clamp-2 break-words text-sm font-semibold leading-tight text-strong">
+          <span className="relative inline-block max-w-full align-top">
+            <PersonBio person={person} onOpen={onOpenPerson} nameTrigger />
+          </span>
+        </p>
+        {roles && <p className="mt-0.5 text-xs leading-snug text-body">{roles}</p>}
+        <p className="mt-0.5 text-xs tabular-nums text-muted">{visible ? filmCountLabel(filmCount) : `${filmCountLabel(filmCount)}, hidden`}</p>
+      </div>
+      {onToggleVisible && (
+        // The eye that shows or hides this person's films on the timeline (the people column's had one, which the pill took over): pressed while their films are shown.
+        <button
+          data-fade
+          type="button"
+          aria-pressed={visible}
+          aria-label={`Show ${person.name}'s films on the timeline`}
+          title={onlyVisible ? "At least one person has to stay on the timeline" : visible ? "Hide their films" : "Show their films"}
+          disabled={onlyVisible}
+          onClick={() => onToggleVisible(person.id)}
+          className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-surface hover:text-strong disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted"
+        >
+          {visible ? <Eye aria-hidden="true" className="size-4" /> : <EyeOff aria-hidden="true" className="size-4" />}
+        </button>
+      )}
+      <Link
+        data-fade
+        href={removeHref}
+        prefetch={false}
+        aria-label={`Remove ${person.name}`}
+        title={`Remove ${person.name} from the page`}
+        className="shrink-0 rounded-md px-2 py-1.5 text-xs text-muted hover:bg-surface hover:text-strong"
+      >
+        Remove
+      </Link>
+    </li>
+  );
+}
+
 /**
  * The people on the page, folded into a pill at the top left: their overlapping heads (in their colours) and names,
  * with no logo. Tapping the heads opens a floating card: each person's row, with a way to remove them and, on the flat Timeline of several people, an
@@ -395,65 +472,17 @@ export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible 
           <div className="relative p-2">
             <ul className="m-0 list-none p-0">
               {people.map((entry) => {
-                const { person, slot, roles, filmCount, removeHref } = entry;
                 const visible = isVisible(entry);
-                // The last person on the track cannot be hidden: it would be empty.
-                const onlyVisible = visible && visibleCount === 1;
                 return (
-                  <li key={person.id} className="flex items-center gap-3 rounded-xl px-2 py-2">
-                    <span data-row-head={person.id} className="inline-flex shrink-0 origin-top-left">
-                      {/* The portrait opens the person's details, as the name does (and as the Quotes' names do). */}
-                      <PersonBio
-                        person={person}
-                        onOpen={onOpenPerson}
-                        portrait={
-                          <PersonAvatar
-                            name={person.name}
-                            profilePath={person.profilePath}
-                            size={40}
-                            // A hidden person keeps a faint ring, so their colour is still how you find them again.
-                            ringColor={visible ? personColor(slot) : `color-mix(in srgb, ${personColor(slot)} 35%, transparent)`}
-                            className={cn(!visible && "opacity-50 grayscale")}
-                          />
-                        }
-                      />
-                    </span>
-                    <div data-fade className={cn("min-w-0 flex-1", !visible && "opacity-60")}>
-                      {/* The name (up to two lines, the whole of it on hover) opening the person's details, the roles in full, the film count. */}
-                      <p title={person.name} className="line-clamp-2 break-words text-sm font-semibold leading-tight text-strong">
-                        <span className="relative inline-block max-w-full align-top">
-                          <PersonBio person={person} onOpen={onOpenPerson} nameTrigger />
-                        </span>
-                      </p>
-                      {roles && <p className="mt-0.5 text-xs leading-snug text-body">{roles}</p>}
-                      <p className="mt-0.5 text-xs tabular-nums text-muted">{visible ? filmCountLabel(filmCount) : `${filmCountLabel(filmCount)}, hidden`}</p>
-                    </div>
-                    {onToggleVisible && (
-                      // The eye that shows or hides this person's films on the timeline (the people column's had one, which the pill took over): pressed while their films are shown.
-                      <button
-                        data-fade
-                        type="button"
-                        aria-pressed={visible}
-                        aria-label={`Show ${person.name}'s films on the timeline`}
-                        title={onlyVisible ? "At least one person has to stay on the timeline" : visible ? "Hide their films" : "Show their films"}
-                        disabled={onlyVisible}
-                        onClick={() => onToggleVisible(person.id)}
-                        className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-surface hover:text-strong disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted"
-                      >
-                        {visible ? <Eye aria-hidden="true" className="size-4" /> : <EyeOff aria-hidden="true" className="size-4" />}
-                      </button>
-                    )}
-                    <Link
-                      data-fade
-                      href={removeHref}
-                      prefetch={false}
-                      aria-label={`Remove ${person.name}`}
-                      title={`Remove ${person.name} from the page`}
-                      className="shrink-0 rounded-md px-2 py-1.5 text-xs text-muted hover:bg-surface hover:text-strong"
-                    >
-                      Remove
-                    </Link>
-                  </li>
+                  <PersonRow
+                    key={entry.person.id}
+                    entry={entry}
+                    onOpenPerson={onOpenPerson}
+                    visible={visible}
+                    onToggleVisible={onToggleVisible}
+                    // The last person on the track cannot be hidden: it would be empty.
+                    onlyVisible={visible && visibleCount === 1}
+                  />
                 );
               })}
             </ul>

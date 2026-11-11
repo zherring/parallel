@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, ViewTransiti
 import { REDUCED_MOTION, useMediaQuery } from "@/components/depth/use-media";
 import { PeoplePill, flipTransform, type PillPerson } from "@/components/depth/people-pill";
 import { PairTitle } from "@/components/hero/pair-title";
+import { PeopleOverlay } from "@/components/people-overlay";
 import { springEasing } from "@/components/landing/hero-motion";
 import { HomeLink } from "@/components/home-link";
 import { Wordmark } from "@/components/wordmark";
@@ -107,7 +108,18 @@ const STEPS_ASIDE =
  * The bar is as wide as the page's viewport (`inset-x-0`: a flat page with a scrollbar of its own ends the bar at the scrollbar, where the gear's
  * gutter is measured from; the Depth view's scroller hides its own) and sits over the page at `z-30`, under the panels and dialogs.
  */
-export function PeopleBar({
+export function PeopleBar(props: PeopleBarProps) {
+  return (
+    <>
+      <PeopleBarBox {...props} />
+      {/* ⌘K: the full-screen people search, for a page whose hero never collapses (see `PeopleOverlay`). After the bar's box, not in it: a wheel in the overlay is not for the scene. */}
+      <PeopleOverlay people={props.people} onOpenPerson={props.onOpenPerson} />
+    </>
+  );
+}
+
+/** The bar's own box (see `PeopleBar`): the fixed row of controls, and the hero's band over the top of the view. */
+function PeopleBarBox({
   people,
   onOpenPerson,
   hero,
