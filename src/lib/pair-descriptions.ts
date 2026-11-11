@@ -142,18 +142,14 @@ export const PAIR_DESCRIPTIONS: PairDescriptions = {
     ]
   },
   "190+4385": {
-    "text": "Leone hired a cheap TV actor[1] who brought his own hat and poncho, and set him between panoramas and close-ups.[2] Over three films the scores and budgets swelled toward opera; Eastwood tired of Leone belittling his acting,[1] yet later dedicated a western partly to him.[3]",
+    "text": "Leone saw Eastwood on TV's Rawhide and cast him in A Fistful of Dollars for $15,000, less than Charles Bronson wanted.[1] After three films their careers split, perhaps partly because Leone belittled Eastwood's acting.[1] Eastwood later dedicated a western to his mentors, Leone and Don Siegel.[2]",
     "sources": [
       {
         "title": "Cinema '67 Revisited: A Fistful of Dollars (Mark Harris, Film Comment)",
         "url": "https://www.filmcomment.com/blog/cinema-67-revisited-fistful-dollars/"
       },
       {
-        "title": "Out of the Vaults: A Fistful of Dollars (The Film Foundation)",
-        "url": "https://www.film-foundation.org/hfpa-fistful"
-      },
-      {
-        "title": "Unforgiven (1992), AFI Catalog",
+        "title": "Unforgiven (1992) (AFI Catalog)",
         "url": "https://catalog.afi.com/Film/67274-UNFORGIVEN"
       }
     ]
@@ -368,7 +364,7 @@ export const PAIR_DESCRIPTIONS: PairDescriptions = {
     ]
   },
   "4165+8500": {
-    "text": "Ford pulled Wayne out of B-westerns with one 1939 picture and made him a star,[1][3] then turned the image he had built on the country's darker side.[1] The Searchers fills the hero with racial hatred; Liberty Valance has him make himself irrelevant.[2]",
+    "text": "Ford met Wayne, then a college student moving props at Fox.[1] Ford's Stagecoach lifted Wayne out of cheap westerns and made him a star.[1][3] Ford then used that hero image to show America's darker side, casting Wayne in The Searchers as a man full of racial hatred.[1][2]",
     "sources": [
       {
         "title": "John Ford and John Wayne: Pappy and the Duke (American Masters, PBS)",
@@ -449,10 +445,10 @@ export const PAIR_DESCRIPTIONS: PairDescriptions = {
     ]
   },
   "2746+3084": {
-    "text": "Streetcar gave Brando menace without doubt, a Stanley who never questions himself.[2][3] On the Waterfront, made after Kazan's HUAC testimony frayed their relationship,[2] turned that body toward Terry Malloy's tenderness, self-doubt and inner life;[1][2] their most inward film came when they were most strained.",
+    "text": "Kazan directed Brando as Stanley Kowalski in A Streetcar Named Desire, on Broadway in 1947[1] and on film, as a brute without self-doubt.[2][3] Kazan's testimony to Congress strained their relationship,[2] but in On the Waterfront Brando played the opposite: a tough man full of self-doubt and longing.[2]",
     "sources": [
       {
-        "title": "Birth of the Method: the revolution in American acting (Sight and Sound, BFI)",
+        "title": "Birth of the Method: the revolution in American acting (Sight and Sound, BFI, 31 October 2014)",
         "url": "https://www.bfi.org.uk/sight-and-sound/features/birth-method-revolution-american-acting"
       },
       {
@@ -884,7 +880,7 @@ export const PAIR_DESCRIPTIONS: PairDescriptions = {
     ]
   },
   "4110+7570": {
-    "text": "Their romance began on the To Have and Have Not set, where scenes were rewritten to spotlight Bacall.[1] Once they married, The Big Sleep was reshot for innuendo between them,[2] while later films hid his face behind point-of-view shots or shrank their romance to suggestion.[3]",
+    "text": "Hawks cast Bacall in her first film, To Have and Have Not, opposite Bogart, and the two actors soon fell for each other.[1] After they married, Hawks shot new scenes for The Big Sleep to build up their chemistry.[2] They stayed married until Bogart died in 1957.[1]",
     "sources": [
       {
         "title": "Behind the Camera: To Have and Have Not (Turner Classic Movies)",
@@ -893,10 +889,6 @@ export const PAIR_DESCRIPTIONS: PairDescriptions = {
       {
         "title": "Behind the Classics: The Big Sleep (1946) (Turner Classic Movies)",
         "url": "https://www.tcm.com/articles/behind-the-classics/89384/behind-the-classics-the-big-sleep-1946"
-      },
-      {
-        "title": "Every Bogart and Bacall Movie, Ranked (Paste Magazine)",
-        "url": "https://www.pastemagazine.com/movies/film-noir/bogart-and-bacall-movies-ranked"
       }
     ]
   },
@@ -1283,15 +1275,11 @@ export const PAIR_DESCRIPTIONS: PairDescriptions = {
     ]
   },
   "4165+11435": {
-    "text": "In Red River, Hawks took Wayne darker than ever as a star, a cattleman turned tyrant on the drive.[1] Rio Bravo, his answer to a sheriff who begs for help,[2][3] made Wayne a lawman who thinks he needs no amateurs yet needs them constantly.[3]",
+    "text": "Hawks cast Wayne in Red River, Hawks's first western, as a cattleman turned tyrant, Wayne's darkest role since becoming a star.[1] Visiting the shoot, John Ford said he never knew Wayne could act.[1] Hawks reunited with Wayne for Rio Bravo, a huge hit, then reworked it as El Dorado.[2]",
     "sources": [
       {
         "title": "Red River, by Michael Schlesinger (Library of Congress National Film Registry essay)",
         "url": "https://www.loc.gov/static/programs/national-film-preservation-board/documents/red_river.pdf"
-      },
-      {
-        "title": "Rio Bravo, by Jeff Stafford (Turner Classic Movies, Sept. 25, 2003)",
-        "url": "https://www.tcm.com/articles/1069/rio-bravo"
       },
       {
         "title": "Rio Bravo, by Michael Schlesinger (Library of Congress National Film Registry essay)",
@@ -1300,10 +1288,10 @@ export const PAIR_DESCRIPTIONS: PairDescriptions = {
     ]
   },
   "2461+7187": {
-    "text": "Donner directed Gibson six times, and Gibson credits him as a seasoned hand who invites actors to experiment without pretending to have every answer.[1] In Lethal Weapon and Maverick that looseness is the engine, with Donner holding the frame and Gibson roaming inside it.",
+    "text": "Donner directed Gibson six times, more than any other director, and Gibson called him Uncle Dick.[1] Gibson has said Donner loved actors and let them try things even when Donner wasn't sure they would work.[1] On Lethal Weapon and its sequels, that gave Gibson room to experiment.",
     "sources": [
       {
-        "title": "Great Conversations: Mel Gibson (Alex Simon interview), HuffPost",
+        "title": "Great Conversations: Mel Gibson (Alex Simon interview), HuffPost, June 29, 2015",
         "url": "https://www.huffpost.com/alex-simon/great-conversations-mel-g_b_7690210.html"
       }
     ]
@@ -1431,19 +1419,19 @@ export const PAIR_DESCRIPTIONS: PairDescriptions = {
     ]
   },
   "19274+41039": {
-    "text": "Apatow took a supporting player who helped rethink The 40-Year-Old Virgin's scenes and structure,[2] then steered his sci-fi pitch into a pregnancy comedy, Knocked Up.[1] On set, scripted takes give way to improvisation,[2] which on Knocked Up Apatow pushed from crude jokes toward feeling.[3]",
+    "text": "At 16, Rogen sent Apatow an audition tape for the TV show Freaks and Geeks.[1] Apatow cast Rogen in The 40-Year-Old Virgin, and Rogen helped rework its scenes.[1][2] Rogen pitched Apatow a sci-fi comedy; Apatow suggested a pregnancy story instead, which became Knocked Up, with Rogen in the lead.[3]",
     "sources": [
       {
-        "title": "Get 'Knocked Up' With Judd Apatow (ABC News, 2007)",
-        "url": "https://abcnews.com/abcnewsnow/story?id=3230321"
+        "title": "Geek gets lucky (The Georgia Straight, May 30, 2007)",
+        "url": "https://www.straight.com/article-93116/geek-gets-lucky"
       },
       {
         "title": "Seth Rogen interview by Scott Tobias (The A.V. Club, May 31, 2007)",
         "url": "https://www.avclub.com/seth-rogen-1798211499"
       },
       {
-        "title": "Seth Rogen on the best advice he ever received: less semen, more emotion (NME)",
-        "url": "https://www.nme.com/news/seth-rogen-best-advice-ever-received-less-semen-more-emotion-3968710"
+        "title": "Get 'Knocked Up' With Judd Apatow (ABC News, 2007)",
+        "url": "https://abcnews.com/abcnewsnow/story?id=3230321"
       }
     ]
   },
@@ -1474,19 +1462,19 @@ export const PAIR_DESCRIPTIONS: PairDescriptions = {
     ]
   },
   "92784+960350": {
-    "text": "Laxton prepares the visual world while Jenkins seeks the performance,[1] and both let cast and place shape the look instead of imposing a style.[2] Together they built a camera that listens like another actor, tried in Moonlight, refined in If Beale Street Could Talk.[3]",
+    "text": "Jenkins and Laxton met at Florida State's film school, and Laxton later shot Jenkins's first feature, Medicine for Melancholy.[1] Laxton plans the look while Jenkins works with actors,[2] and both let place and cast shape the images, so Medicine for Melancholy, set in San Francisco, looks very different from Moonlight.[3]",
     "sources": [
       {
-        "title": "The Underground Railroad Director Barry Jenkins Talks with DP James Laxton: \"This Is the Hardest Thing I've Ever Done\" (MovieMaker)",
+        "title": "Capturing The Right Balance Of 'Moonlight' (SHOOTonline, November 22, 2016)",
+        "url": "https://shootonline.com/?p=42151"
+      },
+      {
+        "title": "The Underground Railroad Director Barry Jenkins Talks with DP James Laxton: This Is the Hardest Thing I've Ever Done (MovieMaker)",
         "url": "https://www.moviemaker.com/the-underground-railroad-director-barry-jenkins-talks-with-dp-james-laxton-this-is-the-hardest-thing-ive-ever-done"
       },
       {
         "title": "James Laxton on shooting Moonlight (Moveable Fest)",
         "url": "https://moveablefest.com/james-laxton-moonlight/"
-      },
-      {
-        "title": "Cinematographer James Laxton on Capturing the Romance of If Beale Street Could Talk, Close-Ups, and Errol Morris (The Film Stage)",
-        "url": "https://thefilmstage.com/cinematographer-james-laxton-on-capturing-the-romance-of-if-beale-street-could-talk-close-ups-and-errol-morris"
       }
     ]
   },
