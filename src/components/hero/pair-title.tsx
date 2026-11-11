@@ -13,8 +13,9 @@ interface PairTitleProps {
 
 /**
  * The pair hero's title, which takes the people pill's place in the page bar while the hero is expanded: the names joined with " × ", each a button that opens
- * that person's biography (the pill's own `PersonBio`), and under them, small and in capitals, what each did and how many films they made together. It is
- * not the page's heading: the `h1` is the visually hidden `PageHeadline`, which says the same with "&".
+ * that person's biography (the pill's own `PersonBio`), and under them, small and in capitals, what each did and how many films they made together. It stands
+ * beside the people pill in the bar while the hero is open (see `PeopleBar`), and is gone once it has collapsed. It is not the page's heading: the `h1` is the
+ * visually hidden `PageHeadline`, which says the same with "&".
  */
 export function PairTitle({ people, subtitle }: PairTitleProps) {
   return (

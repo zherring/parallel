@@ -98,11 +98,11 @@ test.describe("at 1440px wide", () => {
       await openView(page, view);
       expect(await heroState(page)).toBe("expanded");
 
-      // The names joined with ×, each a button that opens the biography; the pill is not shown (it is inert) until the hero collapses.
+      // The names joined with ×, each a button that opens the biography; the people pill is beside them, as it is in the compact bar.
       await expect(title(page)).toBeVisible();
       await expect(title(page).locator("p").first()).toHaveText(`${NAMES[0]} × ${NAMES[1]}`);
       await expect(title(page).getByRole("button")).toHaveText(NAMES);
-      await expect(pill(page)).toBeHidden();
+      await expect(pill(page)).toBeVisible();
       // The line under them: each person's main role in the films together (both are actors here), then the count the pill used to say; set in capitals.
       await expect(title(page).locator("[data-pair-subtitle]")).toHaveText(new RegExp(`^actor × actor · ${FILM_COUNT} films$`, "i"));
       expect(await title(page).locator("[data-pair-subtitle]").evaluate((element) => getComputedStyle(element).textTransform)).toBe("uppercase");
@@ -182,15 +182,15 @@ test.describe("at 1440px wide", () => {
       expect(await heroState(page)).toBe("expanded");
       await scrollTo(page, view, landed + 48);
       await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
-      // Collapsed: the people pill is where the title was, and the title is no longer there to be pressed.
+      // Collapsed: the people pill is still where it was, and the title is no longer there to be pressed.
       await expect(pill(page)).toBeVisible();
       await expect(title(page)).toBeHidden();
 
-      // Back within 48px of where it landed: expanded again, and the pill gives way to the title.
+      // Back within 48px of where it landed: expanded again, and the title is back beside the pill (which was there all along).
       await scrollTo(page, view, landed + 20);
       await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
       await expect(title(page)).toBeVisible();
-      await expect(pill(page)).toBeHidden();
+      await expect(pill(page)).toBeVisible();
       // Moving the other way counts too, for a view that has room (everything but the top of the page).
       if (landed >= 100) {
         await scrollTo(page, view, landed - 60);
@@ -390,14 +390,47 @@ test.describe("at 1440px wide", () => {
     expect(new URL(page.url()).searchParams.get("quote")).toBe(NOTE.id);
   });
 
-  test("Tab reaches the names while the hero is open and the pill once it has collapsed, never both", async ({ page }) => {
+  test("Tab reaches the people pill and the names while the hero is open, and only the pill once it has collapsed", async ({ page }) => {
     await openView(page, "table");
     await expect(title(page).getByRole("button", { name: NAMES[0], exact: true })).toBeVisible();
-    expect(await bar(page).locator("[data-people-pill]").evaluate((element) => element.closest("[inert]") !== null)).toBe(true);
+    expect(await bar(page).locator("[data-people-pill]").evaluate((element) => element.closest("[inert]") !== null)).toBe(false);
+    expect(await title(page).evaluate((element) => element.closest("[inert]") !== null)).toBe(false);
     await collapseHero(page);
     expect(await title(page).evaluate((element) => element.closest("[inert]") !== null)).toBe(true);
     expect(await bar(page).locator("[data-people-pill]").evaluate((element) => element.closest("[inert]") !== null)).toBe(false);
   });
+
+  // ---- the people pill with the hero open ---------------------------------------------------------------------------------
+
+  for (const view of ALL_VIEWS) {
+    test(`on the ${view} view the people pill is on the bar and opens before any scroll, with the hero still open`, async ({ page }) => {
+      await openView(page, view);
+      expect(await heroState(page)).toBe("expanded");
+      await expect(pill(page)).toBeVisible();
+      // Beside the title and clear of it (the title is to its right), and of the bar's other controls.
+      const pillBox = await box(bar(page).locator("[data-pill-capsule]"));
+      const titleBox = await box(title(page));
+      expect(intersects(pillBox, titleBox)).toBe(false);
+      expect(pillBox.x + pillBox.width).toBeLessThanOrEqual(titleBox.x);
+      expect(intersects(pillBox, await box(settingsGear(page)))).toBe(false);
+
+      // A press opens it (it is the topmost thing there: Playwright clicks where the point would hit): the field to add a person and a row for each of the two.
+      await pill(page).click();
+      await expect(pill(page)).toHaveAttribute("aria-expanded", "true");
+      await expect(page.getByRole("combobox", { name: "Add a person", exact: true })).toBeVisible();
+      const people = page.getByRole("dialog", { name: "People", exact: true });
+      await expect(people).toBeVisible();
+      for (const name of NAMES) await expect(people.getByRole("button", { name, exact: true }).first()).toBeVisible();
+      // The title steps aside for the field, which is over its place; the hero stays open.
+      await expect(title(page)).toBeHidden();
+      expect(await heroState(page)).toBe("expanded");
+
+      await page.keyboard.press("Escape");
+      await expect(people).toBeHidden();
+      await expect(title(page)).toBeVisible();
+      await expect(pill(page)).toBeFocused();
+    });
+  }
 
   // ---- Films: the landing poster and the year rail -----------------------------------------------------------------------
 
@@ -547,6 +580,26 @@ test.describe("at 390px wide", () => {
     await expect.poll(async () => (await box(page.locator("[data-depth-rail] > div").first())).y).toBe(0);
     await clear("collapsed");
   });
+
+  for (const view of ALL_VIEWS) {
+    test(`on the ${view} view the people pill is on the bar and opens on a tap before any scroll, beside the names and clear of the gear`, async ({ page }) => {
+      await openView(page, view);
+      expect(await heroState(page)).toBe("expanded");
+      await expect(pill(page)).toBeVisible();
+      const pillBox = await box(bar(page).locator("[data-pill-capsule]"));
+      const titleBox = await box(title(page));
+      const gearBox = await box(settingsGear(page));
+      expect(pillBox.x + pillBox.width).toBeLessThanOrEqual(titleBox.x);
+      expect(titleBox.x + titleBox.width).toBeLessThanOrEqual(gearBox.x);
+      expect(intersects(pillBox, gearBox)).toBe(false);
+
+      await pill(page).tap();
+      await expect(pill(page)).toHaveAttribute("aria-expanded", "true");
+      await expect(page.getByRole("combobox", { name: "Add a person", exact: true })).toBeVisible();
+      await expect(page.getByRole("dialog", { name: "People", exact: true })).toBeVisible();
+      expect(await heroState(page)).toBe("expanded");
+    });
+  }
 
   test("tapping a chip on Films takes the scene to the film, and the people pill is where the names were", async ({ page }) => {
     await openView(page, "focus");

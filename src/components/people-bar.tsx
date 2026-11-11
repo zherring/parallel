@@ -2,10 +2,8 @@
 
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, ViewTransition, type ReactNode, type RefObject } from "react";
-import { REDUCED_MOTION, useMediaQuery } from "@/components/depth/use-media";
-import { PeoplePill, flipTransform, type PillPerson } from "@/components/depth/people-pill";
+import { PeoplePill, type PillPerson } from "@/components/depth/people-pill";
 import { PairTitle } from "@/components/hero/pair-title";
-import { springEasing } from "@/components/landing/hero-motion";
 import { HomeLink } from "@/components/home-link";
 import { Wordmark } from "@/components/wordmark";
 import { cn } from "@/components/timeline/cn";
@@ -137,7 +135,6 @@ export function PeopleBar({
   /** A plain click on a link to `to` chooses it here when the page shows it in place (Focus never is: it is another page render). */
   const clickFor = (to: PageView) => inPlace(onSelect && to !== DEPTH_VIEW ? () => onSelect(to) : undefined);
 
-  const reduced = useMediaQuery(REDUCED_MOTION);
   const barRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -170,33 +167,6 @@ export function PeopleBar({
       root.style.removeProperty("--rail-top");
     };
   }, [overlay, expanded]);
-
-  // The hero collapses: each person's avatar in the pill flies in from where their portrait is, shrinking to the pill's size (FLIP, with the pill's spring).
-  // Expanding is the reverse by cross-fade alone. Not for a visitor who asked for less motion, and not from a portrait that is off the screen.
-  const wasCollapsed = useRef(hero.collapsed);
-  useLayoutEffect(() => {
-    if (wasCollapsed.current === hero.collapsed) return;
-    wasCollapsed.current = hero.collapsed;
-    const bar = barRef.current;
-    if (!hero.collapsed || reduced || !bar) return;
-    let index = 0;
-    bar.querySelectorAll<HTMLElement>("[data-pill-head]").forEach((head) => {
-      const portrait = document.querySelector<HTMLElement>(`[data-hero-portrait="${head.getAttribute("data-pill-head")}"]`);
-      if (!portrait) return;
-      const from = portrait.getBoundingClientRect();
-      const to = head.getBoundingClientRect();
-      if (from.width === 0 || to.width === 0 || from.bottom < 0 || from.top > window.innerHeight) return;
-      const flown = flipTransform(from, to);
-      head.animate(
-        [
-          { transform: flown, transformOrigin: "top left" },
-          { transform: "none", transformOrigin: "top left" },
-        ],
-        { duration: 360, delay: index * 35, easing: springEasing(), fill: "backwards" },
-      );
-      index += 1;
-    });
-  }, [hero.collapsed, reduced]);
 
   return (
     <div
@@ -251,23 +221,18 @@ export function PeopleBar({
             <ArrowLeft aria-hidden="true" className="size-4" />
           </HomeLink>
           {/*
-            The title and the people pill share one place: the pair hero's title (the names joined with ×, and what each did) while the hero is expanded, the
-            pill once it has collapsed. Both stay mounted, one over the other, and cross-fade; the one that is not shown is inert, so neither can be tabbed to or pressed.
+            The people pill is the same control, in the same place, whether the hero is open or collapsed: its heads are on the screen the whole time, and a press opens
+            it. While the hero is open the pair hero's title (the names joined with ×, and what each did) is beside it, and the pill gives up its names (`compact`), which
+            the title says; once the hero has collapsed the title is gone (out of the flow, so the pill and the bar are exactly the compact bar's) and the pill has its names.
+            The title is inert, so that it cannot be tabbed to or pressed, when it is not shown; and it steps aside, as the bar's other controls do, while the pill is open
+            (the pill's field is over the place it is in).
           */}
-          <div className="grid min-w-0">
-            <div
-              inert={expanded}
-              className={cn("col-start-1 row-start-1 min-w-0 transition-[opacity,visibility] duration-200 motion-reduce:transition-none", expanded && "invisible opacity-0")}
-            >
-              <PeoplePill people={people} scrollerRef={scrollerRef} onToggleVisible={onToggleVisible} />
-            </div>
-            <div
-              inert={!expanded}
-              // Collapsed it takes no room either (a title of several lines on a narrow screen would make the compact bar taller than its controls).
-              className={cn("col-start-1 row-start-1 min-w-0 transition-[opacity,visibility] duration-200 motion-reduce:transition-none", !expanded && "invisible h-0 overflow-hidden opacity-0")}
-            >
-              <PairTitle people={people} subtitle={hero.subtitle} />
-            </div>
+          <PeoplePill people={people} scrollerRef={scrollerRef} onToggleVisible={onToggleVisible} compact={expanded} />
+          <div
+            inert={!expanded}
+            className={cn("min-w-0", STEPS_ASIDE, !expanded && "invisible absolute opacity-0")}
+          >
+            <PairTitle people={people} subtitle={hero.subtitle} />
           </div>
         </div>
         {/*
