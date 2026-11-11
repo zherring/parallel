@@ -2071,10 +2071,10 @@ test.describe("on a phone", () => {
     await expect(capsule(page)).toHaveCSS("opacity", "0");
   });
 
-  test("the bar is the heads and the gear, and the gear's sheet holds the views, the settings and Share", async ({ page }) => {
+  test("the bar is the arrow, the heads with the family names and the gear, and the gear's sheet holds the views, the settings and Share", async ({ page }) => {
     await openDepth(page);
 
-    // No tabs and no view control on the bar: the heads at the left and the gear at the right, clear of the pill, the rail and the edges.
+    // No tabs and no view control on the bar: the arrow and the heads at the left and the gear at the right, clear of the pill, the rail and the edges.
     await expect(page.locator('nav[aria-label="Sections"]')).toHaveCount(0);
     await expect(switcher(page)).toBeHidden();
     await expect(page.locator("[data-together-pill]")).toHaveCount(0);
@@ -2115,28 +2115,34 @@ test.describe("on a phone", () => {
     await expect(scene(page)).toHaveCount(0);
   });
 
-  test("a phone's bar has no home arrow: the heads' pill starts at the bar's left edge, the open pill's field and card stay on the screen, and the sheet has the way home with its name", async ({ page }) => {
+  test("a phone's bar has the home arrow: the heads' pill is after it, the open pill's field and card stay on the screen after it, and the sheet has the way home with its name", async ({ page }) => {
     await openDepth(page);
     const barHome = page.locator("[data-people-bar]").getByRole("link", { name: "Back to Parallel home", exact: true });
-    await expect(barHome).toBeHidden();
+    await expect(barHome).toBeVisible();
+    await expect(barHome).toHaveAttribute("href", "/");
+    const homeBox = (await barHome.boundingBox())!;
+    expect(homeBox.x).toBe(12);
+    expect(homeBox.width).toBe(homeBox.height);
     const capsuleBox = (await page.locator("[data-pill-capsule]").boundingBox())!;
-    expect(capsuleBox.x).toBe(12);
+    expect(capsuleBox.x).toBe(homeBox.x + homeBox.width + 12);
+    // The pill says the family names after the heads.
+    expect(await pill(page).evaluate((button) => (button as HTMLElement).innerText)).toContain("Alpha & Beta");
 
-    // The open pill's field and card are as wide as the screen less the margins, and start at the pill's own left edge, the bar's: they do not run off the right edge.
+    // The open pill's field and card are as wide as the screen less the arrow and the margins, and start at the pill's own left edge, after the arrow: they do not run off the right edge.
     await pill(page).tap();
     await expect(peopleCard(page)).toBeVisible();
     const cardBox = (await peopleCard(page).boundingBox())!;
     const fieldBox = (await page.locator("[data-pill-open]").boundingBox())!;
     for (const box of [cardBox, fieldBox]) {
       expect(box.x).toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width).toBeLessThanOrEqual(390);
+      expect(box.x + box.width).toBeLessThanOrEqual(390 - 12 + 0.5);
     }
-    expect(Math.round(fieldBox.x)).toBe(12);
-    expect(Math.round(cardBox.x)).toBe(12);
+    expect(Math.round(fieldBox.x)).toBe(Math.round(capsuleBox.x));
+    expect(Math.round(cardBox.x)).toBe(Math.round(capsuleBox.x));
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
     await page.keyboard.press("Escape");
     await expect(peopleCard(page)).toBeHidden();
-    await expect(barHome).toBeHidden();
+    await expect(barHome).toBeVisible();
 
     await settingsGear(page).tap();
     const sheet = settingsSheet(page);

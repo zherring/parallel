@@ -86,7 +86,7 @@ const STEPS_ASIDE =
 
 /**
  * The page bar of a `/p/` page, fixed to the top of the screen, the same on every view (the flat Timeline, Table and Quotes, and the Films view,
- * which is the Depth view): at the left a small square home (a back arrow to the landing page), from `sm` up (the site's header is hidden on these
+ * which is the Depth view): at the left a small square home (a back arrow to the landing page, on a phone too: the site's header is hidden on these
  * pages, see globals.css), and the people pill; at the right the view switcher (Films, Timeline, Table as one segmented control of text, and Quotes as
  * its fourth segment for a page that has quotes) and the gear. Everything at the left is in the same place and size on every view, and so is everything at the
  * right but for what the Films view's rail asks of it: the controls sit clear of the year rail there (`rail`), and at the right edge on the flat
@@ -100,8 +100,9 @@ const STEPS_ASIDE =
  * bar's footprint the same on every view.
  *
  * The gear opens the film settings (Show all films and Include minor credits), Share (with its Period choice) and Export (the list as a CSV
- * file), on every view alike. On a phone there is no room for the home square and the switcher on the bar, so the bar holds the people
- * pill and the gear, and the gear's sheet holds the views (Quotes among them) and the way home too.
+ * file), on every view alike. On a phone there is no room for the switcher on the bar, so the bar holds the home arrow, the people pill (its heads and the
+ * family names, "Tracy & Hepburn", which give way with an ellipsis: the arrow, the heads and the gear never shrink or wrap) and the gear, and the gear's
+ * sheet holds the views (Quotes among them) and the way home too.
  *
  * The bar is as wide as the page's viewport (`inset-x-0`: a flat page with a scrollbar of its own ends the bar at the scrollbar, where the gear's
  * gutter is measured from; the Depth view's scroller hides its own) and sits over the page at `z-30`, under the panels and dialogs.
@@ -217,9 +218,9 @@ export function PeopleBar({
         <div className="flex min-w-0 items-start gap-3">
           {/*
             The way home, now that the site's header is gone: a rounded square (the bar's radius) with a back arrow, before the people pill, named "Back to
-            Parallel home" (it links to the landing page, it does not go back in history). On a desktop it does not step aside for the open pill, whose field
-            and card start at the people pill's own left edge, clear of it. Not on a phone: the bar's room there is the people pill's, so the pill starts at the
-            bar's own left edge, the same on every view, and the gear's sheet has the way home, with the name.
+            Parallel home" (it links to the landing page, it does not go back in history), on a phone too: it never shrinks, and the pill's names, which are the
+            only thing in the bar that does, give way to it. It does not step aside for the open pill, whose field and card start at the people pill's own left
+            edge, clear of it. The gear's sheet has the way home on a phone as well, with the name.
           */}
           <HomeLink
             label="Back to Parallel home"
@@ -227,7 +228,6 @@ export function PeopleBar({
             className={cn(
               "pointer-events-auto inline-flex size-(--bar-h) shrink-0 items-center justify-center rounded-(--bar-radius) text-muted no-underline transition-colors hover:bg-surface hover:text-strong motion-reduce:transition-none",
               FLOATING,
-              "max-sm:hidden",
             )}
           >
             <ArrowLeft aria-hidden="true" className="size-4" />
@@ -293,7 +293,7 @@ export function PeopleBar({
                     <p role="status" aria-live="polite" className="mt-2 min-h-4 text-xs text-muted">
                       {status}
                     </p>
-                    {/* On a phone the bar has no home pill (see above): the way home is here, last. */}
+                    {/* On a phone the way home is here too, with the name, last. */}
                     <div className="mt-3 border-t border-border pt-3 sm:hidden">
                       <HomeLink className="flex h-9 items-center gap-1.5 rounded-md bg-surface px-3 no-underline hover:bg-border">
                         <Wordmark className="text-base" />
@@ -318,7 +318,7 @@ export function PeopleBar({
         >
           {/* On the Films view the body ends where the gear does, clear of the year rail (3.75rem wide, 28px on a phone): its right padding is the rail's width. */}
           <div className={cn("-mx-1.5 min-h-0 overflow-hidden px-1.5", rail && "mr-[3.375rem] max-sm:mr-[1.125rem]")}>
-            <div className="pointer-events-auto pb-3 pt-3 max-sm:pb-2 max-sm:pt-1.5">
+            <div className="pointer-events-auto pb-3 pt-3 max-sm:pb-1.5 max-sm:pt-1.5">
               {hero.body}
             </div>
           </div>

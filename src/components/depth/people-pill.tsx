@@ -11,6 +11,7 @@ import { cn } from "@/components/timeline/cn";
 import { PersonBio } from "@/components/timeline/person-bio";
 import { filmCountLabel, joinNames } from "@/lib/format";
 import { personColor } from "@/lib/person-colors";
+import { pageHeading } from "@/lib/short-name";
 import type { OpenPerson } from "@/lib/side-panel";
 import type { PersonSummary } from "@/lib/types";
 
@@ -109,6 +110,8 @@ export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible 
 
   const peopleInView = useMemo(() => people.map(({ person }) => ({ id: person.id, name: person.name })), [people]);
   const names = joinNames(people.map(({ person }) => person.name));
+  // On a phone the names are the family names ("Tracy & Hepburn", "Ford, Lucas, & Spielberg"), the ones the page's headline uses for three or more people.
+  const familyNames = pageHeading(people.map(({ person }) => ({ id: person.id, name: person.name })), { short: true }).text;
   const single = people.length === 1;
   /** The eyes are on offer here; a person is on the track unless theirs is off. Without them nobody is hidden. */
   const hideable = onToggleVisible !== undefined;
@@ -284,7 +287,7 @@ export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible 
   const shown = phase !== "closed";
 
   return (
-    <div ref={rootRef} data-people-pill data-open={shown ? "" : undefined} className="pointer-events-auto relative z-30 min-w-0 max-w-[calc(100vw-3rem)]">
+    <div ref={rootRef} data-people-pill data-open={shown ? "" : undefined} className="pointer-events-auto relative z-30 min-w-0 max-w-[calc(100vw-3rem)] max-sm:max-w-[calc(100vw-5.125rem)]">
       {/* The bar: the pill, and over it, while open, the field and the close button, which together are as wide as the card (the pill may be wider: a long list of names). */}
       <div className="relative">
         <div
@@ -334,6 +337,8 @@ export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible 
                 );
               })}
             </span>
+            {/* The names, after the heads: in full from `sm` up, and on a phone the family names, which give way with an ellipsis (the heads, the arrow before the pill and the gear after it never do). */}
+            <span className="min-w-0 truncate text-sm font-medium text-strong sm:hidden">{familyNames}</span>
             <span className="hidden min-w-0 max-w-[18rem] truncate text-sm font-medium text-strong sm:block">{names}</span>
             <ChevronDown aria-hidden="true" className="hidden size-4 shrink-0 text-muted sm:block" />
           </button>
@@ -345,9 +350,9 @@ export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible 
           <div
             data-pill-open
             inert={phase !== "open"}
-            // Starts at the pill's own left edge. On a phone that is the bar's own (there is no home square before the pill there), and the field, as
-            // wide as the card, nearly the screen, ends clear of the right edge, over the count and the gear, which step aside.
-            className="absolute left-0 top-0 z-10 flex h-full w-[min(22rem,calc(100vw-3rem))] items-center gap-2 [--search-radius:var(--bar-radius)]"
+            // Starts at the pill's own left edge, after the home arrow (a phone's too: its 46px and the gap, 58px, and the bar's 12px each side, are the 5.125rem the
+            // width gives up), and the field, as wide as the card, ends clear of the right edge, over the count and the gear, which step aside.
+            className="absolute left-0 top-0 z-10 flex h-full w-[min(22rem,calc(100vw-3rem))] items-center gap-2 [--search-radius:var(--bar-radius)] max-sm:w-[min(22rem,calc(100vw-5.125rem))]"
           >
             <div className="min-w-0 flex-1">
               <PersonSearch
@@ -380,7 +385,7 @@ export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible 
           aria-label="People"
           tabIndex={-1}
           // No overflow clipping, so nothing of the field's dropdown could be cut off by the card. The card's own box is `data-panel-bg`.
-          className="relative mt-2 w-[min(22rem,calc(100vw-3rem))] outline-none"
+          className="relative mt-2 w-[min(22rem,calc(100vw-3rem))] outline-none max-sm:w-[min(22rem,calc(100vw-5.125rem))]"
         >
           <div
             aria-hidden
