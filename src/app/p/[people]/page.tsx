@@ -130,7 +130,7 @@ export default async function PeoplePage({ params, searchParams }: Props) {
     today: opts.today,
     clippings: getPairClippingSet(timelines.map((t) => t.person.id)),
     critics: getPairCritics(timelines.map((t) => t.person.id)),
-    heroNote: getHeroNote(timelines.map((t) => t.person.id)),
+    heroNote: getHeroNote(timelines.map((t) => t.person.id), timelines[0]?.person.biography),
   };
   // `?view=depth` draws the same people and films as the vertical perspective scene (Films) instead of the Timeline, Table and Quotes. A link that names no
   // view opens Films on a phone and the Timeline elsewhere, decided here so that the page never flashes the other; a view the link names always wins.

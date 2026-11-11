@@ -219,7 +219,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
   // ---- the pair hero ------------------------------------------------------------------------------------------------------------------
   const pathname = usePathname();
   const search = useSearchParams().toString();
-  const { subtitle, chips } = usePairHero({ timelines, rows, includeMinor });
+  const { subtitle, chips } = usePairHero({ timelines, rows, includeMinor, today });
   // The scene is the main scroller. It opens at its start (the top), so the hero collapses once it has moved 48px from there.
   const getHeroScroller = useCallback(() => scrollerRef.current, []);
   const { collapsed, collapse } = useHeroCollapse({ getScroller: getHeroScroller, axis: "y", landing: 0, resetKey: DEPTH_VIEW });

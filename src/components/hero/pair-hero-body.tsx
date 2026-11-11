@@ -10,10 +10,11 @@ import { splitCitations } from "@/lib/citations";
 import { CHIP_LIMIT, visibleChips, type HeroChip, type HeroNote } from "@/lib/pair-hero";
 import { personColor } from "@/lib/person-colors";
 import type { OpenPerson } from "@/lib/side-panel";
+import type { PersonSummary } from "@/lib/types";
 
 interface PairHeroBodyProps {
   people: readonly PillPerson[];
-  /** The quote, description or blurb beside the portraits; none when the pair has nothing to say (nothing is made up). */
+  /** The quote, description, blurb or (for one person) biography beside the portraits; none when there is nothing to say (nothing is made up). */
   note: HeroNote | null;
   /** The address of the featured quote in the Quotes view, when the note is that quote. */
   quoteHref: string | null;
@@ -32,7 +33,8 @@ interface PairHeroBodyProps {
 
 /**
  * The pair hero's body, under the bar's row: a portrait for each person (a button that opens their details in the slide-out panel, as their name does), beside them the note
- * (the pair's first artist quote that fits whole, set uncut, else a curated description, else the pair's one-line blurb: see `pickHeroNote`), and a chip for each film. On a phone it is
+ * (the pair's first artist quote that fits whole, set uncut, else a curated description, else the pair's one-line blurb, else, for one person, the start of their biography with a More
+ * that opens their panel: see `pickHeroNote`), and a chip for each film. It is the masthead of a page of one person as it is the pair's: the same body with one portrait. On a phone it is
  * short (the bar's row, with the names, the people pill and the gear, is the rest of the hero): small portraits float at the left of the note, which
  * wraps round them and under them whole.
  *
@@ -73,7 +75,7 @@ export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, tog
             </li>
           ))}
         </ul>
-        {note && <HeroNoteBlock note={note} quoteHref={quoteHref} onQuoteClick={onQuoteClick} />}
+        {note && <HeroNoteBlock note={note} quoteHref={quoteHref} onQuoteClick={onQuoteClick} person={people[0]?.person} onOpenPerson={onOpenPerson} />}
       </div>
 
       {chips.length > 0 && (
@@ -115,7 +117,27 @@ export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, tog
 const CHIP =
   "inline-flex h-8 min-w-0 max-w-[16rem] cursor-pointer items-center gap-2 rounded-full border border-border px-3.5 text-sm font-medium max-sm:gap-1.5 max-sm:px-2.5 text-muted transition-colors hover:border-muted hover:text-strong motion-reduce:transition-none";
 
-function HeroNoteBlock({ note, quoteHref, onQuoteClick }: Pick<PairHeroBodyProps, "quoteHref" | "onQuoteClick"> & { note: HeroNote }) {
+function HeroNoteBlock({
+  note,
+  quoteHref,
+  onQuoteClick,
+  person,
+  onOpenPerson,
+}: Pick<PairHeroBodyProps, "quoteHref" | "onQuoteClick" | "onOpenPerson"> & { note: HeroNote; person: PersonSummary | undefined }) {
+  if (note.kind === "bio") {
+    // The start of the biography, in whole sentences, and a More that opens the person's panel, which has all of it. The button is in the line, after the last word, so that it takes no line of its own.
+    return (
+      <p data-hero-note="bio" className="m-0 min-w-0 max-w-xl text-sm leading-snug text-body max-sm:text-xs max-sm:leading-[1.3]">
+        {note.text}
+        {person && (
+          <>
+            {" "}
+            <PersonBio person={person} onOpen={onOpenPerson} moreTrigger />
+          </>
+        )}
+      </p>
+    );
+  }
   if (note.kind === "quote") {
     return (
       <figure data-hero-note="quote" className="m-0 min-w-0 max-w-xl">

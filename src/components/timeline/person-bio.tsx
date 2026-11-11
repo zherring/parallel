@@ -22,6 +22,11 @@ interface PersonBioProps {
   /** With `nameTrigger`: what the opener says in place of the full name ("Spielberg"); the panel still opens on the full name. */
   label?: string;
   /**
+   * Just a "More" button, to set after a biography the caller shows itself (the masthead of a page of one person, which sets the start of it whole): it opens the same
+   * panel, whose full biography is the rest. It says "More" and is named "More about <name>"; works even when no biography is available, and sits in the line of text.
+   */
+  moreTrigger?: boolean;
+  /**
    * The person's portrait (a `PersonAvatar`) as the opener, for a row that shows one beside the name: it opens the same panel. It is a button
    * of its own that is out of the Tab order, since the name beside it (`nameTrigger`) is the keyboard's way in; it takes the mouse and the touch.
    */
@@ -38,7 +43,7 @@ interface PersonBioProps {
  * six rem) and clamps the text to the lines that fit, so a one-row lane never clips the header:
  * the teaser shrinks line by line, down to just the button. The full text is only in the panel.
  */
-export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, label, portrait, portraitClassName }: PersonBioProps) {
+export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, label, moreTrigger = false, portrait, portraitClassName }: PersonBioProps) {
   const biography = person.biography;
   const snippet = useMemo(() => (biography ? bioSnippet(biography, SNIPPET_CHARS) : ""), [biography]);
 
@@ -54,6 +59,20 @@ export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, l
         className={cn("inline-flex cursor-pointer", portraitClassName ?? "rounded-full")}
       >
         {portrait}
+      </button>
+    );
+  }
+
+  if (moreTrigger) {
+    return (
+      <button
+        type="button"
+        data-person-more
+        aria-haspopup="dialog"
+        onClick={(event) => onOpen(person.id, event.currentTarget)}
+        className="inline-flex cursor-pointer rounded font-medium text-strong underline-offset-2 hover:underline"
+      >
+        More<span className="sr-only"> about {person.name}</span>
       </button>
     );
   }

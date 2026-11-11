@@ -30,6 +30,11 @@ interface LaneHeaderProps {
    * person's name, is above the screen, and what is left of it is under the page bar. Without it the content is the lane's height and scrolls with it.
    */
   pinTop?: string;
+  /**
+   * The biography teaser and its More button. Off on a page of one person, whose masthead (the pair hero's body, see `PairHeroBody`) already says the same and opens
+   * the same panel; on the headers of a page of several people, which have no masthead of their own.
+   */
+  bio?: boolean;
 }
 
 function Avatar({ person }: { person: PersonSummary }) {
@@ -64,6 +69,7 @@ export function LaneHeader({
   divider,
   onOpenPerson,
   pinTop,
+  bio = true,
 }: LaneHeaderProps) {
   const details = [roles, facts].filter(Boolean).join(". ");
 
@@ -109,7 +115,7 @@ export function LaneHeader({
         {facts && <p className="mt-2 hidden shrink-0 text-xs leading-snug text-muted sm:block">{facts}</p>}
         {span && <p className="mt-1 shrink-0 text-center text-[10px] tabular-nums text-muted sm:hidden">{span}</p>}
 
-        <PersonBio person={person} onOpen={onOpenPerson} />
+        {bio && <PersonBio person={person} onOpen={onOpenPerson} />}
       </div>
     </div>
   );

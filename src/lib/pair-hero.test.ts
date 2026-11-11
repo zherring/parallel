@@ -8,17 +8,24 @@ import {
   CHIP_LIMIT,
   COLLAPSE_PX,
   QUOTE_CHARS,
+  SOLO_ROLE_LIMIT,
+  activeYears,
+  bestKnownChips,
   featuredClipping,
   fitsHero,
+  heroBioText,
   heroCollapsed,
   heroSubtitle,
   mainRole,
   mainRoleLabels,
+  mainRoles,
   orderChips,
   pickHeroNote,
   quoteHref,
+  soloRolesLabel,
   visibleChips,
   type HeroChip,
+  type RankedFilm,
 } from "@/lib/pair-hero";
 import type { Credit, Film, PersonSummary, PersonTimeline, RoleKey } from "@/lib/types";
 
@@ -219,6 +226,124 @@ describe("pickHeroNote: the fallback chain", () => {
   });
 });
 
+describe("heroBioText", () => {
+  const sentence = (words: number, seed = "word") => `${Array.from({ length: words }, (_, index) => `${seed}${index}`).join(" ")}.`;
+
+  it("is whole sentences from the start, as many as fit within QUOTE_CHARS, and the text as it is when all of it fits", () => {
+    const short = "Gene Wilder was an American actor. He began on the stage.";
+    expect(heroBioText(short)).toBe(short);
+    const first = `Jerome Silberman, known as Gene Wilder, was an American actor, director and author. ${sentence(8)}`;
+    const second = "Second Sentence is here and it is a little longer than the first one was.";
+    const third = `Third ${"filler ".repeat(40)}ends here.`;
+    const text = `${first} ${second} ${third}`;
+    expect(first.length + second.length + 1).toBeLessThanOrEqual(QUOTE_CHARS);
+    expect(first.length + second.length + third.length).toBeGreaterThan(QUOTE_CHARS);
+    const note = heroBioText(text)!;
+    // The first two sentences, whole, and none of the third: no ellipsis, never a sentence cut.
+    expect(note).toBe(`${first} ${second}`);
+    expect(note.length).toBeLessThanOrEqual(QUOTE_CHARS);
+    expect(note).not.toContain("\u2026");
+    expect(note.endsWith(".")).toBe(true);
+  });
+
+  it("never runs over QUOTE_CHARS, and keeps to the limit it is given", () => {
+    const text = Array.from({ length: 30 }, (_, index) => `Sentence number ${index + 1} says something quite ordinary about the career.`).join(" ");
+    // Each sentence is under 70 characters, so every limit here holds at least one whole one.
+    for (const limit of [80, 120, QUOTE_CHARS, 400]) {
+      const note = heroBioText(text, limit)!;
+      expect(note.length).toBeLessThanOrEqual(limit);
+      expect(note.endsWith(".")).toBe(true);
+    }
+    expect(heroBioText(text)!.length).toBeLessThanOrEqual(QUOTE_CHARS);
+  });
+
+  it("folds the paragraphs and the non-breaking spaces TMDB sends into single spaces", () => {
+    expect(heroBioText("Melvin Brooks\u00a0(n\u00e9\u00a0Kaminsky) is an American actor.\n\nHe is a comedian.")).toBe("Melvin Brooks (n\u00e9 Kaminsky) is an American actor. He is a comedian.");
+  });
+
+  it("does not take an abbreviation or an initial for the end of a sentence", () => {
+    const note = heroBioText("Dr. J. R. Smith was born in Ohio. He later moved to Paris where he made seven films that were all very well received by the critics of the day.", 60);
+    expect(note).toBe("Dr. J. R. Smith was born in Ohio.");
+  });
+
+  it("cuts a first sentence that is longer than the limit at a word, with an ellipsis: the only time it does", () => {
+    const long = `${"Alphabetically ".repeat(30)}ordered.`;
+    const note = heroBioText(long)!;
+    expect(note.endsWith("\u2026")).toBe(true);
+    expect(note.length).toBeLessThanOrEqual(QUOTE_CHARS);
+    // At a word: what is before the ellipsis is whole words of the text.
+    expect(long.startsWith(note.slice(0, -1))).toBe(true);
+    expect(note.slice(0, -1).split(" ").every((word) => word === "Alphabetically")).toBe(true);
+    // Nothing else in the note is an ellipsis.
+    expect(note.slice(0, -1)).not.toContain("\u2026");
+  });
+
+  it("leaves no dangling comma or dash before the ellipsis", () => {
+    const text = `${"word, ".repeat(60)}and so on.`;
+    const note = heroBioText(text)!;
+    expect(note).toMatch(/[a-z]\u2026$/);
+  });
+
+  it("is null for no biography, an empty or blank one", () => {
+    expect(heroBioText(null)).toBeNull();
+    expect(heroBioText(undefined)).toBeNull();
+    expect(heroBioText("")).toBeNull();
+    expect(heroBioText("   \n\n  ")).toBeNull();
+  });
+
+  it("takes off the credit TMDB copies from Wikipedia, at the end and at the start, and is null when that is all there is", () => {
+    const credit = "Description above from the Wikipedia article\u00a0Christopher Guest, licensed under CC-BY-SA, full list of contributors on Wikipedia.";
+    expect(heroBioText(`Christopher Guest is an American actor.\n\n${credit}`)).toBe("Christopher Guest is an American actor.");
+    expect(heroBioText(`Christopher Guest is an American actor. ${credit}`)).toBe("Christopher Guest is an American actor.");
+    expect(heroBioText("From Wikipedia, the free encyclopedia\n\nChristopher Guest is an American actor.")).toBe("Christopher Guest is an American actor.");
+    expect(heroBioText("From Wikipedia. Christopher Guest is an American actor. (Source: Wikipedia)")).toBe("Christopher Guest is an American actor.");
+    expect(heroBioText(credit)).toBeNull();
+    expect(heroBioText(`From Wikipedia, the free encyclopedia\n\n${credit}`)).toBeNull();
+  });
+
+  it("leaves a mention of Wikipedia in the sentences themselves", () => {
+    const text = "She worked on Wikipedia, the encyclopedia, as an editor before she made films.";
+    expect(heroBioText(text)).toBe(text);
+  });
+});
+
+describe("pickHeroNote: the biography of one person", () => {
+  const bio = "Gene Wilder was an American actor. He began on the stage.";
+
+  it("is the note when there is no quote, description or blurb: the start of the biography, whole", () => {
+    expect(pickHeroNote({ clippings: null, description: null, blurb: null, biography: bio })).toEqual({ kind: "bio", text: bio });
+  });
+
+  it("is cut as heroBioText cuts it, and trails no credit line", () => {
+    const long = `${bio} ${"More sentences follow here and say nothing special. ".repeat(10)}`;
+    const note = pickHeroNote({ clippings: null, description: null, blurb: null, biography: `${long}\n\nDescription above from the Wikipedia article Gene Wilder, licensed under CC-BY-SA, full list of contributors on Wikipedia.` });
+    expect(note).toEqual({ kind: "bio", text: heroBioText(long) });
+    expect(note?.kind === "bio" && note.text.length).toBeLessThanOrEqual(QUOTE_CHARS);
+  });
+
+  it("comes after every note a pair can have", () => {
+    const quotes = { people: pair, clippings: [clipping("a", "Penélope Cruz", "Pedro Almodóvar")] };
+    const description = { text: "A description.", sources: [] };
+    expect(pickHeroNote({ clippings: quotes, description, blurb: "A blurb.", biography: bio })?.kind).toBe("quote");
+    expect(pickHeroNote({ clippings: null, description, blurb: "A blurb.", biography: bio })?.kind).toBe("description");
+    expect(pickHeroNote({ clippings: null, description: null, blurb: "A blurb.", biography: bio })?.kind).toBe("blurb");
+  });
+
+  it("is nothing without a biography, and without one that says more than a credit line", () => {
+    expect(pickHeroNote({ clippings: null, description: null, blurb: null })).toBeNull();
+    expect(pickHeroNote({ clippings: null, description: null, blurb: null, biography: null })).toBeNull();
+    expect(pickHeroNote({ clippings: null, description: null, blurb: null, biography: "" })).toBeNull();
+    expect(pickHeroNote({ clippings: null, description: null, blurb: null, biography: "Description above from the Wikipedia article X, licensed under CC-BY-SA." })).toBeNull();
+  });
+
+  it("is what getHeroNote gives a page of one person, and nobody else: two or more people have no one biography", () => {
+    expect(getHeroNote([3460], bio)).toEqual({ kind: "bio", text: bio });
+    expect(getHeroNote([3460])).toBeNull();
+    expect(getHeroNote([3460, 14639], bio)).toEqual(getHeroNote([3460, 14639]));
+    expect(getHeroNote([1, 2, 3], bio)).toBeNull();
+  });
+});
+
 describe("quoteHref", () => {
   it("opens the Quotes on the quote, and keeps the period", () => {
     expect(quoteHref("/p/a+b", "", "q1")).toBe("/p/a+b?view=clippings&quote=q1");
@@ -279,6 +404,69 @@ describe("mainRole", () => {
   });
 });
 
+describe("mainRoles", () => {
+  it("is every role on at least half as many films as the most common, the one a visitor would name first leading", () => {
+    // Actor on 10 films, director on 6, writer on 4, producer on 5: the half of 10 is 5.
+    const films = [
+      ...Array.from({ length: 6 }, () => ["actor", "director"] as RoleKey[]),
+      ...Array.from({ length: 4 }, () => ["actor", "writer"] as RoleKey[]),
+      ...Array.from({ length: 5 }, () => ["producer"] as RoleKey[]),
+    ];
+    expect(mainRoles(films, 4)).toEqual(["director", "actor", "producer"]);
+    expect(mainRoles(films, 2)).toEqual(["director", "actor"]);
+    expect(mainRoles(films)).toEqual(["director"]);
+    expect(mainRole(films)).toBe("director");
+  });
+
+  it("is one role for a person who has one, and nothing for a person with no credit", () => {
+    expect(mainRoles([["actor"], ["actor"], ["actor"], ["writer"]], 2)).toEqual(["actor"]);
+    expect(mainRoles([], 2)).toEqual([]);
+    expect(mainRoles([[], []], 2)).toEqual([]);
+  });
+});
+
+describe("soloRolesLabel", () => {
+  it("names a person's main roles over the films shown, as the people pill words them", () => {
+    const wilder = [film(1, ["actor"]), film(2, ["actor"]), film(3, ["actor", "writer"]), film(4, ["actor"])];
+    expect(soloRolesLabel(wilder, false)).toBe("Actor");
+    const brooks = [film(1, ["director", "writer", "actor"]), film(2, ["director", "writer", "actor"]), film(3, ["actor"])];
+    // Director, then the actor ahead of the writer (the order a visitor would name them in): the writer is on as many films as the director, and is the third.
+    expect(soloRolesLabel(brooks, false)).toBe("Director, Actor");
+    expect(SOLO_ROLE_LIMIT).toBe(2);
+    expect(soloRolesLabel(brooks, false, 3)).toBe("Director, Actor, Writer");
+  });
+
+  it("counts minor credits only when asked to, and is empty for no credit to go by", () => {
+    const cameos = [film(1, [["actor", true]]), film(2, [["actor", true]])];
+    expect(soloRolesLabel(cameos, false)).toBe("");
+    expect(soloRolesLabel(cameos, true)).toBe("Actor");
+    expect(soloRolesLabel([], false)).toBe("");
+  });
+});
+
+describe("activeYears", () => {
+  const year = (value: number, date = `${value}-06-01`) => ({ year: value, releaseDate: date });
+
+  it("is the first film's year to the last one's", () => {
+    expect(activeYears([year(2005), year(1966), year(1984)], "2026-11-11")).toBe("1966–2005");
+  });
+
+  it("is just the year for one year", () => {
+    expect(activeYears([year(1999), year(1999, "1999-12-31")], "2026-11-11")).toBe("1999");
+  });
+
+  it("stops at the last film that is out: an announced one is not a year of work yet", () => {
+    expect(activeYears([year(1990), year(2010), year(2030)], "2026-11-11")).toBe("1990–2010");
+    // A film out today counts.
+    expect(activeYears([year(1990), year(2026, "2026-11-11")], "2026-11-11")).toBe("1990–2026");
+  });
+
+  it("is the span of the films there are when none is out yet, and empty for none", () => {
+    expect(activeYears([year(2030), year(2031)], "2026-11-11")).toBe("2030–2031");
+    expect(activeYears([], "2026-11-11")).toBe("");
+  });
+});
+
 describe("mainRoleLabels", () => {
   const nolan = timeline(1, [film(1, ["director", "writer", "producer"]), film(2, ["director", "writer"]), film(3, ["producer"])]);
   const hoytema = timeline(2, [film(1, ["cinematographer"]), film(2, ["cinematographer"]), film(4, ["editor"])]);
@@ -314,6 +502,13 @@ describe("heroSubtitle", () => {
   it("is the role and the films for one person", () => {
     expect(heroSubtitle(["Director"], 30, false)).toBe("Director · 30 films");
     expect(heroSubtitle(["Actor"], 1, false)).toBe("Actor · 1 film");
+  });
+
+  it("puts the years a person has been active between the roles and the films", () => {
+    expect(heroSubtitle(["Actor"], 31, false, "1966–2005")).toBe("Actor · 1966–2005 · 31 films");
+    expect(heroSubtitle(["Director, Actor"], 12, false, "1999")).toBe("Director, Actor · 1999 · 12 films");
+    expect(heroSubtitle([""], 3, false, "1999–2004")).toBe("1999–2004 · 3 films");
+    expect(heroSubtitle([], 0, false, "")).toBe("0 films");
   });
 
   it("joins three people, and four, the same way", () => {
@@ -357,6 +552,39 @@ describe("orderChips", () => {
     const [first] = orderChips(input);
     expect(first).toEqual(chip(1, "2000-01-01"));
     expect(Object.keys(first)).toEqual(["id", "title", "year", "releaseDate"]);
+  });
+});
+
+describe("bestKnownChips", () => {
+  const ranked = (id: number, voteCount: number, releaseDate: string, title = `Film ${id}`): RankedFilm => ({ ...chip(id, releaseDate, title), voteCount });
+
+  it("puts the film with the most TMDB votes first", () => {
+    const films = [ranked(1, 120, "1990-01-01"), ranked(2, 9000, "2004-01-01"), ranked(3, 560, "1975-01-01"), ranked(4, 40, "2010-01-01")];
+    expect(bestKnownChips(films).map((c) => c.id)).toEqual([2, 3, 1, 4]);
+  });
+
+  it("shows the three best known first, then the rest still in the order of their fame", () => {
+    const films = Array.from({ length: 8 }, (_, index) => ranked(index + 1, (index * 37) % 11 * 100, `${1980 + index}-06-01`));
+    const { shown, hidden } = visibleChips(bestKnownChips(films), false);
+    const byVotes = [...films].sort((a, b) => b.voteCount - a.voteCount || a.id - b.id);
+    expect(shown.map((c) => c.id)).toEqual(byVotes.slice(0, 3).map((c) => c.id));
+    expect(hidden).toBe(5);
+  });
+
+  it("puts films with as many votes in release order, then by title and id, so that the order never wobbles", () => {
+    const films = [ranked(9, 100, "2001-03-03", "B"), ranked(8, 100, "2001-03-03", "A"), ranked(7, 100, "2001-03-03", "B"), ranked(6, 100, "1999-01-01", "Z")];
+    expect(bestKnownChips(films).map((c) => c.id)).toEqual([6, 8, 7, 9]);
+    // Films with no votes at all (the data has none) fall back to release order.
+    expect(bestKnownChips([ranked(1, 0, "2005-01-01"), ranked(2, 0, "1990-01-01"), ranked(3, 0, "1999-01-01")]).map((c) => c.id)).toEqual([2, 3, 1]);
+  });
+
+  it("is a copy that keeps only what a chip needs, and empty for no films", () => {
+    const input = [ranked(1, 500, "2000-01-01")];
+    const [first] = bestKnownChips(input);
+    expect(first).toEqual(chip(1, "2000-01-01"));
+    expect(Object.keys(first)).toEqual(["id", "title", "year", "releaseDate"]);
+    expect(input[0].voteCount).toBe(500);
+    expect(bestKnownChips([])).toEqual([]);
   });
 });
 

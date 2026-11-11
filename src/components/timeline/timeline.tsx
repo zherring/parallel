@@ -277,7 +277,7 @@ export function Timeline({
   );
 
   const multi = lanes.length > 1;
-  /** The page is about one person (even with only one lane shown): their lane header is pinned under the page bar, see `LaneHeader`. */
+  /** The page is about one person (even with only one lane shown): their lane header is pinned under the page bar and leaves the biography to the masthead, see `LaneHeader`. */
   const soloPage = people.length === 1;
   // Person colours: on a page of several people, whatever number of them is visible.
   const colored = people.length > 1;
@@ -982,8 +982,10 @@ export function Timeline({
                         removeHref={removePersonHref(people, person.id)}
                         divider={laneIndex < trackLanes.length - 1}
                         onOpenPerson={onOpenPerson}
-                        // One person: the header stays under the page bar (the track opens scrolled to its baseline, and the header is as tall as the lane).
+                        // One person: the header stays under the page bar (the track opens scrolled to its baseline, and the header is as tall as the lane), and has no
+                        // biography teaser: their masthead, over the track, says the start of it and opens the panel.
                         pinTop={soloPage ? TRACK_TOP : undefined}
+                        bio={!soloPage}
                       />
                     )}
                     <div

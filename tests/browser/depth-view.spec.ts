@@ -1935,9 +1935,9 @@ test("a page of one person has the same switcher, and nothing about lanes", asyn
   // The flat page of one person has the same control, to come back.
   await expect(viewLink(page, "depth")).toBeVisible();
   await expect(scene(page)).toHaveCount(0);
-  // One person has no films made together: the pair hero's line says how many films they have ("Actor · 16 films"), and nothing says "together".
+  // One person has no films made together: the masthead's line says their roles, the years they were active and how many films they have ("Actor · 1990–2020 · 16 films"), and nothing says "together".
   await expect(page.locator("[data-together-pill]")).toHaveCount(0);
-  await expect(page.locator("[data-pair-subtitle]")).toHaveText(/^actor · \d+ films$/i);
+  await expect(page.locator("[data-pair-subtitle]")).toHaveText(/^actor · \d{4}–\d{4} · \d+ films$/i);
 });
 
 const homeLink = (page: Page) => page.getByRole("link", { name: "Back to Parallel home", exact: true });
