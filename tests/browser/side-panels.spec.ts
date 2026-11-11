@@ -134,7 +134,20 @@ for (const panel of cases) {
         expect(await scroller.evaluate((element) => element.scrollTop)).toBe(0);
         await page.keyboard.press("ArrowDown");
         await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-        const afterArrow = await scroller.evaluate((element) => element.scrollTop);
+        // A key scrolls smoothly: let the arrow's scroll come to rest before the next key (a key pressed mid-scroll can be absorbed by it under load).
+        let last = -1;
+        await expect
+          .poll(
+            async () => {
+              const now = await scroller.evaluate((element) => element.scrollTop);
+              const rested = now === last;
+              last = now;
+              return rested;
+            },
+            { intervals: [100] },
+          )
+          .toBe(true);
+        const afterArrow = last;
         await page.keyboard.press("PageDown");
         await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(afterArrow);
       }
