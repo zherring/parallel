@@ -355,8 +355,8 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         (about 4rem tall, over the top of the page).
       */}
       <PageHeadline people={people} count={rows.length} />
-      {/* As wide as the page, with the bar's own gutter (12px): the Timeline spans it, and the Table and Quotes keep a reading column (see `FilmsSection`). */}
-      <div className="w-full min-w-0 px-3 pb-8 pt-[4.5rem]">
+      {/* As wide as the page, with the bar's own gutter (12px): the Timeline spans it, and the Table and Quotes keep a reading column (see `FilmsSection`). Its top is under the bar (4.5rem), or under the title of the expanded hero when that wraps to more lines (see `PeopleBar`). */}
+      <div className="w-full min-w-0 px-3 pb-8 pt-[max(4.5rem,var(--people-bar-top,0px))]">
         {/* The hero's body for the Table and the Quotes: in the page, above the films, and gone from the screen as the page is scrolled. The Timeline's is in the bar's band. */}
         {!timelineView && <div className="pb-2 pt-0.5">{heroBody}</div>}
         {/* The combined timeline's colours, as custom properties (src/lib/person-colors.ts): the hover card is in a portal. */}

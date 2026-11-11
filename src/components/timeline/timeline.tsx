@@ -193,6 +193,9 @@ function focusIsVisible(element: HTMLElement): boolean {
   }
 }
 
+/** Row 1 starts clear of the page bar, with a little room: the bar's bottom edge and 10px, less the lane's own 18px. The lane header's content sticks there too. */
+const TRACK_TOP = `calc(0.75rem + var(--bar-h) + 0.625rem - ${LANE_PAD_TOP}px)`;
+
 export function Timeline({
   active,
   ref,
@@ -274,6 +277,8 @@ export function Timeline({
   );
 
   const multi = lanes.length > 1;
+  /** The page is about one person (even with only one lane shown): their lane header is pinned under the page bar, see `LaneHeader`. */
+  const soloPage = people.length === 1;
   // Person colours: on a page of several people, whatever number of them is visible.
   const colored = people.length > 1;
   // Films outside the period the page was opened on or the brush chose: shared or not, their cards, connectors and nodes fade.
@@ -790,8 +795,8 @@ export function Timeline({
         )}
       >
         {layout.legend.length > 0 && (
-          // The legend belongs to the track, not to the lane headers' width.
-          <div className="relative z-[65] shrink-0 px-3 pt-2">
+          // The legend belongs to the track, not to the lane headers' width, and starts under the page bar, which is over the top of the screen.
+          <div className="relative z-[65] shrink-0 px-3 pt-[calc(0.75rem+var(--bar-h)+0.5rem)]">
             <ConnectionLegend
               entries={layout.legend}
               names={layout.names}
@@ -829,7 +834,7 @@ export function Timeline({
           {/* Row 1 starts clear of the page bar, with a little room: the top padding is the bar's bottom edge and 10px, less the lane's own 18px. */}
           <div
             className="relative flex min-h-full min-w-full flex-col"
-            style={{ width: `calc(var(--lane-head) + ${width}px)`, paddingTop: `calc(0.75rem + var(--bar-h) + 0.625rem - ${LANE_PAD_TOP}px)` }}
+            style={{ width: `calc(var(--lane-head) + ${width}px)`, paddingTop: TRACK_TOP }}
           >
             {/* Keep the films and their SVG together above the bottom-aligned year axis when the box is taller than they are. */}
             <div className="relative mt-auto shrink-0">
@@ -977,6 +982,8 @@ export function Timeline({
                         removeHref={removePersonHref(people, person.id)}
                         divider={laneIndex < trackLanes.length - 1}
                         onOpenPerson={onOpenPerson}
+                        // One person: the header stays under the page bar (the track opens scrolled to its baseline, and the header is as tall as the lane).
+                        pinTop={soloPage ? TRACK_TOP : undefined}
                       />
                     )}
                     <div

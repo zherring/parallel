@@ -18,6 +18,13 @@ import { DEPTH_VIEW, isFilmsView, type PageView } from "@/lib/films-view";
 import type { ShareInput } from "@/lib/share";
 import type { OpenPerson } from "@/lib/side-panel";
 
+/**
+ * The custom property (on the root) that says how far down the screen the bar reaches while its hero is expanded, in px, with a little room: the page's content
+ * starts under it (`PeopleView` reads it as `--people-bar-top`). The bar's row is the height of its controls, but the title in it wraps on a narrow screen (three or four names, a long one), and
+ * then it is taller, and the hero's body in the page (the Table's and the Quotes') would start under it.
+ */
+const PAGE_TOP_VAR = "--people-bar-top";
+
 /** What the pair hero asks of the bar (see `PairHeroBody` and `useHeroCollapse`). */
 export interface PeopleBarHero {
   /** The line under the names in the expanded title: each person's main role, and the films together. */
@@ -171,6 +178,25 @@ function PeopleBarBox({
    * from its top, over nothing of the band: it is not pushed down by the hero, and the band, which is solid, never hides it).
    */
   const bandEnd = rail ? "right-[3.75rem] max-sm:right-7" : "right-0";
+
+  // Where the page's content starts, when the hero's body is in the page (the Table and the Quotes): under the bar as it is with the hero expanded, however tall its title
+  // wraps. Measured only while expanded, so that the page does not move when the hero collapses into the compact bar (and kept as it was while it is collapsed).
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!bar || overlay || typeof ResizeObserver === "undefined") return;
+    const root = document.documentElement;
+    const measure = () => {
+      if (bar.dataset.hero !== "expanded") return;
+      root.style.setProperty(PAGE_TOP_VAR, `${Math.ceil(bar.getBoundingClientRect().height) + 10}px`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty(PAGE_TOP_VAR);
+    };
+  }, [overlay]);
 
   // The hero collapses: each person's avatar in the pill flies in from where their portrait is, shrinking to the pill's size (FLIP, with the pill's spring).
   // Expanding is the reverse by cross-fade alone. Not for a visitor who asked for less motion, and not from a portrait that is off the screen.
