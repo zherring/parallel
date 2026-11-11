@@ -399,6 +399,34 @@ test.describe("at 1440px wide", () => {
     expect(await bar(page).locator("[data-people-pill]").evaluate((element) => element.closest("[inert]") !== null)).toBe(false);
   });
 
+  // ---- the people pill belongs to the collapsed bar ------------------------------------------------------------------------
+
+  for (const view of ALL_VIEWS) {
+    test(`on the ${view} view the people pill is not on the screen while the hero is open, and is in the bar and opens once it has collapsed`, async ({ page }) => {
+      await openView(page, view);
+      expect(await heroState(page)).toBe("expanded");
+      // Open hero: no pill (nor its heads), out of the Tab order, and the names are where it will be.
+      await expect(pill(page)).toBeHidden();
+      await expect(bar(page).locator("[data-pill-head]").first()).toBeHidden();
+      expect(await bar(page).locator("[data-people-pill]").evaluate((element) => element.closest("[inert]") !== null)).toBe(true);
+      await expect(title(page)).toBeVisible();
+
+      // Collapsed: it is in the bar, and a press opens it on its field to add a person and a row for each of the two.
+      await collapseHero(page);
+      await expect(pill(page)).toBeVisible();
+      await expect(title(page)).toBeHidden();
+      await pill(page).click();
+      await expect(pill(page)).toHaveAttribute("aria-expanded", "true");
+      await expect(page.getByRole("combobox", { name: "Add a person", exact: true })).toBeVisible();
+      const people = page.getByRole("dialog", { name: "People", exact: true });
+      await expect(people).toBeVisible();
+      for (const name of NAMES) await expect(people.getByRole("button", { name, exact: true }).first()).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(people).toBeHidden();
+      await expect(pill(page)).toBeFocused();
+    });
+  }
+
   // ---- Films: the landing poster and the year rail -----------------------------------------------------------------------
 
   test("the hero does not cover the first collaboration's poster on Films when it opens", async ({ page }) => {
@@ -547,6 +575,32 @@ test.describe("at 390px wide", () => {
     await expect.poll(async () => (await box(page.locator("[data-depth-rail] > div").first())).y).toBe(0);
     await clear("collapsed");
   });
+
+  for (const view of ALL_VIEWS) {
+    test(`on the ${view} view the people pill is not on the screen while the hero is open, and is in the bar and opens once it has collapsed`, async ({ page }) => {
+      await openView(page, view);
+      expect(await heroState(page)).toBe("expanded");
+      // Open hero: no pill (nor its heads), out of the Tab order, and the names are where it will be.
+      await expect(pill(page)).toBeHidden();
+      await expect(bar(page).locator("[data-pill-head]").first()).toBeHidden();
+      expect(await bar(page).locator("[data-people-pill]").evaluate((element) => element.closest("[inert]") !== null)).toBe(true);
+      await expect(title(page)).toBeVisible();
+
+      // Collapsed: it is in the bar, and a press opens it on its field to add a person and a row for each of the two.
+      await collapseHero(page);
+      await expect(pill(page)).toBeVisible();
+      await expect(title(page)).toBeHidden();
+      await pill(page).tap();
+      await expect(pill(page)).toHaveAttribute("aria-expanded", "true");
+      await expect(page.getByRole("combobox", { name: "Add a person", exact: true })).toBeVisible();
+      const people = page.getByRole("dialog", { name: "People", exact: true });
+      await expect(people).toBeVisible();
+      for (const name of NAMES) await expect(people.getByRole("button", { name, exact: true }).first()).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(people).toBeHidden();
+      await expect(pill(page)).toBeFocused();
+    });
+  }
 
   test("tapping a chip on Films takes the scene to the film, and the people pill is where the names were", async ({ page }) => {
     await openView(page, "focus");
