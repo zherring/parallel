@@ -22,7 +22,7 @@ test("attribution names stay white, and a name opens the person panel on the rig
   });
 
   await page.goto("/p/309-pedro-almodovar+955-penelope-cruz?view=clippings");
-  await expect(page.getByRole("tab", { name: "Clippings", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("navigation", { name: "Views", exact: true }).getByRole("link", { name: "Quotes", exact: true })).toHaveAttribute("aria-current", "page");
   const quote = page.locator("#quote-i-was-so-happy-that-he");
   const speaker = quote.getByRole("button", { name: "Penélope Cruz", exact: true });
   const subject = quote.getByRole("button", { name: "Pedro Almodóvar", exact: true });

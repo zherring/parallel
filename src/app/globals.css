@@ -91,3 +91,181 @@ body {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+
+/*
+ * A /p/ page (every view of it) has its own bar fixed to the top of the screen (src/components/people-bar.tsx): the home pill, the
+ * people, the views and the gear. The site's header leaves the page, and the tab order, for as long as that bar is on it: the bar
+ * is what the rule looks for, so the header is hidden from the first paint (server-rendered), and only on these pages (a 404 under
+ * /p/ has none and keeps its header).
+ */
+body:has([data-people-bar]) > header {
+  display: none;
+}
+
+/*
+ * Moving between a flat view and the Depth view is a navigation, and the page bar (src/components/people-bar.tsx) is a different one on each
+ * side of it: the gear and the view switcher, before it, sit where their view puts them (at the right edge on the flat pages, clear of the year rail
+ * on the Depth view). React's <ViewTransition> (it starts on a navigation, see Next's "View transitions" guide) pairs the two gears by name (and
+ * the two switchers, which are on every view), and the browser glides each from the old place to the new. Nothing else is named: the root is not captured (`view-transition-name: none`), so the page itself, the Depth
+ * scene included, changes at once as it always has, live, with no cross-fade over it, and the bar's other items, which are in the same place on
+ * both sides, are simply the new page's. The glide is the people pill's spring (`springEasing` in src/components/landing/hero-motion.ts) over 360ms;
+ * the pair's two images cross-fade linearly, so that the overlap does not flash.
+ */
+:root {
+  view-transition-name: none;
+  /*
+   * The one height of the page bar's controls (the home square, the people pill, the count, the switcher and the gear), the people pill's own: 32px heads
+   * (28px on a phone) in a 40px (36px) button, in a capsule with 4px of padding and a hairline. It is the root's, so that the pages know where the bar ends.
+   */
+  --bar-h: 3.125rem;
+  /*
+   * The one corner radius of the page bar's controls: the home square, the people pill (and, open, its field, close button and card), the count, the
+   * switcher and the gear. A rounded rectangle (Tailwind's `md`, 6px), not a pill. What sits inside one of them is concentric with it: its radius is
+   * this less the padding between (the switcher's active segment, the people pill's button).
+   */
+  --bar-radius: 0.375rem;
+  --bar-spring: linear(0, 0.04, 0.139, 0.273, 0.419, 0.563, 0.695, 0.809, 0.902, 0.973, 1.024, 1.057, 1.076, 1.083, 1.082, 1.075, 1.064, 1.052, 1.04, 1.029, 1.019, 1.01, 1.004, 0.999, 0.996, 0.994, 0.993, 0.993, 0.994, 0.994, 1);
+}
+@media (width < 40rem) {
+  :root {
+    --bar-h: 2.875rem;
+  }
+}
+/* The page stays usable under a transition. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(.bar-glide) {
+  animation-duration: 360ms;
+  animation-timing-function: var(--bar-spring, cubic-bezier(0.34, 1.5, 0.64, 1));
+}
+::view-transition-old(.bar-glide),
+::view-transition-new(.bar-glide) {
+  animation-timing-function: linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+
+/*
+ * A film that a chip of the pair hero brought into view in the Table (src/components/timeline/reveal-film-row.ts) is lit for a moment: the green of the films made together,
+ * fading out. Reduced motion: lit for the same time, without the fade.
+ */
+@keyframes film-row-flash {
+  from {
+    background-color: color-mix(in srgb, var(--lit) 24%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+[data-flash] {
+  animation: film-row-flash 1800ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-flash] {
+    animation: none;
+    background-color: color-mix(in srgb, var(--lit) 18%, transparent);
+  }
+}
+
+/*
+ * The Depth view (?view=depth) is a full-viewport scene: the site's footer leaves the page too, and the tab order, once it mounts
+ * (src/components/depth/depth-view.tsx sets the attribute). The flat views keep it: it is at the bottom of the page.
+ */
+:root[data-view="depth"] body > footer {
+  display: none;
+}
+/*
+ * The flat Timeline is a full-screen panel too (src/components/timeline/films-section.tsx marks it `data-fullscreen-panel`), fixed over the page like the
+ * Depth view's scene: the footer is under it, out of the tab order too, for as long as it is the view shown (`hidden` while the Table or the Quotes are).
+ */
+body:has([data-fullscreen-panel]:not([hidden])) > footer {
+  display: none;
+}
+
+/*
+ * The Depth view's posters are cards that lie on one another. Each has a layered shadow under it, on the ::before of its
+ * `data-poster-card`: a tight contact shadow and a soft, wide ambient one, so the poster in front casts onto the one behind it.
+ * Every shadow is the page background (`--bg`) at some strength, not black: the poster sinks into the scene instead of
+ * punching a dark hole in it, and over a poster behind it still reads as a shade of the night they all sit in.
+ * The films several people made are the heaviest: no glow (green is only a crisp 2px ring on the poster itself), but an outline
+ * outside that ring and a layered shadow (contact, tight, mid, one thrown down and a wide pool all round, reaching 60px and more)
+ * that darkens every poster within 30 to 45px of a collaboration, so the films several people made stand apart from a dense
+ * cluster of posters behind them. A film made together deepens while its button is hovered or focused: a larger, softer
+ * shadow on the ::after fades in (opacity is the only thing that animates, and the shadows themselves are painted once). The posters
+ * behind keep their resting shadow when hovered: they brighten (see `data-pinned` below), they do not come forward. A phone gets shorter
+ * blurs (they are what costs there).
+ */
+:root {
+  --depth-shadow-rest: 0 1px 2px color-mix(in srgb, var(--bg) 48%, transparent), 0 6px 18px color-mix(in srgb, var(--bg) 42%, transparent);
+  --depth-shadow-collab: 0 0 0 3px color-mix(in srgb, var(--bg) 45%, transparent), 0 3px 6px color-mix(in srgb, var(--bg) 60%, transparent),
+    0 13px 26px color-mix(in srgb, var(--bg) 55%, transparent), 0 29px 58px -6px color-mix(in srgb, var(--bg) 62%, transparent),
+    0 0 58px 23px color-mix(in srgb, var(--bg) 52%, transparent);
+  --depth-shadow-collab-lift: 0 0 0 3px color-mix(in srgb, var(--bg) 49%, transparent), 0 4px 9px color-mix(in srgb, var(--bg) 65%, transparent),
+    0 17px 35px color-mix(in srgb, var(--bg) 59%, transparent), 0 37px 72px -4px color-mix(in srgb, var(--bg) 67%, transparent),
+    0 0 75px 29px color-mix(in srgb, var(--bg) 56%, transparent);
+}
+@media (max-width: 639px) {
+  :root {
+    --depth-shadow-rest: 0 1px 2px color-mix(in srgb, var(--bg) 48%, transparent), 0 4px 11px color-mix(in srgb, var(--bg) 42%, transparent);
+    --depth-shadow-collab: 0 0 0 3px color-mix(in srgb, var(--bg) 45%, transparent), 0 2px 4px color-mix(in srgb, var(--bg) 60%, transparent),
+      0 9px 17px color-mix(in srgb, var(--bg) 55%, transparent), 0 19px 38px -4px color-mix(in srgb, var(--bg) 62%, transparent),
+      0 0 38px 15px color-mix(in srgb, var(--bg) 52%, transparent);
+    --depth-shadow-collab-lift: 0 0 0 3px color-mix(in srgb, var(--bg) 49%, transparent), 0 3px 6px color-mix(in srgb, var(--bg) 65%, transparent),
+      0 11px 23px color-mix(in srgb, var(--bg) 59%, transparent), 0 24px 47px -3px color-mix(in srgb, var(--bg) 67%, transparent),
+      0 0 49px 19px color-mix(in srgb, var(--bg) 56%, transparent);
+  }
+}
+[data-poster-card] {
+  isolation: isolate;
+}
+[data-poster-card]::before,
+[data-poster-card][data-collab]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 5px;
+  pointer-events: none;
+}
+[data-poster-card]::before {
+  box-shadow: var(--depth-shadow-rest);
+}
+[data-poster-card][data-collab]::before {
+  box-shadow: var(--depth-shadow-collab);
+}
+[data-poster-card][data-collab]::after {
+  box-shadow: var(--depth-shadow-collab-lift);
+  opacity: 0;
+  transition: opacity 240ms ease-out;
+}
+button:hover > [data-poster-card][data-collab]::after,
+button:focus-visible > [data-poster-card][data-collab]::after {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-poster-card][data-collab]::after {
+    transition: none;
+  }
+}
+
+/*
+ * A background poster the pointer is on, or that has keyboard focus (`DepthScene` marks its `li` `data-pinned`), is at full opacity: its `--focus` is pinned to 1 over whatever the focus field wrote on it (an `!important` custom property beats the inline one the field sets
+ * every frame, so the field and the pin never fight). The opacity eases in over 150ms (only while pinned: the field's own per-frame
+ * writes must not each start a transition). It does not move, grow or leave its place in the stack.
+ */
+[data-poster][data-pinned] {
+  --focus: 1 !important;
+  transition: opacity 150ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-poster][data-pinned] {
+    transition: none;
+  }
+}

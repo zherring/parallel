@@ -69,7 +69,7 @@ export interface PersonSearchProps {
    * People already on the timeline. In "navigate" mode, picking a result appends to them (max 4
    * total). Chips mode starts from an empty field and ignores this.
    */
-  peopleInView?: { id: number; name: string }[];
+  peopleInView?: readonly { id: number; name: string }[];
   size?: "hero" | "compact";
   autoFocus?: boolean;
   /**
@@ -92,10 +92,22 @@ export interface PersonSearchProps {
    * sits at the right end of a row and is narrower than its rows want to be.
    */
   wideMenu?: boolean;
+  /**
+   * Called when Escape is pressed with nothing in the field to dismiss: no text and no dropdown on screen. The key is
+   * then the owner's (it is consumed here, so a document-level Escape listener does not also run); with text or a
+   * dropdown, Escape clears or closes those first, as ever.
+   */
+  onIdleEscape?: () => void;
+  /**
+   * In "navigate" mode: called with the person picked, in place of going to the page that has them. The field keeps focus, clears and closes its list, and
+   * says what happened; the owner stages the change and the page changes later (see `PeopleStagingProvider`: the people pill's card and the ⌘K search,
+   * which would otherwise redraw the screen behind them as soon as someone was picked). `peopleInView` is then the people as the owner will have them.
+   */
+  onPick?: (person: PickedPerson) => void;
 }
 
 /** What picking an option needs, whether it is a search result or a suggested collaborator. */
-type PickedPerson = Pick<PersonSearchResult, "id" | "name" | "profilePath">;
+export type PickedPerson = Pick<PersonSearchResult, "id" | "name" | "profilePath">;
 
 const DEBOUNCE_MS = 200;
 const CACHE_LIMIT = 50;
@@ -125,6 +137,8 @@ export function PersonSearch({
   ariaLabel = "Search people",
   suggestFor,
   wideMenu = false,
+  onIdleEscape,
+  onPick,
 }: PersonSearchProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -278,6 +292,15 @@ export function PersonSearch({
       addPerson(result);
       return;
     }
+    if (onPick) {
+      onPick({ id: result.id, name: result.name, profilePath: result.profilePath });
+      setOpen(false);
+      setQuery("");
+      setActiveIndex(-1);
+      announce(`Added ${result.name}. The page changes when you close this.`);
+      // Focus stays in the field: another person can be added.
+      return;
+    }
     // The query of this page, read now: the new page opens on the tab (Timeline or Table) this one shows.
     const href = extendedPeopleHref(peopleInView, { id: result.id, name: result.name }, window.location.search);
     if (!href) return;
@@ -289,6 +312,15 @@ export function PersonSearch({
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    // The "popup wanted" flag is set by focus alone, so an empty field that shows nothing still counts as open to
+    // `decideKey` and would swallow this Escape; the owner gets it instead.
+    if (event.key === "Escape" && onIdleEscape && !query && !showPanel) {
+      event.preventDefault();
+      setOpen(false);
+      setActiveIndex(-1);
+      onIdleEscape();
+      return;
+    }
     const action = decideKey(keyContext, {
       key: event.key,
       shiftKey: event.shiftKey,
@@ -374,8 +406,10 @@ export function PersonSearch({
   return (
     <div className="relative w-full">
       <div
+        data-search-box
         onMouseDown={chipsMode ? focusFromField : undefined}
-        className={`flex items-start gap-2.5 rounded-md border border-border bg-surface transition-colors focus-within:border-accent-green focus-within:ring-2 focus-within:ring-accent-green/50 ${
+        // `--search-radius` is the host's to set (the open people pill gives it the page bar's radius, `--bar-radius`); the usual box is `rounded-md`.
+        className={`flex items-start gap-2.5 rounded-[var(--search-radius,var(--radius-md))] border border-border bg-surface transition-colors focus-within:border-accent-green focus-within:ring-2 focus-within:ring-accent-green/50 ${
           hero
             ? `min-h-14 py-[7px] text-lg ${chipsMode ? "px-3 sm:px-4" : "px-4"}`
             : "min-h-9 px-3 py-[3px] text-sm"
@@ -533,7 +567,7 @@ export function PersonSearch({
       <div role="status" aria-live="polite" className="sr-only">
         {open ? status : ""}
       </div>
-      {chipsMode && (
+      {(chipsMode || onPick) && (
         <div role="status" aria-live="polite" className="sr-only">
           {announcement && <span key={announcement.id}>{announcement.text}</span>}
         </div>

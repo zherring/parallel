@@ -73,15 +73,27 @@ const cases: PanelCase[] = [
   {
     name: "person",
     dialogName: "Panel Alpha",
-    // The people column's name button (a title, not a label: the name stays the button's text).
-    trigger: (page) => page.getByTitle("Details for Panel Alpha", { exact: true }),
+    // The name in the pair hero's title (a title, not a label: the name stays the button's text).
+    trigger: (page) => page.locator("[data-pair-title]").getByTitle("Details for Panel Alpha", { exact: true }),
     longContent: true,
   },
 ];
 
+/**
+ * What a panel makes inert: the page. The page bar always has inert parts of its own (the title or the people pill, whichever is not shown, and
+ * the hero's body once it has collapsed), so those are not counted.
+ */
+const pageInert = (page: Page) => page.locator("[inert]:not([data-people-bar] [inert])");
+
+/** Opens the page on its Timeline and waits until it is live: a state transition (the gear's sheet opening and closing), not a sleep. */
 async function openPage(page: Page) {
-  await page.goto(PEOPLE_PATH);
-  await expect(page.getByRole("button", { name: "Combined timeline", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.goto(`${PEOPLE_PATH}?view=timeline`);
+  await expect(page.locator('nav[aria-label="Views"] a[aria-current="page"]').first()).toHaveText("Timeline");
+  const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(settings).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(settings).toBeHidden();
 }
 
 /** The dialog's hydrated trigger: open it with a click, wait for the content that names the dialog. */
@@ -97,7 +109,7 @@ const focusIsIn = (dialog: Locator) => dialog.evaluate((element) => element.cont
 const overflow = (page: Page) => page.evaluate(() => document.body.style.overflow);
 
 async function expectPageFree(page: Page) {
-  await expect(page.locator("[inert]")).toHaveCount(0);
+  await expect(pageInert(page)).toHaveCount(0);
   await expect.poll(() => overflow(page)).toBe("");
 }
 
@@ -110,7 +122,7 @@ for (const panel of cases) {
       await expect(scroller).toBeFocused();
       expect(await focusIsIn(dialog)).toBe(true);
       // Modal: the rest of the page is inert and does not scroll behind it.
-      await expect(page.locator("[inert]").first()).toBeAttached();
+      await expect(pageInert(page).first()).toBeAttached();
       expect(await overflow(page)).toBe("hidden");
 
       if (panel.longContent) {
@@ -122,12 +134,36 @@ for (const panel of cases) {
         expect(await scroller.evaluate((element) => element.scrollTop)).toBe(0);
         await page.keyboard.press("ArrowDown");
         await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-        const afterArrow = await scroller.evaluate((element) => element.scrollTop);
+        // A key scrolls smoothly: let the arrow's scroll come to rest before the next key (a key pressed mid-scroll can be absorbed by it under load).
+        let last = -1;
+        await expect
+          .poll(
+            async () => {
+              const now = await scroller.evaluate((element) => element.scrollTop);
+              const rested = now === last;
+              last = now;
+              return rested;
+            },
+            { intervals: [100] },
+          )
+          .toBe(true);
+        const afterArrow = last;
         await page.keyboard.press("PageDown");
         await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(afterArrow);
       }
       // The film's content is not long enough to scroll with this fixture: the scroll assertions are for the
       // person's biography, the one that is.
+    });
+
+    test("where a pressed button is not focused (Safari), closing it still hands focus back to the control that opened it", async ({ page }) => {
+      await openPage(page);
+      // Safari does not focus a button on a click: focus stays where it was, whichever the engine. Here it is on the Timeline's track, a scroller that takes focus.
+      await page.evaluate(() => document.addEventListener("mousedown", (event) => event.preventDefault(), true));
+      await page.getByRole("region", { name: "Film timeline. Scroll sideways to see more years.", exact: true }).focus();
+      const { trigger, dialog } = await openPanel(page, panel);
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+      await expect(trigger).toBeFocused();
     });
 
     test("keeps Tab and Shift+Tab inside the panel and wraps at both ends", async ({ page }) => {
@@ -176,6 +212,30 @@ for (const panel of cases) {
       const { trigger, dialog } = await openPanel(page, panel);
       // The sheet is against the right edge at this width: the left of the page is the backdrop.
       await page.mouse.click(40, 300);
+      await expect(dialog).toBeHidden();
+      await expect(trigger).toBeFocused();
+      await expectPageFree(page);
+    });
+
+    test("slides out the way it came when closed, then is gone and the page is free", async ({ page }) => {
+      await openPage(page);
+      const { trigger, dialog } = await openPanel(page, panel);
+      // The slide-in has finished: whatever is recorded from here on is the exit.
+      await expect.poll(() => dialog.evaluate((element) => element.getAnimations().length)).toBe(0);
+      await page.evaluate(() => {
+        const seen: string[] = [];
+        (window as unknown as { __dialogTransforms: string[] }).__dialogTransforms = seen;
+        const animate = HTMLElement.prototype.animate;
+        HTMLElement.prototype.animate = function (this: HTMLElement, keyframes, options) {
+          if (this.getAttribute("role") === "dialog") for (const frame of (keyframes ?? []) as Keyframe[]) seen.push(String(frame.transform ?? ""));
+          return animate.call(this, keyframes, options);
+        };
+      });
+      await dialog.getByRole("button", { name: `Close ${panel.name} details`, exact: true }).click();
+      // Toward the right edge, where it came from at this width, rather than vanishing.
+      await expect
+        .poll(() => page.evaluate(() => (window as unknown as { __dialogTransforms: string[] }).__dialogTransforms))
+        .toContain("translateX(100%)");
       await expect(dialog).toBeHidden();
       await expect(trigger).toBeFocused();
       await expectPageFree(page);

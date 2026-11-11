@@ -8,9 +8,10 @@ import type { MouseEvent, ReactNode } from "react";
  * The wordmark's link to the landing page. Elsewhere it navigates as a normal link. On the landing
  * page it would only reload what is already there (and drop the `#genre` hash that selects a
  * tab), so a plain click scrolls smoothly to the top instead, or instantly for visitors who prefer
- * reduced motion. Clicks with a modifier key or a non-primary button keep the browser's behavior.
+ * reduced motion. Clicks with a modifier key or a non-primary button keep the browser's behavior. `label` is the link's accessible name ("Parallel home"
+ * unless the link is an icon that says more, like the page bar's back arrow).
  */
-export function HomeLink({ className, children }: { className?: string; children: ReactNode }) {
+export function HomeLink({ className, title, label = "Parallel home", children }: { className?: string; title?: string; label?: string; children: ReactNode }) {
   const pathname = usePathname();
 
   function onClick(event: MouseEvent<HTMLAnchorElement>) {
@@ -22,7 +23,7 @@ export function HomeLink({ className, children }: { className?: string; children
   }
 
   return (
-    <Link href="/" aria-label="Parallel home" onClick={onClick} className={className}>
+    <Link href="/" aria-label={label} title={title} onClick={onClick} className={className}>
       {children}
     </Link>
   );

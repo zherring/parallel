@@ -3,7 +3,7 @@
 import Link, { useLinkStatus } from "next/link";
 import { useMemo } from "react";
 import { Portrait } from "@/components/portrait";
-import { SidePanel } from "@/components/side-panel/side-panel";
+import { SidePanel, useSlideOut } from "@/components/side-panel/side-panel";
 import { Spinner } from "@/components/spinner";
 import { lifeLine, splitParagraphs } from "@/lib/biography";
 import { tmdbPersonUrl } from "@/lib/film-people";
@@ -26,10 +26,20 @@ export interface PersonPanelProps {
  * nothing to load.
  */
 export function PersonPanel({ entry, peopleInView, onClose }: PersonPanelProps) {
-  if (!entry) return null;
+  // Slides out when closed, as the film's does (see `useSlideOut`).
+  const { shown, session, closing, exited } = useSlideOut(entry);
+  if (!shown) return null;
   return (
-    <SidePanel label="Person" closeLabel="Close person details" contentKey={entry.person.id} onClose={onClose}>
-      {({ titleId }) => <PersonContent entry={entry} titleId={titleId} peopleInView={peopleInView} />}
+    <SidePanel
+      key={session}
+      label="Person"
+      closeLabel="Close person details"
+      contentKey={shown.person.id}
+      closing={closing}
+      onExited={exited}
+      onClose={onClose}
+    >
+      {({ titleId }) => <PersonContent entry={shown} titleId={titleId} peopleInView={peopleInView} />}
     </SidePanel>
   );
 }

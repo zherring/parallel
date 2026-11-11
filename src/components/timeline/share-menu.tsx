@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -15,6 +16,7 @@ import {
 } from "react";
 import { canCopyImage, copyImage, copyImageMessage, imageUrlFor } from "@/lib/copy-image";
 import { menuIndex } from "@/lib/menu-nav";
+import { fitMenu, type MenuFit } from "@/lib/popover-position";
 import { inPeriod, periodLabel, resolvePeriod, searchWithPeriod, spanOfYears, type Period } from "@/lib/period";
 import { shareLinks, type ShareInput } from "@/lib/share";
 import { SITE_URL } from "@/lib/site-url";
@@ -41,6 +43,8 @@ const serverCanCopyImage = () => false;
 /** Menu width (w-60) and the gap kept to the screen edge, to decide which side of the button the menu opens towards. */
 const MENU_WIDTH = 240;
 const SCREEN_GAP = 16;
+/** The gap between the button and the menu (`mt-2`/`mb-2`), which is also the room the menu keeps to the screen's top and bottom. */
+const MENU_GAP = 8;
 
 /** Opens left-aligned with the button, unless that would run off the right edge of the screen: then right-aligned. */
 function menuSide(button: HTMLElement | null): "left" | "right" {
@@ -73,6 +77,9 @@ const selectClass =
  * selects show and write the page's period (the address bar), as the brush on the minimap does,
  * so a page opened on a period starts them on it and a drag on the minimap moves them.
  *
+ * The menu opens below the button, or above it when it does not fit below and there is more room above (`fitMenu`), and is never taller than the room on
+ * that side: a menu taller than that scrolls inside itself, so every action is on the screen or one scroll away, on a phone 600px tall too.
+ *
  * Menu button pattern: Enter, Space or the arrow keys open it; Arrow keys, Home and End move
  * between the menu items and, from them, the two selects; Escape closes it and returns focus to
  * the button; a click elsewhere, or focus moving out of the menu, closes it. On a menu item Tab
@@ -85,6 +92,8 @@ const selectClass =
 export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
   const [open, setOpen] = useState(false);
   const [side, setSide] = useState<"left" | "right">("left");
+  // Which way the menu opens and how tall it may be, measured once it is open (it is not laid out before); null until then.
+  const [fit, setFit] = useState<MenuFit | null>(null);
   const [copying, setCopying] = useState(false);
   // A failure shown inside the open menu: the menu covers the status line under the buttons.
   const [problem, setProblem] = useState("");
@@ -122,6 +131,34 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
   // The count in the text is the films of the period; 0 stays 0 (nothing is shared, so the text names no films).
   const count = period && input.count > 0 ? years.filter((year) => inPeriod(year, period)).length : input.count;
   const links = shareLinks({ ...input, count, period: periodText }, url);
+
+  // The menu opens below the button, or above it when it does not fit below and there is more room above, and is never taller than the room on that side
+  // (it scrolls inside): the settings sheet it hangs from is as tall as the screen allows on a short phone, with Share low in it, so a menu that always
+  // opened downward ran off the bottom. Placed before the first paint, and again when the screen or the menu changes.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const button = buttonRef.current;
+    const menu = menuRef.current;
+    if (!button || !menu) return;
+    const place = () => {
+      // The menu's height as its content has it (what it would be uncapped): its scrollable height and its borders.
+      const natural = menu.scrollHeight + (menu.offsetHeight - menu.clientHeight);
+      const next = fitMenu(button.getBoundingClientRect(), natural, window.innerHeight, { gap: MENU_GAP, margin: MENU_GAP });
+      setFit((previous) => (previous?.up === next.up && previous.maxHeight === next.maxHeight ? previous : next));
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(place);
+    observer?.observe(menu);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+      observer?.disconnect();
+      // Closed: forget it, so that reopening does not paint one frame where it was.
+      setFit(null);
+    };
+  }, [open]);
 
   /** Everything the arrow keys visit, in order: the period selects, then the items. */
   const stops = useCallback(
@@ -296,7 +333,8 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
         ref={menuRef}
         id={menuId}
         hidden={!open}
-        className={`absolute ${side === "right" ? "right-0" : "left-0"} top-full z-30 mt-2 w-60 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-surface p-1 shadow-xl shadow-black/40`}
+        style={fit ? { maxHeight: fit.maxHeight } : undefined}
+        className={`absolute ${side === "right" ? "right-0" : "left-0"} ${fit?.up ? "bottom-full mb-2" : "top-full mt-2"} z-30 w-60 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface p-1 shadow-xl shadow-black/40`}
       >
         {shown && yearChoices.length > 1 && (
           <div role="group" aria-labelledby={periodId} className="mb-1 border-b border-border px-3 pb-3 pt-2">

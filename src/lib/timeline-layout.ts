@@ -404,6 +404,30 @@ export function laneObstacles(
   );
 }
 
+/**
+ * How the lanes of a track are packed, and what the row cap leaves without a poster. `trackLanes` are the lanes the track draws (the
+ * people's, or the one lane of the combined track), `lanes` the people's lanes (what decides which films are quiet), `priorityIds` the
+ * films every lane that shows them keeps a card for, and `base` the scale. Returns the pack options of a lane (the one place the options
+ * are put together, so a repack without the cap uses exactly the capped pack's) and the lanes packed with `DEFAULT_MAX_ROWS` rows,
+ * whose overflow is what "Show all films" gives a poster. The timeline and the Depth view's poster cap both come from here.
+ */
+export function packTrackLanes<F extends PackableFilm>(
+  trackLanes: readonly { films: readonly F[] }[],
+  lanes: readonly { films: readonly ConnectableFilm[] }[],
+  priorityIds: ReadonlySet<number>,
+  base: Pick<PackOptions, "pxPerYear" | "axisStartYear" | "pad">,
+  today: string,
+): { quietIds: Set<number>; optionsFor: (index: number) => PackOptions; capped: PackedFilm<F>[][] } {
+  // While something is connected, the films that are not get a smaller card (and so pack tighter).
+  // Always the people's lanes: the combined track is one lane, and cannot tell what is shared.
+  const quietIds = quietFilmIds(lanes, today);
+  // Connector lines run through the poster rows of the lanes below their first node.
+  const obstacles = laneObstacles(trackLanes, base, today);
+  const optionsFor = (index: number): PackOptions => ({ ...base, priorityIds, quietIds, obstacles: obstacles[index] });
+  const capped = trackLanes.map((lane, index) => packFilms(lane.films, { ...optionsFor(index), maxRows: DEFAULT_MAX_ROWS }));
+  return { quietIds, optionsFor, capped };
+}
+
 // ---- Lane geometry ---------------------------------------------------------
 
 /**
@@ -578,28 +602,4 @@ export function centerYear(scrollLeft: number, viewportTrackWidth: number, scale
 /** Inverse of `centerYear`: the scrollLeft that puts `year` at the centre. May be negative or past the end; the browser clamps it. */
 export function scrollLeftForCenter(year: number, viewportTrackWidth: number, scale: Scale): number {
   return xForYear(scale, year) - viewportTrackWidth / 2;
-}
-
-/**
- * Where the view should start: the earliest film shared by every lane; failing that
- * (2+ lanes), the point where the latest-starting lane begins, so every lane has
- * something in view; with a single lane, nothing (start at the beginning).
- * Lanes must be ordered by x, as `packFilms` returns them.
- */
-export function initialAnchorX(
-  lanes: readonly (readonly { film: { id: number }; x: number }[])[],
-  sharedIds: ReadonlySet<number>,
-): number | null {
-  if (lanes.length < 2) return null;
-  const shared = lanes[0].find((item) => sharedIds.has(item.film.id));
-  if (shared) return shared.x;
-  const starts = lanes.filter((items) => items.length > 0).map((items) => items[0].x);
-  return starts.length > 0 ? Math.max(...starts) : null;
-}
-
-/** Puts the anchor (see `initialAnchorX`) about a quarter of the way into the visible track area. */
-export function initialScrollLeft(anchorX: number | null, viewportTrackWidth: number): number {
-  if (anchorX === null) return 0;
-  const margin = Math.min(viewportTrackWidth * 0.25, 240);
-  return Math.max(0, Math.round(anchorX - margin));
 }

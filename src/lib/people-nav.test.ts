@@ -71,10 +71,15 @@ describe("extendedPeople / extendedPeopleHref", () => {
     );
   });
 
-  it("leaves the href plain when they add a person from the timeline", () => {
+  it("leaves the href plain when they add a person from a page that named no view, which opens the same view for the new pair on the same device", () => {
     expect(extendedPeopleHref([fincher], pitt, "")).toBe("/p/7467-david-fincher+287-brad-pitt");
+    expect(extendedPeopleHref([fincher], pitt, "?from=1990&to=2000")).toBe("/p/7467-david-fincher+287-brad-pitt");
+  });
+
+  it("keeps the timeline when the page they leave names it (on a phone a plain address would be Films)", () => {
+    expect(extendedPeopleHref([fincher], pitt, "?view=timeline")).toBe("/p/7467-david-fincher+287-brad-pitt?view=timeline");
     expect(extendedPeopleHref([fincher], pitt, "?view=timeline&sort=rating&dir=desc")).toBe(
-      "/p/7467-david-fincher+287-brad-pitt",
+      "/p/7467-david-fincher+287-brad-pitt?view=timeline",
     );
   });
 

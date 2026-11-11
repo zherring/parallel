@@ -78,7 +78,7 @@ const FilmRow = memo(function FilmRow({ film, state, today, onSelect }: RowProps
   const openDetails = (event: React.MouseEvent<HTMLButtonElement>) => onSelect(film.id, event.currentTarget);
 
   return (
-    <tr className="motion-safe:transition-colors hover:bg-border/40">
+    <tr data-film-row={film.id} className="motion-safe:transition-colors hover:bg-border/40">
       <th scope="row" className="px-2 py-2 lg:px-3 text-left align-middle font-normal">
         <div className="flex items-center gap-3">
           <button
@@ -153,7 +153,7 @@ const FilmCard = memo(function FilmCard({ film, state, today, onSelect }: RowPro
   const openDetails = (event: React.MouseEvent<HTMLButtonElement>) => onSelect(film.id, event.currentTarget);
 
   return (
-    <li className="flex gap-3 rounded-lg border border-border bg-surface p-3">
+    <li data-film-row={film.id} className="flex gap-3 rounded-lg border border-border bg-surface p-3">
       <button
         type="button"
         aria-label={`Open details for ${film.title} (${film.year})`}

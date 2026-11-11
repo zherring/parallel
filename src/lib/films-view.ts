@@ -2,7 +2,7 @@
  * The views of a page's films, "Timeline" and "Table" (and, for a pair with curated quotes, critics
  * or reading, "Clippings"), as tabs of one section: which view a
  * URL selects, how a tab change is written back to the URL, how the view is carried when the
- * visitor adds a person, the film count of the headline and the tab keys. Pure, so the rules are
+ * visitor adds a person and the film count of the headline. Pure, so the rules are
  * testable and the server and the browser agree on them.
  *
  * The URL carries the view as `?view=table`. Timeline is the default and is left out, except where
@@ -13,9 +13,8 @@
 
 import { DIR_PARAM, SORT_PARAM } from "@/lib/films-table";
 import { filmCountLabel } from "@/lib/format";
-import { nextTabIndex } from "@/lib/tabs";
 
-/** The views, in tab order. The first one is the default (and what the server always renders). */
+/** The views of the flat page, in order. The first one is the default (and what the server always renders). */
 export const VIEWS = ["timeline", "table", "clippings"] as const;
 export type View = (typeof VIEWS)[number];
 
@@ -24,7 +23,7 @@ export const DEFAULT_VIEW: View = "timeline";
 export const VIEW_LABELS: Record<View, string> = {
   timeline: "Timeline",
   table: "Table",
-  clippings: "Clippings",
+  clippings: "Quotes",
 };
 
 /** The views every page has; Clippings is added for a pair that has something for it, see `availableViews`. */
@@ -67,6 +66,46 @@ export function resolveView(view: View, available: readonly View[]): View {
 }
 
 export const VIEW_PARAM = "view";
+
+/**
+ * The Depth view (`?view=depth`): the same films in a vertical, perspective scene (see `lib/depth-layout`). It is not one of
+ * the `VIEWS`: those are the Timeline and Table tabs, and `parseView` keeps reading a `view=depth` query as the default.
+ * The view is only carried from page to page (see `carryView`); the Depth page has no tabs.
+ */
+export const DEPTH_VIEW = "depth";
+
+/**
+ * The page's views of its films are three: Films (the Depth view, `?view=depth`: the films as a scene in depth), the flat Timeline and the Table. The
+ * segmented control in the page bar chooses between them, in this order, and a pair that has quotes has a fourth view, the Quotes, a link of its own beside
+ * them. The address and the code still say `depth`; what a person reads is "Films".
+ */
+export const FILMS_VIEWS = [DEPTH_VIEW, "timeline", "table"] as const;
+export type FilmsView = (typeof FILMS_VIEWS)[number];
+
+export const FILMS_VIEW_LABELS: Record<FilmsView, string> = {
+  depth: "Films",
+  timeline: "Timeline",
+  table: "Table",
+};
+
+/** Every view a `/p/` page can be on: the three films views, and the Clippings (the Quotes). */
+export type PageView = FilmsView | "clippings";
+
+/** What a person reads on each segment of the page bar's control: the three films views, and the Quotes (`clippings` in the address and the code). */
+export const SWITCHER_LABELS: Record<PageView, string> = { ...FILMS_VIEW_LABELS, clippings: "Quotes" };
+
+/**
+ * The segments of the page bar's control, in order: Films, Timeline, Table, and Quotes as the fourth for a page that has quotes (`hasQuotes`, see
+ * `hasClippingsTab`). Without quotes the control is the three films views.
+ */
+export function switcherViews(hasQuotes: boolean): readonly PageView[] {
+  return hasQuotes ? [...FILMS_VIEWS, "clippings"] : FILMS_VIEWS;
+}
+
+/** Whether the view is one of the films views (Films, Timeline, Table) rather than the Clippings (the Quotes). */
+export function isFilmsView(view: PageView): view is FilmsView {
+  return view !== "clippings";
+}
 
 /** The quote a link to the Clippings opens on (`?view=clippings&quote=<id>`, see `quoteLinkSearch`). It belongs to that view alone. */
 export const QUOTE_PARAM = "quote";
@@ -133,42 +172,53 @@ export function viewParams(query: Record<string, ParamValue>): URLSearchParams {
 
 /**
  * The query string (with its "?", or "" when it is empty) after switching to `view`: every other
- * parameter is kept. Table writes `view=table`; Timeline writes nothing, unless a sort is in the
- * query, where it writes `view=timeline` so the sort does not pull the visitor back to the table.
+ * parameter is kept. The view is always written out, the Timeline's `view=timeline` too: a link that names no view
+ * opens the device's default (Films on a phone, the Timeline elsewhere, see `opensDepth`), so a link to the Timeline
+ * has to say so, or a phone would bounce it to Films; and a sort in the query would open the Table.
  * A quote (`quote=<id>`) belongs to the Clippings alone, so any other view drops it: the address bar
  * then no longer names a quote that is not on screen (and a copied link does not unfurl as one).
  */
 export function searchWithView(search: string, view: View): string {
   const params = new URLSearchParams(search);
   if (view !== "clippings") params.delete(QUOTE_PARAM);
-  if (view !== DEFAULT_VIEW) params.set(VIEW_PARAM, view);
-  else if (hasSortParams(params)) params.set(VIEW_PARAM, view);
-  else params.delete(VIEW_PARAM);
+  params.set(VIEW_PARAM, view);
   const text = params.toString();
   return text ? `?${text}` : "";
 }
 
 /**
  * `href` for a navigation to another page of people (a person added from a search, a chip or a
- * film's cast), carrying the view the visitor is on: `currentSearch` is the query of the page they
- * leave. Only the Table needs carrying (Timeline is what a page without `view` opens), and the
- * sort does not travel, since the films it ordered are not the films of the new page.
+ * film's cast, or one removed), carrying the view the visitor is on: `currentSearch` is the query of the page they
+ * leave. The Films view (Depth) and the Table are carried, and so is the Timeline when the address names it (`view=timeline`, which is
+ * how every link to it is written): a page that names no view opens the device's default, which is the view the visitor is on exactly when
+ * they came by the plain address, so a plain address stays plain. The Quotes are the pair's own and stay behind, and the sort does not
+ * travel, since the films it ordered are not the films of the new page.
  */
 export function carryView(href: string, currentSearch: string): string {
-  if (parseView(currentSearch) !== "table") return href;
+  const named = new URLSearchParams(currentSearch).get(VIEW_PARAM);
+  const parsed = parseView(currentSearch);
+  const carried = named === DEPTH_VIEW ? DEPTH_VIEW : parsed === "timeline" && named !== "timeline" ? null : parsed;
+  if (carried === null || carried === "clippings") return href;
   const hash = href.indexOf("#");
   const path = hash === -1 ? href : href.slice(0, hash);
   const rest = hash === -1 ? "" : href.slice(hash);
-  return `${path}${path.includes("?") ? "&" : "?"}${VIEW_PARAM}=table${rest}`;
+  return `${path}${path.includes("?") ? "&" : "?"}${VIEW_PARAM}=${carried}${rest}`;
 }
 
 /**
- * The view to move to for a key pressed on a tab: ArrowLeft and ArrowRight wrap around, Home and
- * End jump to the first and last. null for any other key. `available` is the tabs on offer, in order.
+ * Whether the address names a view of its own, so that the device's default does not decide: `view=` one of the views (Films, which is `depth`, included),
+ * a quote of the page's own (`quoteIds`, which opens the Quotes) or a sort (which opens the Table). A `view` the page does not know names none.
  */
-export function viewForKey(key: string, current: View, available: readonly View[] = BASE_VIEWS): View | null {
-  const index = nextTabIndex(key, available.indexOf(current), available.length);
-  return index === null ? null : available[index];
+export function namesView(
+  search: string | URLSearchParams | Record<string, ParamValue>,
+  quoteIds: Iterable<string> = [],
+): boolean {
+  const params = paramsOf(search);
+  const view = params.get(VIEW_PARAM);
+  if (view === DEPTH_VIEW || VIEWS.some((named) => named === view)) return true;
+  const quote = params.get(QUOTE_PARAM)?.trim();
+  if (quote) for (const id of quoteIds) if (id === quote) return true;
+  return hasSortParams(params);
 }
 
 /**

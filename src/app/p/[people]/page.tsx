@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { userAgent } from "next/server";
+import { DepthView } from "@/components/depth/depth-view";
 import { PeopleView } from "@/components/people-view";
 import { cardFilms } from "@/lib/card-films";
 import { getPairClippingSet } from "@/lib/clippings";
 import { clippingById, parseQuoteId, quoteLinkSearch } from "@/lib/clippings-view";
 import { getPairCritics } from "@/lib/critics";
 import { criticById } from "@/lib/critics-view";
+import { opensDepth } from "@/lib/depth-url";
 import { parseView, quoteIdsOf, viewParams } from "@/lib/films-view";
+import { getHeroNote } from "@/lib/pair-hero-note";
 import { loadPeople } from "@/lib/people";
 import { parsePeriodParams, rawPeriodSearch, resolvePeriod, searchWithPeriod, spanOfYears } from "@/lib/period";
 import { todayIso } from "@/lib/released";
@@ -99,23 +104,35 @@ function redirectSearch(query: Query): string {
   return text ? `?${text}` : "";
 }
 
+/**
+ * Whether the request comes from a phone: the user agent's device type is `mobile`. A tablet is not one (it gets the Timeline), nor is a bot, so that a search
+ * engine's crawler, whose smartphone agent says mobile, reads the Timeline's page, which has the table in its HTML. It is the device, not the window:
+ * a narrow desktop window is still a desktop and gets the Timeline.
+ */
+function fromPhone(requestHeaders: Headers): boolean {
+  const { device, isBot } = userAgent({ headers: requestHeaders });
+  return device.type === "mobile" && !isBot;
+}
+
 export default async function PeoplePage({ params, searchParams }: Props) {
-  const { people } = await params;
+  const [{ people }, query, requestHeaders] = await Promise.all([params, searchParams, headers()]);
   const { timelines, canonical, isCanonical } = await loadPeople(people);
-  // A link typed with a shorthand slug still opens on its period, view, sort and quote.
-  if (!isCanonical) redirect(`/p/${canonical}${redirectSearch(await searchParams)}`);
+  // A link typed with a shorthand slug still opens on its period, view (the Depth view too), sort and quote.
+  if (!isCanonical) redirect(`/p/${canonical}${redirectSearch(query)}`);
 
   // Computed once, here, and handed to the client: only released films count as shared or connected,
   // and the browser must draw the same timeline the server did, so it never reads the clock itself.
   const opts = { includeMinor: false, today: todayIso() };
-  return (
-    <PeopleView
-      timelines={timelines}
-      shared={sharedFilms(timelines, opts)}
-      pairwise={sharedFilmsPairwise(timelines, opts)}
-      today={opts.today}
-      clippings={getPairClippingSet(timelines.map((t) => t.person.id))}
-      critics={getPairCritics(timelines.map((t) => t.person.id))}
-    />
-  );
+  const shown = {
+    timelines,
+    shared: sharedFilms(timelines, opts),
+    pairwise: sharedFilmsPairwise(timelines, opts),
+    today: opts.today,
+    clippings: getPairClippingSet(timelines.map((t) => t.person.id)),
+    critics: getPairCritics(timelines.map((t) => t.person.id)),
+    heroNote: getHeroNote(timelines.map((t) => t.person.id), timelines[0]?.person.biography),
+  };
+  // `?view=depth` draws the same people and films as the vertical perspective scene (Films) instead of the Timeline, Table and Quotes. A link that names no
+  // view opens Films on a phone and the Timeline elsewhere, decided here so that the page never flashes the other; a view the link names always wins.
+  return opensDepth(query, quoteIdsOf(shown.clippings, shown.critics), fromPhone(requestHeaders)) ? <DepthView {...shown} /> : <PeopleView {...shown} />;
 }

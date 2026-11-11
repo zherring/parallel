@@ -3,15 +3,26 @@ import type { RawCastCredit, RawPerson } from "../../src/lib/tmdb-types";
 
 export const PEOPLE_PATH = "/p/90000001-scroll-alpha+90000002-scroll-beta";
 
-const movie = (id: number, date: string): RawCastCredit => ({
+const movie = (id: number, date: string, votes = 100): RawCastCredit => ({
   id,
   title: `Scroll Film ${id}`,
   release_date: date,
-  poster_path: null,
-  vote_count: 100,
+  poster_path: `/poster-${id}.png`,
+  vote_count: votes,
   order: 0,
   character: "Lead",
 });
+
+/** A cameo (the character is "Himself"): the film is minor for the person, so it shows only with "Include minor credits" on. */
+const cameo = (id: number, date: string): RawCastCredit => ({ ...movie(id, date, 9000), title: `Scroll Cameo ${id}`, character: "Himself" });
+
+/**
+ * Minor credits (see `cameo`): three each of the people's own, at ids 1100 and 2100 + index, and one both have, 300. Well-voted, so
+ * that it is what "minor" does, not the film's votes, that makes the Depth view draw them faint and far back.
+ */
+export const MINOR_FILM_COUNT = 7;
+const minorOf = (offset: number) => [cameo(offset, "1992-03-01"), cameo(offset + 1, "1996-03-01"), cameo(offset + 2, "2003-03-01")];
+const sharedCameo = cameo(300, "2010-03-01");
 
 // Shared films need at least four poster rows even with the default row cap, so a short
 // viewport genuinely overflows. Period fitting/zooming changes the number of packed rows.
@@ -23,12 +34,28 @@ const shared = [
   movie(200, "2020-06-01"),
 ];
 
+/**
+ * Votes of each person's own films by index (a film's id is the person's offset + index, its year 1990 + index): the first is
+ * the best-known of the page (the Depth view's obscurity 0, a poster at rest at 0.8 opacity), the one with none is the most
+ * obscure (obscurity 1, 0.45), and the rest fall in between. Both people's lists are alike, so the page's best-known film is a tie.
+ */
+export const OWN_FILM_VOTES = [12_000, 5200, 2400, 1100, 560, 300, 150, 80, 40, 20, 9, 4, 2, 1, 0, 700];
+
 const people: Record<string, RawPerson> = {
   "90000001": { id: 90000001, name: "Scroll Alpha", profile_path: null, birthday: "1960-01-01", biography: "An actor whose filmography exercises the timeline's scroll transitions." },
   "90000002": { id: 90000002, name: "Scroll Beta", profile_path: null, birthday: "1962-01-01", biography: "Another actor whose filmography shares a cluster of closely released films." },
+  // Not on the default page: the one a test adds from the people pill's search.
+  "90000003": { id: 90000003, name: "Scroll Gamma", profile_path: null, birthday: "1964-01-01", biography: "A third actor, for the tests that add someone to the page." },
 };
 
+/** A 1x1 PNG: every poster request is answered with it, so the browser tests need no network and still load images. */
+export const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+
 export const test = base.extend({
+  page: async ({ page }, provide) => {
+    await page.route("https://image.tmdb.org/**", (route) => route.fulfill({ contentType: "image/png", body: PIXEL }));
+    await provide(page);
+  },
   next: async ({ next }, provide) => {
     next.onFetch((request) => {
       const url = new URL(request.url);
@@ -36,11 +63,13 @@ export const test = base.extend({
       const match = url.pathname.match(/^\/3\/person\/(\d+)(\/movie_credits)?$/);
       if (match && people[match[1]]) {
         if (!match[2]) return Response.json(people[match[1]]);
-        const offset = match[1] === "90000001" ? 1000 : 2000;
+        const offset = { "90000001": 1000, "90000002": 2000, "90000003": 3000 }[match[1]]!;
         return Response.json({
           cast: [
             ...shared,
-            ...Array.from({ length: 16 }, (_, index) => movie(offset + index, `${1990 + index}-06-01`)),
+            ...minorOf(offset + 100),
+            ...(match[1] === "90000003" ? [] : [sharedCameo]),
+            ...Array.from({ length: 16 }, (_, index) => movie(offset + index, `${1990 + index}-06-01`, OWN_FILM_VOTES[index])),
           ],
           crew: [],
         });
@@ -57,14 +86,53 @@ export { expect };
 
 export const timeline = (page: Page) => page.getByRole("region", { name: "Film timeline. Scroll sideways to see more years.", exact: true });
 
+/** The page bar, which every view of a `/p/` page has. */
+export const bar = (page: Page) => page.locator("[data-people-bar]");
+
+/** The three films views, as the bar's control names them (see `ViewSwitcher`): Films (the Depth view), Timeline and Table. */
+export type FilmsViewName = "timeline" | "depth" | "table";
+const SWITCHER_LABEL: Record<FilmsViewName, string> = { timeline: "Timeline", depth: "Films", table: "Table" };
+/** The view control in the bar: Films | Timeline | Table, and Quotes as its fourth segment for a pair that has quotes (not on a phone's bar: its sheet has the same links, see `ViewSwitcher`). */
+export const switcher = (page: Page) => bar(page).getByRole("navigation", { name: "Views", exact: true });
+export const viewLink = (page: Page, view: FilmsViewName) => switcher(page).getByRole("link", { name: SWITCHER_LABEL[view], exact: true });
+/** The control's Quotes segment (only for a pair that has quotes). */
+export const quotesLink = (page: Page) => switcher(page).getByRole("link", { name: "Quotes", exact: true });
+/** The Depth view's scene. */
+export const scene = (page: Page) => page.getByRole("region", { name: "Film timeline. Scroll down for later years.", exact: true });
+
+/** The pair hero's state, as the bar says it: "expanded" on arrival, "collapsed" once the view's main scroller has moved 48px or more from where it landed. */
+export const heroState = (page: Page) => bar(page).getAttribute("data-hero");
+
+/** The pair hero's body: the portraits, the note and the chips (in the bar's band on the Timeline and Films, in the page on the Table and the Quotes). */
+export const heroBody = (page: Page) => page.locator("[data-hero-body]");
+
+/**
+ * The view's main scroller moves by `delta` px, the way the visitor moves it: the Films scene down, the Timeline's track sideways, the page (Table, Quotes) down. A Timeline
+ * whose track has nothing to scroll in either direction (a short career on a wide screen) cannot move: the visitor presses on it instead, which also collapses the hero.
+ */
+export async function scrollView(page: Page, delta: number) {
+  await page.evaluate((by) => {
+    const scene = document.querySelector<HTMLElement>("[data-depth-scene]");
+    const track = [...document.querySelectorAll<HTMLElement>('[aria-label^="Film timeline. Scroll sideways"]')].find((element) => element.getClientRects().length > 0);
+    if (scene) scene.scrollTop += by;
+    else if (track && track.scrollWidth <= track.clientWidth + 1 && track.scrollHeight <= track.clientHeight + 1) track.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    else if (track) track.scrollLeft += by;
+    else window.scrollBy(0, by);
+  }, delta);
+}
+
+/** Moves the view's main scroller (120px unless told otherwise), past the 48px that collapses the hero, and waits for the hero to have collapsed into the compact bar. */
+export async function collapseHero(page: Page, by = 120) {
+  await scrollView(page, by);
+  await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
+}
+
 /** Wait for hydration via a real state transition, not a sleep or private React fields. */
 export async function openPeople(page: Page, search = "") {
   await page.goto(`${PEOPLE_PATH}${search}`);
-  const layout = page.getByRole("button", { name: "Combined timeline", exact: true });
-  await expect(layout).toHaveAttribute("aria-pressed", "true");
-  const gear = page.getByRole("button", { name: "Film settings", exact: true });
+  const gear = page.getByRole("button", { name: "Settings", exact: true });
   await gear.click();
-  await expect(page.getByRole("dialog", { name: "Film settings", exact: true })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Settings", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
 }
 

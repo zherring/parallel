@@ -26,7 +26,7 @@ export const FEATURED_TAB = { id: "featured", label: "Featured" } as const;
  * The second tab, right after Featured: every pair that has clippings (see clipping-cards.ts). Not a genre either,
  * and left out of the landing page when no pair has any.
  */
-export const CLIPPINGS_TAB = { id: "clippings", label: "Clippings" } as const;
+export const CLIPPINGS_TAB = { id: "clippings", label: "Quotes" } as const;
 
 export type TabId = typeof FEATURED_TAB.id | typeof CLIPPINGS_TAB.id | GenreId;
 
@@ -1122,4 +1122,10 @@ export function pairingKey(pairing: Pick<ExamplePairing, "people">): string {
     .map((person) => person.id)
     .sort((a, b) => a - b)
     .join("+");
+}
+
+/** The one-line blurb of the curated pairing of exactly these people (their TMDB ids, in any order), or null when the pairing is not one of `EXAMPLE_PAIRINGS`. */
+export function pairingBlurb(ids: readonly number[]): string | null {
+  const key = [...ids].sort((a, b) => a - b).join("+");
+  return EXAMPLE_PAIRINGS.find((pairing) => pairingKey(pairing) === key)?.blurb ?? null;
 }

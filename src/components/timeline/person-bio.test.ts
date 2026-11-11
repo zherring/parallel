@@ -38,6 +38,30 @@ describe("PersonBio", () => {
     expect(html).toContain('title="Details for Jack Lemmon"');
   });
 
+  it("is just a More button, named for the person, with moreTrigger: no teaser, and it works with no biography on TMDB", () => {
+    for (const subject of [person, withBiography]) {
+      const html = renderToStaticMarkup(createElement(PersonBio, { person: subject, onOpen, moreTrigger: true }));
+      expect(html.match(/<button/g)).toHaveLength(1);
+      expect(html).toContain("data-person-more");
+      expect(html).toContain('aria-haspopup="dialog"');
+      expect(html).toContain('More<span class="sr-only"> about Jack Lemmon</span>');
+      expect(html).not.toContain("was an American actor");
+      expect(html).not.toContain("data-person-bio");
+    }
+  });
+
+  it("lets a portrait open the person panel too: a button of its own, out of the Tab order, named like the name beside it", () => {
+    const html = renderToStaticMarkup(
+      createElement(PersonBio, { person, onOpen, portrait: createElement("span", { "data-face": "" }), portraitClassName: "rounded-(--bar-radius)" }),
+    );
+    expect(html).toContain('aria-label="Details for Jack Lemmon"');
+    expect(html).toContain('tabindex="-1"');
+    expect(html).toContain('aria-haspopup="dialog"');
+    expect(html).toContain("rounded-(--bar-radius)");
+    expect(html).toContain('<span data-face=""></span>');
+    expect(html.match(/<button/g)).toHaveLength(1);
+  });
+
   it("still omits an empty teaser", () => {
     expect(renderToStaticMarkup(createElement(PersonBio, { person, onOpen }))).toBe("");
   });

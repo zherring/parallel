@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { bioSnippet } from "@/lib/biography";
 import type { OpenPerson } from "@/lib/side-panel";
 import type { PersonSummary } from "@/lib/types";
+import { cn } from "./cn";
 
 /** Teaser length; the header clamps it to as many lines as the lane has room for. */
 const SNIPPET_CHARS = 150;
@@ -20,6 +21,18 @@ interface PersonBioProps {
   nameTrigger?: boolean;
   /** With `nameTrigger`: what the opener says in place of the full name ("Spielberg"); the panel still opens on the full name. */
   label?: string;
+  /**
+   * Just a "More" button, to set after a biography the caller shows itself (the masthead of a page of one person, which sets the start of it whole): it opens the same
+   * panel, whose full biography is the rest. It says "More" and is named "More about <name>"; works even when no biography is available, and sits in the line of text.
+   */
+  moreTrigger?: boolean;
+  /**
+   * The person's portrait (a `PersonAvatar`) as the opener, for a row that shows one beside the name: it opens the same panel. It is a button
+   * of its own that is out of the Tab order, since the name beside it (`nameTrigger`) is the keyboard's way in; it takes the mouse and the touch.
+   */
+  portrait?: ReactNode;
+  /** With `portrait`: classes for the portrait's button, after its own, so that its corners (and its focus ring's) are the portrait's: round by default. */
+  portraitClassName?: string;
 }
 
 /**
@@ -30,9 +43,39 @@ interface PersonBioProps {
  * six rem) and clamps the text to the lines that fit, so a one-row lane never clips the header:
  * the teaser shrinks line by line, down to just the button. The full text is only in the panel.
  */
-export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, label }: PersonBioProps) {
+export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, label, moreTrigger = false, portrait, portraitClassName }: PersonBioProps) {
   const biography = person.biography;
   const snippet = useMemo(() => (biography ? bioSnippet(biography, SNIPPET_CHARS) : ""), [biography]);
+
+  if (portrait) {
+    return (
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-label={`Details for ${person.name}`}
+        title={`Details for ${person.name}`}
+        tabIndex={-1}
+        onClick={(event) => onOpen(person.id, event.currentTarget)}
+        className={cn("inline-flex cursor-pointer", portraitClassName ?? "rounded-full")}
+      >
+        {portrait}
+      </button>
+    );
+  }
+
+  if (moreTrigger) {
+    return (
+      <button
+        type="button"
+        data-person-more
+        aria-haspopup="dialog"
+        onClick={(event) => onOpen(person.id, event.currentTarget)}
+        className="inline-flex cursor-pointer rounded font-medium text-strong underline-offset-2 hover:underline"
+      >
+        More<span className="sr-only"> about {person.name}</span>
+      </button>
+    );
+  }
 
   if (nameTrigger) {
     return (
@@ -42,7 +85,7 @@ export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, l
         // A title, not an aria-label: the button is the content of its row's heading and of a lane
         // region's name, and a label would name both "Details for ...". The title is only a description.
         title={`Details for ${person.name}`}
-        onClick={() => onOpen(person.id)}
+        onClick={(event) => onOpen(person.id, event.currentTarget)}
         className="cursor-pointer rounded text-left text-strong underline-offset-2 hover:underline"
       >
         {label ?? person.name}
@@ -59,7 +102,7 @@ export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, l
         <button
           type="button"
           aria-haspopup="dialog"
-          onClick={() => onOpen(person.id)}
+          onClick={(event) => onOpen(person.id, event.currentTarget)}
           className="mt-0.5 inline-flex h-6 cursor-pointer items-center rounded-md text-xs font-medium text-strong underline-offset-2 hover:underline"
         >
           More<span className="sr-only"> about {person.name}</span>
@@ -76,7 +119,7 @@ export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, l
       <button
         type="button"
         aria-haspopup="dialog"
-        onClick={() => onOpen(person.id)}
+        onClick={(event) => onOpen(person.id, event.currentTarget)}
         className="flex h-6 w-full cursor-pointer items-center justify-center rounded-md border border-border bg-surface text-[10px] leading-none text-strong underline-offset-2 hover:border-muted sm:inline-flex sm:w-auto sm:-translate-x-1.5 sm:justify-start sm:border-transparent sm:bg-transparent sm:px-1.5 sm:text-xs sm:font-medium sm:hover:border-transparent sm:hover:underline"
       >
         <span className="sm:hidden">

@@ -1,36 +1,34 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { VoicedClippings } from "@/lib/clippings";
 import type { PairCritics } from "@/lib/critics";
-import { sharedRows } from "@/lib/film-rows";
+import type { TableRow } from "@/lib/film-rows";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import type { PairShared } from "@/lib/shared";
-import type { SharedFilm } from "@/lib/types";
 import type { PersonRef } from "@/lib/lanes";
 import { detailsButtonClass, linkClass, tmdbMovieUrl } from "./film-links";
 import { FilmsSection } from "./films-section";
 import type { PersonPanelAccess } from "@/lib/side-panel";
+import type { FilmsTableModel } from "./use-films-table";
 
 interface TogetherProps {
   people: PersonRef[];
-  shared: SharedFilm[];
+  /** The films the people made together, as the table lists them (see `sharedRows`). */
+  rows: TableRow[];
+  /** The table's state, held by the page (see `FilmsSection`). */
+  table: FilmsTableModel;
+  /** Counts up each time the visitor chooses a view (see `FilmsSection`). */
+  revealTick: number;
   pairwise: PairShared[];
   /** Films that would be added by turning minor credits on; 0 when already on. */
   minorExtra: number;
   /** Films they share that are not out yet (and so not counted); only set when no film is shared yet. */
   upcomingExtra: number;
-  /** Films together as the page shows them by default (non-minor credits), for the share text. */
-  shareCount: number;
-  /** The year of each film the preview card shows, for the Share menu's Period choices. */
-  shareYears: readonly number[];
-  /** yyyy-mm-dd, the page's date (computed once on the server). */
-  today: string;
-  /** The note in the section's toolbar (see `FilmsSection`). */
+  /** The note over the section's panels (see `FilmsSection`). */
   note?: ReactNode;
-  /** The Timeline tab of the section. */
+  /** The Timeline panel of the section. */
   timeline: ReactNode;
-  settingsControl: ReactNode;
   onSelect: (id: number, trigger: HTMLElement) => void;
   /** The quotes the two people of the page have about each other, when it has any (see `FilmsSection`). */
   clippings?: VoicedClippings | null;
@@ -44,22 +42,19 @@ const joinNames = (names: string[]) => new Intl.ListFormat("en", { style: "long"
 
 export function Together({
   people,
-  shared,
+  rows,
+  table,
+  revealTick,
   pairwise,
   minorExtra,
   upcomingExtra,
-  shareCount,
-  shareYears,
   note,
-  today,
   timeline,
-  settingsControl,
   onSelect,
   clippings,
   critics,
   personPanel,
 }: TogetherProps) {
-  const rows = useMemo(() => sharedRows(shared, people), [shared, people]);
   const nameById = new Map(people.map((p) => [p.id, p.name]));
   const names = people.map((p) => p.name);
 
@@ -68,13 +63,11 @@ export function Together({
       headingId="together"
       together
       rows={rows}
-      names={names}
       caption={`Films ${joinNames(names)} made together`}
-      share={{ people, count: shareCount, years: shareYears }}
+      table={table}
+      revealTick={revealTick}
       note={note}
-      today={today}
       timeline={timeline}
-      settingsControl={settingsControl}
       empty={
         <>
           No films together found on TMDB. Try adding a collaborator in a nearby role, such as the cinematographer,

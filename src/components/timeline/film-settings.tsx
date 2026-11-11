@@ -1,10 +1,11 @@
 "use client";
 
 import { Settings } from "lucide-react";
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { placePopover, type Placement } from "@/lib/popover-position";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
+import { cn } from "./cn";
 
 interface FilmSettingsProps {
   showAll: boolean;
@@ -40,11 +41,32 @@ export function FilmSettingsOptions({
   );
 }
 
+interface FilmSettingsPopupProps extends FilmSettingsProps {
+  /** The gear's name and the pop-up's title; "Film settings" for the flat timeline's. */
+  label?: string;
+  /** Classes for the gear button, after the flat timeline's (so a view over a busier surface can restyle it). */
+  buttonClassName?: string;
+  /** The gear button, for what opens something from the sheet (the page bar's "People" row) to hand focus back to it. */
+  buttonRef?: RefObject<HTMLButtonElement | null>;
+  /**
+   * Whether the pop-up scrolls (and is no taller than the screen), as the flat timeline's does. Off, nothing in it is clipped: a menu
+   * that hangs from something inside it (the Share menu) shows in full.
+   */
+  scrollable?: boolean;
+  /** More in the pop-up, over and under the film options (the page bar's views and layout, and Share and Export). A click inside an element with `data-close-sheet` closes the pop-up. */
+  before?: ReactNode;
+  after?: ReactNode;
+}
+
 /** Both film-display preferences in a small, non-modal pop-up; checkbox changes keep it open. */
-export function FilmSettings({ showAll, onShowAllChange, includeMinor, onIncludeMinorChange, message }: FilmSettingsProps) {
+export function FilmSettings({
+  showAll, onShowAllChange, includeMinor, onIncludeMinorChange, message,
+  label = "Film settings", buttonClassName, buttonRef: sharedButtonRef, scrollable = true, before, after,
+}: FilmSettingsPopupProps) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<Placement | null>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const ownButtonRef = useRef<HTMLButtonElement>(null);
+  const buttonRef = sharedButtonRef ?? ownButtonRef;
   const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
 
@@ -66,7 +88,7 @@ export function FilmSettings({ showAll, onShowAllChange, includeMinor, onInclude
     place();
     // The first render is hidden until measured; make it focusable before moving focus inside.
     panel.style.visibility = "visible";
-    panel.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+    panel.querySelector<HTMLElement>("input:not(:disabled), a[href], button:not(:disabled)")?.focus({ preventScroll: true });
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(place);
@@ -79,7 +101,7 @@ export function FilmSettings({ showAll, onShowAllChange, includeMinor, onInclude
       // Closed: forget where it was, so reopening does not paint one frame at the stale spot.
       setPosition(null);
     };
-  }, [open]);
+  }, [open, buttonRef]);
 
   useEffect(() => {
     if (!open) return;
@@ -102,20 +124,20 @@ export function FilmSettings({ showAll, onShowAllChange, includeMinor, onInclude
       document.removeEventListener("focusin", dismiss);
       document.removeEventListener("keydown", escape);
     };
-  }, [open]);
+  }, [open, buttonRef]);
 
   return (
     <>
       <button
         ref={buttonRef}
         type="button"
-        aria-label="Film settings"
+        aria-label={label}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
-        title="Film settings"
+        title={label}
         onClick={() => setOpen((previous) => !previous)}
-        className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md bg-canvas text-muted hover:bg-surface hover:text-strong"
+        className={cn("inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-(--bar-radius) bg-canvas text-muted hover:bg-surface hover:text-strong", buttonClassName)}
       >
         <Settings aria-hidden="true" className="size-4" />
       </button>
@@ -124,10 +146,20 @@ export function FilmSettings({ showAll, onShowAllChange, includeMinor, onInclude
           ref={panelRef}
           id={panelId}
           role="dialog"
-          aria-label="Film settings"
-          className="fixed z-[90] max-h-[calc(100dvh-1rem)] w-80 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-lg border border-border bg-canvas p-3 text-sm text-body shadow-xl shadow-black/40"
+          aria-label={label}
+          className={cn(
+            "fixed z-[90] w-80 max-w-[calc(100vw-1rem)] rounded-lg border border-border bg-canvas p-3 text-sm text-body shadow-xl shadow-black/40",
+            scrollable && "max-h-[calc(100dvh-1rem)] overflow-y-auto",
+          )}
           style={position ? { left: position.left, top: position.top } : { visibility: "hidden" }}
+          // A choice that moves the page on (a view chosen in the sheet) closes it: the sheet would be left over the new view.
+          onClick={(event) => {
+            if (!(event.target instanceof Element) || !event.target.closest("[data-close-sheet]")) return;
+            setOpen(false);
+            buttonRef.current?.focus({ preventScroll: true });
+          }}
         >
+          {before}
           <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">Film settings</h2>
           <FilmSettingsOptions
             showAll={showAll}
@@ -137,6 +169,7 @@ export function FilmSettings({ showAll, onShowAllChange, includeMinor, onInclude
             message={message}
             posterHintId={`${panelId}-posters`}
           />
+          {after}
         </div>,
         document.body,
       )}

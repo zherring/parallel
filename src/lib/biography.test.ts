@@ -7,6 +7,7 @@ import {
   lifeLine,
   normalizeBiography,
   splitParagraphs,
+  stripBiographyCredit,
 } from "@/lib/biography";
 
 describe("normalizeBiography", () => {
@@ -118,6 +119,29 @@ describe("bioSnippet", () => {
 
   it("is empty for empty text", () => {
     expect(bioSnippet("   ", 150)).toBe("");
+  });
+});
+
+describe("stripBiographyCredit", () => {
+  const credit = "Description above from the Wikipedia article\u00a0Christopher Guest, licensed under CC-BY-SA, full list of contributors on Wikipedia.";
+
+  it("takes the credit line TMDB copies from Wikipedia off the end, with the blank line before it", () => {
+    expect(stripBiographyCredit(`Guest is an actor.\n\n${credit}`)).toBe("Guest is an actor.");
+    expect(stripBiographyCredit(`Guest is an actor.\nHe is married. ${credit}`)).toBe("Guest is an actor.\nHe is married.");
+  });
+
+  it("takes 'From Wikipedia, the free encyclopedia' off the start, and a '(Source: Wikipedia)' note off the end", () => {
+    expect(stripBiographyCredit("From Wikipedia, the free encyclopedia\n\nGuest is an actor.")).toBe("Guest is an actor.");
+    expect(stripBiographyCredit("From Wikipedia: Guest is an actor.")).toBe("Guest is an actor.");
+    expect(stripBiographyCredit("Guest is an actor. (Source: Wikipedia)")).toBe("Guest is an actor.");
+    expect(stripBiographyCredit("Guest is an actor. Source: the Wikipedia article on him.")).toBe("Guest is an actor.");
+  });
+
+  it("is empty when the credit is all there is, and leaves a text without one as it is", () => {
+    expect(stripBiographyCredit(credit)).toBe("");
+    expect(stripBiographyCredit("  ")).toBe("");
+    expect(stripBiographyCredit("Guest is an actor. He worked on Wikipedia.")).toBe("Guest is an actor. He worked on Wikipedia.");
+    expect(stripBiographyCredit("Fromm Wikipedians came to him.")).toBe("Fromm Wikipedians came to him.");
   });
 });
 

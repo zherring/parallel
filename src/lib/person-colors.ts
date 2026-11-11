@@ -1,7 +1,7 @@
 /**
  * The colour of each person on the timeline, in one place so the palette is easy to tweak: edit
  * `PERSON_COLORS` and everything follows (the combined track, each separate lane, the minimap,
- * the people column).
+ * the people pill).
  *
  * People are coloured by their position in the URL, not by who is visible, so hiding someone
  * never recolours the others. The idea is that blue and yellow make green: a film made by

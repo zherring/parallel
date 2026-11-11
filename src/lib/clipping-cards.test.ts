@@ -287,9 +287,9 @@ describe("buildClippingCards with the real data", () => {
 });
 
 describe("clippingCountLabel", () => {
-  it("counts clippings", () => {
-    expect(clippingCountLabel(1)).toBe("1 clipping");
-    expect(clippingCountLabel(10)).toBe("10 clippings");
+  it("counts quotes", () => {
+    expect(clippingCountLabel(1)).toBe("1 quote");
+    expect(clippingCountLabel(10)).toBe("10 quotes");
   });
 
   it("falls back to reading for a pair with only pieces to read", () => {

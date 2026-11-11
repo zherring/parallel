@@ -120,6 +120,19 @@ export function bioSnippet(text: string, maxChars: number = DEFAULT_SNIPPET_CHAR
   return `${words}${ELLIPSIS}`;
 }
 
+/**
+ * What TMDB's community biographies carry over from Wikipedia and that is not about the person: the credit line at the end ("Description above from the
+ * Wikipedia article Gene Wilder, licensed under CC-BY-SA, full list of contributors on Wikipedia."), "From Wikipedia, the free encyclopedia" at the start, and a
+ * "(Source: Wikipedia)" note. Matched from the words that open them to the end of the text (the credit is always last) or the start.
+ */
+const CREDIT_AT_END = /(?:^|\s)(?:\(?Description above from the Wikipedia article\b|\(?Source:\s*(?:the\s+)?Wikipedia\b)[\s\S]*$/iu;
+const CREDIT_AT_START = /^From Wikipedia(?:,\s*the free encyclopedia)?\s*[.:\u2014-]?\s*/iu;
+
+/** The biography without the credit lines TMDB copies from Wikipedia (see above); whitespace as it came. Empty when nothing else is left. */
+export function stripBiographyCredit(text: string): string {
+  return text.trim().replace(CREDIT_AT_START, "").replace(CREDIT_AT_END, "").trim();
+}
+
 /** The paragraphs of a stored biography (separated by blank lines), trimmed, none empty. */
 export function splitParagraphs(text: string): string[] {
   return text
