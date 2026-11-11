@@ -155,6 +155,17 @@ for (const panel of cases) {
       // person's biography, the one that is.
     });
 
+    test("where a pressed button is not focused (Safari), closing it still hands focus back to the control that opened it", async ({ page }) => {
+      await openPage(page);
+      // Safari does not focus a button on a click: focus stays where it was, whichever the engine. Here it is on the Timeline's track, a scroller that takes focus.
+      await page.evaluate(() => document.addEventListener("mousedown", (event) => event.preventDefault(), true));
+      await page.getByRole("region", { name: "Film timeline. Scroll sideways to see more years.", exact: true }).focus();
+      const { trigger, dialog } = await openPanel(page, panel);
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+      await expect(trigger).toBeFocused();
+    });
+
     test("keeps Tab and Shift+Tab inside the panel and wraps at both ends", async ({ page }) => {
       await openPage(page);
       const { dialog, scroller } = await openPanel(page, panel);

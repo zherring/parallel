@@ -10,7 +10,7 @@ import { usePairHero } from "@/components/hero/use-pair-hero";
 import { PageHeadline } from "@/components/page-headline";
 import { PeopleBar } from "@/components/people-bar";
 import { PersonPanel } from "@/components/person-panel/person-panel";
-import { useRememberPressed } from "@/components/side-panel/side-panel";
+import { rememberOpener, useRememberPressed } from "@/components/side-panel/side-panel";
 import { FilmsSection } from "@/components/timeline/films-section";
 import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
 import { useFilmsTable } from "@/components/timeline/use-films-table";
@@ -167,11 +167,15 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   }, [setPrefs]);
   const handleShowAllChange = useCallback((next: boolean) => setPrefs({ showAll: next }), [setPrefs]);
 
-  const handleSelect = useCallback((id: number) => {
+  // The film's card, node or row that was pressed is the opener the panel hands focus back to (see `rememberOpener`): the track is a scroller that takes focus
+  // in Safari, which does not focus a pressed button.
+  const handleSelect = useCallback((id: number, trigger?: HTMLElement) => {
+    rememberOpener(trigger ?? null);
     setPanel(openFilm(id));
   }, []);
 
-  const handleOpenPerson = useCallback((id: number) => {
+  const handleOpenPerson = useCallback((id: number, trigger?: Element | null) => {
+    rememberOpener(trigger ?? null);
     setPanel(openPerson(id));
   }, []);
 

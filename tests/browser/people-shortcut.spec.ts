@@ -207,19 +207,36 @@ test("removing a person from the overlay goes to the page without them, in the s
   await expect(page.locator("[data-people-pill] button[aria-label^='People on this page']")).toHaveAttribute("aria-label", "People on this page: Quiet Alpha");
 });
 
-test("a name in the overlay opens the person's panel over it, and closing the panel gives the overlay back", async ({ page }) => {
+test("a name in the overlay opens the person's panel over it, and closing the panel gives the overlay back, with focus on the name", async ({ page }) => {
   await openPage(page);
   await page.keyboard.press(SHORTCUT);
-  await overlay(page).getByRole("button", { name: "Quiet Alpha", exact: true }).click();
+  const name = overlay(page).getByRole("button", { name: "Quiet Alpha", exact: true });
+  await name.click();
   const panel = page.getByRole("dialog", { name: /Quiet Alpha/ });
   await expect(panel).toBeVisible();
 
-  // Escape is the panel's own: it closes the panel and not the overlay under it.
+  // Escape is the panel's own: it closes the panel and not the overlay under it, and focus is back on the name.
   await page.keyboard.press("Escape");
   await expect(panel).toBeHidden();
   await expect(overlay(page)).toBeVisible();
+  await expect(name).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(overlay(page)).toBeHidden();
+});
+
+test("where a pressed button is not focused (Safari), the person's panel still hands focus back to the name that opened it", async ({ page }) => {
+  await openPage(page);
+  await page.keyboard.press(SHORTCUT);
+  const name = overlay(page).getByRole("button", { name: "Quiet Alpha", exact: true });
+  // Safari does not focus a button on a click: focus stays where it was, in the overlay's field, whichever the engine.
+  await page.evaluate(() => document.addEventListener("mousedown", (event) => event.preventDefault(), true));
+  await expect(overlaySearch(page)).toBeFocused();
+  await name.click();
+  const panel = page.getByRole("dialog", { name: /Quiet Alpha/ });
+  await expect(panel).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(panel).toBeHidden();
+  await expect(name).toBeFocused();
 });
 
 test("a visitor who asked for less motion gets no animation, and anyone else a quick one", async ({ page }) => {

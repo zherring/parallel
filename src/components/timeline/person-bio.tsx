@@ -50,7 +50,7 @@ export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, l
         aria-label={`Details for ${person.name}`}
         title={`Details for ${person.name}`}
         tabIndex={-1}
-        onClick={() => onOpen(person.id)}
+        onClick={(event) => onOpen(person.id, event.currentTarget)}
         className={cn("inline-flex cursor-pointer", portraitClassName ?? "rounded-full")}
       >
         {portrait}
@@ -66,7 +66,7 @@ export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, l
         // A title, not an aria-label: the button is the content of its row's heading and of a lane
         // region's name, and a label would name both "Details for ...". The title is only a description.
         title={`Details for ${person.name}`}
-        onClick={() => onOpen(person.id)}
+        onClick={(event) => onOpen(person.id, event.currentTarget)}
         className="cursor-pointer rounded text-left text-strong underline-offset-2 hover:underline"
       >
         {label ?? person.name}
@@ -83,7 +83,7 @@ export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, l
         <button
           type="button"
           aria-haspopup="dialog"
-          onClick={() => onOpen(person.id)}
+          onClick={(event) => onOpen(person.id, event.currentTarget)}
           className="mt-0.5 inline-flex h-6 cursor-pointer items-center rounded-md text-xs font-medium text-strong underline-offset-2 hover:underline"
         >
           More<span className="sr-only"> about {person.name}</span>
@@ -100,7 +100,7 @@ export function PersonBio({ person, onOpen, flow = false, nameTrigger = false, l
       <button
         type="button"
         aria-haspopup="dialog"
-        onClick={() => onOpen(person.id)}
+        onClick={(event) => onOpen(person.id, event.currentTarget)}
         className="flex h-6 w-full cursor-pointer items-center justify-center rounded-md border border-border bg-surface text-[10px] leading-none text-strong underline-offset-2 hover:border-muted sm:inline-flex sm:w-auto sm:-translate-x-1.5 sm:justify-start sm:border-transparent sm:bg-transparent sm:px-1.5 sm:text-xs sm:font-medium sm:hover:border-transparent sm:hover:underline"
       >
         <span className="sm:hidden">

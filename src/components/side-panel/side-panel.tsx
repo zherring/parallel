@@ -12,6 +12,7 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
+import { pickOpener } from "@/lib/panel-opener";
 import { trapTab, useModalPage } from "./modal-page";
 
 const TRIGGER_SELECTOR = "button, a[href], [role='button'], [tabindex]";
@@ -19,7 +20,21 @@ const TRIGGER_SELECTOR = "button, a[href], [role='button'], [tabindex]";
 /** Safari and Firefox on macOS do not focus a button on click, so remember what was pressed. */
 let lastPressed: Element | null = null;
 
+/** The control a view said opened the panel that is about to mount (see `rememberOpener`); the panel takes it as it opens. */
+let saidOpener: Element | null = null;
+
 const subscribeNothing = () => () => {};
+
+/**
+ * Says which control is opening a panel, for the panel to hand focus back to when it closes, however it is closed (Escape, its close button, a press
+ * outside it, or another film opened and closed after it). Call it from the handler of the press that opens the panel, with the control itself (the click's
+ * `currentTarget`: a pointer's click and a key's alike), just before the state that shows the panel changes. It beats what the panel can find out for itself
+ * when it opens (the focused element, the control last pressed): in Safari, which does not focus a button on a click, the focused element is the scroller
+ * round it, and the scene's poster would be lost. It is good for the one press: the next pointer press or key forgets it, and the panel that takes it clears it.
+ */
+export function rememberOpener(opener: Element | null): void {
+  saidOpener = opener;
+}
 
 /**
  * Remembers the control that was last pressed, for a panel to hand focus back to when it closes.
@@ -30,9 +45,18 @@ export function useRememberPressed() {
   useEffect(() => {
     const remember = (event: PointerEvent) => {
       lastPressed = event.target instanceof Element ? event.target.closest(TRIGGER_SELECTOR) : null;
+      saidOpener = null;
+    };
+    // A key is a press of its own: what was said of the last one does not carry over to it (its click, if it opens a panel, says it again).
+    const forget = () => {
+      saidOpener = null;
     };
     document.addEventListener("pointerdown", remember, true);
-    return () => document.removeEventListener("pointerdown", remember, true);
+    document.addEventListener("keydown", forget, true);
+    return () => {
+      document.removeEventListener("pointerdown", remember, true);
+      document.removeEventListener("keydown", forget, true);
+    };
   }, []);
 }
 
@@ -112,7 +136,8 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
   const scrollRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   const onExitedRef = useRef(onExited);
-  const openerRef = useRef<Element | null>(null);
+  // Chosen once, as the panel opens (a ref that has not been chosen yet is `undefined`: the effect runs twice in development, and the second run must not choose again).
+  const openerRef = useRef<Element | null | undefined>(undefined);
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -169,8 +194,10 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
   // the dialog: the arrow keys, Space and Page Down scroll whatever is focused, so a long biography
   // scrolls from the first key press.
   useEffect(() => {
-    const active = document.activeElement;
-    openerRef.current = active && active !== document.body ? active : lastPressed;
+    if (openerRef.current === undefined) {
+      openerRef.current = pickOpener({ said: saidOpener, active: document.activeElement, body: document.body, pressed: lastPressed });
+      saidOpener = null;
+    }
     (scrollRef.current ?? panelRef.current)?.focus({ preventScroll: true });
   }, []);
 

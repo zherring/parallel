@@ -427,6 +427,73 @@ test("a poster opens the film dialog, and Escape closes it and returns focus", a
   await expect(poster).toBeFocused();
 });
 
+/** The second of the fixture's shared films (2000-04-01), a poster of its own to open after the first. */
+const SECOND_SHARED = /^Scroll Film 101, 2000\./;
+
+test("opening another film and closing it hands focus back to that film's poster, and not the first's", async ({ page }) => {
+  await openDepth(page);
+  const first = scene(page).getByRole("button", { name: FIRST_SHARED });
+  const second = scene(page).getByRole("button", { name: SECOND_SHARED });
+  const dialog = page.getByRole("dialog");
+
+  await first.click();
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(first).toBeFocused();
+
+  await second.click();
+  await expect(dialog).toBeVisible();
+  await page.getByRole("button", { name: "Close film details" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(second).toBeFocused();
+
+  // And once more by a press outside it, from the first again.
+  await first.click();
+  await expect(dialog).toBeVisible();
+  await page.mouse.click(120, 300);
+  await expect(dialog).toBeHidden();
+  await expect(first).toBeFocused();
+});
+
+test("a film opened from the keyboard hands focus back to its poster", async ({ page }) => {
+  await openDepth(page);
+  const poster = scene(page).getByRole("button", { name: FIRST_SHARED });
+  const dialog = page.getByRole("dialog");
+  await poster.focus();
+  await page.keyboard.press("Enter");
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(poster).toBeFocused();
+});
+
+test("where a pressed button is not focused (Safari), so that the scene has focus, closing the film still hands focus back to the poster", async ({ page }) => {
+  await openDepth(page);
+  const region = scene(page);
+  const poster = region.getByRole("button", { name: FIRST_SHARED });
+  const dialog = page.getByRole("dialog");
+  // Safari does not focus a button on a click: focus stays where it was, here on the scene (a scroller that takes focus), whichever the engine. The click records what had focus when it came.
+  await page.evaluate(() => {
+    document.addEventListener("mousedown", (event) => event.preventDefault(), true);
+    document.addEventListener(
+      "click",
+      () => {
+        (window as unknown as { __sceneHadFocus: boolean }).__sceneHadFocus = document.activeElement?.hasAttribute("data-depth-scene") ?? false;
+      },
+      true,
+    );
+  });
+  await region.focus();
+
+  await poster.click();
+  await expect(dialog).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { __sceneHadFocus: boolean }).__sceneHadFocus)).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(poster).toBeFocused();
+});
+
 /** Records what the film dialog is animated with, so a test can tell a slide-out from a disappearance. */
 async function recordDialogAnimations(page: Page) {
   await page.evaluate(() => {

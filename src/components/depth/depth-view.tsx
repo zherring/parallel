@@ -12,7 +12,7 @@ import { PairHeroBody } from "@/components/hero/pair-hero-body";
 import { useHeroCollapse } from "@/components/hero/use-hero-collapse";
 import { usePairHero } from "@/components/hero/use-pair-hero";
 import { PersonPanel } from "@/components/person-panel/person-panel";
-import { useRememberPressed } from "@/components/side-panel/side-panel";
+import { rememberOpener, useRememberPressed } from "@/components/side-panel/side-panel";
 import { scrollBehavior } from "@/components/timeline/scroll-behavior";
 import { PageHeadline } from "@/components/page-headline";
 import type { ExportList } from "@/components/timeline/export-button";
@@ -196,11 +196,14 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
     [capHasEffect, rememberCenter, setPrefs],
   );
 
-  const handleSelect = useCallback((id: number) => {
+  // The poster that was pressed is the opener the panel hands focus back to (a chip that opens a film not in the scene has none to say: see `rememberOpener`).
+  const handleSelect = useCallback((id: number, trigger?: HTMLElement) => {
+    rememberOpener(trigger ?? null);
     setPanel(openFilm(id));
   }, []);
 
-  const handleOpenPerson = useCallback((id: number) => {
+  const handleOpenPerson = useCallback((id: number, trigger?: Element | null) => {
+    rememberOpener(trigger ?? null);
     setPanel(openPerson(id));
   }, []);
 

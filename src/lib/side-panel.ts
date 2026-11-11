@@ -26,10 +26,11 @@ export interface PersonPanelEntry {
 }
 
 /**
- * Opens a person's details in the slide-out panel. The shell remembers the control that opened the panel and
- * hands focus back to it when the panel closes, so the opener does not have to.
+ * Opens a person's details in the slide-out panel. The shell hands focus back to the control that opened the panel when it closes, so the opener
+ * does not have to: it passes the control it was pressed on (`trigger`, a click's `currentTarget`), which the shell then trusts over whatever has
+ * focus (in Safari, which does not focus a pressed button, that is a scroller or dialog round it; see `rememberOpener`).
  */
-export type OpenPerson = (personId: number) => void;
+export type OpenPerson = (personId: number, trigger?: Element | null) => void;
 
 /**
  * Everything a component outside the people column needs to turn a person's name into a button: the people
