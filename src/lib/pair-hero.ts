@@ -3,7 +3,7 @@
  * made together, a portrait each, a quote or a few sentences about the pair, and a chip for each film. Everything about it that can be worked out
  * without a browser lives here, pure, so the rules are testable and the server and the browser agree on them:
  *
- *  - which note the hero shows, by the chain quote, description, blurb, nothing (`pickHeroNote`);
+ *  - which note the hero shows, by the chain quote (the first one that fits whole, never cut), description, blurb, nothing (`pickHeroNote`);
  *  - each person's main role in the films the people made together, and the subtitle that joins them (`mainRoleLabels`, `heroSubtitle`);
  *  - the film chips, in release order, the first three and a "+N more" for the rest (`orderChips`, `visibleChips`);
  *  - when the hero is expanded and when it has collapsed into the compact bar (`heroCollapsed`).
@@ -41,13 +41,30 @@ export interface HeroBlurb {
 
 export type HeroNote = HeroQuote | HeroDescription | HeroBlurb;
 
+/** The longest a quote is set in the hero (in characters, whitespace folded): a longer one is not the hero's, it is never shown cut. The link under it goes to the whole of it. */
+export const QUOTE_CHARS = 240;
+
+/** A quote that ends in an ellipsis in the data is an excerpt that stops mid-thought: the hero does not feature it. */
+const ENDS_IN_ELLIPSIS = /(?:\.{3}|\u2026)[\s"'\u2018\u2019\u201C\u201D)\]]*$/u;
+
+/** Whether a quote is whole as the hero sets it: within `QUOTE_CHARS` (counted as `truncateQuote` would, with the whitespace folded) and not an excerpt that trails off. */
+export function fitsHero(quote: string, maxChars = QUOTE_CHARS): boolean {
+  const text = quote.trim().replace(/\s+/g, " ");
+  return Array.from(text).length <= maxChars && !ENDS_IN_ELLIPSIS.test(text);
+}
+
 /**
- * The first artist quote of the pair: one of the two on the other, in the order the clippings come in (oldest first, the Quotes view's own).
- * A quote whose speaker is neither of the pair is not one of the two on the other and is passed over. Null without any.
+ * The first artist quote of the pair that the hero can show whole: one of the two on the other, in the order the clippings come in (oldest first,
+ * the Quotes view's own), that fits within `QUOTE_CHARS` and does not end in an ellipsis in the data (`fitsHero`). The hero never shows a quote cut
+ * short with "\u2026", so a longer one, or an excerpt, is passed over for the next. A quote whose speaker is neither of the pair is not one of the two
+ * on the other and is passed over too. Null without any.
  */
-export function featuredClipping(set: Pick<PairClippings, "people" | "clippings"> | null | undefined): Clipping | null {
+export function featuredClipping(
+  set: Pick<PairClippings, "people" | "clippings"> | null | undefined,
+  maxChars = QUOTE_CHARS,
+): Clipping | null {
   if (!set) return null;
-  return set.clippings.find((clipping) => speakerIndex(clipping, set.people) !== null) ?? null;
+  return set.clippings.find((clipping) => speakerIndex(clipping, set.people) !== null && fitsHero(clipping.quote, maxChars)) ?? null;
 }
 
 /** What `pickHeroNote` chooses among: each is null when the pair has none. */
@@ -59,8 +76,9 @@ export interface HeroNoteSources {
 }
 
 /**
- * The note beside the portraits, in this order: the pair's featured quote; else its curated description (with the sources it rests on); else the
- * one-line blurb of a curated pair; else nothing. Nothing is made up: a pair with none of the three has no note.
+ * The note beside the portraits, in this order: the pair's featured quote (the first artist quote that fits whole, see `featuredClipping`: none is ever
+ * cut short); else its curated description (with the sources it rests on); else the one-line blurb of a curated pair; else nothing. Nothing is made
+ * up: a pair with none of the three has no note.
  */
 export function pickHeroNote({ clippings, description, blurb }: HeroNoteSources): HeroNote | null {
   const clipping = featuredClipping(clippings);

@@ -7,13 +7,9 @@ import { PersonPortrait } from "@/components/person-portrait";
 import { cn } from "@/components/timeline/cn";
 import { PersonBio } from "@/components/timeline/person-bio";
 import { splitCitations } from "@/lib/citations";
-import { truncateQuote } from "@/lib/clippings-view";
 import { CHIP_LIMIT, visibleChips, type HeroChip, type HeroNote } from "@/lib/pair-hero";
 import { personColor } from "@/lib/person-colors";
 import type { OpenPerson } from "@/lib/side-panel";
-
-/** The longest a quote is set in the hero; the link under it goes to the whole of it. */
-const QUOTE_CHARS = 240;
 
 interface PairHeroBodyProps {
   people: readonly PillPerson[];
@@ -36,7 +32,7 @@ interface PairHeroBodyProps {
 
 /**
  * The pair hero's body, under the bar's row: a portrait for each person (a button that opens their details in the slide-out panel, as their name does), beside them the note
- * (the pair's first quote, else a curated description, else the pair's one-line blurb: see `pickHeroNote`), and a chip for each film. On a phone it is
+ * (the pair's first artist quote that fits whole, set uncut, else a curated description, else the pair's one-line blurb: see `pickHeroNote`), and a chip for each film. On a phone it is
  * short (the bar's row, with the names, the people pill and the gear, is the rest of the hero): small portraits float at the left of the note, which
  * wraps round them and under them whole.
  *
@@ -124,7 +120,7 @@ function HeroNoteBlock({ note, quoteHref, onQuoteClick }: Pick<PairHeroBodyProps
     return (
       <figure data-hero-note="quote" className="m-0 min-w-0 max-w-xl">
         <blockquote className="m-0 text-[0.9375rem] italic leading-snug text-quote max-sm:text-xs max-sm:leading-[1.3]">
-          &ldquo;{truncateQuote(note.quote, QUOTE_CHARS)}&rdquo;
+          &ldquo;{note.quote}&rdquo;
         </blockquote>
         <figcaption className="mt-1.5 text-xs text-muted">
           {quoteHref ? (

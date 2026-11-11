@@ -7,7 +7,9 @@ import { getPairDescription } from "@/lib/pair-descriptions";
 import {
   CHIP_LIMIT,
   COLLAPSE_PX,
+  QUOTE_CHARS,
   featuredClipping,
+  fitsHero,
   heroCollapsed,
   heroSubtitle,
   mainRole,
@@ -64,6 +66,56 @@ describe("featuredClipping", () => {
     expect(featuredClipping({ people: pair, clippings: [] })).toBeNull();
     expect(featuredClipping({ people: pair, clippings: [clipping("a", "Someone Else", "Penélope Cruz")] })).toBeNull();
   });
+
+  const sentence = (length: number) => `${"word ".repeat(Math.ceil(length / 5))}`.trim().slice(0, length - 1) + ".";
+
+  it("skips a quote too long to be set whole (more than QUOTE_CHARS) for the next one that fits", () => {
+    const set = {
+      people: pair,
+      clippings: [
+        clipping("long", "Penélope Cruz", "Pedro Almodóvar", { quote: sentence(QUOTE_CHARS + 1) }),
+        clipping("short", "Pedro Almodóvar", "Penélope Cruz", { quote: "She is my muse." }),
+      ],
+    };
+    expect(featuredClipping(set)?.id).toBe("short");
+  });
+
+  it("takes a quote of exactly QUOTE_CHARS, counting characters (not UTF-16 units) with the whitespace folded as the quote is set", () => {
+    const exact = sentence(QUOTE_CHARS);
+    expect(Array.from(exact)).toHaveLength(QUOTE_CHARS);
+    expect(featuredClipping({ people: pair, clippings: [clipping("exact", "Penélope Cruz", "Pedro Almodóvar", { quote: exact })] })?.id).toBe("exact");
+    // Runs of whitespace and the ends are not counted: this is QUOTE_CHARS once folded.
+    expect(fitsHero(`  ${exact.replace(" ", "   ")}\n`)).toBe(true);
+    // An emoji is one character, though two UTF-16 units.
+    expect(fitsHero(`${"a".repeat(QUOTE_CHARS - 1)}\u{1F3AC}`)).toBe(true);
+    expect(fitsHero(`${"a".repeat(QUOTE_CHARS)}\u{1F3AC}`)).toBe(false);
+  });
+
+  it("skips a quote that ends in an ellipsis in the data (an excerpt that trails off), in either spelling", () => {
+    for (const ending of ["...", "\u2026", "\u2026\u201D", "\u2026\"", ".... ", "...)"]) {
+      const set = {
+        people: pair,
+        clippings: [
+          clipping("excerpt", "Penélope Cruz", "Pedro Almodóvar", { quote: `He gave me everything${ending}` }),
+          clipping("whole", "Pedro Almodóvar", "Penélope Cruz", { quote: "She is my muse." }),
+        ],
+      };
+      expect(featuredClipping(set)?.id).toBe("whole");
+    }
+    // An ellipsis inside a quote is not an excerpt that stops there.
+    expect(fitsHero("Well... she is my muse.")).toBe(true);
+  });
+
+  it("is null when no quote of the pair fits whole", () => {
+    const set = {
+      people: pair,
+      clippings: [
+        clipping("long", "Penélope Cruz", "Pedro Almodóvar", { quote: sentence(QUOTE_CHARS + 50) }),
+        clipping("excerpt", "Pedro Almodóvar", "Penélope Cruz", { quote: "He gave me everything\u2026" }),
+      ],
+    };
+    expect(featuredClipping(set)).toBeNull();
+  });
 });
 
 describe("pickHeroNote: the fallback chain", () => {
@@ -95,6 +147,51 @@ describe("pickHeroNote: the fallback chain", () => {
   it("shows nothing when the pair has none of the three, and nothing is made up from a blank blurb", () => {
     expect(pickHeroNote({ clippings: null, description: null, blurb: null })).toBeNull();
     expect(pickHeroNote({ clippings: null, description: null, blurb: "   " })).toBeNull();
+  });
+
+  it("shows the first quote that fits whole, and the link under it is that quote's", () => {
+    const quotes = {
+      people: pair,
+      clippings: [
+        clipping("too-long", "Pedro Almodóvar", "Penélope Cruz", { quote: "x".repeat(QUOTE_CHARS + 1) }),
+        clipping("trails-off", "Penélope Cruz", "Pedro Almodóvar", { quote: "He taught me everything..." }),
+        clipping("whole", "Pedro Almodóvar", "Penélope Cruz", { quote: "She is my muse." }),
+        clipping("later", "Penélope Cruz", "Pedro Almodóvar", { quote: "He is my director." }),
+      ],
+    };
+    expect(pickHeroNote({ clippings: quotes, description, blurb })).toEqual({
+      kind: "quote",
+      id: "whole",
+      quote: "She is my muse.",
+      speaker: "Pedro Almodóvar",
+      about: "Penélope Cruz",
+    });
+    expect(quoteHref("/p/x", "", "whole")).toContain("quote=whole");
+  });
+
+  it("falls back to the description, then the blurb, then nothing, when no artist quote fits whole", () => {
+    const unfit = {
+      people: pair,
+      clippings: [
+        clipping("too-long", "Pedro Almodóvar", "Penélope Cruz", { quote: "x".repeat(QUOTE_CHARS + 1) }),
+        clipping("trails-off", "Penélope Cruz", "Pedro Almodóvar", { quote: "He taught me everything\u2026" }),
+      ],
+    };
+    expect(pickHeroNote({ clippings: unfit, description, blurb })).toEqual({ kind: "description", ...description });
+    expect(pickHeroNote({ clippings: unfit, description: null, blurb })).toEqual({ kind: "blurb", text: blurb });
+    expect(pickHeroNote({ clippings: unfit, description: null, blurb: null })).toBeNull();
+  });
+
+  it("never shows a quote cut short, on the real data: a quote note is whole, and any pair left without one has none that fits", () => {
+    for (const entry of EXAMPLE_PAIRINGS) {
+      const ids = entry.people.map((p) => p.id);
+      const note = getHeroNote(ids);
+      if (note?.kind === "quote") expect(fitsHero(note.quote)).toBe(true);
+      const set = getPairClippingSet(ids);
+      if (set && note?.kind !== "quote") {
+        expect(set.clippings.filter((c) => c.speaker === set.people[0].name || c.speaker === set.people[1].name).some((c) => fitsHero(c.quote))).toBe(false);
+      }
+    }
   });
 
   it("works on the real data (getHeroNote): a pair with clippings gets its quote, a curated pair without gets its blurb, any other pair gets nothing", () => {

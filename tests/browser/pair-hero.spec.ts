@@ -141,7 +141,9 @@ test.describe("at 1440px wide", () => {
 
       // The note: the pair's first quote, in italics, and who said it about whom, a link to that quote in the Quotes.
       const note = heroBody(page).locator('[data-hero-note="quote"]');
-      await expect(note.locator("blockquote")).toContainText(NOTE.quote.slice(0, 30));
+      // The whole quote, never one cut short with an ellipsis (the page picks the first that fits: see `featuredClipping`).
+      await expect(note.locator("blockquote")).toContainText(NOTE.quote);
+      await expect(note.locator("blockquote")).not.toContainText("\u2026");
       expect(await note.locator("blockquote").evaluate((element) => getComputedStyle(element).fontStyle)).toBe("italic");
       const attribution = note.getByRole("link", { name: `${NOTE.speaker} on ${NOTE.about}`, exact: true });
       await expect(attribution).toHaveAttribute("href", new RegExp(`view=clippings&quote=${NOTE.id}$`));
