@@ -38,11 +38,6 @@ interface PeoplePillProps {
   onToggleVisible?: (personId: number) => void;
   /** The scene's scroller: scrolling it more than `SCROLL_CLOSE_PX` closes the panel. None on the flat pages, where the window is what scrolls. */
   scrollerRef?: RefObject<HTMLDivElement | null>;
-  /**
-   * The names beside the heads are left out (on a phone they always are): the pair hero's title, which stands beside the pill while the hero is open, says them.
-   * The heads, the chevron and the press are the same, and so is what a screen reader hears (the button is still named "People on this page: ...").
-   */
-  compact?: boolean;
 }
 
 /** Closed, open, or on its way back to closed (the heads are flying home). */
@@ -94,7 +89,7 @@ function headRects(root: ParentNode, attribute: string): Map<string, DOMRect> {
  * It is laid out by `PeopleBar` (a fixed bar, a sibling of the Depth view's scroller, never inside it: perspective would turn `fixed` into
  * `absolute`); while it is open it has `data-open`, which the bar's other controls look for to step aside.
  */
-export function PeoplePill({ people, scrollerRef, onToggleVisible, compact = false }: PeoplePillProps) {
+export function PeoplePill({ people, scrollerRef, onToggleVisible }: PeoplePillProps) {
   const reduced = useMediaQuery(REDUCED_MOTION);
 
   const panelId = useId();
@@ -336,7 +331,7 @@ export function PeoplePill({ people, scrollerRef, onToggleVisible, compact = fal
                 );
               })}
             </span>
-            <span className={cn("hidden min-w-0 max-w-[18rem] truncate text-sm font-medium text-strong", !compact && "sm:block")}>{names}</span>
+            <span className="hidden min-w-0 max-w-[18rem] truncate text-sm font-medium text-strong sm:block">{names}</span>
             <ChevronDown aria-hidden="true" className="hidden size-4 shrink-0 text-muted sm:block" />
           </button>
         </div>
