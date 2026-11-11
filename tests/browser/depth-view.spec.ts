@@ -1406,7 +1406,7 @@ test("the open pill is the app's usual search field, boxed, with the close butto
   await expect(card.getByRole("combobox")).toHaveCount(0);
   await expect(card.locator("input")).toHaveCount(0);
   await expect(page.getByRole("combobox")).toHaveCount(1);
-  await expect(card.getByText("Green: made together", { exact: true })).toBeVisible();
+  await expect(card.getByText("Green: made together by everyone shown", { exact: true })).toBeVisible();
 
   // The field is the flat page's own: a box with a border, a surface fill, the bar's radius (6px), the search icon and the placeholder.
   const box = search.locator("xpath=ancestor::div[@data-search-box][1]");

@@ -2,17 +2,18 @@
  * The combined timeline: every visible person's films on one track, each film knowing who
  * worked on it.
  *
- * "Shared" is decided among the visible people only (see `sharedAcrossLanes`): with one person
- * visible nothing is shared and every film is in that person's colour; hide a person and the
- * films they made with the others stop being green. An announced film is never shared.
+ * "Shared" is decided among the visible people only: a film is green only when every one of them
+ * worked on it. With one person visible nothing is shared and every film is in that person's
+ * colour; hide a person and only the films the rest made together stay green. An announced film
+ * is never shared.
  */
 
 import { joinNames } from "@/lib/format";
 import { minimapFilm, type MinimapFilm } from "@/lib/minimap";
 import { personColor, personGlow, type PersonTint } from "@/lib/person-colors";
+import { isReleased } from "@/lib/released";
 import { roleSummary } from "@/lib/roles";
 import { shortName } from "@/lib/short-name";
-import { sharedAcrossLanes } from "@/lib/timeline-layout";
 import type { Film, PersonSummary } from "@/lib/types";
 
 /** A person's films on the page, already filtered for the minor toggle. */
@@ -28,8 +29,21 @@ export interface CombinedFilm {
   personIds: number[];
   /** Their palette slots (see `personSlots`), parallel to `personIds`. */
   slots: number[];
-  /** Released and made by two or more visible people: the green treatment. */
+  /** Released and made by every visible person: the green treatment. */
   shared: boolean;
+}
+
+/**
+ * Ids of the released films made by every one of `lanes`. A film only some of them made is not
+ * in this set.
+ */
+function sharedByEveryone(lanes: readonly CombinedLane[], today: string): Set<number> {
+  if (lanes.length < 2) return new Set();
+  const filmsOf = lanes.map(
+    (lane) => new Set(lane.films.filter((film) => isReleased(film.releaseDate, today)).map((film) => film.id)),
+  );
+  const [first, ...rest] = filmsOf;
+  return new Set([...first].filter((id) => rest.every((films) => films.has(id))));
 }
 
 /**
@@ -37,7 +51,7 @@ export interface CombinedFilm {
  * its contributors. `slotOf` is every person's palette slot, so a colour never depends on who is visible.
  */
 export function combineLanes(lanes: readonly CombinedLane[], slotOf: ReadonlyMap<number, number>, today: string): CombinedFilm[] {
-  const shared = sharedAcrossLanes(lanes, today);
+  const shared = sharedByEveryone(lanes, today);
   const byFilm = new Map<number, CombinedFilm>();
 
   for (const lane of lanes) {
@@ -66,7 +80,7 @@ export function combineLanes(lanes: readonly CombinedLane[], slotOf: ReadonlyMap
 export interface CombinedFilmInfo {
   /** What a screen reader hears of it: who made it, and what each of them did ("Ann: Director. Bo: Writer"). */
   roles: string;
-  /** "Shared by Ann & Bo" for a released film several people made, else empty. */
+  /** "Shared by Ann & Bo" for a released film every one of them made, else empty. */
   note: string;
   /** The colour of its node and card ring: the one person's, or null when several made it (the dots say so). */
   tint: PersonTint | null;
@@ -98,7 +112,7 @@ export function describeCombined(
     info.set(entry.film.id, {
       roles: roles.join(". "),
       note: entry.shared ? `Shared by ${joinNames(names)}` : "",
-      // One person made it: that person's colour. Several (and not out yet): the dots say so, the ring stays neutral.
+      // One person made it: that person's colour. Several (a subset, or not out yet): the dots say so, the ring stays neutral.
       tint: entry.slots.length === 1 ? { color: dots[0], glow: personGlow(entry.slots[0]) } : null,
       dots,
     });
@@ -107,16 +121,28 @@ export function describeCombined(
 }
 
 /**
- * What the minimap marks on the combined track: green nodes for the films several people made and
- * a tick for each of the others, in their one person's colour (muted for a film not yet out that
- * several are making).
+ * What the minimap marks on the combined track: green nodes for the films every visible person
+ * made and a tick for each of the others, in their one person's colour. A released film only some
+ * of them made is a muted tick, so it still shows beside the green nodes; an announced one is
+ * colourless (and stays out of the way while there are nodes).
  */
-export function combinedMinimapFilms(entries: readonly CombinedFilm[]): { shared: MinimapFilm[]; ticks: MinimapFilm[] } {
+export const PARTIAL_TICK_COLOR = "var(--text-muted)";
+
+export function combinedMinimapFilms(entries: readonly CombinedFilm[], today: string): { shared: MinimapFilm[]; ticks: MinimapFilm[] } {
   return {
     shared: entries.filter((entry) => entry.shared).map((entry) => minimapFilm(entry.film)),
     ticks: entries
       .filter((entry) => !entry.shared)
-      .map((entry) => minimapFilm(entry.film, entry.slots.length === 1 ? personColor(entry.slots[0]) : undefined)),
+      .map((entry) =>
+        minimapFilm(
+          entry.film,
+          entry.slots.length === 1
+            ? personColor(entry.slots[0])
+            : isReleased(entry.film.releaseDate, today)
+              ? PARTIAL_TICK_COLOR
+              : undefined,
+        ),
+      ),
   };
 }
 

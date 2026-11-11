@@ -790,9 +790,10 @@ describe("depthLayout", () => {
     expect(layout(pair)).toEqual(layout(pair));
   });
 
-  it("shows a film that only some of three people made on layer 0 when it is released, in the colours of those people", () => {
+  // Green means every person on the page made it (PR #36): a film only some of three made is not on layer 0.
+  it("puts a film that only some of three people made on its first person's layer, not on layer 0", () => {
     const l = layout([[[1, "2000-01-01"]], [[1, "2000-01-01"], [2, "1995-01-01"]], [[3, "1990-01-01"]]]);
-    expect(byId(l, 1)).toMatchObject({ layer: 0, shared: true, slots: [0, 1] });
+    expect(byId(l, 1)).toMatchObject({ layer: 1, shared: false, slots: [0, 1] });
     expect(byId(l, 2)).toMatchObject({ layer: 2, band: 1 });
     expect(byId(l, 3)).toMatchObject({ layer: 3, band: 2 });
     expect(l.layerCount).toBe(4);

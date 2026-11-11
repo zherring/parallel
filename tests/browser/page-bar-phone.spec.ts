@@ -69,7 +69,7 @@ for (const [width, height] of [
           expect(Math.round(head.width)).toBe(28);
           expect(head.left).toBeGreaterThanOrEqual(capsule.x);
           expect(head.right).toBeLessThanOrEqual(capsule.x + capsule.width);
-          expect(head.top).toBe(heads[0].top);
+          expect(Math.abs(head.top - heads[0].top)).toBeLessThan(1); // one row; a sub-pixel offset from the avatar ring is not a wrap
         }
 
         // The names, the family ones, after the heads, on one line; the pill's name for a screen reader is the full one.

@@ -294,7 +294,7 @@ export function Timeline({
     // A film shown in two or more lanes gets its own poster in each of them, placed first (ahead
     // of the row cap) so it keeps a card, on the lowest row it can have, in every lane that has it.
     // Only released films connect: an announced film both lanes list is an ordinary upcoming poster in each.
-    // On the combined track the films several people made are the ones placed first.
+    // On the combined track the films everyone visible made are the ones placed first.
     const priorityIds = isCombined
       ? new Set(entries.filter((entry) => entry.shared).map((entry) => entry.film.id))
       : sharedAcrossLanes(trackLanes, today);
@@ -360,9 +360,9 @@ export function Timeline({
   const minimapFilms = useMemo(
     () =>
       isCombined
-        ? combinedMinimapFilms(entries)
+        ? combinedMinimapFilms(entries, today)
         : separateMinimapFilms(lanes, membership, accents, slots, colored),
-    [accents, colored, entries, isCombined, lanes, membership, slots],
+    [accents, colored, entries, isCombined, lanes, membership, slots, today],
   );
 
   // What each lane header says of its person; the combined lane stands for no one, so it has none.
@@ -711,7 +711,7 @@ export function Timeline({
 
   // Green for a film every lane shows, the colour of its pair for one only some lanes show, its
   // person's colour (through the tint) for one lane only.
-  // On the combined track, green for a film several visible people made and plain for the rest.
+  // On the combined track, green for a film every visible person made and plain for the rest.
   const toneFor = (id: number): CardTone => {
     if (isCombined) return layout.priorityIds.has(id) ? "lit" : "plain";
     const lanesShowing = layout.membership.get(id)?.length ?? 0;

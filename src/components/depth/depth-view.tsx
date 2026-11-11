@@ -133,7 +133,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
       })),
     [lanes, slots, includeMinor],
   );
-  const railFilms = useMemo(() => combinedMinimapFilms(entries), [entries]);
+  const railFilms = useMemo(() => combinedMinimapFilms(entries, today), [entries, today]);
 
   // A link to a period dims the films outside it. It is resolved against the films the page's preview card shows,
   // so the server and the browser agree on it (as `PeopleView` does).

@@ -554,7 +554,7 @@ export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible 
               <p data-fade className="flex items-center gap-1.5 px-2 pb-2 pt-1 text-xs text-muted">
                 {/* A small poster in the ring the films made together have in the scene: a crisp green edge, no glow. */}
                 <span aria-hidden className="h-3.5 w-2.5 shrink-0 rounded-[2px] border-2 border-lit" />
-                Green: made together
+                Green: made together by everyone shown
               </p>
             )}
           </div>
