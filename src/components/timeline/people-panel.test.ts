@@ -112,7 +112,7 @@ describe("PeoplePanel", () => {
   });
 
   it("explains the green only while two or more people are on the track", () => {
-    expect(markup("condense")).toContain("Green: made together");
+    expect(markup("condense")).toContain("Green: made together by everyone shown");
     const oneHidden = [pair[0], { ...pair[1], visible: false }];
     expect(markup("condense", new Set(), oneHidden)).not.toContain("Green: made together");
   });

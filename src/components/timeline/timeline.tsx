@@ -382,9 +382,9 @@ export function Timeline({
   const minimapFilms = useMemo(
     () =>
       isCombined
-        ? combinedMinimapFilms(entries)
+        ? combinedMinimapFilms(entries, today)
         : separateMinimapFilms(lanes, membership, accents, slots, colored),
-    [accents, colored, entries, isCombined, lanes, membership, slots],
+    [accents, colored, entries, isCombined, lanes, membership, slots, today],
   );
 
   // The People panel's rows say the same of each person; the combined lane stands for no one, so it has none.

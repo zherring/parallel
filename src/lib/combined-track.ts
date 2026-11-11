@@ -122,15 +122,27 @@ export function describeCombined(
 
 /**
  * What the minimap marks on the combined track: green nodes for the films every visible person
- * made and a tick for each of the others, in their one person's colour (muted for a film not yet
- * out that several are making).
+ * made and a tick for each of the others, in their one person's colour. A released film only some
+ * of them made is a muted tick, so it still shows beside the green nodes; an announced one is
+ * colourless (and stays out of the way while there are nodes).
  */
-export function combinedMinimapFilms(entries: readonly CombinedFilm[]): { shared: MinimapFilm[]; ticks: MinimapFilm[] } {
+export const PARTIAL_TICK_COLOR = "var(--text-muted)";
+
+export function combinedMinimapFilms(entries: readonly CombinedFilm[], today: string): { shared: MinimapFilm[]; ticks: MinimapFilm[] } {
   return {
     shared: entries.filter((entry) => entry.shared).map((entry) => minimapFilm(entry.film)),
     ticks: entries
       .filter((entry) => !entry.shared)
-      .map((entry) => minimapFilm(entry.film, entry.slots.length === 1 ? personColor(entry.slots[0]) : undefined)),
+      .map((entry) =>
+        minimapFilm(
+          entry.film,
+          entry.slots.length === 1
+            ? personColor(entry.slots[0])
+            : isReleased(entry.film.releaseDate, today)
+              ? PARTIAL_TICK_COLOR
+              : undefined,
+        ),
+      ),
   };
 }
 
