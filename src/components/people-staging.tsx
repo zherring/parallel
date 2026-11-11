@@ -11,6 +11,7 @@ import {
   type PendingPeople,
   type StagedPerson,
 } from "@/lib/pending-people";
+import { followsLink } from "@/lib/explicit-navigation";
 import type { PersonRef } from "@/lib/people-nav";
 
 interface PeopleStaging {
@@ -45,6 +46,10 @@ interface ProviderProps {
  * page changes once, when the last of them closes: every staged change in one soft navigation (`router.push`, as every add and remove has always made) to the page
  * of the final people, with the visitor's view kept (`pendingHref`). With nothing staged, or changes that cancel out, closing does nothing.
  *
+ * Where the visitor goes by their own choice beats it: a link followed (the way home, a view, "View their timeline" in a person's panel) or the browser's back or
+ * forward drops what is staged, so the page they chose is the one they get, not the staged page after it. A press on a link that opens in a new tab, or on
+ * non-link space, does not: closing a panel any other way still applies the changes.
+ *
  * It lives inside the page's keyed view, so a navigation to another set of people (this one's own, or any other) drops what was staged with it.
  */
 export function PeopleStagingProvider({ people, carry, children }: ProviderProps) {
@@ -58,6 +63,8 @@ export function PeopleStagingProvider({ people, carry, children }: ProviderProps
   const inFlight = useRef<string | null>(null);
 
   const final = useMemo(() => finalPeople(people, pending), [people, pending]);
+  // The visitor is going somewhere of their own: what is staged is dropped (the panel or the pill closing after it has nothing to apply).
+  const abandon = useCallback(() => setPending((now) => (now === NOTHING_PENDING ? now : NOTHING_PENDING)), []);
   const addPerson = useCallback((person: StagedPerson) => setPending((now) => stageAdd(people, now, person)), [people]);
   const removePerson = useCallback((personId: number) => setPending((now) => stageRemove(people, now, personId)), [people]);
   const hold = useCallback(() => {
@@ -65,18 +72,27 @@ export function PeopleStagingProvider({ people, carry, children }: ProviderProps
     return () => setHolders((now) => now - 1);
   }, []);
 
+  // The visitor's own navigation (a link followed, back or forward) beats what is staged: see `useExplicitNavigation`.
+  const pressing = useExplicitNavigation(abandon);
+  /** The last panel has closed and what is staged is to be applied, unless a link that the visitor is pressing takes them elsewhere first. */
+  const due = useRef(false);
+
   // The last panel has closed: apply what was staged. This runs after the render that followed the closing, so after the panel handed focus back to what opened it.
   useEffect(() => {
     const held = holders > 0;
-    const released = wasHeld.current && !held;
+    if (wasHeld.current && !held) due.current = true;
     wasHeld.current = held;
-    if (!released) return;
+    // A panel is open (again), or a link is pressed: the pill closes on the press that follows a link, before the click that follows it. The changes wait for the click
+    // (it drops them), and apply if there is none (the press moved off the link and let go: `useExplicitNavigation` says so).
+    if (held) due.current = false;
+    if (!due.current || pressing) return;
+    due.current = false;
     const href = pendingHref(people, pending, carry);
     // Nothing staged, or it cancels out; or this navigation is already on its way (a panel opened and shut again meanwhile).
     if (href === null || href === inFlight.current) return;
     inFlight.current = href;
     startNavigation(() => router.push(href));
-  }, [holders, people, pending, carry, router]);
+  }, [holders, people, pending, carry, router, pressing]);
   useEffect(() => {
     if (!navigating) inFlight.current = null;
   }, [navigating]);
@@ -86,6 +102,66 @@ export function PeopleStagingProvider({ people, carry, children }: ProviderProps
     [people, pending, final, addPerson, removePerson, hold],
   );
   return <PeopleStagingContext.Provider value={value}>{children}</PeopleStagingContext.Provider>;
+}
+
+/** How long after a press is let go a click on a link is waited for: it follows at once, a touch's a frame or two later. */
+const CLICK_FOLLOWS_MS = 300;
+
+/**
+ * Where the visitor goes by their own choice beats what is staged. A click on a link that takes this tab to another page (`followsLink`) calls `abandon`: it is caught
+ * on its way down, before the link's own handler, and the people pill's close that comes with the press before it. And `popstate` (the browser's back and forward) does.
+ *
+ * The press comes before the click, with the time it takes to let go between them, and the pill closes on the press: the staged page would be on its way, and in
+ * the way, by the time the link is let go (the page it commits to replaces the link under the pointer, and no click is made). So a press on such a link is
+ * `pressing` until the click comes (`abandon`), or the press ends without one (let go away from the link, or turned into a scroll or a drag), when the staged
+ * changes may apply after all.
+ */
+function useExplicitNavigation(abandon: () => void): boolean {
+  const [pressing, setPressing] = useState(false);
+  useEffect(() => {
+    let down = false;
+    let ended: ReturnType<typeof setTimeout> | undefined;
+    const leaves = (event: MouseEvent) => {
+      const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      return link instanceof HTMLAnchorElement && followsLink(event, { href: link.href, target: link.target, download: link.hasAttribute("download") }, window.location.href);
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      clearTimeout(ended);
+      down = leaves(event);
+      setPressing(down);
+    };
+    // A press that is let go (or taken over by a scroll or a drag) may still be followed by its click: wait for it.
+    const onPointerEnd = () => {
+      if (!down) return;
+      clearTimeout(ended);
+      ended = setTimeout(() => {
+        down = false;
+        setPressing(false);
+      }, CLICK_FOLLOWS_MS);
+    };
+    const onClick = (event: MouseEvent) => {
+      clearTimeout(ended);
+      down = false;
+      setPressing(false);
+      if (!event.defaultPrevented && leaves(event)) abandon();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("pointerup", onPointerEnd, true);
+    document.addEventListener("pointercancel", onPointerEnd, true);
+    document.addEventListener("dragstart", onPointerEnd, true);
+    document.addEventListener("click", onClick, true);
+    window.addEventListener("popstate", abandon);
+    return () => {
+      clearTimeout(ended);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("pointerup", onPointerEnd, true);
+      document.removeEventListener("pointercancel", onPointerEnd, true);
+      document.removeEventListener("dragstart", onPointerEnd, true);
+      document.removeEventListener("click", onClick, true);
+      window.removeEventListener("popstate", abandon);
+    };
+  }, [abandon]);
+  return pressing;
 }
 
 /** What is staged on the page's people, and the controls to stage more. Only inside a `/p/` page's view (`PeopleStagingProvider`). */

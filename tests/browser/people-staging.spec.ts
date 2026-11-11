@@ -203,3 +203,156 @@ test.describe("the ⌘K people search", () => {
     expect(await navigation(page)).toEqual({ marker: "the same document", pushes: [WITH_GAMMA] });
   });
 });
+
+// Where the visitor goes by their own choice beats what is staged: a link followed or the browser's back, while a panel is open with changes staged, drops them, so the page
+// they chose is the one they get and the staged page does not replace it a moment after. A press that goes nowhere (non-link space, a link that opens in a new tab) still applies them.
+test.describe("an explicit navigation beats what is staged", () => {
+  const SOLO_ALPHA = "/p/90000011-stage-alpha";
+
+  /** Opens the people pill on the collapsed bar and stages Stage Beta's removal. */
+  async function stageRemovalInPill(page: Page) {
+    await openPage(page);
+    await collapseHero(page);
+    await pillLabel(page).click();
+    const card = peopleDialog(page);
+    await expect(card).toBeVisible();
+    await card.getByRole("button", { name: "Remove Stage Beta", exact: true }).click();
+    await expect(card.locator('[data-staged="removed"]')).toHaveCount(1);
+    return card;
+  }
+
+  test("the home arrow, pressed with the pill open and a person removed, goes home: the staged page is not applied over it", async ({ page }) => {
+    await stageRemovalInPill(page);
+    await page.getByRole("link", { name: "Back to Parallel home", exact: true }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("banner")).toBeVisible();
+    // Nothing comes after it: the staged page does not replace the landing page a moment later.
+    await page.waitForTimeout(1500);
+    await expect(page).toHaveURL(/\/$/);
+    expect(new URL(page.url()).pathname).toBe("/");
+    expect((await navigation(page)).pushes.at(-1)).toBe("/");
+  });
+
+  test("the same when the press is slow: the pill has closed and the staged page is on its way before the link is let go, and the link's page still wins", async ({ page }) => {
+    await stageRemovalInPill(page);
+    const box = (await page.getByRole("link", { name: "Back to Parallel home", exact: true }).boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    // Let go of it a moment after: the pill closed on the press, so the staged navigation started in between.
+    await expect(peopleDialog(page)).toBeHidden();
+    await page.waitForTimeout(400);
+    await page.mouse.up();
+    await expect(page).toHaveURL(/\/$/);
+    await page.waitForTimeout(1500);
+    expect(new URL(page.url()).pathname).toBe("/");
+  });
+
+  test("a press that starts on the link and is let go away from it goes nowhere: the pill has closed, so what is staged applies", async ({ page }) => {
+    await stageRemovalInPill(page);
+    const box = (await page.getByRole("link", { name: "Back to Parallel home", exact: true }).boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await expect(peopleDialog(page)).toBeHidden();
+    await page.mouse.move(700, 400);
+    await page.mouse.up();
+    const finalUrl = "/p/90000011-stage-alpha?view=timeline";
+    await expect(page).toHaveURL(finalUrl);
+    expect((await navigation(page)).pushes).toEqual([finalUrl]);
+  });
+
+  test("a link in a person's panel, opened over the ⌘K search with a person added, goes where it says: View their timeline is their page, not the staged one", async ({ page }) => {
+    await mockSearch(page);
+    await openPage(page);
+    await page.keyboard.press(SHORTCUT);
+    const overlay = peopleDialog(page);
+    await overlay.getByRole("combobox", { name: "Add a person", exact: true }).fill("stage");
+    await page.getByRole("option", { name: /Stage Gamma/ }).click();
+    await expect(overlay.locator('[data-staged="added"]')).toHaveCount(1);
+
+    await overlay.getByRole("button", { name: "Stage Alpha", exact: true }).click();
+    const panel = page.getByRole("dialog", { name: /Stage Alpha/ });
+    await panel.getByRole("link", { name: /View their timeline/ }).click();
+    await expect(page).toHaveURL(SOLO_ALPHA);
+    await expect(pillLabel(page)).toHaveAttribute("aria-label", "People on this page: Stage Alpha");
+    // The overlay is gone with the page it was opened on, and what it staged is not applied after the link's page.
+    await page.waitForTimeout(1500);
+    await expect(page).toHaveURL(SOLO_ALPHA);
+    expect((await navigation(page)).pushes).toEqual([SOLO_ALPHA]);
+  });
+
+  test("the browser's back, with a change staged, goes to the history entry: closing the search after it applies nothing", async ({ page }) => {
+    await mockSearch(page);
+    await openPage(page);
+    // A second history entry for the same page (the hero's quote link makes one in the app, and the browser's back lands on the page with the same people, which stays
+    // mounted: this pair has no quotes, so the entry is made by hand).
+    const second = `${PAIR}?view=timeline&entry=2`;
+    await page.evaluate((url) => history.pushState(null, "", url), second);
+    await expect(page).toHaveURL(second);
+
+    await page.keyboard.press(SHORTCUT);
+    const overlay = peopleDialog(page);
+    await overlay.getByRole("combobox", { name: "Add a person", exact: true }).fill("stage");
+    await page.getByRole("option", { name: /Stage Gamma/ }).click();
+    await expect(overlay.locator('[data-staged="added"]')).toHaveCount(1);
+
+    await page.evaluate(() => history.back());
+    await expect(page).toHaveURL(`${PAIR}?view=timeline`);
+    // What was staged is dropped (the search is still open, and says so), and closing it does not take the page to the staged one.
+    await expect(overlay.locator("[data-staged]")).toHaveCount(0);
+    await page.keyboard.press(SHORTCUT);
+    await expect(overlay).toBeHidden();
+    await page.waitForTimeout(1500);
+    await expect(page).toHaveURL(`${PAIR}?view=timeline`);
+    expect(await navigation(page)).toEqual({ marker: "the same document", pushes: [second] });
+
+    // Staging again after it works as it did.
+    await page.keyboard.press(SHORTCUT);
+    await overlay.getByRole("combobox", { name: "Add a person", exact: true }).fill("stage");
+    await page.getByRole("option", { name: /Stage Gamma/ }).click();
+    await page.keyboard.press(SHORTCUT);
+    await expect(page).toHaveURL(WITH_GAMMA);
+  });
+
+  test("a press on space that is not a link still applies what is staged when the pill closes", async ({ page }) => {
+    const card = await stageRemovalInPill(page);
+    await page.mouse.click(700, 400);
+    await expect(card).toBeHidden();
+    const finalUrl = "/p/90000011-stage-alpha?view=timeline";
+    await expect(page).toHaveURL(finalUrl);
+    expect((await navigation(page)).pushes).toEqual([finalUrl]);
+  });
+
+  test("a link that opens in a new tab is not leaving: the film panel's Open on TMDB leaves what is staged for when the panel closes", async ({ page, context }) => {
+    await context.route("https://www.themoviedb.org/**", (route) => route.fulfill({ contentType: "text/html", body: "<title>TMDB</title><p>TMDB</p>" }));
+    await openPage(page);
+    await openFilm(page);
+    const dialog = filmPanel(page);
+    await dialog.getByRole("button", { name: "Add Stage Gamma to timeline", exact: true }).click();
+    await expect(dialog.getByRole("status")).toContainText("Stage Gamma will join the timeline");
+
+    const opened = context.waitForEvent("page");
+    await dialog.getByRole("link", { name: /Open on TMDB/ }).click();
+    const tab = await opened;
+    await tab.close();
+    await page.bringToFront();
+    // Nothing happened to the page or to what it staged.
+    await expect(dialog.getByRole("button", { name: /^Stage Gamma is added to the timeline/ })).toBeVisible();
+    await expect(page).toHaveURL(`${PAIR}?view=timeline`);
+
+    await page.keyboard.press("Escape");
+    await expect(page).toHaveURL(WITH_GAMMA);
+    expect((await navigation(page)).pushes).toEqual([WITH_GAMMA]);
+  });
+
+  test.describe("on a phone", () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+    test("a tap on the home arrow with the pill open and a person removed goes home", async ({ page }) => {
+      await stageRemovalInPill(page);
+      await page.getByRole("link", { name: "Back to Parallel home", exact: true }).tap();
+      await expect(page).toHaveURL(/\/$/);
+      await page.waitForTimeout(1500);
+      expect(new URL(page.url()).pathname).toBe("/");
+    });
+  });
+});
