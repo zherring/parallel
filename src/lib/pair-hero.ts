@@ -185,9 +185,9 @@ export function visibleChips<T>(chips: readonly T[], expanded: boolean, limit = 
 export const COLLAPSE_PX = 48;
 
 /**
- * Whether the hero is collapsed into the compact bar: the view's main scroller is `COLLAPSE_PX` or more from where it landed (`landing`: its
- * offset when the view opened, which Focus does mid-career and the Table and Quotes at 0), in either direction. Back within that of the landing
- * it is expanded again.
+ * Whether the hero is collapsed into the compact bar: the view's main scroller is `COLLAPSE_PX` or more from where it started (`landing`: its
+ * offset when the view opened: the top, 0, for Films, the Table and the Quotes; the Timeline's left end, and its bottom where it scrolls down), in either direction. Back
+ * within that of the start it is expanded again.
  */
 export function heroCollapsed(offset: number, landing: number, threshold = COLLAPSE_PX): boolean {
   return Math.abs(offset - landing) >= threshold;

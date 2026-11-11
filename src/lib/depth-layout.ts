@@ -11,7 +11,7 @@
  * viewport, so the server and the browser render the same markup. What differs between a phone and a desktop is only
  * the horizontal spacing (`xSpec`: bands, column step) and the size of the films several people made (they grow with a large
  * screen: `COLLAB_SIZE`), which CSS custom properties per breakpoint carry (`depthSceneCss`) and which the focus field mirrors in
- * numbers (`docCenterX`); the only other thing that needs the viewport is the initial scroll (`anchorScrollTop`). The packing of
+ * numbers (`docCenterX`). The packing of
  * those films down the axis is for the largest they can be (`DEPTH.collabMax`), so that none overlap at any width.
  *
  * Within its person's layer a background poster is pushed further back the more obscure its film is (`obscurity`,
@@ -248,8 +248,6 @@ export interface DepthLayout {
   scale: Scale;
   /** Height (px) of the scroll area: it follows every film, never layer 0 alone, so a page with nothing shared still scrolls. */
   trackHeight: number;
-  /** Document y the view opens on (see `anchorScrollTop`), or null to open at the top. */
-  anchorY: number | null;
   /** Layers to draw: one for the shared films and one per person. */
   layerCount: number;
   /** Whether any released film is made by several people. */
@@ -258,8 +256,8 @@ export interface DepthLayout {
 
 /**
  * Room (px) the scene adds above its first year and below its last, on top of `DEPTH.pad`, when the pair hero is over its top: the hero's band covers the top of the
- * screen while it is open, and a scene whose first collaboration is where the axis starts (no earlier films, so nothing to scroll up to) would open with that poster under
- * it. A band is about 300px tall on a desktop and on a phone.
+ * screen while it is open, and the scene opens at its start (scrollTop 0, the earliest year at the top), so without this room the first poster would open under it.
+ * A band is about 300px tall on a desktop, and 170 to 210px on a phone.
  */
 export const HERO_ROOM_PX = 180;
 
@@ -671,34 +669,7 @@ export function depthLayout(
     films,
     scale,
     trackHeight,
-    anchorY: anchorYOf(placeable, peopleCount, scale),
     layerCount: Math.max(1, peopleCount) + 1,
     hasShared: placeable.some((entry) => entry.shared),
   };
-}
-
-/**
- * Where the view should open: the first film several people made; failing that (two or more people), the point
- * where the latest-starting person begins, so every person has something in view (the vertical twin of
- * `initialAnchorX`); with one person, nothing (open at the beginning).
- */
-function anchorYOf(entries: readonly CombinedFilm[], peopleCount: number, scale: Scale): number | null {
-  if (peopleCount < 2) return null;
-  const yOf = (entry: CombinedFilm) => xForDate(scale, entry.film.releaseDate);
-  const sharedYs = entries.filter((entry) => entry.shared).map(yOf);
-  if (sharedYs.length > 0) return Math.min(...sharedYs);
-  // The year each person's first film is released at; the anchor is the latest of them.
-  const firstOf = new Map<number, number>();
-  for (const entry of entries) {
-    const y = yOf(entry);
-    for (const slot of entry.slots) firstOf.set(slot, Math.min(firstOf.get(slot) ?? y, y));
-  }
-  return firstOf.size > 0 ? Math.max(...firstOf.values()) : null;
-}
-
-/** The scrollTop that puts `anchorY` in the middle of a viewport `viewportH` tall; 0 without an anchor. */
-export function anchorScrollTop(anchorY: number | null, viewportH: number, trackHeight: number): number {
-  if (anchorY === null) return 0;
-  const max = Math.max(0, trackHeight - viewportH);
-  return Math.min(max, Math.max(0, Math.round(anchorY - viewportH / 2)));
 }

@@ -14,9 +14,9 @@ interface HeroCollapseOptions {
    * screen (a short career at a wide zoom-out) has nothing to scroll sideways, and then its rows, which scroll down, are what moves; either one, 48px from where it landed, collapses the hero.
    */
   axis: "x" | "y" | "both";
-  /** Where the scroller lands, when that is known up front (the Table and the Quotes land at the top of the page, 0). Without it the landing is wherever the scroller is a frame after the view opened: Films lands mid-career, the Timeline at its first collaboration. */
+  /** Where the scroller starts, when that is known up front (Films, the Table and the Quotes start at the top, 0). Without it the start is wherever the scroller is a frame after the view opened: the Timeline starts at its left end, and at its bottom where it scrolls down too. */
   landing?: number;
-  /** A different key is a different view: the hero starts expanded again and the landing is read again. */
+  /** A different key is a different view: the hero starts expanded again and the start is read again. */
   resetKey: string;
 }
 

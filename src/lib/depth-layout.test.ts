@@ -9,7 +9,6 @@ import {
   PULL,
   SOLO_COLUMNS,
   TIER_MIN_WIDTH,
-  anchorScrollTop,
   bandFor,
   columnIndex,
   collabHeight,
@@ -778,8 +777,6 @@ describe("depthLayout", () => {
       expect(moved.y - film.y, `film ${film.film.id}`).toBe(HERO_ROOM_PX);
       expect([moved.layer, moved.col, moved.w, moved.h]).toEqual([film.layer, film.col, film.w, film.h]);
     }
-    // The scene opens where it did: the anchor is the same film, the same HERO_ROOM_PX further down.
-    expect(roomy.anchorY! - base.anchorY!).toBe(HERO_ROOM_PX);
   });
 
   it("lists the films layer by layer, each layer top to bottom", () => {
@@ -825,13 +822,12 @@ describe("depthLayout", () => {
     expect(l.films.every((f) => f.layer > 0)).toBe(true);
   });
 
-  it("brackets today when there are no films, and has no anchor", () => {
+  it("brackets today when there are no films", () => {
     const l = depthLayout([], 1, TODAY);
     expect(l.films).toEqual([]);
     expect(l.scale.axisStartYear).toBe(2025);
     expect(l.scale.axisEndYear).toBe(2027);
     expect(l.trackHeight).toBe(DEPTH.pad * 2 + 2 * DEPTH.pxPerYear);
-    expect(l.anchorY).toBeNull();
     expect(l.hasShared).toBe(false);
   });
 
@@ -962,48 +958,6 @@ describe("depthLayout", () => {
       const dates = Array.from({ length: 40 }, (_, i): [number, string] => [200 + i, `${1900 + i * 3}-06-01`]);
       expect(layout([dates, [[1, "1890-01-01"]]]).films.map((f) => f.col)).toEqual(layout([dates, [[1, "1890-01-01"]]]).films.map((f) => f.col));
     });
-  });
-
-  describe("anchorY", () => {
-    it("is the first film several people made", () => {
-      const l = layout(pair_());
-      expect(l.anchorY).toBe(xForDate(l.scale, "2000-01-01"));
-    });
-
-    it("is, with two or more people and nothing shared, where the latest-starting person begins", () => {
-      const l = layout([[[1, "1980-01-01"], [2, "2010-01-01"]], [[3, "1995-01-01"], [4, "2005-01-01"]]]);
-      expect(l.anchorY).toBe(xForDate(l.scale, "1995-01-01"));
-    });
-
-    it("ignores a person with no films, and is null for a person on their own and for no films", () => {
-      const l = layout([[[1, "1980-01-01"]], []]);
-      expect(l.anchorY).toBe(xForDate(l.scale, "1980-01-01"));
-      expect(layout([[[1, "1980-01-01"], [2, "1990-01-01"]]]).anchorY).toBeNull();
-      expect(layout([[], []]).anchorY).toBeNull();
-    });
-
-    function pair_(): [number, string][][] {
-      return [
-        [[1, "1990-01-01"], [2, "2000-01-01"]],
-        [[3, "1985-01-01"], [2, "2000-01-01"]],
-      ];
-    }
-  });
-});
-
-describe("anchorScrollTop", () => {
-  it("centres the anchor in the viewport", () => {
-    expect(anchorScrollTop(2000, 800, 10_000)).toBe(1600);
-  });
-
-  it("stays inside the scroll area", () => {
-    expect(anchorScrollTop(100, 800, 10_000)).toBe(0);
-    expect(anchorScrollTop(9900, 800, 10_000)).toBe(9200);
-    expect(anchorScrollTop(500, 800, 600)).toBe(0);
-  });
-
-  it("opens at the top without an anchor", () => {
-    expect(anchorScrollTop(null, 800, 10_000)).toBe(0);
   });
 });
 

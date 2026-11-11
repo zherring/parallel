@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useId, useLayoutEffect, useMemo, useRef, type FocusEvent, type PointerEvent, type RefObject } from "react";
+import { useCallback, useId, useMemo, useRef, type FocusEvent, type PointerEvent, type RefObject } from "react";
 import { DepthPoster } from "@/components/depth/depth-poster";
 import { useFocusField } from "@/components/depth/use-focus-field";
 import { IMAGE_WINDOW, usePosterImages } from "@/components/depth/use-poster-images";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "@/components/timeline/film-popover";
 import { useDragPan, type DragPanOptions } from "@/components/timeline/use-drag-pan";
 import type { CombinedFilmInfo } from "@/lib/combined-track";
-import { anchorScrollTop, depthSceneCss, layerDepth, posterFactor, type DepthFilm, type DepthLayout } from "@/lib/depth-layout";
+import { depthSceneCss, layerDepth, posterFactor, type DepthFilm, type DepthLayout } from "@/lib/depth-layout";
 import { inWindow } from "@/lib/depth-projection";
 import { filmCardContent } from "@/lib/film-credits";
 import { joinNames } from "@/lib/format";
@@ -43,9 +43,6 @@ interface DepthSceneProps {
 
 /** The scene pans by mouse like the flat timeline, but only up and down, and from posters too (a click still opens one; a drag does not). */
 const PAN: DragPanOptions = { interactive: null, axis: "y" };
-
-/** The room (px) the scene leaves between the bottom of the pair hero's band and the first collaboration's poster when it opens. */
-const HERO_POSTER_GAP_PX = 16;
 
 /** The viewport height (px) the posters that are fetched up front are chosen for: the server does not know the real one. */
 const NOMINAL_VIEWPORT_H = 900;
@@ -133,40 +130,21 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
   }, [layout.films]);
   const byId = useMemo(() => new Map(layout.films.map((item) => [item.film.id, item])), [layout.films]);
 
-  // Open on the first film made together (or where the latest-starting person begins), not at the oldest year.
-  const didInitialScroll = useRef(false);
-  const { anchorY, trackHeight } = layout;
-  const layoutFilms = layout.films;
-  useLayoutEffect(() => {
-    const scroller = scrollerRef.current;
-    if (!scroller || didInitialScroll.current) return;
-    didInitialScroll.current = true;
-    scroller.scrollTop = anchorScrollTop(anchorY, scroller.clientHeight, trackHeight);
-    // The pair hero is open over the top of the scene when it opens: if its band would cover the first collaboration's poster (a long quote, a phone, four
-    // people), the scene opens that much further up, so that the poster is just under the band. Where the band leaves it clear nothing moves.
-    const band = document.querySelector<HTMLElement>("[data-people-bar][data-hero='expanded'][data-hero-placement='band']");
-    const first = layoutFilms.filter((item) => item.shared).reduce<DepthFilm | null>((top, item) => (top === null || item.y < top.y ? item : top), null);
-    const poster = first ? scroller.querySelector<HTMLElement>(`[data-film="${first.film.id}"]`) : null;
-    if (band && poster) {
-      const covered = band.getBoundingClientRect().bottom + HERO_POSTER_GAP_PX - poster.getBoundingClientRect().top;
-      if (covered > 0) scroller.scrollTop = Math.max(0, scroller.scrollTop - Math.ceil(covered));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the scene opens once: the films it opens on are the first render's
-  }, [scrollerRef, anchorY, trackHeight]);
-
+  const { trackHeight } = layout;
   useFocusField(scrollerRef, layout.films, people.length);
   usePosterImages(scrollerRef, layout.films);
 
   // The posters whose images are in the markup (see `DepthPoster`'s `eager`): those within the fetch window of where the
-  // scene opens, worked out for a nominal viewport so the server and the browser agree. The rest wait for `usePosterImages`.
-  const eagerIds = useMemo(() => {
-    const top = anchorScrollTop(anchorY, NOMINAL_VIEWPORT_H, trackHeight);
-    return new Set(
-      layout.films
-        .filter((item) => inWindow(item.y, top, NOMINAL_VIEWPORT_H, posterFactor(item), IMAGE_WINDOW * NOMINAL_VIEWPORT_H))
-        .map((item) => item.film.id),
-    );
-  }, [layout.films, anchorY, trackHeight]);
+  // scene opens (its start: the earliest year at the top), worked out for a nominal viewport so the server and the browser agree. The rest wait for `usePosterImages`.
+  const eagerIds = useMemo(
+    () =>
+      new Set(
+        layout.films
+          .filter((item) => inWindow(item.y, 0, NOMINAL_VIEWPORT_H, posterFactor(item), IMAGE_WINDOW * NOMINAL_VIEWPORT_H))
+          .map((item) => item.film.id),
+      ),
+    [layout.films],
+  );
 
   // ---- hover, focus and the film card ---------------------------------------
   const popoverId = useId();

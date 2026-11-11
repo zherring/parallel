@@ -32,23 +32,43 @@ function shadowColours(value: string): { rgb: number[]; alpha: number }[] {
 }
 
 /**
- * Opens the Depth view and waits for it to settle: the rail's handle reports where the scene is, and the scene
- * opens on the first collaboration (2000), not at the top of the axis (1990), so a position past 0 means the
- * initial scroll has happened.
+ * Opens the Depth view and waits for it to be live (the gear's sheet opens and closes: a state transition, not a sleep). The scene opens at its start, the top of the axis (the earliest year),
+ * with the room the pair hero's band needs above it (`HERO_ROOM_PX`), and not scrolled to anything.
  */
 async function openDepthLanded(page: Page, search = "") {
   await page.goto(`${PEOPLE_PATH}?view=depth${search}`);
   await expect(scene(page)).toBeVisible();
-  await expect.poll(async () => Number(await rail(page).getAttribute("aria-valuenow"))).toBeGreaterThan(0);
+  await expect(rail(page)).toBeVisible();
+  await hydrated(page);
+}
+
+/** Waits until the page is live: a state transition (the gear's sheet opening and closing, pressed again until it opens), not a sleep. */
+async function hydrated(page: Page) {
+  const sheet = page.getByRole("dialog", { name: "Settings", exact: true });
+  await expect(async () => {
+    if (!(await sheet.isVisible())) await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await expect(sheet).toBeVisible({ timeout: 1500 });
+  }).toPass({ timeout: 20_000 });
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
 }
 
 /**
- * Opens the scene and moves it a little (60px), so that the pair hero, which is open over the top of the scene when it lands, has collapsed into the compact bar: the
- * specs of the scene itself are about its posters, which the hero's band would cover, and about the people pill, which takes the names' place once the hero has collapsed.
- * The hero is the subject of pair-hero.spec.ts, and `openDepthLanded` is the scene as it lands.
+ * Opens the scene and scrolls it to the first collaboration (the scene itself opens at its start, the top of the axis, and the specs about the posters want one
+ * in the middle of the screen), as a visitor who scrolls down to it sees it. The pair hero has collapsed by then, having been scrolled away from the start.
+ */
+async function openDepthAtFirstCollab(page: Page, search = "") {
+  await openDepthLanded(page, search);
+  await scrollToCentre(page, 100);
+}
+
+/**
+ * Opens the scene at the first collaboration and moves it a little more (60px), so that the pair hero, which is open over the top of the scene when it opens, has
+ * collapsed into the compact bar: the specs of the scene itself are about its posters, which the hero's band would cover, and about the people pill, which takes the
+ * names' place once the hero has collapsed. The hero is the subject of pair-hero.spec.ts, and `openDepthLanded` is the scene as it opens.
  */
 async function openDepth(page: Page, search = "") {
-  await openDepthLanded(page, search);
+  await openDepthAtFirstCollab(page, search);
   await collapseHero(page, 60);
 }
 
@@ -65,20 +85,19 @@ async function showAllFilms(page: Page) {
   await expect(sheet).toBeHidden();
 }
 
-test("the scene opens scrolled to the first collaboration", async ({ page }) => {
+test("the scene opens at its start: scrolled to the top, with the earliest year just under the hero's band", async ({ page }) => {
   await openDepthLanded(page);
   const region = scene(page);
 
-  await expect.poll(() => region.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  // Collaborations are the layer at the screen plane, so the first one is level with the middle of the screen: the middle of the room the pair hero's band leaves,
-  // which is open over the top of the scene when it lands (the first collaboration is never under it, whatever the room).
-  const poster = region.getByRole("button", { name: FIRST_SHARED });
-  await expect(poster).toBeVisible();
-  const box = (await poster.boundingBox())!;
-  const viewport = page.viewportSize()!;
+  await expect(region).toBeVisible();
+  // Not scrolled to anything (and it stays there: nothing moves it after it has opened).
+  await expect(page.locator("[data-people-bar]")).toHaveAttribute("data-hero", "expanded");
+  expect(await region.evaluate((element) => element.scrollTop)).toBe(0);
+  await expect.poll(() => region.evaluate((element) => element.scrollTop)).toBe(0);
+  // The earliest film is the top of the scene, clear of the hero's band, which is open over the top of the screen when it opens (the room above the first year is the band's).
   const band = (await page.locator("[data-people-bar]").boundingBox())!;
-  expect(box.y).toBeGreaterThanOrEqual(band.y + band.height);
-  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+  const topmost = await region.evaluate((element) => Math.min(...[...element.querySelectorAll<HTMLElement>("[data-film]")].map((poster) => poster.getBoundingClientRect().top)));
+  expect(topmost).toBeGreaterThanOrEqual(band.y + band.height);
 
   // The depth: collaborations in front, then one layer behind per person.
   await expect(region.locator("ol")).toHaveCount(3);
@@ -114,7 +133,7 @@ for (const [width, height, laid] of [
     test.use({ viewport: { width, height }, hasTouch: width < 640, isMobile: width < 640 });
 
     test(`the films made together are laid out ${laid}px wide, 2:3, on the centre line and the grown column steps, never on one another, with their labels clear`, async ({ page }) => {
-      await openDepthLanded(page);
+      await openDepthAtFirstCollab(page);
       const region = scene(page);
       const spec = xSpec(tierOf(width), 2);
       const vmax = Math.max(width, height);
@@ -1936,7 +1955,8 @@ test("until its image arrives a poster is the dark surface tinted with its perso
     // The page's load waits for images that are in the markup, so it is the scene that is waited for.
     await page.goto(`${PEOPLE_PATH}?view=depth`, { waitUntil: "domcontentloaded" });
     await expect(scene(page)).toBeVisible();
-    await expect.poll(async () => Number(await rail(page).getAttribute("aria-valuenow"))).toBeGreaterThan(0);
+    await expect(rail(page)).toBeVisible();
+    await hydrated(page);
     await showAllFilms(page);
     // A jump (as along the rail) to posters whose images were not asked for before it.
     await scrollToCentre(page, 1011);
@@ -2259,7 +2279,7 @@ for (const [width, height] of [[1440, 900], [1600, 900], [1920, 1080]] as const)
 
     for (const where of ["top", "middle", "bottom"] as const) {
       await scene(page).evaluate((scroller, at) => {
-        scroller.scrollTop = at === "top" ? 0 : at === "middle" ? (scroller.scrollHeight - scroller.clientHeight) / 2 : scroller.scrollHeight;
+        scroller.scrollTop = at === "top" ? 60 : at === "middle" ? (scroller.scrollHeight - scroller.clientHeight) / 2 : scroller.scrollHeight;
       }, where);
       await page.waitForTimeout(150);
       for (const shrink of [true, false]) {

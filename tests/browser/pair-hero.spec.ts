@@ -36,13 +36,12 @@ const WORD: Record<ViewName, string> = { timeline: "Timeline", table: "Table", c
 /** The control's current segment, found without looking at whether it is shown (a phone's bar hides the control: its sheet has it). */
 const currentSegment = (page: Page) => bar(page).locator('nav[aria-label="Views"] a[aria-current="page"]');
 
-/** Opens a view of the pair, live, with its hero open. Films has landed mid-career by then. */
+/** Opens a view of the pair, live, with its hero open and every view at its start. */
 async function openView(page: Page, view: ViewName) {
   await page.goto(`${PAIR}${VIEWS[view]}`);
   if (view === "focus") await expect(scene(page)).toBeVisible();
   else await expect(currentSegment(page)).toHaveText(WORD[view]);
   await hydrated(page);
-  if (view === "focus") await expect.poll(() => scene(page).evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
   await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
   // One frame for the landing to be read.
   await frames(page, 3);
@@ -182,6 +181,29 @@ test.describe("at 1440px wide", () => {
     expect(measured.focus.gear.x).toBeLessThan(measured.timeline.gear.x);
   });
 
+  test("every view opens at its start: Films at the top of the scene, the Timeline at its left end (and at its bottom where it scrolls down), the Table and the Quotes at the top of the page", async ({ page }) => {
+    // (The Timeline of this pair is no wider than a wide screen: on a narrower one it has room to scroll sideways, so that its left end is a position and not the only one.)
+    await page.setViewportSize({ width: 900, height: 600 });
+    for (const view of ALL_VIEWS) {
+      await openView(page, view);
+      const start = await page.evaluate((name) => {
+        if (name === "focus") {
+          const scroller = document.querySelector<HTMLElement>("[data-depth-scene]")!;
+          return { left: 0, top: scroller.scrollTop, bottomGap: 0 };
+        }
+        if (name === "timeline") {
+          const scroller = [...document.querySelectorAll<HTMLElement>('[aria-label^="Film timeline. Scroll sideways"]')].find((e) => e.getClientRects().length > 0)!;
+          return { left: scroller.scrollLeft, top: scroller.scrollTop, bottomGap: scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop };
+        }
+        return { left: window.scrollX, top: window.scrollY, bottomGap: 0 };
+      }, view);
+      expect(start.left, `${view}: scrollLeft`).toBe(0);
+      // The Timeline sits at the bottom of its track (all of it, within a pixel), wherever that is; the others at the top.
+      if (view === "timeline") expect(start.bottomGap, `${view}: distance from the bottom`).toBeLessThanOrEqual(1);
+      else expect(start.top, `${view}: scrollTop`).toBe(0);
+    }
+  });
+
   // ---- collapsing ----------------------------------------------------------------------------------------------------
 
   for (const view of ALL_VIEWS) {
@@ -190,9 +212,8 @@ test.describe("at 1440px wide", () => {
       await page.setViewportSize({ width: view === "timeline" ? 900 : 1440, height: 600 });
       await openView(page, view);
       const landed = await landing(page, view);
-      // Films lands mid-career, on the first collaboration: its landing is that scrollTop, not 0. The Table and the Quotes land at the top of the page.
-      if (view === "focus") expect(landed).toBeGreaterThan(0);
-      if (view === "table" || view === "clippings") expect(landed).toBe(0);
+      // Every view starts at its start: Films at the top of the scene, the Timeline at its left end, the Table and the Quotes at the top of the page.
+      expect(landed).toBe(0);
 
       await scrollTo(page, view, landed + 47);
       expect(await heroState(page)).toBe("expanded");
@@ -207,13 +228,6 @@ test.describe("at 1440px wide", () => {
       await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
       await expect(title(page)).toBeVisible();
       await expect(pill(page)).toBeHidden();
-      // Moving the other way counts too, for a view that has room (everything but the top of the page).
-      if (landed >= 100) {
-        await scrollTo(page, view, landed - 60);
-        await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
-        await scrollTo(page, view, landed);
-        await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
-      }
     });
   }
 
@@ -521,7 +535,7 @@ test.describe("at 1440px wide", () => {
     };
     await clear("open");
     // Collapsed, from the top of the scene to the bottom: the window's middle is nearest the bar at the top.
-    await scrollTo(page, "focus", 0);
+    await scrollTo(page, "focus", 60);
     await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
     await expect.poll(async () => (await box(page.locator("[data-depth-rail] > div").first())).y).toBe(0);
     await clear("collapsed, at the top of the scene");
@@ -587,7 +601,7 @@ test.describe("at 390px wide", () => {
       }
     };
     await clear("open");
-    await scrollTo(page, "focus", 0);
+    await scrollTo(page, "focus", 60);
     await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
     await expect.poll(async () => (await box(page.locator("[data-depth-rail] > div").first())).y).toBe(0);
     await clear("collapsed");

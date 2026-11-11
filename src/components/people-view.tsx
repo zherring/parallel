@@ -209,7 +209,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
 
   // ---- the pair hero ------------------------------------------------------------------------------------------------------------------
   const { subtitle, chips } = usePairHero({ timelines, rows, includeMinor });
-  // The view's main scroller: the Timeline's track, sideways (or down, where it has nothing to scroll sideways), from where it landed (its first collaboration); the Table and the Quotes are the page, from its top.
+  // The view's main scroller: the Timeline's track, sideways (or down, where it has nothing to scroll sideways), from where it starts (its left end, and its bottom where it scrolls down); the Table and the Quotes are the page, from its top.
   const timelineView = view === "timeline";
   const getHeroScroller = useCallback(() => (timelineView ? (timelineRef.current?.getScroller() ?? null) : window), [timelineView]);
   const { collapsed, collapse } = useHeroCollapse({

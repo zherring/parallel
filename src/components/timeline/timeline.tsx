@@ -43,8 +43,6 @@ import {
   cardWidthOf,
   centerYear,
   filmMembership,
-  initialAnchorX,
-  initialScrollLeft,
   lineYInLane,
   makeScale,
   nextZoom,
@@ -302,11 +300,6 @@ export function Timeline({
     const connectorLanes = items.map((laneItems, index) => ({ box: stack[index], items: laneItems }));
     const connectors = buildConnectors(connectorLanes, today);
     const membership = filmMembership(connectorLanes, today);
-    // Released films every lane shows. With people hidden that is shared among the visible ones
-    // only, like the green treatment; the page's own all-people set would anchor on a film a
-    // hidden person was part of.
-    const litNow = new Set([...membership].filter(([, shownIn]) => shownIn.length === trackLanes.length).map(([id]) => id));
-
     // The kind of connection, the colour and the screen-reader note of each film shown in more than one lane.
     const names = trackLanes.map((lane) => shortName(lane.person.name, lane.person.id));
     const keys = new Map<number, string>();
@@ -339,11 +332,6 @@ export function Timeline({
       keys,
       accents,
       notes,
-      // The combined track starts at the first film several people made, when there is one;
-      // the separate lanes at the first film every visible lane shows.
-      anchorX: isCombined
-        ? (items[0].find((item) => priorityIds.has(item.film.id))?.x ?? null)
-        : initialAnchorX(items, litNow),
     };
   }, [entries, showAll, isCombined, lanes, pxPerYear, today, trackLanes]);
 
@@ -528,11 +516,9 @@ export function Timeline({
     return () => observer.disconnect();
   }, [updateEdges]);
 
-  // When the timeline is first shown it starts at the first film made together (or at the beginning
-  // for one lane). Every later time it is shown (its tab was hidden: display none forgets the
-  // scroll position) it is put back where it was; see `lastSeen`. A year queued by `rememberCenter`
-  // while it was hidden wins over the pixel position, because the axis may have moved meanwhile.
-  const { anchorX } = layout;
+  // When the timeline is first shown it starts at its start: scrolled fully left (the earliest year), and, where the track scrolls vertically too (more rows than fit),
+  // at the bottom, on its baseline. Every later time it is shown (its tab was hidden: display none forgets the scroll position) it is put back where it was; see
+  // `lastSeen`. A year queued by `rememberCenter` while it was hidden wins over the pixel position, because the axis may have moved meanwhile.
   useLayoutEffect(() => {
     const shown = active && !wasActive.current;
     wasActive.current = active;
@@ -542,10 +528,8 @@ export function Timeline({
 
     if (!didInitialScroll.current) {
       didInitialScroll.current = true;
-      scroller.scrollLeft = initialScrollLeft(anchorX, viewportTrackWidth());
-      // Initial Combined views should stand on their baseline, even when shared posters force
-      // more rows than fit. Keep this one-time placement separate from later manual zooms.
-      if (isCombined) scroller.scrollTop = scroller.scrollHeight;
+      scroller.scrollLeft = 0;
+      scroller.scrollTop = scroller.scrollHeight;
     } else if (lastSeen.current) {
       if (pendingCenter.current === null) scroller.scrollLeft = lastSeen.current.left;
       scroller.scrollTop = lastSeen.current.top;
@@ -553,7 +537,7 @@ export function Timeline({
     remember();
     updateEdges();
     updateActiveLane();
-  }, [active, anchorX, isCombined, remember, updateActiveLane, updateEdges]);
+  }, [active, remember, updateActiveLane, updateEdges]);
 
   // Zoom and the minor toggle can move the axis; keep whatever year was centred in place. While the
   // timeline is hidden the year comes from where it was last seen, and is placed once it is shown.
