@@ -68,8 +68,8 @@ const markersOf = (text: string) => [...text.matchAll(/\[(\d+)\]/g)].map((match)
 describe("the curated descriptions", () => {
   const entries = Object.entries(PAIR_DESCRIPTIONS);
 
-  it("are the nine pairs researched so far", () => {
-    expect(entries).toHaveLength(9);
+  it("are the fifty pairs researched so far", () => {
+    expect(entries).toHaveLength(50);
     expect(Object.keys(PAIR_DESCRIPTIONS)).toContain("525+74401");
     expect(Object.keys(PAIR_DESCRIPTIONS)).toContain("3146+3147");
   });
@@ -108,10 +108,12 @@ describe("the curated descriptions", () => {
     }
   });
 
-  it("links https pages, except the one known http page (Ain't It Cool News's legacy site)", () => {
+  it("links https pages, except the two known http pages (Ain't It Cool News's legacy site and KQED's Shape of Water piece)", () => {
     const http = entries.flatMap(([key, entry]) => entry.sources.filter((source) => !source.url.startsWith("https://")).map((source) => ({ key, ...source })));
-    expect(http).toHaveLength(1);
-    expect(http[0].url).toMatch(/^http:\/\/legacy\.aintitcool\.com\//);
+    expect(http.map((source) => source.url)).toEqual([
+      "http://legacy.aintitcool.com/node/18753",
+      "http://www.kqed.org/arts/13826205/shape-of-water-creature-actor-understands-the-monsters",
+    ]);
     for (const [key, entry] of entries) {
       for (const source of entry.sources) {
         expect(isWebUrl(source.url), `${key}: ${source.url}`).toBe(true);
