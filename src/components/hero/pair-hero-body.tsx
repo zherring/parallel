@@ -33,10 +33,11 @@ interface PairHeroBodyProps {
 
 /**
  * The pair hero's body, under the bar's row: a portrait for each person (a button that opens their biography, as their name does), beside them the note
- * (the pair's first quote, else a curated description, else the pair's one-line blurb: see `pickHeroNote`), and a chip for each film. On a phone it stacks
- * (smaller portraits, the note below them, the chips in one row that scrolls sideways).
+ * (the pair's first quote, else a curated description, else the pair's one-line blurb: see `pickHeroNote`), and a chip for each film. On a phone it is
+ * short (the bar's row, with the names, the people pill and the gear, is the rest of the hero): small portraits float at the left of the note, which
+ * wraps round them and under them whole.
  *
- * The first `CHIP_LIMIT` chips are shown; "+N more" is the rest, which it opens inline. A chip takes the view to its film (see the views' own jump); the
+ * The first `CHIP_LIMIT` chips are shown, on one line at every width; "+N more" is the rest, which it opens inline (and then they wrap). A chip takes the view to its film (see the views' own jump); the
  * hero is expanded when the visitor arrives and collapses as they scroll (see `useHeroCollapse`), at which point the people pill takes the names' place in the bar.
  */
 export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, together, onChip, className }: PairHeroBodyProps) {
@@ -50,9 +51,10 @@ export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, tog
   }, [expanded]);
 
   return (
-    <div data-hero-body className={cn("flex min-w-0 flex-col gap-3", className)}>
-      <div className="flex min-w-0 items-center gap-5 max-sm:flex-col max-sm:items-start max-sm:gap-3">
-        <ul className="m-0 flex list-none items-start gap-3.5 p-1 max-sm:gap-3">
+    <div data-hero-body className={cn("flex min-w-0 flex-col gap-3 max-sm:gap-1.5", className)}>
+      {/* A row of the portraits and the note; on a phone a block the portraits float in (`flow-root` holds them when there is no note beside them). */}
+      <div className="flex min-w-0 items-center gap-5 max-sm:flow-root">
+        <ul className="m-0 flex list-none items-start gap-3.5 p-1 max-sm:float-left max-sm:mr-2.5 max-sm:gap-2 max-sm:p-0">
           {people.map(({ person, roles, slot }) => (
             <li key={person.id} data-hero-portrait={person.id} className="inline-flex">
               {/* The portrait opens the biography, as the name does (and as the people pill's rows and the Quotes' names do). */}
@@ -65,7 +67,7 @@ export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, tog
                     name={person.name}
                     profilePath={person.profilePath}
                     ringColor={personColor(slot)}
-                    className="h-28 w-[4.75rem] max-sm:h-[4.5rem] max-sm:w-12 max-sm:text-base"
+                    className="h-28 w-[4.75rem] max-sm:h-11 max-sm:w-[1.875rem] max-sm:text-xs"
                   />
                 }
               />
@@ -80,9 +82,10 @@ export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, tog
           ref={chipsRef}
           role="group"
           aria-label={together ? "Films made together" : "Films"}
-          // One row that scrolls sideways on a phone; wrapped rows beside it. `relative`: the visually hidden words of "+N more" are absolutely positioned, and without
-          // a positioned box round them the scroller does not contain them (they would widen the page to where they sit, past the last chip).
-          className="relative flex flex-wrap items-center gap-2 p-0.5 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:[scrollbar-width:none]"
+          // One line while "+N more" is closed (the first three films and the button, at every width): the chips give up their titles' ends, with an ellipsis, before a
+          // line breaks or scrolls, and the years stay. Once opened, the rest wrap. `relative`: the visually hidden words of "+N more" are absolutely positioned, and without
+          // a positioned box round them they would widen the page to where they sit, past the last chip.
+          className={cn("relative flex items-center gap-2 p-0.5 max-sm:gap-1.5", expanded ? "flex-wrap" : "flex-nowrap overflow-hidden")}
         >
           {shown.map((chip) => (
             <button
@@ -94,11 +97,11 @@ export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, tog
               className={CHIP}
             >
               <span className="truncate">{chip.title}</span>
-              <span className="text-xs tabular-nums text-muted/80">{chip.year}</span>
+              <span className="shrink-0 text-xs tabular-nums text-muted/80">{chip.year}</span>
             </button>
           ))}
           {hidden > 0 && (
-            <button type="button" data-hero-more aria-expanded={false} onClick={() => setExpanded(true)} className={CHIP}>
+            <button type="button" data-hero-more aria-expanded={false} onClick={() => setExpanded(true)} className={cn(CHIP, "shrink-0")}>
               +{hidden} more
               <span className="sr-only"> films</span>
             </button>
@@ -111,13 +114,13 @@ export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, tog
 
 /** The chips of the Quotes' filter ("All", "Spielberg on Williams"), unselected: a hairline pill that brightens on hover. */
 const CHIP =
-  "inline-flex h-8 max-w-[16rem] shrink-0 cursor-pointer items-center gap-2 rounded-full border border-border px-3.5 text-sm font-medium text-muted transition-colors hover:border-muted hover:text-strong motion-reduce:transition-none";
+  "inline-flex h-8 min-w-0 max-w-[16rem] cursor-pointer items-center gap-2 rounded-full border border-border px-3.5 text-sm font-medium max-sm:gap-1.5 max-sm:px-2.5 text-muted transition-colors hover:border-muted hover:text-strong motion-reduce:transition-none";
 
 function HeroNoteBlock({ note, quoteHref, onQuoteClick }: Pick<PairHeroBodyProps, "quoteHref" | "onQuoteClick"> & { note: HeroNote }) {
   if (note.kind === "quote") {
     return (
       <figure data-hero-note="quote" className="m-0 min-w-0 max-w-xl">
-        <blockquote className="m-0 text-[0.9375rem] italic leading-snug text-quote max-sm:text-sm">
+        <blockquote className="m-0 text-[0.9375rem] italic leading-snug text-quote max-sm:text-xs max-sm:leading-[1.3]">
           &ldquo;{truncateQuote(note.quote, QUOTE_CHARS)}&rdquo;
         </blockquote>
         <figcaption className="mt-1.5 text-xs text-muted">
@@ -142,7 +145,7 @@ function HeroNoteBlock({ note, quoteHref, onQuoteClick }: Pick<PairHeroBodyProps
   }
   if (note.kind === "description") {
     return (
-      <p data-hero-note="description" className="m-0 min-w-0 max-w-xl text-sm leading-snug text-body">
+      <p data-hero-note="description" className="m-0 min-w-0 max-w-xl text-sm leading-snug text-body max-sm:text-xs max-sm:leading-[1.3]">
         {splitCitations(note.text, note.sources.length).map((part, index) => {
           if (part.kind === "text") return part.text;
           const source = note.sources[part.n - 1];
@@ -167,7 +170,7 @@ function HeroNoteBlock({ note, quoteHref, onQuoteClick }: Pick<PairHeroBodyProps
     );
   }
   return (
-    <p data-hero-note="blurb" className="m-0 min-w-0 max-w-xl text-sm leading-snug text-body">
+    <p data-hero-note="blurb" className="m-0 min-w-0 max-w-xl text-sm leading-snug text-body max-sm:text-xs max-sm:leading-[1.3]">
       {note.text}
     </p>
   );

@@ -138,6 +138,42 @@ scrollTest("a pair with no quote, no description and no blurb has no note: the p
   await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
   await expect(heroBody(page).locator("[data-hero-note]")).toHaveCount(0);
   await expect(heroBody(page).locator("[data-hero-portrait]")).toHaveCount(2);
-  await expect(heroBody(page).locator("[data-hero-chip]")).toHaveCount(8);
+  await expect(heroBody(page).locator("[data-hero-chip]")).toHaveCount(3);
   await expect(heroBody(page).getByText("Sources")).toHaveCount(0);
+});
+
+test.describe("at 390px wide", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  for (const view of ["?view=timeline", "?view=table", "?view=depth"]) {
+    test(`${view}: a description of about forty words is set whole and the hero is 220px tall at most before any scroll`, async ({ page }) => {
+      await page.goto(`${NOLAN_HOYTEMA}${view}`);
+      await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
+      await expect(note(page)).toBeVisible();
+      // Whole: every word is there, no clamp or clip cuts it, and the citations are links on the screen.
+      const state = await note(page).evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const css = getComputedStyle(element);
+        return {
+          clamped: css.overflow !== "visible" || css.webkitLineClamp !== "none",
+          words: element.textContent!.replace(/\[\d+\]/g, "").split(/\s+/).filter(Boolean).length,
+          citations: [...element.querySelectorAll("a[data-hero-citation]")].map((link) => {
+            const box = link.getBoundingClientRect();
+            return box.width > 0 && box.left >= 0 && box.right <= window.innerWidth && box.top >= rect.top && box.bottom <= rect.bottom + 2;
+          }),
+        };
+      });
+      expect(state.clamped).toBe(false);
+      expect(state.words).toBeGreaterThanOrEqual(35);
+      expect(state.words).toBeLessThanOrEqual(45);
+      expect(state.citations.length).toBeGreaterThan(0);
+      expect(state.citations.every(Boolean)).toBe(true);
+      // The bar's band (Timeline, Films) or the body in the page under the bar (Table): no further down than 220px.
+      const bottom = await page.evaluate(() => {
+        const bottomOf = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().bottom;
+        return Math.max(bottomOf("[data-people-bar]"), bottomOf("[data-hero-body]"));
+      });
+      expect(bottom).toBeLessThanOrEqual(220);
+    });
+  }
 });

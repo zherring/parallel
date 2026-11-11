@@ -264,15 +264,15 @@ describe("orderChips", () => {
 });
 
 describe("visibleChips", () => {
-  it("shows all of up to eight films, with no more chip", () => {
+  it("shows all of up to three films, with no more chip", () => {
     for (const count of [0, 1, CHIP_LIMIT]) expect(visibleChips(chips(count), false)).toEqual({ shown: chips(count), hidden: 0 });
   });
 
-  it("shows the first eight and counts the rest for '+N more'", () => {
+  it("shows the first three and counts the rest for '+N more'", () => {
     const all = chips(CHIP_LIMIT + 1);
     expect(visibleChips(all, false)).toEqual({ shown: all.slice(0, CHIP_LIMIT), hidden: 1 });
-    expect(visibleChips(chips(30), false).hidden).toBe(22);
-    expect(visibleChips(chips(30), false).shown).toHaveLength(8);
+    expect(visibleChips(chips(30), false).hidden).toBe(27);
+    expect(visibleChips(chips(30), false).shown).toHaveLength(CHIP_LIMIT);
   });
 
   it("shows them all, in the same order, once expanded", () => {
@@ -281,7 +281,7 @@ describe("visibleChips", () => {
   });
 
   it("takes another limit", () => {
-    expect(visibleChips(chips(5), false, 3)).toEqual({ shown: chips(5).slice(0, 3), hidden: 2 });
+    expect(visibleChips(chips(10), false, 5)).toEqual({ shown: chips(10).slice(0, 5), hidden: 5 });
   });
 });
 

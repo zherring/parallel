@@ -5,7 +5,7 @@
  *
  *  - which note the hero shows, by the chain quote, description, blurb, nothing (`pickHeroNote`);
  *  - each person's main role in the films the people made together, and the subtitle that joins them (`mainRoleLabels`, `heroSubtitle`);
- *  - the film chips, in release order, the first eight and a "+N more" for the rest (`orderChips`, `visibleChips`);
+ *  - the film chips, in release order, the first three and a "+N more" for the rest (`orderChips`, `visibleChips`);
  *  - when the hero is expanded and when it has collapsed into the compact bar (`heroCollapsed`).
  */
 
@@ -153,7 +153,7 @@ export function heroSubtitle(roles: readonly string[], count: number, several: b
 // ---- the chips --------------------------------------------------------------------------------------------------------------------------
 
 /** How many film chips the hero shows before "+N more". */
-export const CHIP_LIMIT = 8;
+export const CHIP_LIMIT = 3;
 
 /** One film as a chip: what it says and what finds the film in the view. */
 export interface HeroChip {

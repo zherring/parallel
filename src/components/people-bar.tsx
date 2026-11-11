@@ -336,7 +336,7 @@ export function PeopleBar({
           )}
         >
           <div className="-mx-1.5 min-h-0 overflow-hidden px-1.5">
-            <div ref={contentRef} className="pointer-events-auto pb-3 pt-3">
+            <div ref={contentRef} className="pointer-events-auto pb-3 pt-3 max-sm:pb-2 max-sm:pt-1.5">
               {hero.body}
             </div>
           </div>

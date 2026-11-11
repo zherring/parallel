@@ -83,6 +83,21 @@ const chips = (page: Page) => heroBody(page).locator("[data-hero-chip]");
 /** The chip of "Bar Film n" (the page's films are 100 + n - 1): found by its film, not by its words, which run into the year's. */
 const chipOf = (page: Page, n: number) => heroBody(page).locator(`[data-hero-chip="${99 + n}"]`);
 const moreChip = (page: Page) => heroBody(page).locator("[data-hero-more]");
+/** The first three films' chips and the "+N more" chip: where each one's top is (all the same on a single line), how many there are, and whether the row or the page scrolls. */
+const chipLine = (page: Page) =>
+  heroBody(page).evaluate((body) => {
+    const items = [...body.querySelectorAll<HTMLElement>("[data-hero-chip], [data-hero-more]")];
+    const group = body.querySelector<HTMLElement>('[role="group"]')!;
+    return {
+      chips: body.querySelectorAll("[data-hero-chip]").length,
+      more: body.querySelectorAll("[data-hero-more]").length,
+      tops: [...new Set(items.map((item) => item.offsetTop))],
+      scrolls: group.scrollWidth > group.clientWidth,
+      pageScrolls: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  });
+/** How far down the screen the hero reaches before any scroll: the bottom of the bar's band (Timeline and Films), or of the body in the page under the bar (Table and Quotes). */
+const heroBottom = async (page: Page) => Math.max((await box(bar(page))).y + (await box(bar(page))).height, (await box(heroBody(page))).y + (await box(heroBody(page))).height);
 const title = (page: Page) => bar(page).locator("[data-pair-title]");
 const pill = (page: Page) => bar(page).getByRole("button", { name: /^People on this page/ });
 
@@ -132,10 +147,11 @@ test.describe("at 1440px wide", () => {
       const attribution = note.getByRole("link", { name: `${NOTE.speaker} on ${NOTE.about}`, exact: true });
       await expect(attribution).toHaveAttribute("href", new RegExp(`view=clippings&quote=${NOTE.id}$`));
 
-      // The films: eight chips in release order, then "+4 more".
-      await expect(chips(page)).toHaveCount(8);
-      await expect(chips(page)).toContainText(Array.from({ length: 8 }, (_, index) => `Bar Film ${index + 1}`));
-      await expect(moreChip(page)).toContainText(`+${FILM_COUNT - 8} more`);
+      // The films: the first three chips in release order, then "+9 more", all on one line.
+      await expect(chips(page)).toHaveCount(3);
+      await expect(chips(page)).toContainText(Array.from({ length: 3 }, (_, index) => `Bar Film ${index + 1}`));
+      await expect(moreChip(page)).toContainText(`+${FILM_COUNT - 3} more`);
+      expect(await chipLine(page)).toMatchObject({ chips: 3, more: 1, tops: [expect.any(Number)] });
       // The page's one h1 is still the visually hidden headline.
       await expect(page.locator("h1")).toHaveCount(1);
       await expect(page.locator("h1")).toHaveText(HEADLINE);
@@ -267,12 +283,13 @@ test.describe("at 1440px wide", () => {
     await expect(chips(page)).toHaveCount(FILM_COUNT);
     await expect(moreChip(page)).toHaveCount(0);
     await expect(chips(page)).toContainText(Array.from({ length: FILM_COUNT }, (_, index) => `Bar Film ${index + 1}`));
-    await expect(chips(page).nth(8)).toBeFocused();
+    await expect(chips(page).nth(3)).toBeFocused();
   });
 
   test("a chip on Films scrolls the scene so that the film's poster is in the middle of the screen, focuses it and collapses the hero", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await openView(page, "focus");
+    await moreChip(page).click();
     await chipOf(page, 6).click();
     const poster = scene(page).locator('[data-film="105"]');
     await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
@@ -288,6 +305,7 @@ test.describe("at 1440px wide", () => {
   test("a chip on Films scrolls smoothly: the scene is on its way, not there, a frame after the press", async ({ page }) => {
     await openView(page, "focus");
     const before = await scene(page).evaluate((element) => element.scrollTop);
+    await moreChip(page).click();
     await chipOf(page, 8).click();
     const behavior = await scene(page).evaluate(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     expect(behavior).toBe(false);
@@ -299,6 +317,7 @@ test.describe("at 1440px wide", () => {
     // On a screen narrower than the pair's career, so that the track has room to scroll and can put a film in the middle.
     await page.setViewportSize({ width: 900, height: 600 });
     await openView(page, "timeline");
+    await moreChip(page).click();
     await chipOf(page, 7).click();
     const card = page.locator('[aria-label^="Film timeline. Scroll sideways"] [data-film="106"]').first();
     await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
@@ -315,6 +334,7 @@ test.describe("at 1440px wide", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.setViewportSize({ width: 1440, height: 600 });
     await openView(page, "table");
+    await moreChip(page).click();
     await chipOf(page, 8).click();
     const row = page.locator('tr[data-film-row="107"]');
     await expect(row).toHaveAttribute("data-flash", "");
@@ -528,23 +548,20 @@ test.describe("at 390px wide", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
   for (const view of ALL_VIEWS) {
-    test(`on the ${view} view the hero stacks: the title, the line, small portraits, the quote below them, the chips in one row that scrolls sideways`, async ({ page }) => {
+    test(`on the ${view} view the hero is short: small portraits beside the quote, the first three films on one line, and no more than 220px before any scroll`, async ({ page }) => {
       await openView(page, view);
       await expect(title(page)).toBeVisible();
       const portraits = heroBody(page).locator("[data-hero-portrait]");
       const first = await box(portraits.first());
-      expect(first.height).toBeGreaterThanOrEqual(68);
-      expect(first.height).toBeLessThanOrEqual(76);
-      // The quote is under the portraits, not beside them.
+      expect(first.height).toBeGreaterThanOrEqual(40);
+      expect(first.height).toBeLessThanOrEqual(48);
+      // The quote starts beside the portraits (they float at its left), not under them.
       const note = await box(heroBody(page).locator("[data-hero-note]"));
-      expect(note.y).toBeGreaterThanOrEqual(first.y + first.height);
-      // One row of chips, scrolling sideways.
-      const row = heroBody(page).getByRole("group");
-      const rows = new Set(await chips(page).evaluateAll((items) => items.map((item) => Math.round(item.getBoundingClientRect().top))));
-      expect(rows.size).toBe(1);
-      expect(await row.evaluate((element) => ({ overflow: getComputedStyle(element).overflowX, scrolls: element.scrollWidth > element.clientWidth }))).toEqual({ overflow: "auto", scrolls: true });
-      // No sideways scroll of the page itself.
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+      expect(note.y).toBeLessThan(first.y + first.height);
+      // The first three films and "+9 more": one line, which does not scroll, nor does the page.
+      expect(await chipLine(page)).toEqual({ chips: 3, more: 1, tops: [expect.any(Number)], scrolls: false, pageScrolls: false });
+      // The whole hero, bar and body, reaches no further down than 220px.
+      expect(await heroBottom(page)).toBeLessThanOrEqual(220);
     });
   }
 
