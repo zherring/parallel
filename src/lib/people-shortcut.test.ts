@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeShortcutTarget, isApplePlatform, isPeopleShortcut, peopleKeyAction, type PeopleKeyEvent, type PeopleKeyTarget } from "@/lib/people-shortcut";
+import { describeShortcutTarget, isApplePlatform, isPeopleShortcut, peopleKeyAction, shortcutHint, shortcutKeys, type PeopleKeyEvent, type PeopleKeyTarget } from "@/lib/people-shortcut";
 import type { ElementLike } from "@/lib/hero-keys";
 
 const MAC = { mac: true, open: false, target: null };
@@ -16,6 +16,15 @@ describe("isApplePlatform", () => {
 
   it("is Control elsewhere, and when the platform is not known", () => {
     for (const platform of ["Windows", "Win32", "Linux", "Linux x86_64", "Android", "CrOS", "", null, undefined]) expect(isApplePlatform(platform), String(platform)).toBe(false);
+  });
+});
+
+describe("shortcutHint and shortcutKeys", () => {
+  it("name the shortcut the way the platform writes it: ⌘K on a Mac, Ctrl K elsewhere", () => {
+    expect(shortcutHint(true)).toBe("⌘K");
+    expect(shortcutHint(false)).toBe("Ctrl K");
+    expect(shortcutKeys(true)).toBe("Meta+K");
+    expect(shortcutKeys(false)).toBe("Control+K");
   });
 });
 

@@ -1,17 +1,17 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Users, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { REDUCED_MOTION } from "@/components/depth/use-media";
+import { FINE_POINTER, REDUCED_MOTION, useMediaQuery } from "@/components/depth/use-media";
 import { PersonRow, pillRows, type PillPerson } from "@/components/depth/people-pill";
 import { usePeopleStaging, useStagingSurface } from "@/components/people-staging";
 import { PersonSearch } from "@/components/person-search/person-search";
 import { trapTab, useModalPage } from "@/components/side-panel/modal-page";
 import type { ElementLike } from "@/lib/hero-keys";
 import { hasRoom } from "@/lib/pending-people";
-import { describeShortcutTarget, isApplePlatform, peopleKeyAction } from "@/lib/people-shortcut";
+import { describeShortcutTarget, isApplePlatform, peopleKeyAction, shortcutHint, shortcutKeys } from "@/lib/people-shortcut";
 import type { OpenPerson } from "@/lib/side-panel";
 
 interface PeopleOverlayProps {
@@ -19,10 +19,36 @@ interface PeopleOverlayProps {
   people: readonly PillPerson[];
   /** A name or a portrait in a row was pressed: open the person's details in the slide-out panel (it is over the overlay, which stays open under it). */
   onOpenPerson: OpenPerson;
+  /** Whether it is open, and the one way to open and close it (see `usePeopleOverlayControl`). */
+  control: PeopleOverlayControl;
+}
+
+/** Whether the overlay is open, and how to open and close it: held by `PeopleBar`, so that the shortcut and the gear's "People" row open the same overlay the same way. */
+export interface PeopleOverlayControl {
+  open: boolean;
+  /** Opens it. `opener` is what gets focus back when it closes (null: nothing in particular). */
+  show: (opener: Element | null) => void;
+  hide: () => void;
+  /** What gets focus back when it closes; only meaningful while it is open. */
+  opener: Element | null;
+}
+
+/**
+ * The state of the people overlay (see `PeopleOverlay`), for whatever opens it: the shortcut, which is in the overlay, and the gear's "People" row, which is in the
+ * bar. It is open for the address it was opened on: a navigation (a person added or removed) moves on and closes it.
+ */
+export function usePeopleOverlayControl(): PeopleOverlayControl {
+  const pathname = usePathname();
+  const [opened, setOpened] = useState<{ path: string; opener: Element | null } | null>(null);
+  const open = opened !== null && opened.path === pathname;
+  const show = useCallback((opener: Element | null) => setOpened({ path: pathname, opener }), [pathname]);
+  const hide = useCallback(() => setOpened(null), []);
+  const opener = opened?.opener ?? null;
+  return useMemo(() => ({ open, show, hide, opener }), [open, show, hide, opener]);
 }
 
 /** The platform's name as the browser says it: the newer `userAgentData` where there is one (Chromium), else the old `platform`. */
-function platformName(): string {
+export function platformName(): string {
   const { userAgentData } = navigator as Navigator & { userAgentData?: { platform?: string } };
   return userAgentData?.platform ?? navigator.platform;
 }
@@ -38,18 +64,16 @@ function platformName(): string {
  * inert and keeps its scroll while it is open (`useModalPage`, as the slide-out panels do); Tab stays in it. ⌘K again, Escape (the field's own Escape first: it clears its
  * text and closes its list before this one closes the overlay) or the close button closes it, and focus goes back to what had it before. Adding a person or removing
  * one only stages the change (`PeopleStagingProvider`): the new person has a row at once, marked new, a removed one's row says so and has Undo, and nothing behind is redrawn;
- * closing the overlay applies everything staged in one navigation. It is open only for the address it was opened on. It fades in and grows a little, but not for a
- * visitor who asked for less motion.
+ * closing the overlay applies everything staged in one navigation. It fades in and grows a little, but not for a visitor who asked for less motion.
+ *
+ * A touch-only visitor has no shortcut: the gear's sheet has a "People" row that opens it (`PeopleSheetRow`), for a page whose hero cannot collapse as well.
  *
  * ⌘K is not taken while the visitor types in a text field or textarea elsewhere (the overlay's own field aside), nor over the film's or the person's panel.
  * It is the page bar's: it is mounted once, by `PeopleBar`, after the bar's own box (the bar forwards a wheel to the scene under it, and the overlay's portal
  * would bubble its wheel through React to that).
  */
-export function PeopleOverlay({ people, onOpenPerson }: PeopleOverlayProps) {
-  const pathname = usePathname();
-  // What had focus when it was opened, which gets it back. Open for the address it was opened on: a navigation (a person added or removed) moves on and closes it.
-  const [opened, setOpened] = useState<{ path: string; opener: Element | null } | null>(null);
-  const open = opened !== null && opened.path === pathname;
+export function PeopleOverlay({ people, onOpenPerson, control }: PeopleOverlayProps) {
+  const { open, opener, show, hide } = control;
 
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
     const target = event.target instanceof Element ? (event.target as ElementLike) : null;
@@ -70,8 +94,10 @@ export function PeopleOverlay({ people, onOpenPerson }: PeopleOverlayProps) {
     // The browser's own ⌘K (the address bar's search, in Firefox and Chromium) is not wanted.
     event.preventDefault();
     if (action === "swallow") return;
+    // What had focus gets it back when the overlay closes.
     const active = document.activeElement;
-    setOpened(action === "toggle" && !open ? { path: pathname, opener: active && active !== document.body ? active : null } : null);
+    if (action === "toggle" && !open) show(active && active !== document.body ? active : null);
+    else hide();
   });
   useEffect(() => {
     const listener = (event: KeyboardEvent) => onKeyDown(event);
@@ -80,10 +106,37 @@ export function PeopleOverlay({ people, onOpenPerson }: PeopleOverlayProps) {
   }, []);
 
   if (!open) return null;
-  return createPortal(<PeopleDialog people={people} onOpenPerson={onOpenPerson} opener={opened.opener} onClose={() => setOpened(null)} />, document.body);
+  return createPortal(<PeopleDialog people={people} onOpenPerson={onOpenPerson} opener={opener} onClose={hide} />, document.body);
 }
 
-function PeopleDialog({ people, onOpenPerson, opener, onClose }: PeopleOverlayProps & { opener: Element | null; onClose: () => void }) {
+/**
+ * The gear's "People" row, which opens the people overlay (`onOpen`: the same opener as the shortcut's) on every width: a touch-only visitor on a page that is too short to
+ * collapse its hero has neither the pill nor the keys. Where there is a keyboard and a mouse, the shortcut is its hint, at the right, muted: ⌘K on a Mac, Ctrl K elsewhere.
+ * It is the row of the sheet that the way home was (36px tall, the surface colour the views control and Export have), and the sheet closes on it (`data-close-sheet` around it).
+ */
+export function PeopleSheetRow({ onOpen }: { onOpen: () => void }) {
+  const fine = useMediaQuery(FINE_POINTER);
+  const mac = isApplePlatform(platformName());
+  return (
+    <button
+      type="button"
+      aria-haspopup="dialog"
+      aria-keyshortcuts={shortcutKeys(mac)}
+      onClick={onOpen}
+      className="flex h-9 w-full cursor-pointer items-center gap-2 rounded-md bg-surface px-3 text-sm font-medium text-strong hover:bg-border"
+    >
+      <Users aria-hidden="true" className="size-4 shrink-0 text-muted" />
+      People
+      {fine && (
+        <span aria-hidden="true" className="ml-auto text-xs font-normal text-muted">
+          {shortcutHint(mac)}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function PeopleDialog({ people, onOpenPerson, opener, onClose }: Omit<PeopleOverlayProps, "control"> & { opener: Element | null; onClose: () => void }) {
   const rootRef = useRef<HTMLDivElement>(null);
   // Adding and removing people only stages the change while this is open; the page changes once, when it closes (see `PeopleStagingProvider`).
   const staging = usePeopleStaging();

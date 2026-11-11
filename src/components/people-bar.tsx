@@ -5,10 +5,9 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, ViewTransiti
 import { REDUCED_MOTION, useMediaQuery } from "@/components/depth/use-media";
 import { PeoplePill, flipTransform, type PillPerson } from "@/components/depth/people-pill";
 import { PairTitle } from "@/components/hero/pair-title";
-import { PeopleOverlay } from "@/components/people-overlay";
+import { PeopleOverlay, PeopleSheetRow, usePeopleOverlayControl } from "@/components/people-overlay";
 import { springEasing } from "@/components/landing/hero-motion";
 import { HomeLink } from "@/components/home-link";
-import { Wordmark } from "@/components/wordmark";
 import { cn } from "@/components/timeline/cn";
 import { ExportButton, type ExportList } from "@/components/timeline/export-button";
 import { FilmSettings } from "@/components/timeline/film-settings";
@@ -103,17 +102,20 @@ const STEPS_ASIDE =
  * The gear opens the film settings (Show all films and Include minor credits), Share (with its Period choice) and Export (the list as a CSV
  * file), on every view alike. On a phone there is no room for the switcher on the bar, so the bar holds the home arrow, the people pill (its heads and the
  * family names, "Tracy & Hepburn", which give way with an ellipsis: the arrow, the heads and the gear never shrink or wrap) and the gear, and the gear's
- * sheet holds the views (Quotes among them) and the way home too.
+ * sheet holds the views (Quotes among them). On every width its last row, "People", opens the full-screen people search (see `PeopleOverlay`), which a page too short to collapse
+ * its hero, and a phone, have no other way to reach.
  *
  * The bar is as wide as the page's viewport (`inset-x-0`: a flat page with a scrollbar of its own ends the bar at the scrollbar, where the gear's
  * gutter is measured from; the Depth view's scroller hides its own) and sits over the page at `z-30`, under the panels and dialogs.
  */
 export function PeopleBar(props: PeopleBarProps) {
+  // Opened by ⌘K (in the overlay) and by the gear's "People" row (in the bar's box): one state, held here.
+  const overlay = usePeopleOverlayControl();
   return (
     <>
-      <PeopleBarBox {...props} />
+      <PeopleBarBox {...props} onOpenPeople={overlay.show} />
       {/* ⌘K: the full-screen people search, for a page whose hero never collapses (see `PeopleOverlay`). After the bar's box, not in it: a wheel in the overlay is not for the scene. */}
-      <PeopleOverlay people={props.people} onOpenPerson={props.onOpenPerson} />
+      <PeopleOverlay people={props.people} onOpenPerson={props.onOpenPerson} control={overlay} />
     </>
   );
 }
@@ -138,8 +140,14 @@ function PeopleBarBox({
   share,
   exportList,
   backdrop = false,
-}: PeopleBarProps) {
+  onOpenPeople,
+}: PeopleBarProps & {
+  /** Opens the full-screen people search (the shortcut's), with what gets focus back when it closes. */
+  onOpenPeople: (opener: Element | null) => void;
+}) {
   const [status, setStatus] = useState("");
+  /** The gear, which the people search hands focus back to when it was opened from the gear's sheet (the sheet is gone by then). */
+  const gearRef = useRef<HTMLButtonElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
   /** What Share and Export report (a link copied, a file downloaded), in the sheet, for a few seconds; a live region, so it is also spoken. */
@@ -232,7 +240,7 @@ function PeopleBarBox({
             The way home, now that the site's header is gone: a rounded square (the bar's radius) with a back arrow, before the people pill, named "Back to
             Parallel home" (it links to the landing page, it does not go back in history), on a phone too: it never shrinks, and the pill's names, which are the
             only thing in the bar that does, give way to it. It does not step aside for the open pill, whose field and card start at the people pill's own left
-            edge, clear of it. The gear's sheet has the way home on a phone as well, with the name.
+            edge, clear of it. The way home is the arrow alone, on every width.
           */}
           <HomeLink
             label="Back to Parallel home"
@@ -278,6 +286,7 @@ function PeopleBarBox({
             <div className="pointer-events-auto flex shrink-0">
               <FilmSettings
                 label="Settings"
+                buttonRef={gearRef}
                 buttonClassName={cn("size-[var(--bar-h)]", FLOATING)}
                 scrollable={false}
                 showAll={showAll}
@@ -305,12 +314,12 @@ function PeopleBarBox({
                     <p role="status" aria-live="polite" className="mt-2 min-h-4 text-xs text-muted">
                       {status}
                     </p>
-                    {/* On a phone the way home is here too, with the name, last. */}
-                    <div className="mt-3 border-t border-border pt-3 sm:hidden">
-                      <HomeLink className="flex h-9 items-center gap-1.5 rounded-md bg-surface px-3 no-underline hover:bg-border">
-                        <Wordmark className="text-base" />
-                        <span className="text-sm text-muted">home</span>
-                      </HomeLink>
+                    {/*
+                      The people search, last, on every width: a page too short to collapse its hero never shows the pill, and a phone has no shortcut. It closes the
+                      sheet (`data-close-sheet`, which hands focus to the gear), and the search gives focus back to the gear when it closes.
+                    */}
+                    <div data-close-sheet className="mt-3 border-t border-border pt-3">
+                      <PeopleSheetRow onOpen={() => onOpenPeople(gearRef.current)} />
                     </div>
                   </div>
                 }

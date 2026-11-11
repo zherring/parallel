@@ -2192,7 +2192,7 @@ test.describe("on a phone", () => {
     await expect(scene(page)).toHaveCount(0);
   });
 
-  test("a phone's bar has the home arrow: the heads' pill is after it, the open pill's field and card stay on the screen after it, and the sheet has the way home with its name", async ({ page }) => {
+  test("a phone's bar has the home arrow: the heads' pill is after it, the open pill's field and card stay on the screen after it, and the sheet has the People row, not a second way home", async ({ page }) => {
     await openDepth(page);
     const barHome = page.locator("[data-people-bar]").getByRole("link", { name: "Back to Parallel home", exact: true });
     await expect(barHome).toBeVisible();
@@ -2223,10 +2223,11 @@ test.describe("on a phone", () => {
 
     await settingsGear(page).tap();
     const sheet = settingsSheet(page);
-    const home = sheet.getByRole("link", { name: "Parallel home", exact: true });
-    await expect(home).toBeVisible();
-    await expect(home).toHaveAttribute("href", "/");
-    const box = (await home.boundingBox())!;
+    // The sheet has no way home of its own (the bar's arrow is on a phone): its last row is People, which opens the people search.
+    await expect(sheet.getByRole("link", { name: "Parallel home", exact: true })).toHaveCount(0);
+    const people = sheet.getByRole("button", { name: "People", exact: true });
+    await expect(people).toBeVisible();
+    const box = (await people.boundingBox())!;
     const sheetBox = (await sheet.boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(sheetBox.x);
     expect(box.x + box.width).toBeLessThanOrEqual(sheetBox.x + sheetBox.width);

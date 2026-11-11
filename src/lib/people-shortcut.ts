@@ -47,6 +47,16 @@ export function isApplePlatform(platform: string | null | undefined): boolean {
   return /^(mac|iphone|ipad|ipod)/i.test(platform ?? "");
 }
 
+/** The shortcut as a hint beside a control that does the same ("⌘K" on a Mac, "Ctrl K" elsewhere). */
+export function shortcutHint(mac: boolean): string {
+  return mac ? "⌘K" : "Ctrl K";
+}
+
+/** The shortcut as the `aria-keyshortcuts` of a control that does the same ("Meta+K" on a Mac, "Control+K" elsewhere). */
+export function shortcutKeys(mac: boolean): string {
+  return mac ? "Meta+K" : "Control+K";
+}
+
 /**
  * Command+K on a Mac, Control+K elsewhere, and nothing else: not the other platform's modifier (Control+K on a Mac is the text field's kill-line, and
  * Windows' Meta+K is the system's), and not with Shift or Alt as well. The letter is read as typed (`key`), so Caps Lock does not matter.

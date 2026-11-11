@@ -1,7 +1,7 @@
 "use client";
 
 import { Settings } from "lucide-react";
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { placePopover, type Placement } from "@/lib/popover-position";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
@@ -46,6 +46,8 @@ interface FilmSettingsPopupProps extends FilmSettingsProps {
   label?: string;
   /** Classes for the gear button, after the flat timeline's (so a view over a busier surface can restyle it). */
   buttonClassName?: string;
+  /** The gear button, for what opens something from the sheet (the page bar's "People" row) to hand focus back to it. */
+  buttonRef?: RefObject<HTMLButtonElement | null>;
   /**
    * Whether the pop-up scrolls (and is no taller than the screen), as the flat timeline's does. Off, nothing in it is clipped: a menu
    * that hangs from something inside it (the Share menu) shows in full.
@@ -59,11 +61,12 @@ interface FilmSettingsPopupProps extends FilmSettingsProps {
 /** Both film-display preferences in a small, non-modal pop-up; checkbox changes keep it open. */
 export function FilmSettings({
   showAll, onShowAllChange, includeMinor, onIncludeMinorChange, message,
-  label = "Film settings", buttonClassName, scrollable = true, before, after,
+  label = "Film settings", buttonClassName, buttonRef: sharedButtonRef, scrollable = true, before, after,
 }: FilmSettingsPopupProps) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<Placement | null>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const ownButtonRef = useRef<HTMLButtonElement>(null);
+  const buttonRef = sharedButtonRef ?? ownButtonRef;
   const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
 
@@ -98,7 +101,7 @@ export function FilmSettings({
       // Closed: forget where it was, so reopening does not paint one frame at the stale spot.
       setPosition(null);
     };
-  }, [open]);
+  }, [open, buttonRef]);
 
   useEffect(() => {
     if (!open) return;
@@ -121,7 +124,7 @@ export function FilmSettings({
       document.removeEventListener("focusin", dismiss);
       document.removeEventListener("keydown", escape);
     };
-  }, [open]);
+  }, [open, buttonRef]);
 
   return (
     <>

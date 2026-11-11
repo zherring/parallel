@@ -382,3 +382,132 @@ for (const view of ["timeline", "table", "depth"] as const) {
     if (view === "depth") await expect(scene(page)).toBeVisible();
   });
 }
+
+// The gear's sheet has a "People" row on every width, which opens the same overlay as the shortcut: a touch-only visitor on a page too short to collapse its hero has
+// neither the pill nor the keys. (It replaced the phone-only "Parallel home" row, which the bar's arrow made redundant.)
+const settingsSheet = (page: Page) => page.getByRole("dialog", { name: "Settings", exact: true });
+const peopleRow = (page: Page) => settingsSheet(page).getByRole("button", { name: "People", exact: true });
+/** Whether the page is asked to show the shortcut: a mouse that can hover, which a phone's finger is not. */
+const hasFinePointer = (page: Page) => page.evaluate(() => window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+const isMac = (page: Page) => page.evaluate(() => /^(mac|iphone|ipad|ipod)/i.test(navigator.platform));
+
+test.describe("the gear's People row on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("on a table too short to collapse the hero, the gear's People row opens the overlay with the people listed, the sheet gone, and closing it puts focus on the gear", async ({ page }) => {
+    const gear = await openPage(page);
+    // The premise: the hero cannot collapse, so the pill is out of reach and a phone has no keys.
+    await expect(page.locator("[data-people-pill]").locator("xpath=..")).toHaveAttribute("inert", "");
+    expect(await heroState(page)).toBe("expanded");
+
+    await gear.tap();
+    await expect(settingsSheet(page)).toBeVisible();
+    const row = peopleRow(page);
+    await expect(row).toBeVisible();
+    // The way home is not here: the bar's arrow is.
+    await expect(settingsSheet(page).getByRole("link", { name: "Parallel home", exact: true })).toHaveCount(0);
+    await expect(bar(page).getByRole("link", { name: "Back to Parallel home", exact: true })).toBeVisible();
+    // The row is inside the sheet, as wide as its rows are.
+    const sheetBox = (await settingsSheet(page).boundingBox())!;
+    const rowBox = (await row.boundingBox())!;
+    expect(rowBox.x).toBeGreaterThanOrEqual(sheetBox.x);
+    expect(rowBox.x + rowBox.width).toBeLessThanOrEqual(sheetBox.x + sheetBox.width);
+    expect(rowBox.y + rowBox.height).toBeLessThanOrEqual(sheetBox.y + sheetBox.height);
+
+    await row.tap();
+    await expect(settingsSheet(page)).toBeHidden();
+    const dialog = overlay(page);
+    await expect(dialog).toBeVisible();
+    await expect(overlaySearch(page)).toBeFocused();
+    await expect(dialog.getByRole("button", { name: "Remove Quiet Alpha", exact: true })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Remove Quiet Beta", exact: true })).toBeVisible();
+    await expect.poll(() => dialog.boundingBox()).toEqual({ x: 0, y: 0, width: 390, height: 844 });
+
+    await dialog.getByRole("button", { name: "Close people", exact: true }).tap();
+    await expect(dialog).toBeHidden();
+    await expect(gear).toBeFocused();
+    // The sheet stays shut, and the page is the visitor's again.
+    await expect(settingsSheet(page)).toBeHidden();
+    expect(await page.evaluate(() => document.querySelector("[data-people-bar]")?.closest("[inert]") !== null)).toBe(false);
+  });
+
+  test("the overlay opened from the sheet stages an add, and closing it applies the change in one soft navigation that keeps the view", async ({ page }) => {
+    await mockSearch(page);
+    const gear = await openPage(page);
+    await watchNavigation(page);
+
+    await gear.tap();
+    await peopleRow(page).tap();
+    const search = overlaySearch(page);
+    await expect(search).toBeFocused();
+    await search.fill("quiet");
+    await page.getByRole("option", { name: /Quiet Gamma/ }).tap();
+    await expect(overlay(page).locator('[data-staged="added"]')).toContainText("Quiet Gamma");
+    // Staged: the page behind is as it was.
+    await expect(page).toHaveURL(/\/p\/90000021-quiet-alpha\+90000022-quiet-beta\?view=table$/);
+    expect(await navigation(page)).toEqual({ marker: "the same document", pushes: [] });
+
+    await overlay(page).getByRole("button", { name: "Close people", exact: true }).tap();
+    await expect(overlay(page)).toBeHidden();
+    const finalPath = "/p/90000021-quiet-alpha+90000022-quiet-beta+90000023-quiet-gamma?view=table";
+    await expect(page).toHaveURL(finalPath);
+    expect(await navigation(page)).toEqual({ marker: "the same document", pushes: [finalPath] });
+  });
+
+  test("the sheet's row has no shortcut hint on a phone: a finger has no keys", async ({ page }) => {
+    const gear = await openPage(page);
+    await gear.tap();
+    await expect(peopleRow(page)).toBeVisible();
+    // The hint is for a mouse that can hover. (Playwright's WebKit does not make a phone's pointer coarse; where it does not, the row is the desktop's and the test is not about it.)
+    test.skip(await hasFinePointer(page), "this engine's phone emulation still has a fine pointer");
+    await expect(peopleRow(page)).toHaveText("People");
+  });
+});
+
+test.describe("the gear's People row on a desktop", () => {
+  test("shows the shortcut as a muted hint, ⌘K on a Mac and Ctrl K elsewhere, and opens the overlay the shortcut opens", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const gear = await openPage(page);
+    expect(await hasFinePointer(page)).toBe(true);
+
+    await gear.click();
+    const row = peopleRow(page);
+    await expect(row).toBeVisible();
+    const hint = (await isMac(page)) ? "⌘K" : "Ctrl K";
+    await expect(row).toContainText(hint);
+    // The hint is for the eyes: the row's name is People, and the key is its `aria-keyshortcuts`.
+    await expect(row).toHaveAccessibleName("People");
+    await expect(row).toHaveAttribute("aria-keyshortcuts", (await isMac(page)) ? "Meta+K" : "Control+K");
+    const muted = await row.evaluate((button) => {
+      const text = [...button.querySelectorAll("span")].find((span) => span.textContent?.trim().length);
+      return { hint: text ? getComputedStyle(text).color : null, name: getComputedStyle(button).color };
+    });
+    expect(muted.hint).not.toBeNull();
+    expect(muted.hint).not.toBe(muted.name);
+    // It sits at the right of the row.
+    const [rowBox, hintBox] = await Promise.all([row.boundingBox(), row.getByText(hint, { exact: true }).boundingBox()]);
+    expect(hintBox!.x + hintBox!.width).toBeGreaterThan(rowBox!.x + rowBox!.width - 24);
+
+    await row.click();
+    await expect(settingsSheet(page)).toBeHidden();
+    await expect(overlaySearch(page)).toBeFocused();
+    // The same overlay: the shortcut closes it, and focus is on the gear as it was for the sheet.
+    await page.keyboard.press(SHORTCUT);
+    await expect(overlay(page)).toBeHidden();
+    await expect(gear).toBeFocused();
+  });
+
+  test("a keyboard visitor opens it from the sheet with Enter, and Escape in the overlay gives focus back to the gear", async ({ page }) => {
+    const gear = await openPage(page);
+    await gear.focus();
+    await page.keyboard.press("Enter");
+    await expect(settingsSheet(page)).toBeVisible();
+    await peopleRow(page).focus();
+    await page.keyboard.press("Enter");
+    await expect(overlaySearch(page)).toBeFocused();
+    await expect(settingsSheet(page)).toBeHidden();
+    await page.keyboard.press("Escape");
+    await expect(overlay(page)).toBeHidden();
+    await expect(gear).toBeFocused();
+  });
+});

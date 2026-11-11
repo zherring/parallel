@@ -107,7 +107,7 @@ for (const [label, viewport] of [
 
       const timeline = measured.timeline;
       // It is the bar: the home arrow, the people and the gear are there on every view and on a phone, the control only from the small breakpoint up (a phone's gear holds
-      // it, and the way home too).
+      // it).
       expect(timeline.home).not.toBeNull();
       expect(timeline.people).not.toBeNull();
       expect(timeline.gear).not.toBeNull();
@@ -633,7 +633,7 @@ for (const [width, height] of [
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test("the gear's sheet holds the views, the settings, Share, Export and the way home, on the flat page too", async ({ page }) => {
+  test("the gear's sheet holds the views, the settings, Share, Export and People, on the flat page too", async ({ page }) => {
     await openView(page, "timeline");
     await settingsGear(page).tap();
     const sheet = settingsSheet(page);
@@ -646,8 +646,9 @@ test.describe("on a phone", () => {
     await expect(sheet.getByRole("checkbox", { name: "Show all films", exact: true })).toBeVisible();
     await expect(sheet.getByRole("button", { name: "Share", exact: true })).toBeVisible();
     await expect(sheet.getByRole("button", { name: "Export List as CSV", exact: true })).toBeVisible();
-    // The sheet keeps its "Parallel home" row (the bar's arrow, which is not on a phone, is "Back to Parallel home").
-    await expect(sheet.getByRole("link", { name: "Parallel home", exact: true })).toHaveAttribute("href", "/");
+    // The sheet's last row is People, which opens the full-screen people search. It no longer has a way home of its own: the bar's arrow ("Back to Parallel home") is on a phone too.
+    await expect(sheet.getByRole("button", { name: "People", exact: true })).toBeVisible();
+    await expect(sheet.getByRole("link", { name: "Parallel home", exact: true })).toHaveCount(0);
     // No layout control: Films and the flat Timeline are two of the views.
     await expect(sheet.getByRole("group", { name: "Timeline layout", exact: true })).toHaveCount(0);
 
