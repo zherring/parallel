@@ -15,6 +15,7 @@ import { PersonPanel } from "@/components/person-panel/person-panel";
 import { rememberOpener, useRememberPressed } from "@/components/side-panel/side-panel";
 import { scrollBehavior } from "@/components/timeline/scroll-behavior";
 import { PageHeadline } from "@/components/page-headline";
+import { PeopleStagingProvider } from "@/components/people-staging";
 import type { ExportList } from "@/components/timeline/export-button";
 import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
 import { useUrlPeriod } from "@/components/timeline/use-period";
@@ -30,7 +31,7 @@ import { DEFAULT_SORT, sortFilms } from "@/lib/films-table";
 import { hasClippingsTab, showingMessage } from "@/lib/films-view";
 import { scrollLeftToCenterTrackX } from "@/lib/minimap";
 import { quoteHref, type HeroNote } from "@/lib/pair-hero";
-import { laneSummary, removePersonHref } from "@/lib/lanes";
+import { laneSummary } from "@/lib/lanes";
 import { outsidePeriodIds, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss, personSlots } from "@/lib/person-colors";
 import { postersLeftOut } from "@/lib/poster-cap";
@@ -67,9 +68,15 @@ const NO_FILMS_LEFT_OUT: ReadonlySet<number> = new Set();
  * the page can swap one for the other.
  */
 export function DepthView(props: Props) {
-  // A different set of people is a different page: start over (selection, scroll).
+  // A different set of people is a different page: start over (selection, scroll, and the people staged while a panel was open).
   const key = props.timelines.map((t) => t.person.id).join("+");
-  return <DepthViewInner key={key} {...props} />;
+  const people = useMemo(() => props.timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [props.timelines]);
+  // Staged changes to the people lead to the Films view of the final people (`view=depth`, always named), as the pill's links always did.
+  return (
+    <PeopleStagingProvider key={key} people={people} carry={withDepth}>
+      <DepthViewInner key={key} {...props} />
+    </PeopleStagingProvider>
+  );
 }
 
 function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote }: Props) {
@@ -115,20 +122,16 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
     () => depthLayout(entries, people.length, today, { minorIds, pad: DEPTH.pad + HERO_ROOM_PX }),
     [entries, people.length, today, minorIds],
   );
-  // The people pill's rows. Removing someone stays in the Depth view, unless it was the last person (that goes home).
+  // The people pill's rows. Adding and removing people stays in the Depth view (see `PeopleStagingProvider`).
   const pillPeople = useMemo(
     () =>
-      lanes.map(({ person, films }): PillPerson => {
-        const removeHref = removePersonHref(people, person.id);
-        return {
-          person,
-          slot: slots.get(person.id) ?? 0,
-          roles: laneSummary(films, person, includeMinor).roles,
-          filmCount: films.length,
-          removeHref: people.length > 1 ? withDepth(removeHref) : removeHref,
-        };
-      }),
-    [lanes, people, slots, includeMinor],
+      lanes.map(({ person, films }): PillPerson => ({
+        person,
+        slot: slots.get(person.id) ?? 0,
+        roles: laneSummary(films, person, includeMinor).roles,
+        filmCount: films.length,
+      })),
+    [lanes, slots, includeMinor],
   );
   const railFilms = useMemo(() => combinedMinimapFilms(entries), [entries]);
 

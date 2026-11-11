@@ -69,7 +69,7 @@ export interface PersonSearchProps {
    * People already on the timeline. In "navigate" mode, picking a result appends to them (max 4
    * total). Chips mode starts from an empty field and ignores this.
    */
-  peopleInView?: { id: number; name: string }[];
+  peopleInView?: readonly { id: number; name: string }[];
   size?: "hero" | "compact";
   autoFocus?: boolean;
   /**
@@ -98,10 +98,16 @@ export interface PersonSearchProps {
    * dropdown, Escape clears or closes those first, as ever.
    */
   onIdleEscape?: () => void;
+  /**
+   * In "navigate" mode: called with the person picked, in place of going to the page that has them. The field keeps focus, clears and closes its list, and
+   * says what happened; the owner stages the change and the page changes later (see `PeopleStagingProvider`: the people pill's card and the ⌘K search,
+   * which would otherwise redraw the screen behind them as soon as someone was picked). `peopleInView` is then the people as the owner will have them.
+   */
+  onPick?: (person: PickedPerson) => void;
 }
 
 /** What picking an option needs, whether it is a search result or a suggested collaborator. */
-type PickedPerson = Pick<PersonSearchResult, "id" | "name" | "profilePath">;
+export type PickedPerson = Pick<PersonSearchResult, "id" | "name" | "profilePath">;
 
 const DEBOUNCE_MS = 200;
 const CACHE_LIMIT = 50;
@@ -132,6 +138,7 @@ export function PersonSearch({
   suggestFor,
   wideMenu = false,
   onIdleEscape,
+  onPick,
 }: PersonSearchProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -283,6 +290,15 @@ export function PersonSearch({
   function select(result: PickedPerson) {
     if (chipsMode) {
       addPerson(result);
+      return;
+    }
+    if (onPick) {
+      onPick({ id: result.id, name: result.name, profilePath: result.profilePath });
+      setOpen(false);
+      setQuery("");
+      setActiveIndex(-1);
+      announce(`Added ${result.name}. The page changes when you close this.`);
+      // Focus stays in the field: another person can be added.
       return;
     }
     // The query of this page, read now: the new page opens on the tab (Timeline or Table) this one shows.
@@ -551,7 +567,7 @@ export function PersonSearch({
       <div role="status" aria-live="polite" className="sr-only">
         {open ? status : ""}
       </div>
-      {chipsMode && (
+      {(chipsMode || onPick) && (
         <div role="status" aria-live="polite" className="sr-only">
           {announcement && <span key={announcement.id}>{announcement.text}</span>}
         </div>

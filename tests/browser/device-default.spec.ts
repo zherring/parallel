@@ -105,7 +105,10 @@ test.describe("on a phone", () => {
     await collapseHero(page);
     await bar(page).getByRole("button", { name: /^People on this page/ }).tap();
     const card = page.getByRole("dialog", { name: "People", exact: true });
-    await expect(card.getByRole("link", { name: "Remove Pedro Almodóvar", exact: true })).toHaveAttribute("href", /^\/p\/955-penelope-cruz\?view=timeline$/);
+    // Remove stages the removal, and closing the card goes to the page without them, in the view the visitor is on.
+    await card.getByRole("button", { name: "Remove Pedro Almodóvar", exact: true }).tap();
+    await page.getByRole("button", { name: "Close people", exact: true }).tap();
+    await expect(page).toHaveURL(/\/p\/955-penelope-cruz\?view=timeline$/);
 
     // Films (the plain address on a phone): removing someone stays in Films.
     await page.goto(PAIR);
@@ -113,7 +116,9 @@ test.describe("on a phone", () => {
     await hydrated(page);
     await collapseHero(page);
     await bar(page).getByRole("button", { name: /^People on this page/ }).tap();
-    await expect(card.getByRole("link", { name: "Remove Pedro Almodóvar", exact: true })).toHaveAttribute("href", /^\/p\/955-penelope-cruz\?view=depth$/);
+    await card.getByRole("button", { name: "Remove Pedro Almodóvar", exact: true }).tap();
+    await page.getByRole("button", { name: "Close people", exact: true }).tap();
+    await expect(page).toHaveURL(/\/p\/955-penelope-cruz\?view=depth$/);
   });
 
   test("the canonical address stays the plain one: it never carries a view", async ({ page }) => {

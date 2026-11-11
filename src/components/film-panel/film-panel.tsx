@@ -1,19 +1,18 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { usePeopleStaging, useStagingSurface } from "@/components/people-staging";
 import { SidePanel, useSlideOut } from "@/components/side-panel/side-panel";
 import { Spinner } from "@/components/spinner";
 import { errorMessage } from "@/lib/api-client";
 import type { PersonRow } from "@/lib/film-people";
-import { extendedPeopleHref } from "@/lib/people-nav";
+import { isTimelineFull } from "@/lib/people-nav";
 import { FilmContent } from "./film-content";
 import { useFilmDetails } from "./use-film-details";
 
 export interface FilmPanelProps {
   /** TMDB movie id to show; null keeps the panel closed. */
   filmId: number | null;
-  /** People already on the timeline, so the panel can mark them and offer "add" for everyone else. */
+  /** People on the timeline now, so the panel can mark them and offer "add" for everyone else. */
   peopleInView: { id: number; name: string }[];
   onClose: () => void;
 }
@@ -48,29 +47,17 @@ function FilmDialog({
   onExited: () => void;
   onClose: () => void;
 }) {
-  const router = useRouter();
-  const onCloseRef = useRef(onClose);
   const { state, retry } = useFilmDetails(filmId);
 
-  const [addingId, setAddingId] = useState<number | null>(null);
-  const [isAdding, startAdding] = useTransition();
-  const wasAdding = useRef(false);
+  // Adding someone from the cast only stages it while the panel is open: the row says "Added", pressing it again takes it back, and nothing behind the panel is
+  // redrawn. The page changes once, when the panel starts to close (see `PeopleStagingProvider`).
+  const staging = usePeopleStaging();
+  useStagingSurface(!closing);
+  const full = isTimelineFull(staging.people);
 
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  });
-
-  // Close once an "Add" navigation has finished, so the new lane is visible.
-  useEffect(() => {
-    if (wasAdding.current && !isAdding) onCloseRef.current();
-    wasAdding.current = isAdding;
-  }, [isAdding]);
-
-  function add(person: PersonRow) {
-    const href = extendedPeopleHref(peopleInView, { id: person.id, name: person.name }, window.location.search);
-    if (!href) return;
-    setAddingId(person.id);
-    startAdding(() => router.push(href));
+  function toggleAdd(person: PersonRow) {
+    if (staging.pending.added.some((added) => added.id === person.id)) staging.removePerson(person.id);
+    else staging.addPerson({ id: person.id, name: person.name, profilePath: person.profilePath });
   }
 
   return (
@@ -90,8 +77,9 @@ function FilmDialog({
               film={state.film}
               titleId={titleId}
               peopleInView={peopleInView}
-              addingId={isAdding ? addingId : null}
-              onAdd={add}
+              added={staging.pending.added}
+              full={full}
+              onToggleAdd={toggleAdd}
               scrollRef={scrollRef}
             />
           )}

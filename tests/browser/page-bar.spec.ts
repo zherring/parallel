@@ -412,10 +412,10 @@ test.describe("what is no longer on the page", () => {
     // The pill takes the names' place once the pair hero has collapsed.
     await collapseHero(page);
     await page.getByRole("button", { name: /^People on this page/ }).click();
-    // The same pill as the Depth view's: the app's search field to add someone (focused) and a row for each person, with a way to remove them.
+    // The same pill as the Depth view's: the app's search field to add someone (focused) and a row for each person, with a way to remove them (it stages the removal: see people-staging.spec.ts).
     await expect(page.getByRole("combobox", { name: "Add a person", exact: true })).toBeFocused();
     const card = page.getByRole("dialog", { name: "People", exact: true });
-    await expect(card.getByRole("link", { name: "Remove Pedro Almodóvar", exact: true })).toHaveAttribute("href", /^\/p\/955-penelope-cruz/);
+    await expect(card.getByRole("button", { name: "Remove Pedro Almodóvar", exact: true })).toBeVisible();
     // The page is what scrolls here (the Depth view's scroller is what closes it there).
     await page.mouse.wheel(0, 300);
     await expect(card).toBeHidden();
@@ -473,7 +473,7 @@ test.describe("the people pill's rows open the person's details, as names do eve
       await expect(card.getByRole("button", { name: "Details for Penélope Cruz", exact: true })).toBeFocused();
 
       // Remove is still there, with the film count and roles beside the name as the people column writes them.
-      await expect(card.getByRole("link", { name: "Remove Pedro Almodóvar", exact: true })).toHaveAttribute("href", /^\/p\/955-penelope-cruz/);
+      await expect(card.getByRole("button", { name: "Remove Pedro Almodóvar", exact: true })).toBeVisible();
       await expect(card.getByText("12 films")).toHaveCount(2);
     });
   }
@@ -497,11 +497,11 @@ test.describe("the people pill's rows open the person's details, as names do eve
     await expect(page.getByRole("dialog", { name: "Pedro Almodóvar", exact: true })).toBeHidden();
     await expect(card).toBeVisible();
     await expect(name).toBeFocused();
-    // Tab goes on to the row's eye (on the flat Timeline of several people: it shows or hides their films), then its Remove link, and then the next row's name.
+    // Tab goes on to the row's eye (on the flat Timeline of several people: it shows or hides their films), then its Remove button, and then the next row's name.
     await page.keyboard.press("Tab");
     await expect(card.getByRole("button", { name: "Show Pedro Almodóvar's films on the timeline", exact: true })).toBeFocused();
     await page.keyboard.press("Tab");
-    await expect(card.getByRole("link", { name: "Remove Pedro Almodóvar", exact: true })).toBeFocused();
+    await expect(card.getByRole("button", { name: "Remove Pedro Almodóvar", exact: true })).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(card.getByRole("button", { name: "Penélope Cruz", exact: true })).toBeFocused();
   });

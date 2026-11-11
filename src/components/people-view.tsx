@@ -9,6 +9,7 @@ import { useHeroCollapse } from "@/components/hero/use-hero-collapse";
 import { usePairHero } from "@/components/hero/use-pair-hero";
 import { PageHeadline } from "@/components/page-headline";
 import { PeopleBar } from "@/components/people-bar";
+import { PeopleStagingProvider } from "@/components/people-staging";
 import { PersonPanel } from "@/components/person-panel/person-panel";
 import { rememberOpener, useRememberPressed } from "@/components/side-panel/side-panel";
 import { FilmsSection } from "@/components/timeline/films-section";
@@ -28,7 +29,7 @@ import { pageViewHref } from "@/lib/depth-url";
 import { effectiveTrackMode } from "@/lib/film-prefs";
 import { personRows, sharedRows } from "@/lib/film-rows";
 import { carryView, hasClippingsTab, quoteIdsOf, showingMessage, type PageView } from "@/lib/films-view";
-import { laneSummary, removePersonHref } from "@/lib/lanes";
+import { laneSummary } from "@/lib/lanes";
 import { quoteHref, type HeroNote } from "@/lib/pair-hero";
 import { periodLabel, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss } from "@/lib/person-colors";
@@ -58,10 +59,18 @@ interface Props {
   heroNote: HeroNote | null;
 }
 
+/** The flat page keeps the view the visitor is on (Timeline, Table; Films is another page) in the address that staged changes to the people lead to: read from the address bar when they are applied. */
+const carryCurrentView = (href: string) => carryView(href, window.location.search);
+
 export function PeopleView(props: Props) {
-  // A different set of people is a different page: start over (zoom, selection, scroll).
+  // A different set of people is a different page: start over (zoom, selection, scroll, and the people staged while a panel was open).
   const key = props.timelines.map((t) => t.person.id).join("+");
-  return <PeopleViewInner key={key} {...props} />;
+  const people = useMemo(() => props.timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [props.timelines]);
+  return (
+    <PeopleStagingProvider key={key} people={people} carry={carryCurrentView}>
+      <PeopleViewInner key={key} {...props} />
+    </PeopleStagingProvider>
+  );
 }
 
 function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critics, heroNote }: Props) {
@@ -145,11 +154,9 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         slot: index,
         roles: laneSummary(films, person, includeMinor).roles,
         filmCount: films.length,
-        // Removing someone keeps the view the visitor is on (the last person's removal goes home).
-        removeHref: people.length > 1 ? carryView(removePersonHref(people, person.id), search) : removePersonHref(people, person.id),
         visible: !hiddenIds.has(person.id),
       })),
-    [lanes, includeMinor, hiddenIds, people, search],
+    [lanes, includeMinor, hiddenIds],
   );
 
   // Hiding someone changes the axis (it spans the films shown): keep the year in the middle where it is.

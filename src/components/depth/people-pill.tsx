@@ -1,15 +1,16 @@
 "use client";
 
 import { ChevronDown, Eye, EyeOff, X } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { REDUCED_MOTION, useMediaQuery } from "@/components/depth/use-media";
 import { springEasing } from "@/components/landing/hero-motion";
 import { PersonAvatar } from "@/components/person-avatar";
+import { useStagingSurface, usePeopleStaging } from "@/components/people-staging";
 import { PersonSearch } from "@/components/person-search/person-search";
 import { cn } from "@/components/timeline/cn";
 import { PersonBio } from "@/components/timeline/person-bio";
 import { filmCountLabel, joinNames } from "@/lib/format";
+import { finalPeople, hasRoom, isStagedRemoval, type PendingPeople, type StagedPerson } from "@/lib/pending-people";
 import { personColor } from "@/lib/person-colors";
 import { pageHeading } from "@/lib/short-name";
 import type { OpenPerson } from "@/lib/side-panel";
@@ -25,8 +26,6 @@ export interface PillPerson {
   roles: string;
   /** Films of theirs in the scene. */
   filmCount: number;
-  /** The page without them. */
-  removeHref: string;
   /** Their films are on the timeline (the eye); only meaningful where the pill has `onToggleVisible`. A person is shown unless this says false. */
   visible?: boolean;
 }
@@ -76,9 +75,37 @@ function headRects(root: ParentNode, attribute: string): Map<string, DOMRect> {
   return rects;
 }
 
-interface PersonRowProps {
+/** A person's row as the pill's card and the people search show it: the person, and whether the visitor has staged their joining or leaving the page. */
+export interface PillRow {
   entry: PillPerson;
-  /** The name and the portrait open the person's details in the slide-out panel. */
+  /** "added": the search added them, and the page has them once the panel closes; "removed": they are on the page and will leave it then. Null: nothing staged. */
+  staged: "added" | "removed" | null;
+}
+
+/**
+ * The rows of the card for the page's people and what is staged on them (see `PeopleStagingProvider`): everyone on the page, in order, those staged to leave marked
+ * as such, then the people staged to join, in the order they were added, with the little that is known of them (what the search had) and the colour of the place they will have.
+ */
+export function pillRows(people: readonly PillPerson[], pending: PendingPeople): PillRow[] {
+  const final = finalPeople(people.map(({ person }) => ({ id: person.id, name: person.name })), pending);
+  const rows: PillRow[] = people.map((entry) => ({ entry, staged: isStagedRemoval(pending, entry.person.id) ? "removed" : null }));
+  for (const added of pending.added) {
+    rows.push({
+      entry: {
+        person: { id: added.id, name: added.name, profilePath: added.profilePath, knownFor: null, birthday: null, deathday: null, biography: null },
+        slot: Math.max(0, final.findIndex((person) => person.id === added.id)),
+        roles: "",
+        filmCount: 0,
+      },
+      staged: "added",
+    });
+  }
+  return rows;
+}
+
+interface PersonRowProps {
+  row: PillRow;
+  /** The name and the portrait open the person's details in the slide-out panel (not for a person staged to join: the page has nothing of them yet). */
   onOpenPerson: OpenPerson;
   /** Whether their films are shown (the eye is on); a hidden person is faint, with a ring that is still their colour. */
   visible: boolean;
@@ -86,45 +113,59 @@ interface PersonRowProps {
   onToggleVisible?: (personId: number) => void;
   /** The one person left on the track: their eye is disabled, since the track would be empty. */
   onlyVisible?: boolean;
+  /** "Remove" stages their leaving the page (or takes back their joining it): the page is not redrawn until the panel closes. */
+  onRemove: (personId: number) => void;
+  /** A removed row's "Undo" takes the removal back (staging them as added puts a person on the page back where they were). */
+  onRestore: (person: StagedPerson) => void;
+  /** Undo would put the person back on a page that is full by now. */
+  undoDisabled?: boolean;
 }
 
 /**
  * One person's row, in the open pill's card and in the full-screen people search (`PeopleOverlay`): their portrait (in their colour's ring) and name,
- * both opening their details, their roles and film count, the eye where the view has one, and "Remove", the link to the page without them. Its heads and
- * fades are marked (`data-row-head`, `data-fade`) for the pill's flight, which looks only inside its own card.
+ * both opening their details, their roles and film count, the eye where the view has one, and "Remove". Remove only stages (see `PeopleStagingProvider`): the row says so,
+ * "Leaves the page when this closes", and "Undo" takes it back; a person the search just added has a row too, marked new, whose Remove takes the adding back.
+ * Its heads and fades are marked (`data-row-head`, `data-fade`) for the pill's flight, which looks only inside its own card.
  */
-export function PersonRow({ entry, onOpenPerson, visible, onToggleVisible, onlyVisible = false }: PersonRowProps) {
-  const { person, slot, roles, filmCount, removeHref } = entry;
+export function PersonRow({ row, onOpenPerson, visible, onToggleVisible, onlyVisible = false, onRemove, onRestore, undoDisabled = false }: PersonRowProps) {
+  const { entry, staged } = row;
+  const { person, slot, roles, filmCount } = entry;
+  const removed = staged === "removed";
+  const added = staged === "added";
+  const faint = !visible || removed;
+  const avatar = (
+    <PersonAvatar
+      name={person.name}
+      profilePath={person.profilePath}
+      size={40}
+      // A hidden person keeps a faint ring, so their colour is still how you find them again.
+      ringColor={visible && !removed ? personColor(slot) : `color-mix(in srgb, ${personColor(slot)} 35%, transparent)`}
+      className={cn(faint && "opacity-50 grayscale")}
+    />
+  );
   return (
-    <li className="flex items-center gap-3 rounded-xl px-2 py-2">
+    <li data-staged={staged ?? undefined} className="flex items-center gap-3 rounded-xl px-2 py-2">
       <span data-row-head={person.id} className="inline-flex shrink-0 origin-top-left">
         {/* The portrait opens the person's details, as the name does (and as the Quotes' names do). */}
-        <PersonBio
-          person={person}
-          onOpen={onOpenPerson}
-          portrait={
-            <PersonAvatar
-              name={person.name}
-              profilePath={person.profilePath}
-              size={40}
-              // A hidden person keeps a faint ring, so their colour is still how you find them again.
-              ringColor={visible ? personColor(slot) : `color-mix(in srgb, ${personColor(slot)} 35%, transparent)`}
-              className={cn(!visible && "opacity-50 grayscale")}
-            />
-          }
-        />
+        {added ? avatar : <PersonBio person={person} onOpen={onOpenPerson} portrait={avatar} />}
       </span>
-      <div data-fade className={cn("min-w-0 flex-1", !visible && "opacity-60")}>
+      <div data-fade className={cn("min-w-0 flex-1", faint && "opacity-60")}>
         {/* The name (up to two lines, the whole of it on hover) opening the person's details, the roles in full, the film count. */}
-        <p title={person.name} className="line-clamp-2 break-words text-sm font-semibold leading-tight text-strong">
-          <span className="relative inline-block max-w-full align-top">
-            <PersonBio person={person} onOpen={onOpenPerson} nameTrigger />
-          </span>
+        <p title={person.name} className={cn("line-clamp-2 break-words text-sm font-semibold leading-tight text-strong", removed && "line-through")}>
+          <span className="relative inline-block max-w-full align-top">{added ? person.name : <PersonBio person={person} onOpen={onOpenPerson} nameTrigger />}</span>
         </p>
-        {roles && <p className="mt-0.5 text-xs leading-snug text-body">{roles}</p>}
-        <p className="mt-0.5 text-xs tabular-nums text-muted">{visible ? filmCountLabel(filmCount) : `${filmCountLabel(filmCount)}, hidden`}</p>
+        {added ? (
+          <p className="mt-0.5 text-xs leading-snug text-accent-green">New: joins the page when this closes</p>
+        ) : removed ? (
+          <p className="mt-0.5 text-xs leading-snug text-body">Leaves the page when this closes</p>
+        ) : (
+          <>
+            {roles && <p className="mt-0.5 text-xs leading-snug text-body">{roles}</p>}
+            <p className="mt-0.5 text-xs tabular-nums text-muted">{visible ? filmCountLabel(filmCount) : `${filmCountLabel(filmCount)}, hidden`}</p>
+          </>
+        )}
       </div>
-      {onToggleVisible && (
+      {onToggleVisible && !staged && (
         // The eye that shows or hides this person's films on the timeline (the people column's had one, which the pill took over): pressed while their films are shown.
         <button
           data-fade
@@ -139,16 +180,25 @@ export function PersonRow({ entry, onOpenPerson, visible, onToggleVisible, onlyV
           {visible ? <Eye aria-hidden="true" className="size-4" /> : <EyeOff aria-hidden="true" className="size-4" />}
         </button>
       )}
-      <Link
+      <button
         data-fade
-        href={removeHref}
-        prefetch={false}
-        aria-label={`Remove ${person.name}`}
-        title={`Remove ${person.name} from the page`}
-        className="shrink-0 rounded-md px-2 py-1.5 text-xs text-muted hover:bg-surface hover:text-strong"
+        type="button"
+        aria-label={removed ? `Undo removing ${person.name}` : `Remove ${person.name}`}
+        title={
+          removed
+            ? undoDisabled
+              ? "The page is full, so they cannot be put back"
+              : `Keep ${person.name} on the page`
+            : added
+              ? `Take back adding ${person.name}`
+              : `Remove ${person.name} from the page`
+        }
+        disabled={removed && undoDisabled}
+        onClick={() => (removed ? onRestore({ id: person.id, name: person.name, profilePath: person.profilePath }) : onRemove(person.id))}
+        className="shrink-0 cursor-pointer rounded-md px-2 py-1.5 text-xs text-muted hover:bg-surface hover:text-strong disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted"
       >
-        Remove
-      </Link>
+        {removed ? "Undo" : "Remove"}
+      </button>
     </li>
   );
 }
@@ -160,6 +210,9 @@ export function PersonRow({ entry, onOpenPerson, visible, onToggleVisible, onlyV
  * with the hero's spring, on the compositor; none for reduced motion). While it is open the pill's outline fades away and, in
  * its place, the app's usual search field to add someone (focused) takes the card's width, with a close button of its own,
  * a square icon just to its right.
+ *
+ * Adding and removing people there only stages the change (`PeopleStagingProvider`): a person picked in the field has a row at once, marked new, a removed person's
+ * row says it leaves and has Undo, and the page behind is not redrawn; closing the card applies everything staged in one navigation.
  *
  * It closes on its own once the scene scrolls more than 24px from where it was (a viewport resize, such as a phone's
  * keyboard opening, is not the visitor scrolling), on a press anywhere outside it (the field's dropdown is inside it) and
@@ -179,17 +232,20 @@ export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible 
   const capsuleRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<Phase>("closed");
+  // While it is open (not while the heads fly home), the changes staged here wait for it to close.
+  useStagingSurface(phase === "open");
   /** Where each head was in the pill when it was pressed (client rects by person id), for the heads' flight into the rows. */
   const fromRects = useRef<Map<string, DOMRect>>(new Map());
   /** The scroller's scrollTop when the panel opened. */
   const openedAt = useRef(0);
   const running = useRef<Animation[]>([]);
 
-  const peopleInView = useMemo(() => people.map(({ person }) => ({ id: person.id, name: person.name })), [people]);
+  // Adding and removing people only stages the change while the card is open; the page changes once, when it closes (see `PeopleStagingProvider`).
+  const staging = usePeopleStaging();
+  const rows = useMemo(() => pillRows(people, staging.pending), [people, staging.pending]);
   const names = joinNames(people.map(({ person }) => person.name));
   // On a phone the names are the family names ("Tracy & Hepburn", "Ford, Lucas, & Spielberg"), the ones the page's headline uses for three or more people.
   const familyNames = pageHeading(people.map(({ person }) => ({ id: person.id, name: person.name })), { short: true }).text;
-  const single = people.length === 1;
   /** The eyes are on offer here; a person is on the track unless theirs is off. Without them nobody is hidden. */
   const hideable = onToggleVisible !== undefined;
   const isVisible = (entry: PillPerson) => !hideable || entry.visible !== false;
@@ -434,11 +490,13 @@ export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible 
             <div className="min-w-0 flex-1">
               <PersonSearch
                 autoFocus
-                peopleInView={peopleInView}
+                // The people as the page will have them: a person added here is "In timeline" at once, and one removed can be added back.
+                peopleInView={staging.people}
                 size="compact"
                 ariaLabel="Add a person"
-                suggestFor={single ? people[0].person.id : undefined}
+                suggestFor={staging.people.length === 1 ? staging.people[0].id : undefined}
                 onIdleEscape={() => close(true)}
+                onPick={staging.addPerson}
               />
             </div>
             <button
@@ -471,17 +529,22 @@ export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible 
           />
           <div className="relative p-2">
             <ul className="m-0 list-none p-0">
-              {people.map((entry) => {
-                const visible = isVisible(entry);
+              {rows.map((row) => {
+                const { entry, staged } = row;
+                // A person staged to join or leave has no eye (the track does not have them yet, or soon will not).
+                const visible = staged === null ? isVisible(entry) : true;
                 return (
                   <PersonRow
                     key={entry.person.id}
-                    entry={entry}
+                    row={row}
                     onOpenPerson={onOpenPerson}
                     visible={visible}
                     onToggleVisible={onToggleVisible}
                     // The last person on the track cannot be hidden: it would be empty.
-                    onlyVisible={visible && visibleCount === 1}
+                    onlyVisible={staged === null && visible && visibleCount === 1}
+                    onRemove={staging.removePerson}
+                    onRestore={staging.addPerson}
+                    undoDisabled={!hasRoom(staging.current, staging.pending)}
                   />
                 );
               })}

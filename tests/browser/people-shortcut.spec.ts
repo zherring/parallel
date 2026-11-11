@@ -82,8 +82,8 @@ test("⌘K opens a full-screen people search on a page too short to scroll, with
   await expect(dialog.getByRole("button", { name: "Details for Quiet Alpha", exact: true })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Quiet Alpha", exact: true })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Quiet Beta", exact: true })).toBeVisible();
-  await expect(dialog.getByRole("link", { name: "Remove Quiet Alpha", exact: true })).toHaveAttribute("href", "/p/90000022-quiet-beta?view=table");
-  await expect(dialog.getByRole("link", { name: "Remove Quiet Beta", exact: true })).toHaveAttribute("href", "/p/90000021-quiet-alpha?view=table");
+  await expect(dialog.getByRole("button", { name: "Remove Quiet Alpha", exact: true })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Remove Quiet Beta", exact: true })).toBeVisible();
   // Each person's portrait is ringed in their colour (the pill's blue and amber).
   const heads = dialog.locator("[data-row-head] > button > span");
   await expect(heads).toHaveCount(2);
@@ -177,9 +177,25 @@ test("it is not taken while the visitor types in a text field or textarea elsewh
   await expect(overlay(page)).toBeVisible();
 });
 
-test("adding a person from the overlay goes to the page with them, in the view the visitor is on, and the overlay is gone", async ({ page }) => {
+/** Marks this document and counts what the page pushes onto the history, so that a test can tell a soft navigation (one push, the marker kept) from a reload or from several. */
+async function watchNavigation(page: Page) {
+  await page.evaluate(() => {
+    const w = window as unknown as { __marker: string; __pushes: string[] };
+    w.__marker = "the same document";
+    w.__pushes = [];
+    const push = history.pushState.bind(history);
+    history.pushState = (data, unused, url) => {
+      w.__pushes.push(String(url));
+      return push(data, unused, url);
+    };
+  });
+}
+const navigation = (page: Page) => page.evaluate(() => ({ marker: (window as unknown as { __marker?: string }).__marker, pushes: (window as unknown as { __pushes: string[] }).__pushes }));
+
+test("adding a person from the overlay stages it: the person is in the list at once, marked new, and the page is not touched until the overlay closes, in one soft navigation that keeps the view", async ({ page }) => {
   await mockSearch(page);
-  await openPage(page);
+  const gear = await openPage(page);
+  await watchNavigation(page);
 
   await page.keyboard.press(SHORTCUT);
   const search = overlaySearch(page);
@@ -189,22 +205,101 @@ test("adding a person from the overlay goes to the page with them, in the view t
   await expect(page.getByRole("option", { name: /Quiet Beta/ })).toHaveAttribute("aria-disabled", "true");
   await page.getByRole("option", { name: /Quiet Gamma/ }).click();
 
-  await expect(page).toHaveURL(/\/p\/90000021-quiet-alpha\+90000022-quiet-beta\+90000023-quiet-gamma\?view=table$/);
+  // In the list now, marked new, with a way to take it back; the field is empty and still has focus, for another; and the search knows they are in.
+  const added = overlay(page).locator('[data-staged="added"]');
+  await expect(added).toHaveCount(1);
+  await expect(added).toContainText("Quiet Gamma");
+  await expect(added).toContainText("New");
+  await expect(added.getByRole("button", { name: "Remove Quiet Gamma", exact: true })).toBeVisible();
+  await expect(search).toBeFocused();
+  await expect(search).toHaveValue("");
+  await search.fill("quiet");
+  await expect(page.getByRole("option", { name: /Quiet Gamma/ })).toHaveAttribute("aria-disabled", "true");
+  // Nothing has happened to the page: the address, the document and the people behind.
+  await expect(page).toHaveURL(/\/p\/90000021-quiet-alpha\+90000022-quiet-beta\?view=table$/);
+  expect(await navigation(page)).toEqual({ marker: "the same document", pushes: [] });
+  await expect(page.locator("[data-people-pill] button[aria-label^='People on this page']")).toHaveAttribute("aria-label", "People on this page: Quiet Alpha & Quiet Beta");
+
+  // Closing it applies the change, once, as a soft navigation, to the page with them in the view the visitor is on.
+  await page.keyboard.press(SHORTCUT);
   await expect(overlay(page)).toHaveCount(0);
+  // Focus is back where it was before the navigation starts (the page that opens is a new one).
+  await expect(gear).toBeFocused();
+  await expect(page).toHaveURL(/\/p\/90000021-quiet-alpha\+90000022-quiet-beta\+90000023-quiet-gamma\?view=table$/);
   await expect(page.locator("[data-people-pill] button[aria-label^='People on this page']")).toHaveAttribute("aria-label", /Quiet Gamma/);
+  expect(await navigation(page)).toEqual({ marker: "the same document", pushes: ["/p/90000021-quiet-alpha+90000022-quiet-beta+90000023-quiet-gamma?view=table"] });
   // The page is live and its scroll is the visitor's again.
   await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
 });
 
-test("removing a person from the overlay goes to the page without them, in the same view, and the overlay is gone", async ({ page }) => {
+test("removing a person from the overlay stages it: the row says it leaves, with Undo, and closing it goes to the page without them", async ({ page }) => {
   await openPage(page);
+  await watchNavigation(page);
   await page.keyboard.press(SHORTCUT);
-  await overlay(page).getByRole("link", { name: "Remove Quiet Beta", exact: true }).click();
+  const dialog = overlay(page);
+  await dialog.getByRole("button", { name: "Remove Quiet Beta", exact: true }).click();
 
+  const removed = dialog.locator('[data-staged="removed"]');
+  await expect(removed).toHaveCount(1);
+  await expect(removed).toContainText("Quiet Beta");
+  await expect(removed).toContainText("Leaves the page when this closes");
+  expect(await navigation(page)).toEqual({ marker: "the same document", pushes: [] });
+  await expect(page).toHaveURL(/\/p\/90000021-quiet-alpha\+90000022-quiet-beta\?view=table$/);
+
+  // Undo takes it back (the row is as it was), and Remove stages it again.
+  await removed.getByRole("button", { name: "Undo removing Quiet Beta", exact: true }).click();
+  await expect(dialog.locator("[data-staged]")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Remove Quiet Beta", exact: true }).click();
+  await expect(dialog.locator('[data-staged="removed"]')).toHaveCount(1);
+
+  await page.keyboard.press(SHORTCUT);
+  await expect(dialog).toHaveCount(0);
   await expect(page).toHaveURL(/\/p\/90000021-quiet-alpha\?view=table$/);
-  await expect(overlay(page)).toHaveCount(0);
+  expect(await navigation(page)).toEqual({ marker: "the same document", pushes: ["/p/90000021-quiet-alpha?view=table"] });
   await expect(page.locator("[data-people-pill] button[aria-label^='People on this page']")).toHaveAttribute("aria-label", "People on this page: Quiet Alpha");
+});
+
+test("changes that cancel out, or none, leave the page alone when the overlay closes", async ({ page }) => {
+  await mockSearch(page);
+  await openPage(page);
+  await watchNavigation(page);
+
+  // Nothing staged.
+  await page.keyboard.press(SHORTCUT);
+  await expect(overlaySearch(page)).toBeFocused();
+  await page.keyboard.press(SHORTCUT);
+  await expect(overlay(page)).toHaveCount(0);
+
+  // Added and taken back; removed and undone.
+  await page.keyboard.press(SHORTCUT);
+  await overlaySearch(page).fill("quiet");
+  await page.getByRole("option", { name: /Quiet Gamma/ }).click();
+  await overlay(page).getByRole("button", { name: "Remove Quiet Gamma", exact: true }).click();
+  await overlay(page).getByRole("button", { name: "Remove Quiet Alpha", exact: true }).click();
+  await overlay(page).getByRole("button", { name: "Undo removing Quiet Alpha", exact: true }).click();
+  await expect(overlay(page).locator("[data-staged]")).toHaveCount(0);
+  await overlay(page).getByRole("button", { name: "Close people", exact: true }).click();
+  await expect(overlay(page)).toHaveCount(0);
+
+  // A navigation would show up soon after; none does (a check that nothing happens needs a little time to be wrong in).
+  await page.waitForTimeout(800);
+  await expect(page).toHaveURL(/\/p\/90000021-quiet-alpha\+90000022-quiet-beta\?view=table$/);
+  expect(await navigation(page)).toEqual({ marker: "the same document", pushes: [] });
+});
+
+test("every change staged in one session is applied in one navigation: someone out, two in, in the order they were added", async ({ page }) => {
+  await mockSearch(page);
+  await openPage(page);
+  await watchNavigation(page);
+  await page.keyboard.press(SHORTCUT);
+  await overlay(page).getByRole("button", { name: "Remove Quiet Alpha", exact: true }).click();
+  await overlaySearch(page).fill("quiet");
+  await page.getByRole("option", { name: /Quiet Gamma/ }).click();
+  await overlay(page).getByRole("button", { name: "Close people", exact: true }).click();
+
+  await expect(page).toHaveURL(/\/p\/90000022-quiet-beta\+90000023-quiet-gamma\?view=table$/);
+  expect(await navigation(page)).toEqual({ marker: "the same document", pushes: ["/p/90000022-quiet-beta+90000023-quiet-gamma?view=table"] });
 });
 
 test("a name in the overlay opens the person's panel over it, and closing the panel gives the overlay back, with focus on the name", async ({ page }) => {
@@ -281,7 +376,7 @@ for (const view of ["timeline", "table", "depth"] as const) {
     await collapseHero(page);
     await page.keyboard.press(SHORTCUT);
     await expect(overlaySearch(page)).toBeFocused();
-    await expect(overlay(page).getByRole("link", { name: "Remove Quiet Alpha", exact: true })).toBeVisible();
+    await expect(overlay(page).getByRole("button", { name: "Remove Quiet Alpha", exact: true })).toBeVisible();
     await page.keyboard.press(SHORTCUT);
     await expect(overlay(page)).toBeHidden();
     if (view === "depth") await expect(scene(page)).toBeVisible();

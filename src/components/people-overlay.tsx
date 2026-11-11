@@ -5,10 +5,12 @@ import { usePathname } from "next/navigation";
 import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { REDUCED_MOTION } from "@/components/depth/use-media";
-import { PersonRow, type PillPerson } from "@/components/depth/people-pill";
+import { PersonRow, pillRows, type PillPerson } from "@/components/depth/people-pill";
+import { usePeopleStaging, useStagingSurface } from "@/components/people-staging";
 import { PersonSearch } from "@/components/person-search/person-search";
 import { trapTab, useModalPage } from "@/components/side-panel/modal-page";
 import type { ElementLike } from "@/lib/hero-keys";
+import { hasRoom } from "@/lib/pending-people";
 import { describeShortcutTarget, isApplePlatform, peopleKeyAction } from "@/lib/people-shortcut";
 import type { OpenPerson } from "@/lib/side-panel";
 
@@ -34,9 +36,10 @@ function platformName(): string {
  * focused, and the people on the page, in the same rows as the card's (`PersonRow`: their portrait in their colour's ring, name, roles, and "Remove", the
  * link to the page without them), but for the eyes, which are the Timeline's. It is a modal dialog ("People") in a portal on the body, over the page, which is made
  * inert and keeps its scroll while it is open (`useModalPage`, as the slide-out panels do); Tab stays in it. ⌘K again, Escape (the field's own Escape first: it clears its
- * text and closes its list before this one closes the overlay) or the close button closes it, and focus goes back to what had it before. Adding a person
- * or removing one navigates, as it does in the pill; the page that opens is a new one, so the overlay is gone with the old one (and it is open only for
- * the address it was opened on). It fades in and grows a little, but not for a visitor who asked for less motion.
+ * text and closes its list before this one closes the overlay) or the close button closes it, and focus goes back to what had it before. Adding a person or removing
+ * one only stages the change (`PeopleStagingProvider`): the new person has a row at once, marked new, a removed one's row says so and has Undo, and nothing behind is redrawn;
+ * closing the overlay applies everything staged in one navigation. It is open only for the address it was opened on. It fades in and grows a little, but not for a
+ * visitor who asked for less motion.
  *
  * ⌘K is not taken while the visitor types in a text field or textarea elsewhere (the overlay's own field aside), nor over the film's or the person's panel.
  * It is the page bar's: it is mounted once, by `PeopleBar`, after the bar's own box (the bar forwards a wheel to the scene under it, and the overlay's portal
@@ -82,7 +85,10 @@ export function PeopleOverlay({ people, onOpenPerson }: PeopleOverlayProps) {
 
 function PeopleDialog({ people, onOpenPerson, opener, onClose }: PeopleOverlayProps & { opener: Element | null; onClose: () => void }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const peopleInView = useMemo(() => people.map(({ person }) => ({ id: person.id, name: person.name })), [people]);
+  // Adding and removing people only stages the change while this is open; the page changes once, when it closes (see `PeopleStagingProvider`).
+  const staging = usePeopleStaging();
+  useStagingSurface(true);
+  const rows = useMemo(() => pillRows(people, staging.pending), [people, staging.pending]);
 
   // A quick fade in with a little growth, none for a visitor who asked for less motion.
   useLayoutEffect(() => {
@@ -120,10 +126,12 @@ function PeopleDialog({ people, onOpenPerson, opener, onClose }: PeopleOverlayPr
             <PersonSearch
               autoFocus
               size="hero"
-              peopleInView={peopleInView}
+              // The people as the page will have them: a person added here is "In timeline" at once, and one removed can be added back.
+              peopleInView={staging.people}
               ariaLabel="Add a person"
-              suggestFor={people.length === 1 ? people[0].person.id : undefined}
+              suggestFor={staging.people.length === 1 ? staging.people[0].id : undefined}
               onIdleEscape={onClose}
+              onPick={staging.addPerson}
             />
           </div>
           <button
@@ -138,8 +146,16 @@ function PeopleDialog({ people, onOpenPerson, opener, onClose }: PeopleOverlayPr
         </div>
         <h2 className="mb-1 mt-8 px-2 text-xs font-medium uppercase tracking-wide text-muted">On this page</h2>
         <ul className="m-0 list-none p-0">
-          {people.map((entry) => (
-            <PersonRow key={entry.person.id} entry={entry} onOpenPerson={onOpenPerson} visible />
+          {rows.map((row) => (
+            <PersonRow
+              key={row.entry.person.id}
+              row={row}
+              onOpenPerson={onOpenPerson}
+              visible
+              onRemove={staging.removePerson}
+              onRestore={staging.addPerson}
+              undoDisabled={!hasRoom(staging.current, staging.pending)}
+            />
           ))}
         </ul>
       </div>

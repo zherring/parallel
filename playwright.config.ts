@@ -22,7 +22,7 @@ export default defineConfig({
     // view's spec in Safari's engine (`npx playwright install webkit` first). Perspective inside a scroller has been unreliable there. The
     // other specs are the ones whose behaviour is the engine's: Safari's keys and focus (the people shortcut) and what a phone's screen can show (the Share menu).
     ...(process.env.WEBKIT
-      ? [{ name: "webkit", testMatch: ["**/depth-view.spec.ts", "**/people-shortcut.spec.ts", "**/share-menu-phone.spec.ts"], use: { browserName: "webkit" as const } }]
+      ? [{ name: "webkit", testMatch: ["**/depth-view.spec.ts", "**/people-shortcut.spec.ts", "**/people-staging.spec.ts", "**/share-menu-phone.spec.ts"], use: { browserName: "webkit" as const } }]
       : []),
   ],
   webServer: {

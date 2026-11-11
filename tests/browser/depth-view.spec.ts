@@ -1380,7 +1380,8 @@ test("the people pill opens on a press and closes when the scene scrolls", async
   await expect(pillClose(page)).toBeVisible();
   await expect(bubble).not.toContainText("Parallel");
   await expect(bubble.locator('a[href="/"]')).toHaveCount(0);
-  await expect(card.getByRole("link", { name: "Remove Scroll Alpha", exact: true })).toHaveAttribute("href", /view=depth/);
+  // Remove only stages (the page changes when the card closes: see people-staging.spec.ts); it is a button, not a link.
+  await expect(card.getByRole("button", { name: "Remove Scroll Alpha", exact: true })).toBeVisible();
   // The way back to the flat page is the view switcher, in the bar: not in the card. Nor are there eyes in the rows: Focus draws every film (they are the flat Timeline's).
   await expect(card.getByRole("button", { name: /^Show .+ films on the timeline$/ })).toHaveCount(0);
   await expect(card.getByRole("link", { name: "Flat timeline", exact: true })).toHaveCount(0);
@@ -1587,7 +1588,7 @@ test("a press on the dropdown is not an outside press, and the close button and 
   await expect(button).toHaveAttribute("aria-expanded", "false");
 });
 
-test("picking a person from the pill's search adds them and stays in the Depth view", async ({ page }) => {
+test("picking a person from the pill's search stages them, and closing the pill adds them and stays in the Depth view", async ({ page }) => {
   await mockSearch(page);
   await openDepth(page);
   await pill(page).click();
@@ -1595,6 +1596,13 @@ test("picking a person from the pill's search adds them and stays in the Depth v
   await search.fill("scroll");
   await page.getByRole("option", { name: /Scroll Gamma/ }).click();
 
+  // Staged: a row in the card at once, marked new, and the page behind is as it was (the address, and the scene).
+  await expect(peopleCard(page).locator('[data-staged="added"]')).toContainText("Scroll Gamma");
+  await expect(page).toHaveURL(/\/p\/90000001-scroll-alpha\+90000002-scroll-beta\?view=depth$/);
+  await expect(scene(page)).toBeVisible();
+
+  // Closing the pill applies it, in the Depth view.
+  await pillClose(page).click();
   await expect(page).toHaveURL(/\/p\/90000001-scroll-alpha\+90000002-scroll-beta\+90000003-scroll-gamma\?view=depth/);
   await expect(scene(page)).toBeVisible();
 });
@@ -1909,6 +1917,8 @@ test("a different set of people starts over with the settings off", async ({ pag
   await pill(page).click();
   await pillSearch(page).fill("scroll");
   await page.getByRole("option", { name: /Scroll Gamma/ }).click();
+  // The page changes when the pill closes.
+  await pillClose(page).click();
   await expect(page).toHaveURL(/scroll-gamma\?view=depth/);
   await expect(scene(page)).toBeVisible();
   await settingsGear(page).click();

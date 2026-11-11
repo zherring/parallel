@@ -3,28 +3,33 @@
 import type { ReactNode, RefObject } from "react";
 import { PersonAvatar } from "@/components/person-avatar";
 import { Portrait } from "@/components/portrait";
+import { joinNames } from "@/lib/format";
 import { filmMetaLine, groupFilmCredits, tmdbMovieUrl, type PersonRow } from "@/lib/film-people";
 import { tmdbImage } from "@/lib/images";
-import { MAX_PEOPLE, addState, isTimelineFull } from "@/lib/people-nav";
+import { MAX_PEOPLE, addState } from "@/lib/people-nav";
 import type { FilmDetails } from "@/lib/types";
 import { FilmTabs } from "./film-tabs";
 
 interface Props {
   film: FilmDetails;
   titleId: string;
+  /** The people on the page now: they are the "In this timeline" group, and have the badge in the cast. */
   peopleInView: { id: number; name: string }[];
-  /** Person id currently being added (navigation in flight), if any. */
-  addingId: number | null;
-  onAdd: (person: PersonRow) => void;
+  /** The people staged to join the page (see `PeopleStagingProvider`), in the order they were added: their button says "Added", and pressing it takes it back. */
+  added: readonly { id: number; name: string }[];
+  /** The page will be full (`MAX_PEOPLE`) once the staged people join: no one else can be added. */
+  full: boolean;
+  /** Stages adding a person, or takes it back for one already staged. Nothing is redrawn until the panel closes. */
+  onToggleAdd: (person: PersonRow) => void;
   /** The panel's scroll container, for the sticky cast/crew tabs. */
   scrollRef: RefObject<HTMLElement | null>;
 }
 
 const FULL_TITLE = `A timeline holds up to ${MAX_PEOPLE} people`;
 
-export function FilmContent({ film, titleId, peopleInView, addingId, onAdd, scrollRef }: Props) {
+export function FilmContent({ film, titleId, peopleInView, added, full, onToggleAdd, scrollRef }: Props) {
   const credits = groupFilmCredits(film, peopleInView);
-  const full = isTimelineFull(peopleInView);
+  const addedIds = new Set(added.map((person) => person.id));
   const poster = tmdbImage(film.posterPath, "w342");
   const meta = filmMetaLine(film);
 
@@ -39,19 +44,30 @@ export function FilmContent({ film, titleId, peopleInView, addingId, onAdd, scro
             In timeline
           </span>
         );
+      } else if (addedIds.has(person.id)) {
+        // Staged to join: the page has them once the panel closes. Pressing it again takes it back.
+        action = (
+          <button
+            type="button"
+            aria-label={`${person.name} is added to the timeline. Press to take it back`}
+            title="Added when you close this panel. Press to take it back"
+            onClick={() => onToggleAdd(person)}
+            className="shrink-0 rounded border border-accent-green px-3 py-1 text-xs font-semibold text-accent-green hover:bg-surface"
+          >
+            Added ✓
+          </button>
+        );
       } else {
-        const adding = addingId === person.id;
-        const disabled = full || addingId !== null;
         action = (
           <button
             type="button"
             aria-label={`Add ${person.name} to timeline`}
             title={full ? FULL_TITLE : undefined}
-            disabled={disabled}
-            onClick={() => onAdd(person)}
+            disabled={full}
+            onClick={() => onToggleAdd(person)}
             className="shrink-0 rounded bg-accent-green px-3 py-1 text-xs font-semibold text-on-accent hover:bg-accent-green-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-accent-green"
           >
-            {adding ? "Adding…" : "Add"}
+            Add
           </button>
         );
       }
@@ -95,6 +111,15 @@ export function FilmContent({ film, titleId, peopleInView, addingId, onAdd, scro
       </div>
 
       {film.overview && <p className="mt-5 text-sm leading-relaxed text-body">{film.overview}</p>}
+
+      {/* What adding someone does while this is open: the page changes when it closes. A live region, always there, so that it is spoken as it fills. */}
+      <p
+        role="status"
+        aria-live="polite"
+        className={added.length > 0 ? "mt-5 rounded-md border border-accent-green/50 bg-surface px-3 py-2 text-sm text-body" : "sr-only"}
+      >
+        {added.length > 0 ? `${joinNames(added.map((person) => person.name))} will join the timeline when you close this panel.` : ""}
+      </p>
 
       {full && (
         <p className="mt-5 rounded-md border border-border bg-surface px-3 py-2 text-sm text-body">
