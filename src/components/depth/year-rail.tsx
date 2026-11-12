@@ -12,6 +12,7 @@ import {
   type RefObject,
 } from "react";
 import { cn } from "@/components/timeline/cn";
+import { MINIMAP_COLOR, syncMinimapColors } from "@/components/timeline/minimap-colors";
 import { scrollBehavior } from "@/components/timeline/scroll-behavior";
 import {
   dateFraction,
@@ -96,6 +97,7 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
     const geometry = readGeometry();
     if (!box || !geometry) return;
     const rect = windowRect(geometry);
+    syncMinimapColors(trackRef.current, rect);
     box.style.top = `${rect.left * 100}%`;
     box.style.height = `${rect.width * 100}%`;
     box.setAttribute("aria-valuenow", String(scrollPercent(geometry)));
@@ -124,7 +126,7 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
     scaleRef.current = scale;
     trackHeightRef.current = trackHeight;
     sync();
-  }, [scale, trackHeight, sync]);
+  }, [scale, trackHeight, sync, shared, ticks]);
 
   useEffect(() => () => window.clearTimeout(holdTimer.current), []);
 
@@ -297,10 +299,10 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
         onLostPointerCapture={(event) => {
           if (event.target === event.currentTarget) endDrag(event);
         }}
-        // The bottom minimap's bar turned on its side: a rounded surface with a border, the years along it.
+        // Match the bottom minimap's 32px thickness, with the years just outside it. The root still reserves room for those labels.
         // It runs from the top of the screen, whether the pair hero is open or collapsed: the band (see `PeopleBar`) stops short of the rail and the bar's controls are left of
         // it, so nothing of the hero is over it and it is not pushed down by it. Only what hangs out to the left of the rail (the readout, the phone's labels) could meet them: see below.
-        className="pointer-events-auto absolute bottom-2 left-0 right-1 top-0 cursor-pointer touch-none select-none rounded-md border border-border bg-surface"
+        className="pointer-events-auto absolute bottom-2 right-1 top-0 w-8 cursor-pointer touch-none select-none rounded-md border border-border bg-surface max-sm:left-0 max-sm:w-auto"
       >
         <div aria-hidden className="pointer-events-none absolute inset-0">
           {marks.map((mark) => (
@@ -310,12 +312,13 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
               )}
               {mark.label && (
                 <span
+                  data-rail-year-label
                   className={cn(
-                    "absolute left-2 -translate-y-1/2 text-[9px] leading-none tabular-nums text-muted",
+                    "absolute right-full mr-1.5 -translate-y-1/2 text-[9px] leading-none tabular-nums text-muted",
                     // A label that would hang out to the left of the rail under the bar's controls (the rail runs to the top of the screen) is left out.
                     mark.labelX < LABEL_CLEARANCE_PX && "max-sm:hidden!",
                     // Too wide for the thin rail: out beside it, and only while a finger is dragging it.
-                    "max-sm:left-auto max-sm:right-full max-sm:mr-1.5 max-sm:hidden max-sm:rounded max-sm:bg-canvas/90 max-sm:px-1 max-sm:py-0.5 max-sm:group-data-[scrubbing]/rail:block",
+                    "max-sm:hidden max-sm:rounded max-sm:bg-canvas/90 max-sm:px-1 max-sm:py-0.5 max-sm:group-data-[scrubbing]/rail:block",
                   )}
                   style={{ top: mark.labelX }}
                 >
@@ -334,7 +337,8 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
               color ? (
                 <span
                   key={index}
-                  className="absolute left-0 h-0.5 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                  data-minimap-fraction={fraction}
+                  className={cn("absolute left-0 h-0.5 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full", MINIMAP_COLOR)}
                   style={{ top: `${fraction * 100}%`, backgroundColor: color }}
                 />
               ) : !showDots ? (
@@ -371,6 +375,7 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
               type="button"
               data-rail-dot
               data-film={film.id}
+              data-minimap-fraction={fraction}
               tabIndex={-1}
               aria-label={`Center the timeline on ${film.title} (${film.year})`}
               title={`${film.title} (${film.year})`}
@@ -378,7 +383,7 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
                 if (suppressClick.current) suppressClick.current = false;
                 else jumpToFilm(film);
               }}
-              className="group pointer-events-auto absolute left-0 flex h-4 w-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center max-sm:w-5"
+              className={cn("group pointer-events-auto absolute left-0 flex h-4 w-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center max-sm:w-5", MINIMAP_COLOR)}
               style={{ top: `${fraction * 100}%` }}
             >
               <span className="h-1 w-3.5 rounded-full bg-lit shadow-[0_0_8px_var(--lit-glow)] group-hover:w-4" />
@@ -388,14 +393,14 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
       </div>
       {/*
         The year at the focus line, level with the window's centre (`--readout-frac`, the share of the rail the sync writes) and on the scene's side of the rail
-        (clear of its labels). It is the root's, not the window's, so that it can keep clear of the bar: it never rides higher than 1.25rem under the bar's
+        in the same column as its grey labels, painting over them rather than taking a second column. It is the root's, not the window's, so that it can keep clear of the bar: it never rides higher than 1.25rem under the bar's
         bottom edge (the gear is just left of the rail).
       */}
       <span
         aria-hidden
         data-rail-readout-box
         className={cn(
-          "pointer-events-none absolute right-full mr-1.5 -translate-y-1/2 rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-medium leading-none tabular-nums text-strong shadow-md shadow-black/30",
+          "pointer-events-none absolute right-9 mr-1.5 -translate-y-1/2 rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-medium leading-none tabular-nums text-strong shadow-md shadow-black/30 max-sm:right-full",
           // On a phone: only while the scene moves or the rail is being dragged, fading after.
           "max-sm:px-1 max-sm:text-[10px] max-sm:opacity-0 max-sm:transition-opacity max-sm:duration-300 max-sm:group-data-[active]/rail:opacity-100 max-sm:group-data-[scrubbing]/rail:opacity-100 motion-reduce:transition-none",
         )}

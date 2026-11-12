@@ -77,6 +77,7 @@ export function DepthChrome({
       settingsMessage={settingsMessage}
       share={share}
       exportList={exportList}
+      backdrop
     />
   );
 }

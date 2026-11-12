@@ -46,6 +46,7 @@ import {
 } from "@/lib/period-brush";
 import { xForDate, type Scale } from "@/lib/timeline-layout";
 import { cn } from "./cn";
+import { MINIMAP_COLOR, syncMinimapColors } from "./minimap-colors";
 import { scrollBehavior } from "./scroll-behavior";
 import { requestShareMenu } from "./share-event";
 
@@ -179,6 +180,7 @@ export function MinimapBar({
     const geometry = readGeometry();
     if (!box || !geometry) return;
     const rect = windowRect(geometry);
+    syncMinimapColors(trackRef.current, rect);
     box.style.left = `${rect.left * 100}%`;
     box.style.width = `${rect.width * 100}%`;
     box.setAttribute("aria-valuenow", String(scrollPercent(geometry)));
@@ -190,7 +192,7 @@ export function MinimapBar({
   useLayoutEffect(() => {
     scaleRef.current = scale;
     sync();
-  }, [scale, sync]);
+  }, [scale, sync, sharedFilms, filmTicks]);
 
   const span = brush?.span ?? null;
   const period = brush?.period ?? null;
@@ -596,7 +598,8 @@ export function MinimapBar({
                 color ? (
                   <span
                     key={index}
-                    className="absolute top-1.5 h-2 w-0.5 -translate-x-1/2 rounded-full"
+                    data-minimap-fraction={fraction}
+                    className={cn("absolute top-1.5 h-2 w-0.5 -translate-x-1/2 rounded-full", MINIMAP_COLOR)}
                     style={{ left: `${fraction * 100}%`, backgroundColor: color }}
                   />
                 ) : !showNodes ? (
@@ -629,6 +632,7 @@ export function MinimapBar({
                   key={film.id}
                   type="button"
                   data-minimap-node
+                  data-minimap-fraction={fraction}
                   tabIndex={-1}
                   aria-label={`Center the timeline on ${film.title} (${film.year})`}
                   title={`${film.title} (${film.year})`}
@@ -636,7 +640,7 @@ export function MinimapBar({
                     if (suppressClick.current) suppressClick.current = false;
                     else jumpToFilm(film);
                   }}
-                  className="group absolute top-0 z-10 flex h-[62%] w-4 -translate-x-1/2 cursor-pointer items-center justify-center"
+                  className={cn("group absolute top-0 z-10 flex h-[62%] w-4 -translate-x-1/2 cursor-pointer items-center justify-center", MINIMAP_COLOR)}
                   style={{ left: `${fraction * 100}%` }}
                 >
                   <span className="h-3.5 w-1 rounded-full bg-lit shadow-[0_0_8px_var(--lit-glow)] group-hover:h-4" />

@@ -22,7 +22,7 @@ interface PairTitleProps {
 export function PairTitle({ people, subtitle, onOpenPerson }: PairTitleProps) {
   return (
     <div data-pair-title className="pointer-events-auto flex min-h-(--bar-h) min-w-0 flex-col justify-center">
-      <p className="text-xl font-semibold leading-tight tracking-tight text-strong max-sm:text-base max-sm:leading-[1.15]">
+      <p className="text-xl font-semibold leading-tight tracking-tight text-strong max-sm:text-lg max-sm:leading-tight">
         {people.map(({ person }, index) => (
           <Fragment key={person.id}>
             {index > 0 && (
@@ -34,7 +34,7 @@ export function PairTitle({ people, subtitle, onOpenPerson }: PairTitleProps) {
           </Fragment>
         ))}
       </p>
-      <p data-pair-subtitle className="mt-0.5 text-[11px] font-medium uppercase leading-snug tracking-wider text-muted max-sm:text-[10px] max-sm:tracking-wide">
+      <p data-pair-subtitle className="mt-0.5 text-xs font-medium uppercase leading-snug tracking-wider text-muted max-sm:tracking-wide">
         {subtitle}
       </p>
     </div>
