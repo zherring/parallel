@@ -17,7 +17,7 @@ type Props = { params: Promise<{ people: string }> };
 
 /**
  * The page X frames in a post for a link to a pair (`twitter:player` of `/p/<people>`): the pair's preview card, which opens up into their
- * timeline (see `PairEmbed`), with no site footer or search (`SiteChrome`). It is sent with the CSP that lets X frame it (`embedHeaders`, from
+ * timeline (see `PairEmbed`), with no site header, footer or search (`SiteChrome`). It is sent with the CSP that lets X frame it (`embedHeaders`, from
  * `next.config.ts`), and uses no cookie. An unknown person or a bad slug is a 404, and a spelling of the people other than the canonical one
  * redirects to it, as on the pair page.
  *

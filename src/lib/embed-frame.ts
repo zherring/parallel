@@ -9,7 +9,7 @@
  * `X-Frame-Options` header would be refused whatever the CSP says, so the embeds must not send one (and none does).
  */
 
-/** The path prefix of the pages that are framed; the site's footer and search are left out of them (see `SiteChrome`). */
+/** The path prefix of the pages that are framed; the site's header, footer and search are left out of them (see `SiteChrome`). */
 export const EMBED_PREFIX = "/embed";
 
 /** The origins that may frame an embed: the page itself, and X under both of its names (and the subdomains its card frames come from). */
