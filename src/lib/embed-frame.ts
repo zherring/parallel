@@ -1,6 +1,6 @@
 /**
- * The chrome-less pages that other sites frame: a quote's player card on X (`/embed/q/<people>/<id>`, see
- * `quote-embed.ts`). `next.config.ts` applies `embedHeaders()` to this prefix alone, so the CSP below is sent on these
+ * The chrome-less pages that other sites frame: the player cards on X, a pair's (`/embed/p/<people>`, see `player-cards.ts`) and a quote's
+ * (`/embed/q/<people>/<id>`, see `quote-embed.ts`). `next.config.ts` applies `embedHeaders()` to this prefix alone, so the CSP below is sent on these
  * pages and on no other: every other route keeps what it sends today (no `X-Frame-Options`, no CSP; checked against
  * production, which sends neither), so adding the embeds changes nothing for the rest of the site.
  *
@@ -9,7 +9,7 @@
  * `X-Frame-Options` header would be refused whatever the CSP says, so the embeds must not send one (and none does).
  */
 
-/** The path prefix of the pages that are framed; the site's header and footer are left out of them (see `SiteChrome`). */
+/** The path prefix of the pages that are framed; the site's footer and search are left out of them (see `SiteChrome`). */
 export const EMBED_PREFIX = "/embed";
 
 /** The origins that may frame an embed: the page itself, and X under both of its names (and the subdomains its card frames come from). */

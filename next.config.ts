@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   // Keep their build cache and proxy separate from the normal dev/production server.
   distDir: process.env.PLAYWRIGHT_TEST === "1" ? ".next-playwright" : ".next",
   experimental: { testProxy: process.env.PLAYWRIGHT_TEST === "1" },
-  // The quote embeds (`/embed/...`) are framed by X, so they alone send a `frame-ancestors` CSP; no other route sends a framing header (see `embed-frame.ts`).
+  // The embeds (`/embed/...`) are framed by X, so they alone send a `frame-ancestors` CSP; no other route sends a framing header (see `embed-frame.ts`).
   headers: async () => embedHeaders(),
   turbopack: {
     rules: {

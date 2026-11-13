@@ -5,9 +5,9 @@ import type { ReactNode } from "react";
 import { isEmbedPath } from "@/lib/embed-frame";
 
 /**
- * The site's header and footer, left out of the embeds (`/embed/...`): those are framed inside a post on X, where the site's
- * search and links have no place. The pathname is known while the server renders, so the chrome is absent from the embed's
- * HTML rather than hidden after it loads.
+ * The site's footer and its universal search (the button and the Cmd/Ctrl+K dialog), left out of the embeds (`/embed/...`): those are framed inside a post
+ * on X, where the site's search and links have no place. The pathname is known while the server renders, so the chrome is absent from the embed's HTML
+ * rather than hidden after it loads.
  */
 export function SiteChrome({ children }: { children: ReactNode }) {
   return isEmbedPath(usePathname()) ? null : children;

@@ -28,11 +28,15 @@ describe("the CSP that lets X frame an embed", () => {
     });
   });
 
+  it("is what next.config.ts sends on a pair's embed", async () => {
+    expect(await headersFor("/embed/p/488-steven-spielberg+491-john-williams")).toEqual({ "content-security-policy": EMBED_CSP });
+  });
+
   it("is never joined by an X-Frame-Options header, which would stop the frame whatever the CSP says", async () => {
     const rules = embedHeaders();
     expect(rules).toHaveLength(1);
     expect(rules[0].headers.map((header) => header.key.toLowerCase())).not.toContain("x-frame-options");
-    for (const path of ["/embed/q/a/b", "/embed", "/embed/anything/else"]) {
+    for (const path of ["/embed/q/a/b", "/embed/p/a+b", "/embed", "/embed/anything/else"]) {
       expect(await headersFor(path)).not.toHaveProperty("x-frame-options");
     }
   });
@@ -56,6 +60,7 @@ describe("isEmbedPath", () => {
   it("is true for the prefix and everything under it", () => {
     expect(isEmbedPath("/embed")).toBe(true);
     expect(isEmbedPath("/embed/q/a/b")).toBe(true);
+    expect(isEmbedPath("/embed/p/1-a+2-b")).toBe(true);
   });
 
   it("is false for anything else, a path that only starts with the same letters included", () => {

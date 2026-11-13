@@ -2,23 +2,16 @@
 
 import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";
+import { EMBED_BUTTON, FRAME_STYLE, EmbedWordmark, OpenInParallel, embedSize as size } from "@/components/embed/embed-shell";
 import { newsreader } from "@/components/newsreader";
 import { PersonAvatar } from "@/components/person-avatar";
 import { cn } from "@/components/timeline/cn";
-import { Wordmark } from "@/components/wordmark";
 import { quoteCardType } from "@/lib/og-quote";
 import { personColor, personColorCss } from "@/lib/person-colors";
 import { MORE_PAIRS_PATH, embedPath, quoteInPairPath, quotePath, quoteUnits, type EmbedQuote } from "@/lib/quote-embed";
 
 /** The colour of a quote whose speaker is neither of the pair, and of every critic: the Clippings tab's quiet one. */
 const MUTED = "var(--text-muted)";
-
-/**
- * A size that follows the frame: `n` of the frame's unit (`--u`, which is 12px at the 1200 x 630 the player is asked to be
- * and shrinks with the frame, down to what X gives a post on a desktop timeline), but never under `min` pixels, so that
- * a phone's panel (390 wide, about 120 tall once X's own bar is off it) still reads.
- */
-const size = (min: number, n: number) => `max(${min}px, calc(${n} * var(--u)))`;
 
 interface QuoteEmbedProps {
   /** The pair's canonical slug (`/p/<slug>`), what every link of the frame is built from. */
@@ -55,7 +48,6 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
   const count = quotes.length;
   const current = quotes[index] ?? quotes[0];
   const framed = variant === "frame";
-  const external = framed ? ({ target: "_blank", rel: "noopener" } as const) : {};
 
   // The address follows the quote (no navigation, no reload), so that reopening or reloading the frame stays on it.
   useEffect(() => {
@@ -80,11 +72,8 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
   const color = current.slot === null ? MUTED : personColor(current.slot);
   const type = quoteCardType(current.quote);
   const step = (delta: number) => setIndex((i) => (i + delta + count) % count);
-  const button =
-    "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-border text-body transition-colors hover:border-muted hover:text-strong motion-reduce:transition-none";
+  const button = EMBED_BUTTON;
   const buttonSize: CSSProperties = { width: size(40, 4), height: size(40, 4) };
-  const pill =
-    "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border font-medium text-strong no-underline transition-colors hover:border-muted motion-reduce:transition-none";
 
   return (
     <div
@@ -92,8 +81,7 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
         newsreader.variable,
         framed ? "fixed inset-0" : "relative h-[30rem] w-full overflow-hidden rounded-2xl border border-border sm:h-auto sm:aspect-[1200/630]",
       )}
-      // The frame's own size is the container: its units (`cqw`, `cqh`) are what the type and the spacing are set in.
-      style={{ containerType: "size", "--u": "min(1cqw, 1.9cqh)" } as CSSProperties}
+      style={FRAME_STYLE}
     >
       {/* The palette's custom properties: the page's own view sets them (see `PeopleView`), and a frame has no page. */}
       <style>{personColorCss()}</style>
@@ -105,16 +93,7 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
       >
         <header className="flex items-center justify-between gap-3" style={{ padding: `${size(10, 2.8)} ${size(14, 6.67)} 0` }}>
           {/* More pairs: the wordmark leads to the landing page's Quotes tab. */}
-          <a
-            href={MORE_PAIRS_PATH}
-            {...external}
-            title="More pairs on Parallel"
-            aria-label="Parallel: more pairs"
-            className="inline-flex shrink-0 items-center gap-2 no-underline"
-            style={{ fontSize: size(18, 2.4) }}
-          >
-            <Wordmark className="leading-none" />
-          </a>
+          <EmbedWordmark href={MORE_PAIRS_PATH} title="More pairs on Parallel" label="Parallel: more pairs" external={framed} />
           <p className="hidden min-w-0 flex-1 truncate text-muted @2xl:block" style={{ fontSize: size(13, 1.7) }}>
             {pair}
           </p>
@@ -201,11 +180,7 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
               </p>
             </div>
           </div>
-          <a href={quoteInPairPath(slug, current.id)} {...external} className={pill} style={{ fontSize: size(12, 1.6), padding: `${size(7, 0.9)} ${size(12, 1.5)}` }}>
-            Open in Parallel
-            <ExternalLink aria-hidden="true" className="size-3.5" />
-            {framed && <span className="sr-only">(opens in a new tab)</span>}
-          </a>
+          <OpenInParallel href={quoteInPairPath(slug, current.id)} external={framed} />
         </footer>
       </section>
     </div>
