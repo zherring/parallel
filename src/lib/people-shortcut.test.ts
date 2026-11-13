@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeShortcutTarget, isApplePlatform, isPeopleShortcut, peopleKeyAction, shortcutHint, shortcutKeys, type PeopleKeyEvent, type PeopleKeyTarget } from "@/lib/people-shortcut";
+import { SEARCH_DIALOG_ATTRIBUTE, describeShortcutTarget, isApplePlatform, isPeopleShortcut, peopleKeyAction, shortcutHint, shortcutKeys, type PeopleKeyEvent, type PeopleKeyTarget } from "@/lib/people-shortcut";
 import type { ElementLike } from "@/lib/hero-keys";
 
 const MAC = { mac: true, open: false, target: null };
@@ -162,5 +162,12 @@ describe("describeShortcutTarget", () => {
     const panel = el("div", { "aria-modal": "true", role: "dialog" });
     expect(describeShortcutTarget(el("div", {}, {}, panel))).toEqual({ typing: false, inPeopleDialog: false, inOtherModal: true });
     expect(describeShortcutTarget(el("button"))).toEqual({ typing: false, inPeopleDialog: false, inOtherModal: false });
+  });
+
+  it("finds the universal search's dialog when asked for it, which is another modal dialog to the overlay's rules", () => {
+    const search = el("div", { [SEARCH_DIALOG_ATTRIBUTE]: "", "aria-modal": "true", role: "dialog" });
+    const field = el("input", {}, { type: "text" }, el("div", {}, {}, search));
+    expect(describeShortcutTarget(field, SEARCH_DIALOG_ATTRIBUTE)).toEqual({ typing: true, inPeopleDialog: true, inOtherModal: false });
+    expect(describeShortcutTarget(field)).toEqual({ typing: true, inPeopleDialog: false, inOtherModal: true });
   });
 });

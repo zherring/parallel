@@ -398,7 +398,7 @@ test("linked quotes keep their original order; history and resizing retain the a
   await expect(active(page).locator(".quote-exhibit-plate")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   const ids = await deck(page).locator("[data-quote-slide]").evaluateAll((elements) => elements.map((element) => element.getAttribute("data-quote-slide")));
   await active(page).getByRole("button", { name: "Share this quote by Bill Murray", exact: true }).click();
-  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(`http://127.0.0.1:3102${ANDERSON}?view=clippings&quote=${quoteId}`);
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(`http://127.0.0.1:3102${ANDERSON}/q/${quoteId}`);
 
   const otherId = ids.find((id) => id !== quoteId)!;
   await page.evaluate((id) => {

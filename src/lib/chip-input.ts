@@ -1,5 +1,5 @@
 import { normalizeQuery, type Move } from "@/lib/combobox";
-import { MAX_PEOPLE, addState, dedupePeople, peopleFromPathname, type PersonRef } from "@/lib/people-nav";
+import { MAX_PEOPLE, addState, dedupePeople, type PersonRef } from "@/lib/people-nav";
 import { buildPeopleSlug } from "@/lib/slug";
 
 /**
@@ -13,25 +13,6 @@ import { buildPeopleSlug } from "@/lib/slug";
  * Nothing here touches React or the DOM, so every keyboard rule is covered by unit tests.
  */
 export type SearchMode = "navigate" | "chips";
-
-/**
- * Whether the site header has its search field on this page. Not on the landing page (it has its
- * own search) and not on a timeline page, which has the Add a person field beside its headline.
- * Everywhere else (and on a /p/ address that names nobody, such as a 404) it stays.
- */
-export function showsHeaderSearch(pathname: string | null | undefined): boolean {
-  if (pathname === "/") return false;
-  return peopleFromPathname(pathname ?? "").length === 0;
-}
-
-/**
- * Mode for the header search. On a timeline page (/p/...) it extends the timeline in view and
- * navigates on pick; on any other page there is no timeline to extend, so it is the chip field
- * that starts one.
- */
-export function searchModeForPathname(pathname: string | null | undefined): SearchMode {
-  return pathname?.startsWith("/p/") ? "navigate" : "chips";
-}
 
 /** A chip: the person plus what the chip needs to draw an avatar. */
 export interface ChipPerson extends PersonRef {

@@ -6,7 +6,6 @@ import {
   extendedPeopleHref,
   extendedPeople,
   isTimelineFull,
-  peopleFromPathname,
 } from "@/lib/people-nav";
 import { parsePeopleSlug } from "@/lib/slug";
 
@@ -98,34 +97,5 @@ describe("extendedPeople / extendedPeopleHref", () => {
 
   it("ignores duplicate entries already in the list", () => {
     expect(extendedPeopleHref([fincher, fincher], pitt)).toBe("/p/7467-david-fincher+287-brad-pitt");
-  });
-});
-
-describe("peopleFromPathname", () => {
-  it("reads people back from a /p/ pathname", () => {
-    expect(peopleFromPathname("/p/7467-david-fincher+287-brad-pitt")).toEqual([
-      { id: 7467, name: "david fincher" },
-      { id: 287, name: "brad pitt" },
-    ]);
-  });
-
-  it("handles an encoded plus and a trailing slash", () => {
-    expect(peopleFromPathname("/p/7467-david-fincher%2B287-brad-pitt/")).toHaveLength(2);
-  });
-
-  it("round-trips through extendedPeopleHref", () => {
-    const inView = peopleFromPathname("/p/7467-david-fincher");
-    expect(extendedPeopleHref(inView, pitt)).toBe("/p/7467-david-fincher+287-brad-pitt");
-  });
-
-  it("copes with bare ids and drops duplicates", () => {
-    expect(peopleFromPathname("/p/7467+7467")).toEqual([{ id: 7467, name: "" }]);
-  });
-
-  it("returns nothing for other routes or bad slugs", () => {
-    expect(peopleFromPathname("/")).toEqual([]);
-    expect(peopleFromPathname("/about")).toEqual([]);
-    expect(peopleFromPathname("/p/not-a-slug")).toEqual([]);
-    expect(peopleFromPathname("/p/1+2+3+4+5")).toEqual([]);
   });
 });

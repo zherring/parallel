@@ -78,7 +78,7 @@ interface PeopleBarProps {
   share: ShareInput;
   /** The films Export writes, with what the file is named for: Export is in the settings on every view but the Quotes, which it is not about. */
   exportList: ExportList;
-  /** A backing under the bar, so that a page scrolling beneath it does not show through between the controls. The Depth view has none: its scene is what is behind the bar. */
+  /** A fading backing under the bar, keeping the controls legible as any view scrolls beneath them. */
   backdrop?: boolean;
 }
 
@@ -236,7 +236,7 @@ function PeopleBarBox({
       onWheel={overlay && expanded && hero.onWheel ? (event) => hero.onWheel?.(event.deltaX, event.deltaY) : undefined}
     >
       {backdrop && (
-        <div aria-hidden="true" className="absolute inset-x-0 top-0 -z-10 h-[4.5rem] bg-gradient-to-b from-canvas via-canvas/90 to-transparent" />
+        <div aria-hidden="true" data-nav-backdrop className={cn("absolute left-0 top-0 -z-10 h-[4.5rem] bg-gradient-to-b from-canvas via-canvas/90 to-transparent", bandEnd)} />
       )}
       {overlay && (
         <>

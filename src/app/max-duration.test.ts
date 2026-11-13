@@ -36,9 +36,12 @@ const EXPECTED: Record<string, number> = {
   "api/film-metrics/route.ts": 60,
   "api/movie/[id]/route.ts": 20,
   "api/search/route.ts": 20,
+  "embed/p/[people]/page.tsx": 20,
+  "embed/q/[people]/[id]/page.tsx": 20,
   "p/[people]/og/route.tsx": 20,
   "p/[people]/opengraph-image.tsx": 20,
   "p/[people]/page.tsx": 20,
+  "p/[people]/q/[id]/page.tsx": 20,
 };
 
 describe("maxDuration of everything that can reach TMDB", () => {

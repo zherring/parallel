@@ -107,6 +107,7 @@ export function Together({
                         </a>{" "}
                         <button
                           type="button"
+                          aria-label={`Details for ${film.title} (${film.year})`}
                           className={`${detailsButtonClass} ml-1 cursor-pointer`}
                           onClick={(event) => onSelect(film.id, event.currentTarget)}
                         >

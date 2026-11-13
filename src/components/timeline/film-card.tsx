@@ -208,10 +208,12 @@ function FilmCardImpl(props: FilmCardProps) {
               </span>
             )}
           </span>
-          {/* Above the connector lines (z-15), with a dark outline, so a line that crosses the caption never hides a letter. */}
+          {/* Above the connector lines (z-15), with a dark outline, so a line that crosses the caption never hides a letter.
+              Wraps at spaces only (wrap-normal, no hyphenation): a single word wider than the card ends in an ellipsis,
+              it is never broken in two. */}
           <span
             className={cn(
-              "relative z-[16] mt-1 line-clamp-2 break-words hyphens-auto transition-colors duration-150 motion-reduce:transition-none",
+              "relative z-[16] mt-1 line-clamp-2 wrap-normal text-ellipsis transition-colors duration-150 motion-reduce:transition-none",
               textSize,
               faded ? "text-muted" : "text-strong",
               CAPTION_OUTLINE,
