@@ -2,8 +2,8 @@ import type { ElementLike } from "@/lib/hero-keys";
 
 /**
  * The shortcut that opens the full-screen people search on a `/p/` page (see `PeopleOverlay`): Command+K on a Mac (and an iPad or iPhone with a
- * keyboard), Control+K everywhere else, from any view and whether the pair hero is open or collapsed. Pure, like the other key rules (hero-keys.ts,
- * chip-input.ts): the component reads the event and its target into plain values, and the rules decide here.
+ * keyboard), Control+K everywhere else. SearchProvider applies these same rules to the active search surface: the page's People overlay, or the site's
+ * new-timeline search. Pure, like the other key rules (hero-keys.ts, chip-input.ts): the provider reads the event and its target into plain values.
  */
 
 /** The slice of a keydown event the rules look at. */
@@ -24,7 +24,7 @@ export interface PeopleKeyEvent {
 export interface PeopleKeyTarget {
   /** A field the visitor types in: a textarea, a text-like input or a contenteditable element, or one inside it. */
   typing: boolean;
-  /** The element is in the people overlay itself (its own search field, its rows, its close button). */
+  /** The element is in the shortcut's own dialog (the people overlay's, or the universal search's: see `describeShortcutTarget`): its own search field, its rows, its close button. */
   inPeopleDialog: boolean;
   /** The element is in another modal dialog (the film or person panel), which the overlay does not open over. */
   inOtherModal: boolean;
@@ -41,6 +41,12 @@ export interface PeopleKeyContext {
 
 /** What a keydown does: "toggle" opens the overlay or, when it is open, closes it; "close" is Escape; "swallow" is a held shortcut (taken, so the browser's own does not run, but not repeated). */
 export type PeopleKeyAction = "toggle" | "close" | "swallow";
+
+/** The platform's name as the browser says it: the newer `userAgentData` where there is one (Chromium), else the old `platform`. Reads `navigator`: call it in the browser only. */
+export function platformName(): string {
+  const { userAgentData } = navigator as Navigator & { userAgentData?: { platform?: string } };
+  return userAgentData?.platform ?? navigator.platform;
+}
 
 /** Whether a platform name (`navigator.userAgentData.platform` or `navigator.platform`: "macOS", "MacIntel", "iPad", "Win32", "Linux x86_64") is Apple's: its shortcut key is Command. */
 export function isApplePlatform(platform: string | null | undefined): boolean {
@@ -92,15 +98,21 @@ export function peopleKeyAction(event: PeopleKeyEvent, context: PeopleKeyContext
 /** The element's attribute that marks the people overlay's dialog (see `PeopleOverlay`). */
 export const PEOPLE_DIALOG_ATTRIBUTE = "data-people-overlay";
 
-/** Reads what `peopleKeyAction` needs from the element the key was aimed at. */
-export function describeShortcutTarget(element: ElementLike | null): PeopleKeyTarget | null {
+/** The element's attribute that marks the universal search's dialog (see `UniversalSearch`): what `PEOPLE_DIALOG_ATTRIBUTE` is to the overlay. */
+export const SEARCH_DIALOG_ATTRIBUTE = "data-universal-search";
+
+/**
+ * Reads what `peopleKeyAction` needs from the element the key was aimed at. `dialogAttribute` marks the dialog whose own keys they are: the people
+ * overlay's, unless the universal search asks about its own (`SEARCH_DIALOG_ATTRIBUTE`).
+ */
+export function describeShortcutTarget(element: ElementLike | null, dialogAttribute: string = PEOPLE_DIALOG_ATTRIBUTE): PeopleKeyTarget | null {
   if (!element) return null;
   const tag = element.tagName.toLowerCase();
   let editable = false;
   let inPeopleDialog = false;
   let inOtherModal = false;
   for (let node: ElementLike | null = element; node; node = node.parentElement) {
-    if (node.hasAttribute(PEOPLE_DIALOG_ATTRIBUTE)) inPeopleDialog = true;
+    if (node.hasAttribute(dialogAttribute)) inPeopleDialog = true;
     else if (node.getAttribute("aria-modal") === "true") inOtherModal = true;
     if (node.isContentEditable === true || node.getAttribute("contenteditable") === "" || node.getAttribute("contenteditable") === "true") editable = true;
   }

@@ -104,6 +104,8 @@ export interface PersonSearchProps {
    * which would otherwise redraw the screen behind them as soon as someone was picked). `peopleInView` is then the people as the owner will have them.
    */
   onPick?: (person: PickedPerson) => void;
+  /** Called after a timeline navigation starts (e.g. to dismiss a search dialog). */
+  onNavigate?: () => void;
 }
 
 /** What picking an option needs, whether it is a search result or a suggested collaborator. */
@@ -139,6 +141,7 @@ export function PersonSearch({
   wideMenu = false,
   onIdleEscape,
   onPick,
+  onNavigate,
 }: PersonSearchProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -284,7 +287,10 @@ export function PersonSearch({
     setOpen(false);
     setActiveIndex(-1);
     inputRef.current?.blur();
-    startNavigation(() => router.push(href));
+    startNavigation(() => {
+      router.push(href);
+      onNavigate?.();
+    });
   }
 
   function select(result: PickedPerson) {
@@ -308,7 +314,10 @@ export function PersonSearch({
     setQuery("");
     setActiveIndex(-1);
     inputRef.current?.blur();
-    startNavigation(() => router.push(href));
+    startNavigation(() => {
+      router.push(href);
+      onNavigate?.();
+    });
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -441,9 +450,10 @@ export function PersonSearch({
           control lands in the input, not on a chip; `order` puts the chips visually first.
         */}
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1">
+          {/* With chips the input keeps a usable width and drops to its own row when the row is too narrow; the minimum is capped at the row's own width, so on a narrow screen (or a 320px reflow) it never runs past the field into the Show timeline button. */}
           <div
             className={`@container relative order-2 flex-1 ${rowHeight} ${
-              chipsMode ? (hero ? "min-w-52" : "min-w-36") : "min-w-0"
+              chipsMode ? (hero ? "min-w-[min(13rem,100%)]" : "min-w-[min(9rem,100%)]") : "min-w-0"
             }`}
           >
             <input

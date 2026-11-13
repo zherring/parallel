@@ -9,8 +9,6 @@ import {
   placeholderCopy,
   refusedMessage,
   removeChip,
-  searchModeForPathname,
-  showsHeaderSearch,
   removeLastChip,
   removedMessage,
   type ChipPerson,
@@ -47,47 +45,6 @@ const navigateCtx = (overrides: Partial<KeyContext> = {}): KeyContext =>
   chipsCtx({ mode: "navigate", ...overrides });
 
 const key = (name: string, extra: Partial<KeyInput> = {}): KeyInput => ({ key: name, ...extra });
-
-describe("searchModeForPathname", () => {
-  it("keeps the header search navigating on timeline pages", () => {
-    expect(searchModeForPathname("/p/488-steven-spielberg")).toBe("navigate");
-    expect(searchModeForPathname("/p/488-steven-spielberg+1-george-lucas")).toBe("navigate");
-    // A /p/ page whose slug does not parse still navigates (picking starts that person's page).
-    expect(searchModeForPathname("/p/not-a-slug")).toBe("navigate");
-  });
-
-  it("uses the chip field everywhere else", () => {
-    expect(searchModeForPathname("/nope")).toBe("chips");
-    expect(searchModeForPathname("/p")).toBe("chips");
-    expect(searchModeForPathname("/pricing")).toBe("chips");
-    expect(searchModeForPathname("")).toBe("chips");
-    expect(searchModeForPathname(null)).toBe("chips");
-    expect(searchModeForPathname(undefined)).toBe("chips");
-  });
-});
-
-describe("showsHeaderSearch", () => {
-  it("leaves the header search out of a timeline page, which has its own Add a person field", () => {
-    expect(showsHeaderSearch("/p/488-steven-spielberg")).toBe(false);
-    expect(showsHeaderSearch("/p/488-steven-spielberg+1-george-lucas")).toBe(false);
-  });
-
-  it("leaves it out of the landing page, which has its own search", () => {
-    expect(showsHeaderSearch("/")).toBe(false);
-  });
-
-  it("keeps it everywhere else", () => {
-    expect(showsHeaderSearch("/nope")).toBe(true);
-    expect(showsHeaderSearch("/p")).toBe(true);
-    expect(showsHeaderSearch("")).toBe(true);
-    expect(showsHeaderSearch(null)).toBe(true);
-    expect(showsHeaderSearch(undefined)).toBe(true);
-  });
-
-  it("keeps it on a /p/ address that names nobody, where no page offers another field", () => {
-    expect(showsHeaderSearch("/p/not-a-slug")).toBe(true);
-  });
-});
 
 describe("addChip", () => {
   it("appends in order without touching the input", () => {

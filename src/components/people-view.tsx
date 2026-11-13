@@ -11,7 +11,7 @@ import { PageHeadline } from "@/components/page-headline";
 import { PeopleBar } from "@/components/people-bar";
 import { PeopleStagingProvider } from "@/components/people-staging";
 import { PersonPanel } from "@/components/person-panel/person-panel";
-import { rememberOpener, useRememberPressed } from "@/components/side-panel/side-panel";
+import { rememberOpener } from "@/components/side-panel/side-panel";
 import { FilmsSection } from "@/components/timeline/films-section";
 import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
 import { useFilmsTable } from "@/components/timeline/use-films-table";
@@ -80,8 +80,6 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   const [{ includeMinor, showAll, trackMode }, setPrefs] = useFilmPrefs(timelines.map((t) => t.person.id).join("+"));
   // The one slide-out panel: a film's details or a person's, never both.
   const [panel, setPanel] = useState<PanelTarget | null>(null);
-  // Once for every panel: each hands focus back to the control that opened it, which this remembers.
-  useRememberPressed();
   const timelineRef = useRef<TimelineHandle>(null);
   const clippingsTab = hasClippingsTab(clippings, critics);
   const quoteIds = useMemo(() => quoteIdsOf(clippings, critics), [clippings, critics]);
