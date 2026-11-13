@@ -13,6 +13,7 @@ import { opensDepth } from "@/lib/depth-url";
 import { parseView, quoteIdsOf, viewParams } from "@/lib/films-view";
 import { getHeroNote } from "@/lib/pair-hero-note";
 import { loadPeople } from "@/lib/people";
+import { pairPlayer } from "@/lib/player-cards";
 import { parsePeriodParams, rawPeriodSearch, resolvePeriod, searchWithPeriod, spanOfYears } from "@/lib/period";
 import { todayIso } from "@/lib/released";
 import {
@@ -81,7 +82,10 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const period = resolvePeriod(parsePeriodParams(query), span);
   if (!period) {
     const description = peopleDescription(timelines, shared);
-    return { title: baseTitle, description, alternates: { canonical: url }, ...peopleSocial(baseTitle, description, url) };
+    // The plain link to two or more people is a player card on X (see `PLAYER_CARDS`): the pair's card, which opens up into their timeline in the post.
+    // A person's page, a shared period and a quote keep the large-image card, which is their own picture.
+    const player = timelines.length > 1 ? pairPlayer(canonical) : undefined;
+    return { title: baseTitle, description, alternates: { canonical: url }, ...peopleSocial(baseTitle, description, url, undefined, player) };
   }
 
   const title = periodTitle(baseTitle, period);

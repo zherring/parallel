@@ -4,7 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { QuoteEmbed } from "@/components/embed/quote-embed";
 import { criticAbout } from "@/lib/critics-view";
 import { loadPeople } from "@/lib/people";
-import { PLAYER_SIZE, embedPath, findQuoteIndex, quoteInPairPath, quotePath } from "@/lib/quote-embed";
+import { quotePlayer } from "@/lib/player-cards";
+import { findQuoteIndex, quoteInPairPath, quotePath } from "@/lib/quote-embed";
 import { pairQuotes } from "@/lib/quote-embed-data";
 import { embedQuoteText, peopleSocial, quoteImagePath } from "@/lib/seo";
 
@@ -19,7 +20,8 @@ type Props = { params: Promise<{ people: string; id: string }> };
  * embed at `/embed/q/<people>/<id>`) with the quote's card image as the poster, and are the same Open Graph tags as the
  * link to the Clippings tab on the quote has everywhere else. The crawler must be answered with this page at this exact
  * address (200, no redirect), so a spelling of the people other than the canonical one, which the share button never makes,
- * is the only thing that redirects. A quote the pair does not have is a 404.
+ * is the only thing that redirects. A quote the pair does not have is a 404. With player cards switched off (`PLAYER_CARDS`)
+ * it is the plain large-image card, with the same image.
  */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { people, id } = await params;
@@ -36,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description,
     // The quote is a view of the pair's page, not another page: search engines are pointed at the whole one.
     alternates: { canonical: `/p/${canonical}` },
-    ...peopleSocial(title, description, quotePath(canonical, quote.id), image, { path: embedPath(canonical, quote.id), ...PLAYER_SIZE }),
+    ...peopleSocial(title, description, quotePath(canonical, quote.id), image, quotePlayer(canonical, quote.id)),
   };
 }
 
