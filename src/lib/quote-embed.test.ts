@@ -11,11 +11,13 @@ import {
   embedQuotes,
   findQuoteIndex,
   quoteInPairPath,
+  quoteKeyStep,
   quotePath,
   quoteSharePath,
   quoteUnits,
 } from "@/lib/quote-embed";
 import { pairQuotes } from "@/lib/quote-embed-data";
+import type { PeopleKeyTarget } from "@/lib/people-shortcut";
 import type { PersonTimeline } from "@/lib/types";
 
 const SLUG = "488-steven-spielberg+491-john-williams";
@@ -180,5 +182,41 @@ describe("quoteUnits", () => {
   it("is the card image's font size in twelfths, so the frame sets the type as the card does at 1200 wide", () => {
     expect(quoteUnits(72)).toBe(6);
     expect(quoteUnits(37)).toBe(3.08);
+  });
+});
+
+describe("quoteKeyStep", () => {
+  const page: PeopleKeyTarget = { typing: false, inPeopleDialog: false, inOtherModal: false };
+
+  it("steps back on the left arrow and forward on the right, from the page (no target, or any element that is neither a field nor in a dialog)", () => {
+    expect(quoteKeyStep({ key: "ArrowLeft" }, null, 5)).toBe(-1);
+    expect(quoteKeyStep({ key: "ArrowRight" }, null, 5)).toBe(1);
+    expect(quoteKeyStep({ key: "ArrowRight" }, page, 5)).toBe(1);
+    expect(quoteKeyStep({ key: "ArrowRight", repeat: true }, page, 5)).toBe(1);
+  });
+
+  it("leaves every other key, and a pair with fewer than two quotes, alone", () => {
+    expect(quoteKeyStep({ key: "ArrowUp" }, page, 5)).toBeNull();
+    expect(quoteKeyStep({ key: "k" }, page, 5)).toBeNull();
+    expect(quoteKeyStep({ key: "ArrowRight" }, page, 1)).toBeNull();
+    expect(quoteKeyStep({ key: "ArrowRight" }, page, 0)).toBeNull();
+  });
+
+  it("leaves a key with a modifier to the browser (Alt+Left is back)", () => {
+    for (const modifier of ["altKey", "ctrlKey", "metaKey", "shiftKey"] as const) {
+      expect(quoteKeyStep({ key: "ArrowLeft", [modifier]: true }, page, 5)).toBeNull();
+    }
+  });
+
+  it("leaves a key something else handled, and an IME composition's", () => {
+    expect(quoteKeyStep({ key: "ArrowRight", defaultPrevented: true }, page, 5)).toBeNull();
+    expect(quoteKeyStep({ key: "ArrowRight", isComposing: true }, page, 5)).toBeNull();
+  });
+
+  it("leaves the arrows to a text field, and to a dialog (the site's search or any other modal) and everything in it", () => {
+    expect(quoteKeyStep({ key: "ArrowLeft" }, { ...page, typing: true }, 5)).toBeNull();
+    expect(quoteKeyStep({ key: "ArrowRight" }, { ...page, inPeopleDialog: true }, 5)).toBeNull();
+    expect(quoteKeyStep({ key: "ArrowRight" }, { ...page, inOtherModal: true }, 5)).toBeNull();
+    expect(quoteKeyStep({ key: "ArrowRight" }, { typing: true, inPeopleDialog: true, inOtherModal: false }, 5)).toBeNull();
   });
 });

@@ -6,9 +6,11 @@ import { EMBED_BUTTON, FRAME_STYLE, EmbedWordmark, OpenInParallel, embedSize as 
 import { newsreader } from "@/components/newsreader";
 import { PersonAvatar } from "@/components/person-avatar";
 import { cn } from "@/components/timeline/cn";
+import type { ElementLike } from "@/lib/hero-keys";
 import { quoteCardType } from "@/lib/og-quote";
+import { describeShortcutTarget } from "@/lib/people-shortcut";
 import { personColor, personColorCss } from "@/lib/person-colors";
-import { MORE_PAIRS_PATH, embedPath, quoteInPairPath, quotePath, quoteUnits, type EmbedQuote } from "@/lib/quote-embed";
+import { MORE_PAIRS_PATH, embedPath, quoteInPairPath, quoteKeyStep, quotePath, quoteUnits, type EmbedQuote } from "@/lib/quote-embed";
 
 /** The colour of a quote whose speaker is neither of the pair, and of every critic: the Clippings tab's quiet one. */
 const MUTED = "var(--text-muted)";
@@ -49,21 +51,25 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
   const current = quotes[index] ?? quotes[0];
   const framed = variant === "frame";
 
-  // The address follows the quote (no navigation, no reload), so that reopening or reloading the frame stays on it.
+  // The address follows the quote (no navigation, no reload), so that reopening or reloading the frame stays on it. It is set whenever the quote
+  // is not the one the address names (stepping on and then back to the quote the link opened on must put its address back too).
   useEffect(() => {
-    if (index === start) return;
+    const path = framed ? embedPath(slug, current.id) : quotePath(slug, current.id);
     try {
-      window.history.replaceState(null, "", framed ? embedPath(slug, current.id) : quotePath(slug, current.id));
+      if (window.location.pathname !== path) window.history.replaceState(null, "", path);
     } catch {
       // A frame that may not touch its own history just keeps the address it was opened on.
     }
-  }, [index, start, slug, current.id, framed]);
+  }, [slug, current.id, framed]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || count < 2) return;
-      if (event.key === "ArrowLeft") setIndex((i) => (i - 1 + count) % count);
-      else if (event.key === "ArrowRight") setIndex((i) => (i + 1) % count);
+      const target = event.target instanceof Element ? (event.target as ElementLike) : null;
+      const delta = quoteKeyStep(event, describeShortcutTarget(target), count);
+      // A modal dialog open anywhere (the site's search, on the share page) has the keys, wherever the focus has got to.
+      if (delta === null || document.querySelector('[aria-modal="true"]')) return;
+      event.preventDefault();
+      setIndex((i) => (i + delta + count) % count);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

@@ -16,6 +16,7 @@ import { clippingYear, quoteLinkSearch, speakerIndex } from "@/lib/clippings-vie
 import type { PairCritics } from "@/lib/critics";
 import { criticAbout, criticAvatarName, criticName, criticYear, interleaveQuotes } from "@/lib/critics-view";
 import { EMBED_PREFIX } from "@/lib/embed-frame";
+import type { PeopleKeyEvent, PeopleKeyTarget } from "@/lib/people-shortcut";
 
 /** A quote with everything the embed shows of it, whether an artist said it about the other or a critic wrote it about the pair. */
 export interface EmbedQuote {
@@ -129,4 +130,20 @@ export function findQuoteIndex(quotes: readonly Pick<EmbedQuote, "id">[], id: st
  */
 export function quoteUnits(fontSizePx: number): number {
   return Math.round((fontSizePx / (PLAYER_SIZE.width / 100)) * 100) / 100;
+}
+
+/**
+ * Which way a keydown steps through the quotes: -1 for the left arrow, 1 for the right, or null when the key is not the quotes' to take. It is not
+ * theirs with a modifier, with fewer than two quotes to step through, for a key something else already handled (`defaultPrevented`) or an IME
+ * composition, nor while the visitor types in a text field or sits in a modal dialog (the site's search, say, whose own arrows move through its
+ * results): the same rules as the shortcut's (`peopleKeyAction`), read from the same description of the target (`describeShortcutTarget`). A null
+ * target (the document) is the page: the viewer's.
+ */
+export function quoteKeyStep(event: PeopleKeyEvent, target: PeopleKeyTarget | null, count: number): -1 | 1 | null {
+  if (count < 2 || event.defaultPrevented || event.isComposing) return null;
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return null;
+  if (target && (target.typing || target.inPeopleDialog || target.inOtherModal)) return null;
+  if (event.key === "ArrowLeft") return -1;
+  if (event.key === "ArrowRight") return 1;
+  return null;
 }
