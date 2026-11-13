@@ -3,20 +3,17 @@
 import { Search, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { FINE_POINTER, useMediaQuery } from "@/components/depth/use-media";
 import { PersonSearch } from "@/components/person-search/person-search";
+import { useSearch, useSearchSurface } from "@/components/search-provider";
 import { trapTab, useModalPage } from "@/components/side-panel/modal-page";
-import { rememberOpener, takeOpener, useRememberPressed } from "@/components/side-panel/side-panel";
-import type { ElementLike } from "@/lib/hero-keys";
+import { rememberOpener, takeOpener } from "@/components/side-panel/side-panel";
 import {
-  PEOPLE_BAR_ATTRIBUTE,
   SEARCH_DIALOG_ATTRIBUTE,
-  describeShortcutTarget,
   isApplePlatform,
   platformName,
-  searchKeyAction,
   shortcutHint,
   shortcutKeys,
 } from "@/lib/people-shortcut";
@@ -24,86 +21,57 @@ import {
 const subscribeNothing = () => () => {};
 
 /**
- * The site's one search, for the header's Search button and ⌘K (Command+K on a Mac, Control+K elsewhere: the people overlay's shortcut, by the same rules,
- * see `searchKeyAction`): a modal dialog with the chip field that starts a new timeline with up to four people, independent of the Add a person field of a
- * timeline. Not on the landing page, whose hero field is its search, and not where the key is the people overlay's (a page with a people bar, whose header is
- * hidden as well: globals.css).
+ * New-timeline search on every route, including home and error pages. SearchProvider routes the one shortcut to a page's contextual People overlay
+ * when one is registered, and here otherwise. The state lives outside the header, so hiding that header never disables the shortcut.
  */
 export function UniversalSearch() {
   const pathname = usePathname();
-  if (pathname === "/") return null;
   // Route changes dismiss the dialog and discard its draft, even with a persistent root layout.
   return <SearchControl key={pathname} />;
 }
 
 function SearchControl() {
-  // For the control to hand focus back to when the dialog closes: a press that opens it is over before it exists, and Safari does not focus a pressed button.
-  useRememberPressed();
   const [opened, setOpened] = useState<{ opener: Element | null } | null>(null);
+  const show = useCallback((opener: Element | null) => setOpened({ opener }), []);
+  const hide = useCallback(() => setOpened(null), []);
+  useSearchSurface("site", { open: opened !== null, dialogAttribute: SEARCH_DIALOG_ATTRIBUTE, show, hide });
+
+  return opened ? createPortal(<SearchDialog opener={opened.opener} onClose={hide} />, document.body) : null;
+}
+
+/** A trigger only: the global search remains available even where the header has no button. */
+export function SearchButton() {
+  const pathname = usePathname();
+  const { show } = useSearch();
   const fine = useMediaQuery(FINE_POINTER);
-  // False in the server's markup and while hydrating, true after: until then (a hard navigation, a Back to a 404) the button is on screen with no handler behind it,
-  // and a press would be lost without a trace. It is disabled for that gap, so an early press is refused by the browser (and awaited by a test), not swallowed.
+  // A hard navigation (including back to a 404) can show this button before its click handler is hydrated.
   const hydrated = useSyncExternalStore(subscribeNothing, () => true, () => false);
   // The platform is known in the browser only: the server's markup and the hydrating render say Ctrl K, and the render after says the real one.
   const mac = useSyncExternalStore(subscribeNothing, () => isApplePlatform(platformName()), () => false);
 
-  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
-    const target = event.target instanceof Element ? (event.target as ElementLike) : null;
-    const action = searchKeyAction(
-      {
-        key: event.key,
-        shiftKey: event.shiftKey,
-        altKey: event.altKey,
-        ctrlKey: event.ctrlKey,
-        metaKey: event.metaKey,
-        defaultPrevented: event.defaultPrevented,
-        isComposing: event.isComposing,
-        repeat: event.repeat,
-      },
-      {
-        mac: isApplePlatform(platformName()),
-        open: opened !== null,
-        target: describeShortcutTarget(target, SEARCH_DIALOG_ATTRIBUTE),
-        peopleBar: document.querySelector(`[${PEOPLE_BAR_ATTRIBUTE}]`) !== null,
-      },
-    );
-    if (!action) return;
-    // The browser's own ⌘K (the address bar's search, in Firefox and Chromium) is not wanted.
-    event.preventDefault();
-    if (action === "swallow") return;
-    if (action === "toggle" && !opened) setOpened({ opener: takeOpener() });
-    else setOpened(null);
-  });
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => onKeyDown(event);
-    document.addEventListener("keydown", listener);
-    return () => document.removeEventListener("keydown", listener);
-  }, []);
+  if (pathname === "/") return null;
 
   return (
-    <>
-      <button
-        type="button"
-        disabled={!hydrated}
-        aria-haspopup="dialog"
-        aria-keyshortcuts={shortcutKeys(mac)}
-        onClick={(event) => {
-          // The control itself, which no browser gets wrong (a pointer's click and a key's alike).
-          rememberOpener(event.currentTarget);
-          setOpened({ opener: takeOpener() });
-        }}
-        className="ml-auto flex h-9 cursor-pointer items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium text-strong hover:bg-border disabled:cursor-default disabled:hover:bg-surface pointer-coarse:h-11"
-      >
-        <Search aria-hidden="true" className="size-4 shrink-0 text-muted" />
-        Search
-        {fine && (
-          <span aria-hidden="true" className="text-xs font-normal text-muted">
-            {shortcutHint(mac)}
-          </span>
-        )}
-      </button>
-      {opened && createPortal(<SearchDialog opener={opened.opener} onClose={() => setOpened(null)} />, document.body)}
-    </>
+    <button
+      type="button"
+      disabled={!hydrated}
+      aria-haspopup="dialog"
+      aria-keyshortcuts={shortcutKeys(mac)}
+      onClick={(event) => {
+        // The control itself, which no browser gets wrong (a pointer's click and a key's alike).
+        rememberOpener(event.currentTarget);
+        show(takeOpener());
+      }}
+      className="ml-auto flex h-9 cursor-pointer items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium text-strong hover:bg-border disabled:cursor-default disabled:hover:bg-surface pointer-coarse:h-11"
+    >
+      <Search aria-hidden="true" className="size-4 shrink-0 text-muted" />
+      Search
+      {fine && (
+        <span aria-hidden="true" className="text-xs font-normal text-muted">
+          {shortcutHint(mac)}
+        </span>
+      )}
+    </button>
   );
 }
 

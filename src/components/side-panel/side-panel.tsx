@@ -49,8 +49,7 @@ export function takeOpener(): Element | null {
 
 /**
  * Remembers the control that was last pressed, for a panel (or the universal search) to hand focus back to when it closes.
- * Call it from a component that is mounted while every panel is closed (the people page's view, the universal search):
- * the press that opens a panel happens before the panel exists, so a panel cannot do it itself.
+ * Called once by the root SearchProvider: the press that opens a panel happens before the panel exists, so a panel cannot do it itself.
  */
 export function useRememberPressed() {
   useEffect(() => {

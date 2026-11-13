@@ -1,10 +1,10 @@
 import { HomeLink } from "@/components/home-link";
-import { UniversalSearch } from "@/components/universal-search";
+import { SearchButton } from "@/components/universal-search";
 import { Wordmark } from "@/components/wordmark";
 
 /**
  * The site's header: the wordmark, which is the way home, and the Search button of the universal search. Hidden on a `/p/` page that has its people bar
- * (globals.css), which has the way home and the people search of its own, and on the landing page it is the wordmark alone, whose hero field is its search.
+ * (globals.css), which has the way home and the people search of its own. The landing page keeps its hero field and can also open search with the shortcut.
  */
 export function SiteHeader() {
   return (
@@ -13,7 +13,7 @@ export function SiteHeader() {
         <HomeLink className="shrink-0 no-underline">
           <Wordmark className="text-2xl" />
         </HomeLink>
-        <UniversalSearch />
+        <SearchButton />
       </div>
     </header>
   );

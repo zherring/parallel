@@ -2,16 +2,16 @@
 
 import { Users, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FINE_POINTER, REDUCED_MOTION, useMediaQuery } from "@/components/depth/use-media";
 import { PersonRow, pillRows, type PillPerson } from "@/components/depth/people-pill";
 import { usePeopleStaging, useStagingSurface } from "@/components/people-staging";
 import { PersonSearch } from "@/components/person-search/person-search";
+import { useSearchSurface } from "@/components/search-provider";
 import { trapTab, useModalPage } from "@/components/side-panel/modal-page";
-import type { ElementLike } from "@/lib/hero-keys";
 import { hasRoom } from "@/lib/pending-people";
-import { describeShortcutTarget, isApplePlatform, peopleKeyAction, platformName, shortcutHint, shortcutKeys } from "@/lib/people-shortcut";
+import { PEOPLE_DIALOG_ATTRIBUTE, isApplePlatform, platformName, shortcutHint, shortcutKeys } from "@/lib/people-shortcut";
 import type { OpenPerson } from "@/lib/side-panel";
 
 interface PeopleOverlayProps {
@@ -63,41 +63,13 @@ export function usePeopleOverlayControl(): PeopleOverlayControl {
  * A touch-only visitor has no shortcut: the gear's sheet has a "People" row that opens it (`PeopleSheetRow`), for a page whose hero cannot collapse as well.
  *
  * ⌘K is not taken while the visitor types in a text field or textarea elsewhere (the overlay's own field aside), nor over the film's or the person's panel.
- * It is the page bar's: it is mounted once, by `PeopleBar`, after the bar's own box (the bar forwards a wheel to the scene under it, and the overlay's portal
+ * It registers as the page's search with SearchProvider, which owns the site's one shortcut listener. It is mounted once, by `PeopleBar`, after the bar's own box (the bar forwards a wheel to the scene under it, and the overlay's portal
  * would bubble its wheel through React to that).
  */
 export function PeopleOverlay({ people, onOpenPerson, control }: PeopleOverlayProps) {
   const { open, opener, show, hide } = control;
 
-  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
-    const target = event.target instanceof Element ? (event.target as ElementLike) : null;
-    const action = peopleKeyAction(
-      {
-        key: event.key,
-        shiftKey: event.shiftKey,
-        altKey: event.altKey,
-        ctrlKey: event.ctrlKey,
-        metaKey: event.metaKey,
-        defaultPrevented: event.defaultPrevented,
-        isComposing: event.isComposing,
-        repeat: event.repeat,
-      },
-      { mac: isApplePlatform(platformName()), open, target: describeShortcutTarget(target) },
-    );
-    if (!action) return;
-    // The browser's own ⌘K (the address bar's search, in Firefox and Chromium) is not wanted.
-    event.preventDefault();
-    if (action === "swallow") return;
-    // What had focus gets it back when the overlay closes.
-    const active = document.activeElement;
-    if (action === "toggle" && !open) show(active && active !== document.body ? active : null);
-    else hide();
-  });
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => onKeyDown(event);
-    document.addEventListener("keydown", listener);
-    return () => document.removeEventListener("keydown", listener);
-  }, []);
+  useSearchSurface("page", { open, dialogAttribute: PEOPLE_DIALOG_ATTRIBUTE, show, hide });
 
   if (!open) return null;
   return createPortal(<PeopleDialog people={people} onOpenPerson={onOpenPerson} opener={opener} onClose={hide} />, document.body);

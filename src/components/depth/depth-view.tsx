@@ -12,7 +12,7 @@ import { PairHeroBody } from "@/components/hero/pair-hero-body";
 import { useHeroCollapse } from "@/components/hero/use-hero-collapse";
 import { usePairHero } from "@/components/hero/use-pair-hero";
 import { PersonPanel } from "@/components/person-panel/person-panel";
-import { rememberOpener, useRememberPressed } from "@/components/side-panel/side-panel";
+import { rememberOpener } from "@/components/side-panel/side-panel";
 import { scrollBehavior } from "@/components/timeline/scroll-behavior";
 import { PageHeadline } from "@/components/page-headline";
 import { PeopleStagingProvider } from "@/components/people-staging";
@@ -84,8 +84,6 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
   const scrollerId = useId();
   // The one slide-out panel: a film's details or a person's, never both.
   const [panel, setPanel] = useState<PanelTarget | null>(null);
-  // Once for every panel: each hands focus back to the control that opened it, which this remembers.
-  useRememberPressed();
   const [urlPeriod] = useUrlPeriod();
   // "Include minor credits" and "Show all films" are the flat page's settings, held for both views (see `useFilmPrefs`).
   const [{ includeMinor, showAll }, setPrefs] = useFilmPrefs(timelines.map((t) => t.person.id).join("+"));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SEARCH_DIALOG_ATTRIBUTE, describeShortcutTarget, isApplePlatform, isPeopleShortcut, peopleKeyAction, searchKeyAction, shortcutHint, shortcutKeys, type PeopleKeyEvent, type PeopleKeyTarget } from "@/lib/people-shortcut";
+import { SEARCH_DIALOG_ATTRIBUTE, describeShortcutTarget, isApplePlatform, isPeopleShortcut, peopleKeyAction, shortcutHint, shortcutKeys, type PeopleKeyEvent, type PeopleKeyTarget } from "@/lib/people-shortcut";
 import type { ElementLike } from "@/lib/hero-keys";
 
 const MAC = { mac: true, open: false, target: null };
@@ -120,43 +120,6 @@ describe("peopleKeyAction: Escape", () => {
 
   it("is not Escape with a modifier", () => {
     for (const modifier of ["shiftKey", "altKey", "ctrlKey", "metaKey"] as const) expect(peopleKeyAction(press("Escape", { [modifier]: true }), open), modifier).toBeNull();
-  });
-});
-
-describe("searchKeyAction", () => {
-  const CLEAR = { ...OTHER, peopleBar: false };
-
-  it("is the people overlay's shortcut, by the same rules, where the page has no people bar", () => {
-    expect(searchKeyAction(press("k", { ctrlKey: true }), CLEAR)).toBe("toggle");
-    expect(searchKeyAction(press("k", { metaKey: true }), { ...MAC, peopleBar: false })).toBe("toggle");
-    expect(searchKeyAction(press("k", { ctrlKey: true, repeat: true }), CLEAR)).toBe("swallow");
-    expect(searchKeyAction(press("k", { metaKey: true }), { ...CLEAR, mac: false })).toBeNull();
-    expect(searchKeyAction(press("k", { ctrlKey: true, shiftKey: true }), CLEAR)).toBeNull();
-    expect(searchKeyAction(press("k", { ctrlKey: true, defaultPrevented: true }), CLEAR)).toBeNull();
-  });
-
-  it("is not taken while the visitor types in a text field elsewhere, or sits in another modal dialog", () => {
-    expect(searchKeyAction(press("k", { ctrlKey: true }), { ...CLEAR, target: target({ typing: true }) })).toBeNull();
-    expect(searchKeyAction(press("k", { ctrlKey: true }), { ...CLEAR, target: target({ inOtherModal: true }) })).toBeNull();
-    // A button, a link or the page itself is not typing.
-    expect(searchKeyAction(press("k", { ctrlKey: true }), { ...CLEAR, target: plain })).toBe("toggle");
-  });
-
-  it("closes the open search from its own field, and Escape closes it unless the field's own got it first", () => {
-    const own = target({ typing: true, inPeopleDialog: true, inOtherModal: false });
-    expect(searchKeyAction(press("k", { ctrlKey: true }), { ...CLEAR, open: true, target: own })).toBe("toggle");
-    expect(searchKeyAction(press("Escape"), { ...CLEAR, open: true, target: own })).toBe("close");
-    expect(searchKeyAction(press("Escape", { defaultPrevented: true }), { ...CLEAR, open: true, target: own })).toBeNull();
-    expect(searchKeyAction(press("Escape"), CLEAR)).toBeNull();
-  });
-
-  it("leaves everything to the people overlay on a page with a people bar", () => {
-    const bar = { ...CLEAR, peopleBar: true };
-    expect(searchKeyAction(press("k", { ctrlKey: true }), bar)).toBeNull();
-    expect(searchKeyAction(press("k", { ctrlKey: true, repeat: true }), bar)).toBeNull();
-    expect(searchKeyAction(press("Escape"), { ...bar, open: true })).toBeNull();
-    // The overlay's own rule for the same key is untouched.
-    expect(peopleKeyAction(press("k", { ctrlKey: true }), OTHER)).toBe("toggle");
   });
 });
 

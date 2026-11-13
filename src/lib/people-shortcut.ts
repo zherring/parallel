@@ -2,9 +2,8 @@ import type { ElementLike } from "@/lib/hero-keys";
 
 /**
  * The shortcut that opens the full-screen people search on a `/p/` page (see `PeopleOverlay`): Command+K on a Mac (and an iPad or iPhone with a
- * keyboard), Control+K everywhere else, from any view and whether the pair hero is open or collapsed. It is the site's one search shortcut: on a page
- * that has no people bar, it opens the universal search (see `UniversalSearch`) by the same rules (`searchKeyAction`). Pure, like the other key rules
- * (hero-keys.ts, chip-input.ts): the component reads the event and its target into plain values, and the rules decide here.
+ * keyboard), Control+K everywhere else. SearchProvider applies these same rules to the active search surface: the page's People overlay, or the site's
+ * new-timeline search. Pure, like the other key rules (hero-keys.ts, chip-input.ts): the provider reads the event and its target into plain values.
  */
 
 /** The slice of a keydown event the rules look at. */
@@ -101,26 +100,6 @@ export const PEOPLE_DIALOG_ATTRIBUTE = "data-people-overlay";
 
 /** The element's attribute that marks the universal search's dialog (see `UniversalSearch`): what `PEOPLE_DIALOG_ATTRIBUTE` is to the overlay. */
 export const SEARCH_DIALOG_ATTRIBUTE = "data-universal-search";
-
-/**
- * The element's attribute that marks a page's people bar (see `PeopleBar`; the site's header is hidden by the same attribute, in globals.css). A page that has
- * the bar has the people overlay, which has the shortcut.
- */
-export const PEOPLE_BAR_ATTRIBUTE = "data-people-bar";
-
-/** Where the key is for `searchKeyAction`: what `peopleKeyAction` knows, and whether the page has a people bar (see `PEOPLE_BAR_ATTRIBUTE`). */
-export interface SearchKeyContext extends PeopleKeyContext {
-  peopleBar: boolean;
-}
-
-/**
- * What the shortcut does for the site's universal search (see `UniversalSearch`): the people overlay's own rules (`peopleKeyAction`: the key is not ours
- * while the visitor types in a text field or sits in another modal dialog; held, it is swallowed, not repeated; Escape closes it unless the field's own
- * Escape got it first), except that a page with a people bar is the overlay's, and the shortcut is not taken there at all.
- */
-export function searchKeyAction(event: PeopleKeyEvent, context: SearchKeyContext): PeopleKeyAction | null {
-  return context.peopleBar ? null : peopleKeyAction(event, context);
-}
 
 /**
  * Reads what `peopleKeyAction` needs from the element the key was aimed at. `dialogAttribute` marks the dialog whose own keys they are: the people
