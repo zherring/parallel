@@ -65,6 +65,10 @@ async function measureBar(page: Page) {
   // The hero's body eases away over 300ms: wait until the bar is its compact self (the Films view's rail is at the top of the screen, open hero or collapsed).
   const compact = (page.viewportSize()?.width ?? 1440) < 640 ? 58 : 62;
   await expect.poll(async () => (await root.boundingBox())!.height).toBe(compact);
+  // The Table's bar is compact before its portraits finish flying into the pill. Measure the settled heads, not an intermediate FLIP scale.
+  await root.locator("[data-pill-head]").evaluateAll((heads) => Promise.all(
+    heads.flatMap((head) => head.getAnimations()).map((animation) => animation.finished.catch(() => {})),
+  ));
   if ((await page.locator("[data-depth-rail]").count()) > 0) await expect.poll(async () => (await page.locator("[data-depth-rail] > div").first().boundingBox())!.y).toBe(0);
   const box = async (locator: Locator) => ((await locator.count()) > 0 && (await locator.first().isVisible()) ? round(await locator.first().boundingBox()) : null);
   const items = (nav: string) => root.locator(`nav[aria-label="${nav}"] a`);
