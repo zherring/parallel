@@ -684,6 +684,10 @@ export function PersonSearch({
                 const disabled = disabledFlags[index];
                 const active = index === activeIndex;
                 const department = departmentLabel(result.knownFor);
+                // Dim the photo and the name only: opacity on the whole row would also drag the
+                // "Added" badge and the role line under 4.5:1, and the badge is the reason the row
+                // cannot be picked.
+                const dimmed = disabled && state !== "can-add";
                 return (
                   <li
                     key={result.id}
@@ -699,14 +703,21 @@ export function PersonSearch({
                     }}
                     className={`flex items-start gap-3 px-3 py-2.5 ${
                       disabled ? "cursor-default" : "cursor-pointer"
-                    } ${active ? "bg-border shadow-[inset_3px_0_0_0_var(--green)]" : ""} ${
-                      disabled && state !== "can-add" ? "opacity-60" : ""
-                    }`}
+                    } ${active ? "bg-border shadow-[inset_3px_0_0_0_var(--green)]" : ""}`}
                   >
-                    <PersonAvatar name={result.name} profilePath={result.profilePath} size={40} />
+                    <PersonAvatar
+                      name={result.name}
+                      profilePath={result.profilePath}
+                      size={40}
+                      className={dimmed ? "opacity-60" : undefined}
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
-                        <span className="truncate font-medium text-strong">{result.name}</span>
+                        <span
+                          className={`truncate font-medium ${dimmed ? "text-strong/60" : "text-strong"}`}
+                        >
+                          {result.name}
+                        </span>
                         {state === "in-view" && (
                           <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-xs text-body">
                             {chipsMode ? "Added" : "In timeline"}
