@@ -101,6 +101,7 @@ const FilmRow = memo(function FilmRow({ film, state, today, onSelect }: RowProps
             <div>
               <button
                 type="button"
+                aria-label={`View details for ${film.title} (${film.year})`}
                 className={`${detailsButtonClass} cursor-pointer whitespace-nowrap`}
                 onClick={openDetails}
               >
@@ -178,7 +179,12 @@ const FilmCard = memo(function FilmCard({ film, state, today, onSelect }: RowPro
         <div className="mt-2 empty:hidden">
           <FilmMetricsRows state={state} today={today} />
         </div>
-        <button type="button" className={`${detailsButtonClass} mt-1.5 cursor-pointer`} onClick={openDetails}>
+        <button
+          type="button"
+          aria-label={`View details for ${film.title} (${film.year})`}
+          className={`${detailsButtonClass} mt-1.5 cursor-pointer`}
+          onClick={openDetails}
+        >
           View details
         </button>
       </div>

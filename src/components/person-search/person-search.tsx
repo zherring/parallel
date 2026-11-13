@@ -531,8 +531,13 @@ export function PersonSearch({
                     // Pointer clicks must not pull focus out of the input and close the list.
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => removePerson(removeChip(chips, chip.id))}
+                    // The hero's 24px button gets a 44px-wide hit area; it is 36px tall because
+                    // chip rows are 36px apart (32px chip + 4px gap), so each reaches only the
+                    // middle of the gap and wrapped chips' hit areas never overlap.
                     className={`grid shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-surface hover:text-strong ${
-                      hero ? "h-6 w-6" : "h-5 w-5"
+                      hero
+                        ? "relative h-6 w-6 before:absolute before:-inset-x-2.5 before:-inset-y-1.5"
+                        : "h-5 w-5"
                     }`}
                   >
                     <X aria-hidden="true" className={hero ? "h-4 w-4" : "h-3.5 w-3.5"} />
@@ -550,11 +555,13 @@ export function PersonSearch({
               <button
                 type="button"
                 aria-label="Show timeline"
+                title="Show timeline"
                 aria-busy={isNavigating || undefined}
                 disabled={chips.length === 0 || isNavigating}
                 onClick={submit}
                 className={`grid shrink-0 place-items-center rounded-md bg-accent-green text-on-accent transition-colors hover:bg-accent-green-hover disabled:opacity-40 disabled:hover:bg-accent-green ${
-                  hero ? "h-8 w-8" : "h-6 w-6"
+                  // The hero's 32px arrow gets a 44px hit area, as the keycaps have.
+                  hero ? "relative h-8 w-8 before:absolute before:-inset-1.5" : "h-6 w-6"
                 }`}
               >
                 {isNavigating ? (
@@ -694,6 +701,10 @@ export function PersonSearch({
                 const disabled = disabledFlags[index];
                 const active = index === activeIndex;
                 const department = departmentLabel(result.knownFor);
+                // Dim the photo and the name only: opacity on the whole row would also drag the
+                // "Added" badge and the role line under 4.5:1, and the badge is the reason the row
+                // cannot be picked.
+                const dimmed = disabled && state !== "can-add";
                 return (
                   <li
                     key={result.id}
@@ -709,14 +720,21 @@ export function PersonSearch({
                     }}
                     className={`flex items-start gap-3 px-3 py-2.5 ${
                       disabled ? "cursor-default" : "cursor-pointer"
-                    } ${active ? "bg-border shadow-[inset_3px_0_0_0_var(--green)]" : ""} ${
-                      disabled && state !== "can-add" ? "opacity-60" : ""
-                    }`}
+                    } ${active ? "bg-border shadow-[inset_3px_0_0_0_var(--green)]" : ""}`}
                   >
-                    <PersonAvatar name={result.name} profilePath={result.profilePath} size={40} />
+                    <PersonAvatar
+                      name={result.name}
+                      profilePath={result.profilePath}
+                      size={40}
+                      className={dimmed ? "opacity-60" : undefined}
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
-                        <span className="truncate font-medium text-strong">{result.name}</span>
+                        <span
+                          className={`truncate font-medium ${dimmed ? "text-strong/60" : "text-strong"}`}
+                        >
+                          {result.name}
+                        </span>
                         {state === "in-view" && (
                           <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-xs text-body">
                             {chipsMode ? "Added" : "In timeline"}
