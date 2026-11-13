@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { test, expect, PEOPLE_PATH } from "./fixtures";
 
 // The site's one search (src/components/universal-search.tsx): the Search button of the header and ⌘K (Command+K on a Mac, Control+K elsewhere: the people overlay's
@@ -271,5 +271,114 @@ test.describe("on a phone", () => {
     await dialog.getByRole("button", { name: "Close search", exact: true }).tap();
     await expect(dialog).toBeHidden();
     await expect(button).toBeFocused();
+  });
+});
+
+/**
+ * The geometry of a chip field (`PersonSearch`, chips mode): the input, the chips and the Show timeline button all inside the box, the input clear of the button, and
+ * nothing of the field running past the box or the viewport.
+ */
+async function expectFieldFits(page: Page, scope: Locator, viewportWidth: number) {
+  const field = scope.locator("[data-search-box]");
+  const box = (await field.boundingBox())!;
+  const input = (await scope.getByRole("combobox").boundingBox())!;
+  const submit = (await scope.getByRole("button", { name: "Show timeline", exact: true }).boundingBox())!;
+  const EPSILON = 0.5;
+
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(viewportWidth + EPSILON);
+  // The input is inside the box and ends where the button begins: it never runs under it.
+  expect(input.x).toBeGreaterThanOrEqual(box.x - EPSILON);
+  expect(input.x + input.width).toBeLessThanOrEqual(submit.x + EPSILON);
+  expect(submit.x + submit.width).toBeLessThanOrEqual(box.x + box.width + EPSILON);
+  expect(submit.y).toBeGreaterThanOrEqual(box.y - EPSILON);
+  expect(submit.y + submit.height).toBeLessThanOrEqual(box.y + box.height + EPSILON);
+  // Still a field to type in, not a sliver.
+  expect(input.width).toBeGreaterThanOrEqual(120);
+  // The chips wrap inside the box.
+  for (const chip of await scope.getByRole("list", { name: "Selected people", exact: true }).getByRole("listitem").all()) {
+    const chipBox = (await chip.boundingBox())!;
+    expect(chipBox.x).toBeGreaterThanOrEqual(box.x - EPSILON);
+    expect(chipBox.x + chipBox.width).toBeLessThanOrEqual(box.x + box.width + EPSILON);
+  }
+  // Nothing overflows the box (its scrollable width is its own), and the page has no sideways scroll.
+  expect(await field.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+}
+
+/** A long name, as a pasted or runaway query: the input scrolls its text and keeps its box. */
+const LONG_QUERY = "Scroll Alpha ".repeat(8).trim();
+
+async function pick(scope: Locator, name: RegExp, query: string) {
+  await scope.getByRole("combobox").fill(query);
+  await scope.getByRole("option", { name }).click();
+}
+
+test.describe("at 320 CSS px, the narrowest width a page must reflow to", () => {
+  test.use({ viewport: { width: 320, height: 568 }, hasTouch: true, isMobile: true });
+
+  test("the dialog's field keeps its input clear of the Show timeline button, empty, with chips and with a long query", async ({ page }) => {
+    await page.goto(NOT_FOUND);
+    await searchButton(page).tap();
+    const dialog = searchDialog(page);
+    await expect(dialog).toBeVisible();
+    const field = dialog.getByRole("combobox");
+    await expect(field).toBeFocused();
+
+    const bounds = (await dialog.boundingBox())!;
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(320);
+    await expectFieldFits(page, dialog, 320);
+
+    await field.fill(LONG_QUERY);
+    await expectFieldFits(page, dialog, 320);
+    await field.fill("");
+
+    await pick(dialog, /Scroll Alpha/, "Scroll");
+    await expect(dialog.getByRole("list", { name: "Selected people", exact: true }).getByRole("listitem")).toHaveCount(1);
+    await expectFieldFits(page, dialog, 320);
+
+    await pick(dialog, /Scroll Beta/, "Scroll");
+    await expect(dialog.getByRole("list", { name: "Selected people", exact: true }).getByRole("listitem")).toHaveCount(2);
+    await expectFieldFits(page, dialog, 320);
+
+    await field.fill(LONG_QUERY);
+    await expect(dialog.getByRole("option")).toHaveCount(2);
+    await expectFieldFits(page, dialog, 320);
+    await expect(dialog.getByRole("button", { name: "Show timeline", exact: true })).toBeEnabled();
+  });
+
+  test("the landing hero's field, which is the same chip field, fits as well", async ({ page }) => {
+    await page.goto("/");
+    const hero = page.locator("[data-hero-search]");
+    const field = hero.getByRole("combobox");
+    await field.fill("Scroll");
+    await expect(page.getByRole("option")).toHaveCount(2);
+    await page.getByRole("option", { name: /Scroll Alpha/ }).click();
+    await expect(hero.getByRole("list", { name: "Selected people", exact: true }).getByRole("listitem")).toHaveCount(1);
+    await expectFieldFits(page, hero, 320);
+
+    await field.fill(LONG_QUERY);
+    await expectFieldFits(page, hero, 320);
+  });
+
+  test("the people overlay's field, the same hero size without chips, fits beside its close button", async ({ page }) => {
+    await page.goto(PEOPLE_PATH);
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Settings", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.keyboard.press(SHORTCUT);
+    const overlay = peopleDialog(page);
+    await expect(overlay).toBeVisible();
+    const field = overlay.getByRole("combobox", { name: "Add a person", exact: true });
+    await field.fill(LONG_QUERY);
+    const box = (await overlay.locator("[data-search-box]").boundingBox())!;
+    const input = (await field.boundingBox())!;
+    const close = (await overlay.getByRole("button", { name: "Close people", exact: true }).boundingBox())!;
+    expect(input.x).toBeGreaterThanOrEqual(box.x - 0.5);
+    expect(input.x + input.width).toBeLessThanOrEqual(box.x + box.width + 0.5);
+    expect(box.x + box.width).toBeLessThanOrEqual(close.x + 0.5);
+    expect(close.x + close.width).toBeLessThanOrEqual(320);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   });
 });
