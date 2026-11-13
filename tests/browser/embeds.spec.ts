@@ -317,6 +317,9 @@ async function verticalScrollers(page: Page) {
   });
 }
 
+/** The room the track leaves under the year axis, at the frames below: the bar's side inset (16px, the least it is at any frame), so that the axis's labels are clear of the frame's bottom edge and its rounded corners. */
+const BOTTOM_INSET = 16;
+
 const FIT_FRAMES = [
   { width: 600, height: 315, what: "an inline card on a desktop timeline" },
   { width: 516, height: 271, what: "a narrow desktop column" },
@@ -327,7 +330,7 @@ test.describe("pair embed: the end state fits the frame", () => {
   test.use({ reducedMotion: "reduce" });
 
   for (const frame of FIT_FRAMES) {
-    test(`${frame.width} x ${frame.height} (${frame.what}): the bar is inset, the axis is whole above the minimap strip, and nothing scrolls up or down`, async ({ page }) => {
+    test(`${frame.width} x ${frame.height} (${frame.what}): the bar is inset, the axis is whole and clear of the bottom edge, there is no minimap, and nothing scrolls up or down`, async ({ page }) => {
       await page.setViewportSize({ width: frame.width, height: frame.height });
       await page.goto(`/embed/p/${PAIR}`);
       const replay = page.getByRole("button", { name: "Replay", exact: true });
@@ -344,15 +347,14 @@ test.describe("pair embed: the end state fits the frame", () => {
       expect(Math.min(...boxes.map((box) => box.x)), "the bar's controls start at least 16px in from the left edge").toBeGreaterThanOrEqual(16);
       expect(frame.width - Math.max(...boxes.map((box) => box.x + box.width)), "and end at least 16px in from the right edge").toBeGreaterThanOrEqual(16 - 0.5);
 
-      // The axis: whole inside the frame, every label inside the axis, and the minimap strip under it, not over it.
+      // No minimap in the frame: it is the site's, and a frame only has the track (dragged, swiped or sent sideways by a sideways wheel).
+      await expect(page.locator("[data-minimap-bar]"), "the embed has no minimap bar").toHaveCount(0);
+      await expect(page.getByRole("scrollbar", { name: "Timeline position", exact: true }), "and no minimap's scrubber").toHaveCount(0);
+
+      // The axis: the track reaches down to the bottom inset, so that the axis ends at least that far above the frame's bottom edge, and every label is inside the axis (and so inside the frame, clear of its edge and its corners).
       const axis = await boxOf(page.locator("[data-axis]"));
-      expect(axis.y + axis.height, "the year axis ends inside the frame").toBeLessThanOrEqual(frame.height + 0.5);
-      const strip = page.locator("[data-minimap-bar]");
-      await expect(strip, "the minimap strip is shown").toBeVisible();
-      const stripBox = await boxOf(strip);
-      expect(stripBox.y, "the strip is under the axis").toBeGreaterThanOrEqual(axis.y + axis.height - 0.5);
-      expect(stripBox.y + stripBox.height, "the strip ends inside the frame").toBeLessThanOrEqual(frame.height + 0.5);
-      await expect(page.getByRole("scrollbar", { name: "Timeline position", exact: true })).toBeVisible();
+      expect(axis.y + axis.height, `the year axis ends at least ${BOTTOM_INSET}px inside the frame's bottom edge`).toBeLessThanOrEqual(frame.height - BOTTOM_INSET + 0.5);
+      expect(axis.y + axis.height, "and the track fills the room down to it (no strip of the frame left empty under the axis)").toBeGreaterThanOrEqual(frame.height - BOTTOM_INSET - 2);
       const labels = await page.locator("[data-axis] span.tabular-nums").evaluateAll((nodes) =>
         nodes.map((node) => {
           const rect = node.getBoundingClientRect();
@@ -362,7 +364,8 @@ test.describe("pair embed: the end state fits the frame", () => {
       expect(labels.length, "the axis has year labels").toBeGreaterThan(0);
       for (const label of labels) {
         expect(label.top, `${label.text} is not above the axis`).toBeGreaterThanOrEqual(axis.y - 0.5);
-        expect(label.bottom, `${label.text} is not cut off by the axis's or the frame's bottom`).toBeLessThanOrEqual(Math.min(axis.y + axis.height, frame.height) + 0.5);
+        expect(label.bottom, `${label.text} is not cut off by the axis's bottom`).toBeLessThanOrEqual(axis.y + axis.height + 0.5);
+        expect(label.bottom, `${label.text} is at least ${BOTTOM_INSET}px inside the frame's bottom edge`).toBeLessThanOrEqual(frame.height - BOTTOM_INSET + 0.5);
       }
 
       // Nothing scrolls up or down: no scroller of that axis has more to show, the track's own is clipped, and the track fits it.
@@ -386,18 +389,18 @@ test.describe("pair embed: the end state fits the frame", () => {
       // Two rows are a card and a gap apart (150px at full size); a quiet card's top is a little lower in its row, so the rows are told apart by the spread, not the count.
       expect(Math.max(...tops) - Math.min(...tops), `${frame.width} x ${frame.height} draws two rows of cards`).toBeGreaterThanOrEqual(140);
       const axis = await boxOf(page.locator("[data-axis]"));
-      expect(axis.y + axis.height).toBeLessThanOrEqual(frame.height + 0.5);
+      expect(axis.y + axis.height).toBeLessThanOrEqual(frame.height - BOTTOM_INSET + 0.5);
       for (const scroller of await verticalScrollers(page)) expect(scroller.scrollHeight).toBeLessThanOrEqual(scroller.clientHeight);
     }
   });
 
-  test("a frame too short for the minimap strip (360 x 200) has none, and the track and its axis still fit", async ({ page }) => {
+  test("a very short frame (360 x 200) draws the track smaller, and its axis still fits above the bottom inset", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 200 });
     await page.goto(`/embed/p/${PAIR}`);
     await expect(page.getByRole("button", { name: "Replay", exact: true })).toBeVisible();
     await expect(page.locator("[data-minimap-bar]")).toHaveCount(0);
     const axis = await boxOf(page.locator("[data-axis]"));
-    expect(axis.y + axis.height).toBeLessThanOrEqual(200 + 0.5);
+    expect(axis.y + axis.height).toBeLessThanOrEqual(200 - BOTTOM_INSET + 0.5);
     for (const scroller of await verticalScrollers(page)) expect(scroller.scrollHeight).toBeLessThanOrEqual(scroller.clientHeight);
   });
 

@@ -60,9 +60,6 @@ const NODE_DRAG_SLOP = 4;
  */
 export const MINIMAP_BRUSH_ENABLED = false;
 
-/** The height (px) of the compact bar (`compact`): its 1px border, 4px over the track, the 20px track and 5px under it. */
-export const COMPACT_MINIMAP_HEIGHT = 30;
-
 /** The period brush: what the bar needs to let a visitor pick the years to share by dragging on it. */
 export interface MinimapBrush {
   /** First and last year of the films a period is cut from; the brush stays inside it. Null without films: no brush. */
@@ -104,11 +101,6 @@ interface MinimapBarProps {
   brush?: MinimapBrush;
   /** The bar is at the bottom of a screen-high panel (the flat Timeline's): always the pinned look, with its border and shadow, whatever the page does. */
   pinned?: boolean;
-  /**
-   * The strip a frame in a post (the pair embed) draws: a thin track with no year labels, the bar's padding trimmed to the frame's gutter, and no safe-area
-   * inset (a frame has no screen edge). It is `COMPACT_MINIMAP_HEIGHT` tall in all, so that the frame can fit the track above it.
-   */
-  compact?: boolean;
   /** Rendered at the left end of the bar's row, before the track (the lane avatars). */
   leading?: ReactNode;
   /** Rendered at the right end of the bar's row (the zoom controls). */
@@ -141,7 +133,6 @@ export function MinimapBar({
   filmTicks,
   brush: brushProp,
   pinned = false,
-  compact = false,
   leading,
   children,
 }: MinimapBarProps) {
@@ -565,9 +556,7 @@ export function MinimapBar({
         className={cn(
           // The bar is rendered after the timeline, at the bottom of the screen-high panel the timeline is (pinned), and so stuck to the bottom of the viewport.
           // Opaque, above the lanes and below the film panel and hover card; the page's gutter (12px) at each side.
-          "z-30 flex items-center bg-canvas",
-          // The compact strip is the last row of the frame's own column, never stuck to a screen's bottom edge: its frame is drawn at a scale (the pair embed), where a sticky offset would be in the wrong pixels.
-          compact ? "relative box-border h-[30px] gap-2 px-[var(--embed-gutter,0.75rem)] pb-[5px] pt-1" : "sticky bottom-0 gap-3 px-3 pb-[calc(0.375rem+env(safe-area-inset-bottom))] pt-1.5",
+          "sticky bottom-0 z-30 flex items-center gap-3 bg-canvas px-3 pb-[calc(0.375rem+env(safe-area-inset-bottom))] pt-1.5",
           pinned || stuck ? "border-t border-border shadow-[0_-8px_10px_-8px_rgb(0_0_0/0.8)]" : "border-t border-transparent",
         )}
       >
@@ -582,8 +571,7 @@ export function MinimapBar({
             onLostPointerCapture={endDrag}
             title={brush && span ? "Drag to choose a period to share" : undefined}
             className={cn(
-              "relative w-full select-none rounded-md border border-border bg-surface",
-              compact ? "h-5" : "h-9 sm:h-8",
+              "relative h-9 w-full select-none rounded-md border border-border bg-surface sm:h-8",
               // With the brush every press is a pointer gesture of ours (a band, a handle, the window), so the browser
               // must not scroll the page or zoom from a touch that starts here.
               brush && span ? "cursor-crosshair touch-none" : "cursor-pointer touch-pan-y",
@@ -592,10 +580,10 @@ export function MinimapBar({
             <div aria-hidden className="pointer-events-none absolute inset-0">
               {ticks.map((tick) => (
                 <span key={tick.year}>
-                  {tick.decade && !compact && (
+                  {tick.decade && (
                     <span className="absolute bottom-0 h-1.5 w-px bg-muted/60" style={{ left: `${tick.fraction * 100}%` }} />
                   )}
-                  {tick.label && !compact && (
+                  {tick.label && (
                     <span
                       className="absolute bottom-1.5 -translate-x-1/2 text-[9px] leading-none tabular-nums text-muted"
                       style={{ left: tick.labelX }}
@@ -652,10 +640,10 @@ export function MinimapBar({
                     if (suppressClick.current) suppressClick.current = false;
                     else jumpToFilm(film);
                   }}
-                  className={cn("group absolute top-0 z-10 flex w-4 -translate-x-1/2 cursor-pointer items-center justify-center", compact ? "h-full" : "h-[62%]", MINIMAP_COLOR)}
+                  className={cn("group absolute top-0 z-10 flex h-[62%] w-4 -translate-x-1/2 cursor-pointer items-center justify-center", MINIMAP_COLOR)}
                   style={{ left: `${fraction * 100}%` }}
                 >
-                  <span className={cn("w-1 rounded-full bg-lit shadow-[0_0_8px_var(--lit-glow)]", compact ? "h-3" : "h-3.5 group-hover:h-4")} />
+                  <span className="h-3.5 w-1 rounded-full bg-lit shadow-[0_0_8px_var(--lit-glow)] group-hover:h-4" />
                 </button>
               ))}
 

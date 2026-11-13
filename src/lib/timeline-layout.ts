@@ -471,7 +471,7 @@ export function embedTrackHeight(rows: number): number {
   return laneHeight(rows) + AXIS_HEIGHT;
 }
 
-/** The rows a frame draws with `room` px for the track (under its bar and over its minimap strip): the most, up to `EMBED_MAX_ROWS`, that fit at full size; one when none does (it is then scaled down to fit). */
+/** The rows a frame draws with `room` px for the track (under its bar and over its bottom inset): the most, up to `EMBED_MAX_ROWS`, that fit at full size; one when none does (it is then scaled down to fit). */
 export function embedRowsFor(room: number): number {
   for (let rows = EMBED_MAX_ROWS; rows > 1; rows--) if (room >= embedTrackHeight(rows)) return rows;
   return 1;

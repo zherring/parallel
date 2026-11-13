@@ -154,11 +154,9 @@ interface TimelineProps {
    *
    * A frame never scrolls up or down (that gesture belongs to the feed that holds it): the track is `embedRows` rows of cards over the year axis, `embedTrackHeight(embedRows)`
    * tall, and the caller scales the whole of it to the room it has; the scroller pans sideways only (drag, a sideways wheel or a swipe;
-   * an up or down wheel or swipe is left for the page), and has no scrollbar: the compact minimap under the track (see `embedMinimap`) is the way to scrub.
+   * an up or down wheel or swipe is left for the page), and has no scrollbar.
    */
   embed?: boolean;
-  /** An `embed` with the compact minimap strip under the track (the default); false where the frame is too short for it. */
-  embedMinimap?: boolean;
   /** An `embed`'s rows of poster cards, however many films there are (the films past them are nodes): one, unless the caller has room for more (`embedRowsFor`). */
   embedRows?: number;
 }
@@ -228,7 +226,6 @@ export function Timeline({
   periodYears = [],
   onPeriodChange,
   embed = false,
-  embedMinimap = true,
   embedRows = 1,
 }: TimelineProps) {
   const [pxPerYear, setPxPerYear] = useState(DEFAULT_ZOOM);
@@ -1116,18 +1113,6 @@ export function Timeline({
       </div>
 
       {/* After the timeline, so that the pinned bar follows the lanes in reading and tab order. It is the last of the screen, under the track. */}
-      {embed && embedMinimap && (
-        <MinimapBar
-          pinned
-          compact
-          scrollerRef={scrollerRef}
-          cornerRef={cornerRef}
-          scrollerId={scrollerId}
-          scale={scale}
-          sharedFilms={minimapFilms.shared}
-          filmTicks={minimapFilms.ticks}
-        />
-      )}
       {!embed && (
         <MinimapBar
           pinned
