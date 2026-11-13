@@ -4,7 +4,6 @@ import { Check, Share2 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { quoteLinkSearch, truncateQuote } from "@/lib/clippings-view";
-import { cn } from "./cn";
 
 const LINK_COPIED = "Link copied";
 
@@ -36,8 +35,7 @@ function prefersShareSheet(): boolean {
  * everywhere else it copies the link (the menu's "Copy link") and says so under the button, in a
  * live region so that it is announced. The preview card the link unfurls into is the quote's own.
  *
- * Visible on touch screens; where there is a hover it appears with the pointer over the quote (the
- * `quote` group of the item that holds it) or with focus on it, and stays for the status.
+ * Always visible above the quote, on pointer and touch devices alike.
  */
 export function QuoteShareButton({ item }: { item: ShareableQuote }) {
   const pathname = usePathname();
@@ -81,11 +79,7 @@ export function QuoteShareButton({ item }: { item: ShareableQuote }) {
         onClick={share}
         title="Share this quote"
         aria-label={`Share this quote by ${item.speaker}`}
-        className={cn(
-          "inline-flex size-9 cursor-pointer items-center justify-center rounded-full text-muted transition-[color,opacity] hover:text-strong motion-reduce:transition-none",
-          // Touch has no hover to reveal it; with a pointer it shows over the quote, and with the keyboard on the button.
-          "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/quote:opacity-100 [@media(hover:hover)]:group-focus-within/quote:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100",
-        )}
+        className="inline-flex size-9 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:text-strong motion-reduce:transition-none"
       >
         <Share2 aria-hidden="true" className="size-4" />
       </button>

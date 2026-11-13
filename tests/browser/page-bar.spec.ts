@@ -316,7 +316,7 @@ for (const [label, viewport] of [
       ];
       for (const { go, panel } of steps) {
         await go();
-        await expect(page.locator(`[id$="-panel-${panel}"]`)).toBeVisible();
+        await expect(page.locator(panel === "clippings" ? "[data-quote-exhibit-deck]" : `[id$="-panel-${panel}"]`)).toBeVisible();
         const now = await measureBar(page);
         expect(now.gear, `the gear on ${panel}`).toEqual(before.gear);
         expect(now.switcher, `the control on ${panel}`).toEqual(before.switcher);
@@ -366,10 +366,13 @@ for (const [label, viewport] of [
         await expect(page.locator("h1")).toHaveCount(1);
         await expect(page.getByText(HEADLINE, { exact: true }), view).toHaveCount(1);
         // The page's content is clear of the bar (the headline used to be what stood between them). The Timeline is the whole screen: its track has a top padding for that.
-        if (view !== "focus" && view !== "timeline") {
+        if (view === "table") {
           const barBox = (await bar(page).boundingBox())!;
           const panel = (await page.locator(`[id$="-panel-${view}"]`).boundingBox())!;
           expect(panel.y, view).toBeGreaterThanOrEqual(barBox.y + barBox.height);
+        } else if (view === "clippings") {
+          await expect(page.locator("[data-quote-exhibit-deck]")).toBeVisible();
+          expect((await page.locator('[data-quote-slide][aria-current="true"] .quote-exhibit-plate').boundingBox())!.y).toBeGreaterThanOrEqual((await bar(page).boundingBox())!.height);
         }
       }
     });

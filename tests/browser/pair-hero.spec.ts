@@ -14,8 +14,8 @@ test.beforeEach(async ({ next }) => {
   void next;
 });
 
-type ViewName = "timeline" | "table" | "clippings" | "focus";
-const VIEWS: Record<ViewName, string> = { timeline: "?view=timeline", table: "?view=table", clippings: "?view=clippings", focus: "?view=depth" };
+type ViewName = "timeline" | "table" | "focus";
+const VIEWS: Record<ViewName, string> = { timeline: "?view=timeline", table: "?view=table", focus: "?view=depth" };
 const ALL_VIEWS = Object.keys(VIEWS) as ViewName[];
 
 /** The pair's first quote, as the page works it out on the server: what the hero shows. */
@@ -32,7 +32,7 @@ async function hydrated(page: Page) {
   await expect(page.getByRole("dialog", { name: "Settings", exact: true })).toBeHidden();
 }
 
-const WORD: Record<ViewName, string> = { timeline: "Timeline", table: "Table", clippings: "Quotes", focus: "Films" };
+const WORD: Record<ViewName, string> = { timeline: "Timeline", table: "Table", focus: "Films" };
 /** The control's current segment, found without looking at whether it is shown (a phone's bar hides the control: its sheet has it). */
 const currentSegment = (page: Page) => bar(page).locator('nav[aria-label="Views"] a[aria-current="page"]');
 
@@ -172,7 +172,7 @@ test.describe("at 1440px wide", () => {
         gear: await box(settingsGear(page)),
       };
     }
-    for (const view of ["table", "clippings", "focus"] as const) {
+    for (const view of ["table", "focus"] as const) {
       expect(measured[view].home, `home on ${view}`).toEqual(measured.timeline.home);
       expect(measured[view].title, `title on ${view}`).toEqual(measured.timeline.title);
       expect(measured[view].portraits, `portraits on ${view}`).toEqual(measured.timeline.portraits);
@@ -180,7 +180,6 @@ test.describe("at 1440px wide", () => {
     }
     // The gear is at the right edge on the flat views and left of the rail on Films, as on the compact bar.
     expect(measured.table.gear).toEqual(measured.timeline.gear);
-    expect(measured.clippings.gear).toEqual(measured.timeline.gear);
     expect(measured.focus.gear.x).toBeLessThan(measured.timeline.gear.x);
   });
 
@@ -364,30 +363,30 @@ test.describe("at 1440px wide", () => {
     await expect(row).not.toHaveAttribute("data-flash", "", { timeout: 5000 });
   });
 
-  test("a chip on the Quotes opens the film's panel, and focus goes back to the chip when it closes", async ({ page }) => {
-    await openView(page, "clippings");
-    const chip = chipOf(page, 3);
-    await chip.click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden();
-    await expect(chip).toBeFocused();
+  test("Quotes keeps pairing and navigation but omits the expanded masthead and its film chips", async ({ page }) => {
+    await page.goto(`${PAIR}?view=clippings`);
+    await expect(page.locator("[data-quote-exhibit-deck]")).toBeVisible();
+    await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
+    await expect(pill(page)).toBeVisible();
+    await expect(title(page)).toBeHidden();
+    await expect(heroBody(page)).toHaveCount(0);
+    await switcher(page).getByRole("link", { name: "Table", exact: true }).click();
+    await expect(heroBody(page)).toBeVisible();
+    await expect(chips(page).first()).toBeVisible();
   });
 
-  test("a chip is a button like the Quotes' filter chips: the same height, shape and border", async ({ page }) => {
-    await openView(page, "clippings");
+  test("film chips keep their compact hairline-pill shape", async ({ page }) => {
+    await openView(page, "table");
     const look = await page.evaluate(() => {
       const read = (element: Element) => {
         const css = getComputedStyle(element);
         return { height: css.height, radius: css.borderTopLeftRadius, border: css.borderTopWidth, font: css.fontSize };
       };
-      const filter = document.querySelector('[aria-label="Show quotes by speaker"] button:not([aria-pressed="true"])');
       const chip = document.querySelector("[data-hero-chip]");
-      return { filter: filter ? read(filter) : null, chip: chip ? read(chip) : null };
+      return chip ? read(chip) : null;
     });
-    expect(look.chip).not.toBeNull();
-    expect(look.chip).toEqual(look.filter);
+    expect(look).toMatchObject({ height: "32px", border: "1px", font: "14px" });
+    expect(Number.parseFloat(look!.radius)).toBeGreaterThanOrEqual(16);
   });
 
   // ---- the names and the portraits ---------------------------------------------------------------------------------------

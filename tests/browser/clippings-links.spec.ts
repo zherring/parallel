@@ -1,6 +1,6 @@
 import { test, expect } from "next/experimental/testmode/playwright";
 
-test("attribution names stay white, and a name opens the person panel on the right", async ({ page, next }) => {
+test("explainer names stay white, and a name opens the person panel on the right", async ({ page, next }) => {
   next.onFetch((request) => {
     const url = new URL(request.url);
     if (url.hostname !== "api.themoviedb.org") return "abort";
@@ -21,12 +21,12 @@ test("attribution names stay white, and a name opens the person panel on the rig
     return "abort";
   });
 
-  await page.goto("/p/309-pedro-almodovar+955-penelope-cruz?view=clippings");
+  await page.goto("/p/309-pedro-almodovar+955-penelope-cruz?view=clippings&quote=penelope-has-done-ballet-when-she");
   await expect(page.getByRole("navigation", { name: "Views", exact: true }).getByRole("link", { name: "Quotes", exact: true })).toHaveAttribute("aria-current", "page");
-  const quote = page.locator("#quote-i-was-so-happy-that-he");
-  const speaker = quote.getByRole("button", { name: "Penélope Cruz", exact: true });
-  const subject = quote.getByRole("button", { name: "Pedro Almodóvar", exact: true });
-  const source = quote.getByRole("link", { name: /Tribeca Film Festival/ });
+  const quote = page.locator("#quote-penelope-has-done-ballet-when-she");
+  const speaker = quote.locator(".quote-exhibit-context").getByRole("link", { name: "Penélope Cruz", exact: true });
+  const subject = quote.locator(".quote-exhibit-context").getByRole("link", { name: "Pedro Almodóvar", exact: true });
+  const source = quote.locator(".quote-exhibit-source a");
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await expect(speaker).toHaveCSS("color", "rgb(255, 255, 255)");

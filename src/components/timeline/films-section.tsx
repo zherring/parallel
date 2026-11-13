@@ -13,8 +13,7 @@ import type { FilmsTableModel } from "./use-films-table";
 import { useViewTab } from "./use-view-tab";
 
 /**
- * The Table and the Quotes are read in a column (72rem wide, with the gutter the page has), centred; the Timeline is not in the flow at all: it is the
- * whole screen.
+ * The Table is read in a centered column. Timeline and active Quotes are full-screen layouts outside that flow.
  */
 const COLUMN = "mx-auto w-full max-w-[70.5rem] px-1";
 
@@ -57,8 +56,8 @@ interface FilmsSectionProps {
  * The films of a page as one section with two views, Timeline and Table, shown one at a time (and a third, Clippings, for a pair with curated
  * quotes (`clippings`) or critics writing about their collaboration (`critics`)). The links to the views are in the page bar (`PeopleBar`, the
  * same on every view of the page, with Export and Share in its gear); the section is what is under the bar. The Timeline is the whole screen, fixed
- * under the bar like the Depth view's scene, with the period note and the empty-state message floating at its top; the Table and the Quotes are in
- * the flow, in a reading column, with the Table's source note under it. The section's heading is for screen readers.
+ * under the bar like the Depth view's scene, with the period note and the empty-state message floating at its top. Quotes mounts its own full-screen
+ * portrait deck when selected; the Table stays in a reading column, with its source note below. The section's heading is for screen readers.
  *
  * The panels are always mounted (the server renders them all, the inactive ones `hidden`): the table's
  * film titles and credits are in the HTML whichever view is selected, and the timeline keeps its
@@ -101,7 +100,7 @@ export function FilmsSection({
       <h2 id={headingId} className="sr-only">
         {together ? "Films together" : "Films"}
       </h2>
-      {/* The line the Table and the Quotes start under (the Timeline is out of the flow: it is the screen's). */}
+      {/* The Table's top spacing. Timeline and active Quotes are out of the flow. */}
       <div className="min-h-5" />
 
       {rows.length === 0 && isFilmView(view) && view !== "timeline" && (

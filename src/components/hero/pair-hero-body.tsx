@@ -191,7 +191,7 @@ export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, tog
 const CHIP_BOX =
   "inline-flex h-8 min-w-0 max-w-[16rem] items-center gap-2 rounded-full border border-border px-3.5 text-sm font-medium max-sm:gap-1.5 max-sm:px-2.5";
 
-/** The chips of the Quotes' filter ("All", "Spielberg on Williams"), unselected: a hairline pill that brightens on hover. */
+/** A compact film chip: a hairline pill that brightens on hover. */
 const CHIP = `${CHIP_BOX} cursor-pointer text-muted transition-colors hover:border-muted hover:text-strong motion-reduce:transition-none`;
 
 function HeroNoteBlock({
