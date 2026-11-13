@@ -1,0 +1,91 @@
+{
+  "pair": ["Robert Eggers", "Jarin Blaschke"],
+  "tmdb_ids": [138781, 1135102],
+  "clippings": [
+    {
+      "speaker": "Robert Eggers",
+      "about": "Jarin Blaschke",
+      "quote": "Jarin and I have grown together as people, as fathers, as filmmakers — we’ve been working together since I was 25. I know that with some of my director colleagues, they design the shots and the DP lights them. With Jarin and me, it’s very collaborative.",
+      "film": "Nosferatu",
+      "said_year": 2024,
+      "publication": "American Cinematographer",
+      "via": null,
+      "title": "Director Robert Eggers on Nosferatu",
+      "date": "2024-12-29",
+      "url": "https://theasc.com/article/robert-eggers-nosferatu/",
+      "context": "Eggers describes his collaborative relationship with his cinematographer in an ASC interview about Nosferatu.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Robert Eggers",
+      "about": "Jarin Blaschke",
+      "quote": "In scenes that had a whole lot of dialogue, I’d be working with the actors in a rehearsal room, and Jarin would be there [framing things] with his phone, trying different things. Sometimes I might grab the phone, and we’d both be trying to find ways to make the staging more elegant.",
+      "film": "Nosferatu",
+      "said_year": 2024,
+      "publication": "American Cinematographer",
+      "via": null,
+      "title": "Director Robert Eggers on Nosferatu",
+      "date": "2024-12-29",
+      "url": "https://theasc.com/article/robert-eggers-nosferatu/",
+      "context": "Eggers on how he and Blaschke worked out shots during rehearsals for Nosferatu.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Robert Eggers",
+      "about": "Jarin Blaschke",
+      "quote": "Jarin and I have been working together for over 17 years. This film is the culmination of a long collaboration of mutual inspiration and trying to push each other in certain directions.",
+      "film": "Nosferatu",
+      "said_year": 2025,
+      "publication": "postPerspective",
+      "via": null,
+      "title": "Nosferatu's Robert Eggers and Oscar-Nominated DP Jarin Blaschke",
+      "date": "2025-02-13",
+      "url": "https://postperspective.com/nosferatus-robert-eggers-and-oscar-nominated-dp-jarin-blaschke/",
+      "context": "Joint interview with Iain Blair; Eggers asked what Blaschke brought to their sixth film together.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Jarin Blaschke",
+      "about": "Robert Eggers",
+      "quote": "I found a fellow hopeless perfectionist in Rob during that shoot. Up until then and sometimes in-between his movies, it can feel lonely, like you are just working for yourself. With Rob, I felt my quirks and obsessions were accepted, encouraged and even demanded. That is a rare, rare thing.",
+      "film": "The Tell-Tale Heart",
+      "said_year": 2022,
+      "publication": "Focus Features",
+      "via": null,
+      "title": "From a Rampaging Alexander Skarsgård to an Erupting Volcano: Shooting The Northman",
+      "date": "2022-04-26",
+      "url": "https://www.focusfeatures.com/article/interview_cinematographer_jarin-blaschke",
+      "context": "Studio interview for The Northman; Blaschke recalls meeting Eggers on the short The Tell-Tale Heart.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Jarin Blaschke",
+      "about": "Robert Eggers",
+      "quote": "After that first short, we would just hang out all the time, because we weren’t working, and there’s like seven years of that, really, just becoming friends and kind of aesthetic snobs together, and really connecting.",
+      "film": null,
+      "said_year": 2025,
+      "publication": "Den of Geek",
+      "via": null,
+      "title": "Nosferatu’s Jarin Blaschke Chats Oscar Nomination, Robert Eggers, and That Ending Sunrise",
+      "date": "2025-02-03",
+      "url": "https://www.denofgeek.com/movies/nosferatu-jarin-blaschke-oscar-nomination-robert-eggers-ending-sunrise/",
+      "context": "Interview after his second Oscar nomination; on the years between their first short and The Witch.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Jarin Blaschke",
+      "about": "Robert Eggers",
+      "quote": "When I’m working with Rob, my brain just goes into Rob composition mode… So even if it’s a frame that I might find, I’m filtering it through the Rob filter.",
+      "film": "Nosferatu",
+      "said_year": 2025,
+      "publication": "Den of Geek",
+      "via": null,
+      "title": "Nosferatu’s Jarin Blaschke Chats Oscar Nomination, Robert Eggers, and That Ending Sunrise",
+      "date": "2025-02-03",
+      "url": "https://www.denofgeek.com/movies/nosferatu-jarin-blaschke-oscar-nomination-robert-eggers-ending-sunrise/",
+      "context": "Blaschke on their shared, symmetrical, storybook visual style.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Criterion's 2016 The Witch interview returned 403, so it was skipped. Quotes skew toward Nosferatu (2024-25)."
+}

@@ -1,0 +1,91 @@
+{
+  "pair": ["Joel Coen", "Ethan Coen"],
+  "tmdb_ids": [1223, 1224],
+  "clippings": [
+    {
+      "speaker": "Joel Coen",
+      "about": "Ethan Coen",
+      "quote": "It's fantastic, there's nothing like it, when people ask if I have directing advice I tell them, 'find a partner,' … It's an enormous advantage in every way. You have someone you can turn to when things go pear-shaped and, in crass terms, you can gang up on people. I missed him a lot.",
+      "film": "The Tragedy of Macbeth",
+      "said_year": 2022,
+      "publication": "Los Angeles Times",
+      "via": "Yahoo Entertainment",
+      "title": "Joel Coen wouldn't have made 'Macbeth' with his brother Ethan. Here's why",
+      "date": "2022-01-07",
+      "url": "https://www.yahoo.com/entertainment/joel-coen-wouldnt-made-macbeth-130032679.html",
+      "context": "Kenneth Turan interviews Joel about directing his first film without Ethan.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Joel Coen",
+      "about": "Ethan Coen",
+      "quote": "I knew I'd be directing the next one by myself … If I was working with Ethan I wouldn't have done 'Macbeth,' it would not be interesting to him.",
+      "film": "The Tragedy of Macbeth",
+      "said_year": 2022,
+      "publication": "Los Angeles Times",
+      "via": "Yahoo Entertainment",
+      "title": "Joel Coen wouldn't have made 'Macbeth' with his brother Ethan. Here's why",
+      "date": "2022-01-07",
+      "url": "https://www.yahoo.com/entertainment/joel-coen-wouldnt-made-macbeth-130032679.html",
+      "context": "Joel on what changed after Ethan told him, at the end of The Ballad of Buster Scruggs, that he wanted to do other things for a while.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Joel Coen",
+      "about": "Ethan Coen",
+      "quote": "But it's also the case that frequently Ethan will just sit down and or I'll sit down at the computer and just type up dialogue in a scene. You know? And then the other person will look at it and maybe adjust it or change it or something like that. But it's all in the context of this ongoing conversation.",
+      "film": "Inside Llewyn Davis",
+      "said_year": 2013,
+      "publication": "Fresh Air",
+      "via": "NPR",
+      "title": "The Coen Bros. On Writing, 'Lebowski' And Literally Herding Cats",
+      "date": "2013-12-17",
+      "url": "https://www.npr.org/transcripts/251638952",
+      "context": "Joint Fresh Air interview with Terry Gross; the transcript labels both as COEN, but the speaker refers to Ethan in the third person, so it is Joel.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Ethan Coen",
+      "about": "Joel Coen",
+      "quote": "I think it's just wrong to separate out and try to analyse out who adds what to which, you know what I mean? Because it's all either between Joel and myself or Trish and myself. [It's not] that when I write scripts with Joel, I'm the funny one. And he's the serious one. That's just wrong. I mean, the fun and the comedies that we've done together is a product of both of us talking, not of one of us trying to jolly the other one.",
+      "film": "Drive-Away Dolls",
+      "said_year": 2024,
+      "publication": "NME",
+      "via": null,
+      "title": "Ethan Coen on streaming, Drive-Away Dolls and his split with Joel",
+      "date": "2024-03-14",
+      "url": "https://www.nme.com/features/film-interviews/ethan-coen-drive-away-dolls-joel-streaming-3600586",
+      "context": "Asked to compare writing with his brother to writing with his wife, Tricia Cooke.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Ethan Coen",
+      "about": "Joel Coen",
+      "quote": "The last couple [movies] I'd done before were just really difficult, in terms of production. They were difficult movies to make … Not that it wasn't fun, it was still intermittently fun, but Joel felt the same way – 'Those last two. Man, they were hard.' I'd not decided anything definitively, but took some time off.",
+      "film": "The Ballad of Buster Scruggs",
+      "said_year": 2024,
+      "publication": "TheWrap",
+      "via": null,
+      "title": "How 'Drive-Away Dolls' Artistically Reinvigorated Ethan Coen",
+      "date": "2024-02-23",
+      "url": "https://www.thewrap.com/drive-away-dolls-ethan-coen-tricia-cooke-interview/",
+      "context": "Ethan on why he stepped back after Hail, Caesar! and The Ballad of Buster Scruggs.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Ethan Coen",
+      "about": "Joel Coen",
+      "quote": "We actually wrote another alternate ending, which I thought my brother was going to talk about. Instead of having Tommy Lee Jones telling the story, we had Cormac McCarthy, the author of the novel, leaning on the fence, telling the story directly to the camera.",
+      "film": "No Country for Old Men",
+      "said_year": 2015,
+      "publication": "Festival de Cannes",
+      "via": null,
+      "title": "INTERVIEW – Joel and Ethan Coen: \"We let our films live their own lives\"",
+      "date": "2015-05-23",
+      "url": "https://www.festival-cannes.com/en/2015/interview-joel-and-ethan-coen-we-let-our-films-live-their-own-lives/",
+      "context": "Joint interview while the brothers were jury presidents at Cannes; Ethan picks up after Joel describes one alternate ending.",
+      "secondhand": false
+    }
+  ],
+  "notes": "The brothers rarely talk about each other, since they almost always give interviews together, so these quotes come mostly from the post-split press. I skipped IndieWire and Deadline because they are behind a TollBit wall, and The Playlist returned 403."
+}

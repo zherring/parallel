@@ -1,0 +1,91 @@
+{
+  "pair": ["Alfred Hitchcock", "James Stewart"],
+  "tmdb_ids": [2636, 854],
+  "clippings": [
+    {
+      "speaker": "James Stewart",
+      "about": "Alfred Hitchcock",
+      "quote": "I agree with everything he [Hitchcock] said. I think probably as far as the actual making of the pictures, he was the most exciting of any, because -- he and John Ford had a lot in common -- you were never sure what was going to happen next . . . .",
+      "film": null,
+      "said_year": 1980,
+      "publication": "The Christian Science Monitor",
+      "via": null,
+      "title": "Jimmy Stewart; Hollywood didn't invent him",
+      "date": "1980-02-21",
+      "url": "https://www.csmonitor.com/1980/0221/022148.html",
+      "context": "Interview ahead of his AFI Life Achievement Award, responding to Hitchcock's line that an actor's chief requisite is the ability to do nothing well.",
+      "secondhand": false
+    },
+    {
+      "speaker": "James Stewart",
+      "about": "Alfred Hitchcock",
+      "quote": "You never, in a Hitchcock or Ford picture, you never get the feeling you're sitting around waiting for something to happen, or arguing with somebody about the script. There's none of that. Hitchcock and Ford and a lot of the others came completely prepared as far as the basic mechanics of the picture were concerned, and the mood they wanted to get from every scene.",
+      "film": null,
+      "said_year": 1980,
+      "publication": "The Christian Science Monitor",
+      "via": null,
+      "title": "Jimmy Stewart; Hollywood didn't invent him",
+      "date": "1980-02-21",
+      "url": "https://www.csmonitor.com/1980/0221/022148.html",
+      "context": "Same 1980 interview, on how Hitchcock and Ford ran a set.",
+      "secondhand": false
+    },
+    {
+      "speaker": "James Stewart",
+      "about": "Alfred Hitchcock",
+      "quote": "There have been books written about that and people saying that he was so terrible with women and that there was an evil-type thing — which is absolutely ridiculous. He kept an excitement on the set. How he did it, I don't know. But nothing seemed to upset him.",
+      "film": "Rear Window",
+      "said_year": 1986,
+      "publication": "AirCal",
+      "via": "The Steigerwald Post (Substack)",
+      "title": "Jimmy Stewart's wonderful life",
+      "date": "1986-12",
+      "url": "https://clips.substack.com/p/q-and-a-jimmy-stewarts-wonderful",
+      "context": "Bill Steigerwald's fall 1986 interview at Stewart's home, asked whether there was tension on Hitchcock's sets; expanded version reposted by the interviewer.",
+      "secondhand": false
+    },
+    {
+      "speaker": "James Stewart",
+      "about": "Alfred Hitchcock",
+      "quote": "Finally, just as they told Hitch they had enough lights, the lights tripped the sprinkler for the fire system. It started to rain — and I mean really rain. And he said, \"See if you can get someone to turn off the rain, and while you're at it, someone might get me an umbrella\" And he sat under this umbrella until they got the sprinklers turned off. Nothing threw him.",
+      "film": "Rear Window",
+      "said_year": 1986,
+      "publication": "AirCal",
+      "via": "The Steigerwald Post (Substack)",
+      "title": "Jimmy Stewart's wonderful life",
+      "date": "1986-12",
+      "url": "https://clips.substack.com/p/q-and-a-jimmy-stewarts-wonderful",
+      "context": "Same 1986 interview: an anecdote about lighting the single courtyard set of Rear Window at Paramount.",
+      "secondhand": false
+    },
+    {
+      "speaker": "James Stewart",
+      "about": "Alfred Hitchcock",
+      "quote": "For instance, sometimes I'd do a scene with Hitchcock and he'd look up and say, \"Jim\" -- he always called me Jim — \"this scene is timed.\"",
+      "film": null,
+      "said_year": 1986,
+      "publication": "AirCal",
+      "via": "The Steigerwald Post (Substack)",
+      "title": "Jimmy Stewart's wonderful life",
+      "date": "1986-12",
+      "url": "https://clips.substack.com/p/q-and-a-jimmy-stewarts-wonderful",
+      "context": "Same 1986 interview, on learning to control his famous drawl.",
+      "secondhand": false
+    },
+    {
+      "speaker": "James Stewart",
+      "about": "Alfred Hitchcock",
+      "quote": "And Kim just came up to Hitchcock and said, “Mr. Hitchcock, I, just this next scene, it’s just not quite clear to me and I’d like to go over it with you because I’m not sure of the reason for the motivation that I have in dealing with the problem that I have with Mr. Stewart.” And Hitchcock just looked at her and said, “Kim, it’s only a movie!”",
+      "film": "Vertigo",
+      "said_year": 1987,
+      "publication": "Video Review",
+      "via": "Maury Z. Levy (author's blog)",
+      "title": "Jimmy Stewart: The Interview",
+      "date": "1987",
+      "url": "https://mauryzlevy.wordpress.com/2011/01/23/jimmy-stewart-the-interview/",
+      "context": "Maury Z. Levy's Video Review interview with a 78-year-old Stewart, reposted by the author; Stewart recalls early in the Vertigo shoot.",
+      "secondhand": false
+    }
+  ],
+  "notes": "One direction only: no verbatim Hitchcock-on-Stewart found on a fetchable page (the.hitchcock.zone transcripts unreachable, rogerebert.com and UPI 403; 'Imagine anyone hating James Stewart' only on quote sites). Video Review date approximate (Stewart was 78, so 1986-87)."
+}
