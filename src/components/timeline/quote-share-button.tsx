@@ -3,7 +3,8 @@
 import { Check, Share2 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { quoteLinkSearch, truncateQuote } from "@/lib/clippings-view";
+import { truncateQuote } from "@/lib/clippings-view";
+import { quoteSharePath } from "@/lib/quote-embed";
 import { cn } from "./cn";
 
 const LINK_COPIED = "Link copied";
@@ -30,8 +31,10 @@ function prefersShareSheet(): boolean {
 }
 
 /**
- * The small share icon of a quote: it shares the link that opens the Clippings tab on this one quote
- * (`/p/<people>?view=clippings&quote=<id>`), the way the page's Share menu shares the page. Where the
+ * The small share icon of a quote: it shares the link to this one quote (`/p/<people>/q/<id>`, see `quote-embed.ts`), the way
+ * the page's Share menu shares the page. On X that link is a player card: the quote, with the pair's others to step through,
+ * right in the post. Everywhere else it unfurls as the quote's card image, as the link to the Clippings tab on it did,
+ * and for a visitor it opens a page of the quote that leads on to the Clippings tab. Where the
  * device has a native share sheet and a finger for a pointer it opens the sheet (the menu's "More...");
  * everywhere else it copies the link (the menu's "Copy link") and says so under the button, in a
  * live region so that it is announced. The preview card the link unfurls into is the quote's own.
@@ -53,7 +56,7 @@ export function QuoteShareButton({ item }: { item: ShareableQuote }) {
   };
 
   const share = async () => {
-    const url = `${window.location.origin}${pathname}${quoteLinkSearch(item.id)}`;
+    const url = `${window.location.origin}${quoteSharePath(pathname, item.id)}`;
 
     if (prefersShareSheet()) {
       try {
