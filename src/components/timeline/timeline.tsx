@@ -146,6 +146,13 @@ interface TimelineProps {
   periodYears?: readonly number[];
   /** Writes the period the minimap's brush ends on (null: none). The brush is parked behind `MINIMAP_BRUSH_ENABLED`, so nothing calls it for now; see `useUrlPeriod`. */
   onPeriodChange?: (next: Period | null) => void;
+  /**
+   * The timeline as a frame in a post on X draws it (the pair embed, see `PairEmbed`): the same track, cards, nodes and hover card, without what a small
+   * frame has no room or use for: no lane headers (the frame's bar names the people), no connection legend, no minimap bar with the zoom, and no film
+   * panel to open. A pressed film shows its hover card (a touch screen has no hover) instead of opening the panel, and that card asks for no metrics: a
+   * frame is sandboxed and makes no request. The caller sets `--bar-h` (the room above the track, 0 under a bar of its own).
+   */
+  embed?: boolean;
 }
 
 /** How long the lane a top-bar avatar jumped to keeps its highlight ring. */
@@ -212,6 +219,7 @@ export function Timeline({
   periodSpan = null,
   periodYears = [],
   onPeriodChange,
+  embed = false,
 }: TimelineProps) {
   const [pxPerYear, setPxPerYear] = useState(DEFAULT_ZOOM);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
@@ -674,10 +682,15 @@ export function Timeline({
   // Opening the film panel closes the hover card, whether it was a click or Enter.
   const handleSelect = useCallback(
     (id: number, trigger: HTMLElement) => {
+      if (embed) {
+        // A frame has no panel to open: the press shows the film's card, as hovering does (a touch screen cannot hover). The next press anywhere closes it.
+        showPopover(popoverTargetOf(trigger), "focus");
+        return;
+      }
       hidePopover();
       onSelect(id, trigger);
     },
-    [hidePopover, onSelect],
+    [embed, hidePopover, onSelect, showPopover],
   );
 
   const popoverContent = useMemo(
@@ -791,10 +804,10 @@ export function Timeline({
       <div
         className={cn(
           "relative isolate flex min-h-0 flex-1 flex-col",
-          isCombined ? "[--lane-head:0px]" : "[--lane-head:84px] sm:[--lane-head:224px]",
+          isCombined || embed ? "[--lane-head:0px]" : "[--lane-head:84px] sm:[--lane-head:224px]",
         )}
       >
-        {layout.legend.length > 0 && (
+        {layout.legend.length > 0 && !embed && (
           // The legend belongs to the track, not to the lane headers' width, and starts under the page bar, which is over the top of the screen.
           <div className="relative z-[65] shrink-0 px-3 pt-[calc(0.75rem+var(--bar-h)+0.5rem)]">
             <ConnectionLegend
@@ -967,12 +980,12 @@ export function Timeline({
                 <Fragment key={person.id}>
                   <section
                     // The lane header names a lane with a person; the combined track's one lane is everyone's, and is labelled as that.
-                    aria-labelledby={isCombined ? undefined : `person-${person.id}`}
-                    aria-label={isCombined ? "Films of everyone shown" : undefined}
+                    aria-labelledby={isCombined || embed ? undefined : `person-${person.id}`}
+                    aria-label={isCombined ? "Films of everyone shown" : embed ? `Films of ${person.name}` : undefined}
                     className="flex"
                     style={{ height: boxes[laneIndex].height }}
                   >
-                    {!isCombined && info && (
+                    {!isCombined && !embed && info && (
                       <LaneHeader
                         person={person}
                         roles={info.roles}
@@ -1086,50 +1099,52 @@ export function Timeline({
       </div>
 
       {/* After the timeline, so that the pinned bar follows the lanes in reading and tab order. It is the last of the screen, under the track. */}
-      <MinimapBar
-        pinned
-        scrollerRef={scrollerRef}
-        cornerRef={cornerRef}
-        scrollerId={scrollerId}
-        scale={scale}
-        sharedFilms={minimapFilms.shared}
-        filmTicks={minimapFilms.ticks}
-        brush={onPeriodChange ? { span: periodSpan, period, years: periodYears, onChange: onPeriodChange } : undefined}
-        leading={
-          multi && !isCombined ? (
-            <LaneAvatars people={lanes.map((lane) => lane.person)} activeIndex={activeLane} onJump={jumpToLane} />
-          ) : null
-        }
-      >
-        <div role="group" aria-label="Zoom" className="flex shrink-0 items-center gap-1.5">
-          <button
-            type="button"
-            className={buttonClass}
-            aria-label="Zoom out"
-            disabled={pxPerYear <= MIN_ZOOM}
-            onClick={() => zoom("out")}
-          >
-            <svg aria-hidden viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
-              <path d="M3.5 8h9" />
-            </svg>
-          </button>
-          <span aria-live="polite" className="w-12 text-center text-xs tabular-nums text-muted max-sm:sr-only">
-            <span className="sr-only">Zoom </span>
-            {zoomPercent}%
-          </span>
-          <button
-            type="button"
-            className={buttonClass}
-            aria-label="Zoom in"
-            disabled={pxPerYear >= MAX_ZOOM}
-            onClick={() => zoom("in")}
-          >
-            <svg aria-hidden viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
-              <path d="M3.5 8h9M8 3.5v9" />
-            </svg>
-          </button>
-        </div>
-      </MinimapBar>
+      {!embed && (
+        <MinimapBar
+          pinned
+          scrollerRef={scrollerRef}
+          cornerRef={cornerRef}
+          scrollerId={scrollerId}
+          scale={scale}
+          sharedFilms={minimapFilms.shared}
+          filmTicks={minimapFilms.ticks}
+          brush={onPeriodChange ? { span: periodSpan, period, years: periodYears, onChange: onPeriodChange } : undefined}
+          leading={
+            multi && !isCombined ? (
+              <LaneAvatars people={lanes.map((lane) => lane.person)} activeIndex={activeLane} onJump={jumpToLane} />
+            ) : null
+          }
+        >
+          <div role="group" aria-label="Zoom" className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              className={buttonClass}
+              aria-label="Zoom out"
+              disabled={pxPerYear <= MIN_ZOOM}
+              onClick={() => zoom("out")}
+            >
+              <svg aria-hidden viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+                <path d="M3.5 8h9" />
+              </svg>
+            </button>
+            <span aria-live="polite" className="w-12 text-center text-xs tabular-nums text-muted max-sm:sr-only">
+              <span className="sr-only">Zoom </span>
+              {zoomPercent}%
+            </span>
+            <button
+              type="button"
+              className={buttonClass}
+              aria-label="Zoom in"
+              disabled={pxPerYear >= MAX_ZOOM}
+              onClick={() => zoom("in")}
+            >
+              <svg aria-hidden viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+                <path d="M3.5 8h9M8 3.5v9" />
+              </svg>
+            </button>
+          </div>
+        </MinimapBar>
+      )}
 
       {popoverTarget && popoverContent && (
         <FilmPopover
@@ -1141,6 +1156,7 @@ export function Timeline({
           today={today}
           bottomEdge={barTop}
           onDismiss={hidePopover}
+          embed={embed}
         />
       )}
     </div>

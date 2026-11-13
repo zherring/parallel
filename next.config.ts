@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { embedHeaders } from "./src/lib/embed-frame";
 
 // Cache Components is deliberately off: the /p/[people] page must answer with real
 // 307/404 statuses (redirect/notFound before streaming), and TMDB caching uses
@@ -8,6 +9,8 @@ const nextConfig: NextConfig = {
   // Keep their build cache and proxy separate from the normal dev/production server.
   distDir: process.env.PLAYWRIGHT_TEST === "1" ? ".next-playwright" : ".next",
   experimental: { testProxy: process.env.PLAYWRIGHT_TEST === "1" },
+  // The embeds (`/embed/...`) are framed by X, so they alone send a `frame-ancestors` CSP; no other route sends a framing header (see `embed-frame.ts`).
+  headers: async () => embedHeaders(),
   turbopack: {
     rules: {
       "*.css": {

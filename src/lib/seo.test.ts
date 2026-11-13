@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  absoluteUrl,
   criticQuoteDescription,
   criticQuoteTitle,
+  embedQuoteText,
   peopleDescription,
   peopleSocial,
   peopleTitle,
@@ -247,5 +249,55 @@ describe("critic quote metadata", () => {
 
   it("leaves the year out when the date is not one", () => {
     expect(criticQuoteDescription({ ...critic, date: "" }, people)).toBe("Rebecca Keegan on Spielberg & Williams \u00b7 Los Angeles Times");
+  });
+});
+
+describe("player card metadata", () => {
+  const image = { path: "/p/1-a+2-b/og?quote=q", alt: "alt" };
+  const player = { path: "/embed/q/1-a+2-b/q", width: 1200, height: 630 };
+  const social = peopleSocial("T", "D", "/p/1-a+2-b/q/q", image, player);
+
+  it("asks for the player card, with the quote's card image as the poster", () => {
+    const poster = { url: "/p/1-a+2-b/og?quote=q", width: 1200, height: 630, alt: "alt" };
+    expect(social.twitter).toMatchObject({ card: "player", title: "T", description: "D", images: [poster] });
+  });
+
+  it("names the page to frame with an absolute URL, and its size, as plain tags (Next's `players` would add a stream tag)", () => {
+    expect(social.other).toEqual({
+      "twitter:player": "https://parallel.zachherring.com/embed/q/1-a+2-b/q",
+      "twitter:player:width": "1200",
+      "twitter:player:height": "630",
+    });
+    expect(social.twitter).toMatchObject({ players: [] });
+  });
+
+  it("keeps the Open Graph tags as they are for any other site that unfurls the link", () => {
+    expect(social.openGraph).toMatchObject({
+      title: "T",
+      description: "D",
+      url: "/p/1-a+2-b/q/q",
+      type: "website",
+      siteName: "Parallel",
+      images: [{ url: "/p/1-a+2-b/og?quote=q", width: 1200, height: 630, alt: "alt" }],
+    });
+  });
+
+  it("adds nothing to a link with no player: the large image card and no extra tags", () => {
+    const plain = peopleSocial("T", "D", "/p/1-a+2-b", image);
+    expect(plain.twitter).toMatchObject({ card: "summary_large_image" });
+    expect(plain).not.toHaveProperty("other");
+  });
+
+  it("makes a path absolute on the site's origin", () => {
+    expect(absoluteUrl("/embed/q/1-a+2-b/q")).toBe("https://parallel.zachherring.com/embed/q/1-a+2-b/q");
+  });
+
+  it("words the share URL as the Clippings link to the quote is worded", () => {
+    const quote = { quote: "God knows the shark never worked, but Johnny did.", speaker: "Steven Spielberg", about: "John Williams", publication: "Variety", year: 2023 };
+    expect(embedQuoteText(quote)).toEqual({
+      title: "\u201cGod knows the shark never worked, but Johnny did.\u201d \u2014 Steven Spielberg",
+      description: "Steven Spielberg on John Williams \u00b7 Variety, 2023",
+    });
+    expect(embedQuoteText({ ...quote, year: null }).description).toBe("Steven Spielberg on John Williams \u00b7 Variety");
   });
 });
