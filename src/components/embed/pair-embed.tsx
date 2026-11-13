@@ -126,6 +126,11 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
   const multi = timelines.length > 1;
+  // Three or four people crowd the bar in a narrow frame (the panel X opens over a phone): there the wordmark gives way to the people (the way to the site is
+  // still the pill's). Two fit with the wordmark down to a very small phone, and then it goes too. On the smallest phones (under 22rem) the people's
+  // pictures overlap a little, as the site's own lane avatars do, each still a target of its own.
+  const crowded = timelines.length > 2;
+  const wordmarkHides = crowded ? "@max-[30rem]:hidden" : multi ? "@max-[22rem]:hidden" : "";
   const lanes: LaneData[] = useMemo(
     () =>
       timelines.map(({ person, films }) => ({
@@ -264,10 +269,13 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
           className={cn("flex min-w-0 items-center transition-opacity duration-300 motion-reduce:duration-300", timelineVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0")}
           style={{ gap: size(10, 1.2) }}
         >
-          <EmbedWordmark href="/" title="Parallel" label="Parallel: home" external />
+          <span className={cn("flex shrink-0", wordmarkHides)}>
+            <EmbedWordmark href="/" title="Parallel" label="Parallel: home" external />
+          </span>
           <ul className="flex shrink-0 items-center" style={{ gap: size(8, 0.8) }} aria-label="The people">
             {timelines.map(({ person }, i) => (
-              <li key={person.id}>
+              // Overlapped by 4px (the gap is 8px) in the smallest frames: the one on the right is over the one on the left, and the one pressed or focused comes up.
+              <li key={person.id} className={cn("relative", crowded && i > 0 && "@max-[22rem]:-ml-3", "hover:z-10 focus-within:z-10")}>
                 <a href={peopleHref([person])} {...EXTERNAL} title={`${person.name} on Parallel`} className="inline-flex rounded-full no-underline">
                   <PersonAvatar name={person.name} profilePath={person.profilePath} size={26} imageSize="w185" ringColor={multi ? personColor(i) : undefined} />
                   <span className="sr-only">
