@@ -1,5 +1,5 @@
 import { carryView } from "@/lib/films-view";
-import { buildPeopleSlug, parsePeopleSlug } from "@/lib/slug";
+import { buildPeopleSlug } from "@/lib/slug";
 
 /** Matches the cap enforced by parsePeopleSlug: a timeline holds at most this many people. */
 export const MAX_PEOPLE = 4;
@@ -58,29 +58,4 @@ export function extendedPeopleHref(
   if (!people) return null;
   const href = `/p/${buildPeopleSlug(people)}`;
   return currentSearch === undefined ? href : carryView(href, currentSearch);
-}
-
-/**
- * The people on a `/p/<slug>` page, read back from its pathname (names come from the slug text,
- * which is enough to rebuild an equivalent slug). Any other pathname gives an empty list.
- */
-export function peopleFromPathname(pathname: string): PersonRef[] {
-  const match = /^\/p\/([^/]+)\/?$/.exec(pathname);
-  if (!match) return [];
-  const parsed = parsePeopleSlug(match[1]);
-  if (!parsed) return [];
-
-  let text = parsed.canonical;
-  if (text === undefined) {
-    try {
-      text = decodeURIComponent(match[1]);
-    } catch {
-      return [];
-    }
-  }
-
-  return text.split("+").flatMap((segment) => {
-    const parts = /^(\d+)(?:-(.*))?$/.exec(segment);
-    return parts ? [{ id: Number(parts[1]), name: (parts[2] ?? "").replace(/-/g, " ") }] : [];
-  });
 }

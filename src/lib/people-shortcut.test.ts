@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeShortcutTarget, isApplePlatform, isPeopleShortcut, peopleKeyAction, shortcutHint, shortcutKeys, type PeopleKeyEvent, type PeopleKeyTarget } from "@/lib/people-shortcut";
+import { SEARCH_DIALOG_ATTRIBUTE, describeShortcutTarget, isApplePlatform, isPeopleShortcut, peopleKeyAction, searchKeyAction, shortcutHint, shortcutKeys, type PeopleKeyEvent, type PeopleKeyTarget } from "@/lib/people-shortcut";
 import type { ElementLike } from "@/lib/hero-keys";
 
 const MAC = { mac: true, open: false, target: null };
@@ -123,6 +123,43 @@ describe("peopleKeyAction: Escape", () => {
   });
 });
 
+describe("searchKeyAction", () => {
+  const CLEAR = { ...OTHER, peopleBar: false };
+
+  it("is the people overlay's shortcut, by the same rules, where the page has no people bar", () => {
+    expect(searchKeyAction(press("k", { ctrlKey: true }), CLEAR)).toBe("toggle");
+    expect(searchKeyAction(press("k", { metaKey: true }), { ...MAC, peopleBar: false })).toBe("toggle");
+    expect(searchKeyAction(press("k", { ctrlKey: true, repeat: true }), CLEAR)).toBe("swallow");
+    expect(searchKeyAction(press("k", { metaKey: true }), { ...CLEAR, mac: false })).toBeNull();
+    expect(searchKeyAction(press("k", { ctrlKey: true, shiftKey: true }), CLEAR)).toBeNull();
+    expect(searchKeyAction(press("k", { ctrlKey: true, defaultPrevented: true }), CLEAR)).toBeNull();
+  });
+
+  it("is not taken while the visitor types in a text field elsewhere, or sits in another modal dialog", () => {
+    expect(searchKeyAction(press("k", { ctrlKey: true }), { ...CLEAR, target: target({ typing: true }) })).toBeNull();
+    expect(searchKeyAction(press("k", { ctrlKey: true }), { ...CLEAR, target: target({ inOtherModal: true }) })).toBeNull();
+    // A button, a link or the page itself is not typing.
+    expect(searchKeyAction(press("k", { ctrlKey: true }), { ...CLEAR, target: plain })).toBe("toggle");
+  });
+
+  it("closes the open search from its own field, and Escape closes it unless the field's own got it first", () => {
+    const own = target({ typing: true, inPeopleDialog: true, inOtherModal: false });
+    expect(searchKeyAction(press("k", { ctrlKey: true }), { ...CLEAR, open: true, target: own })).toBe("toggle");
+    expect(searchKeyAction(press("Escape"), { ...CLEAR, open: true, target: own })).toBe("close");
+    expect(searchKeyAction(press("Escape", { defaultPrevented: true }), { ...CLEAR, open: true, target: own })).toBeNull();
+    expect(searchKeyAction(press("Escape"), CLEAR)).toBeNull();
+  });
+
+  it("leaves everything to the people overlay on a page with a people bar", () => {
+    const bar = { ...CLEAR, peopleBar: true };
+    expect(searchKeyAction(press("k", { ctrlKey: true }), bar)).toBeNull();
+    expect(searchKeyAction(press("k", { ctrlKey: true, repeat: true }), bar)).toBeNull();
+    expect(searchKeyAction(press("Escape"), { ...bar, open: true })).toBeNull();
+    // The overlay's own rule for the same key is untouched.
+    expect(peopleKeyAction(press("k", { ctrlKey: true }), OTHER)).toBe("toggle");
+  });
+});
+
 /** A plain-object element, as hero-keys.test.ts builds them. */
 function el(tagName: string, attributes: Record<string, string> = {}, props: Partial<ElementLike> = {}, parent: ElementLike | null = null): ElementLike {
   return {
@@ -162,5 +199,12 @@ describe("describeShortcutTarget", () => {
     const panel = el("div", { "aria-modal": "true", role: "dialog" });
     expect(describeShortcutTarget(el("div", {}, {}, panel))).toEqual({ typing: false, inPeopleDialog: false, inOtherModal: true });
     expect(describeShortcutTarget(el("button"))).toEqual({ typing: false, inPeopleDialog: false, inOtherModal: false });
+  });
+
+  it("finds the universal search's dialog when asked for it, which is another modal dialog to the overlay's rules", () => {
+    const search = el("div", { [SEARCH_DIALOG_ATTRIBUTE]: "", "aria-modal": "true", role: "dialog" });
+    const field = el("input", {}, { type: "text" }, el("div", {}, {}, search));
+    expect(describeShortcutTarget(field, SEARCH_DIALOG_ATTRIBUTE)).toEqual({ typing: true, inPeopleDialog: true, inOtherModal: false });
+    expect(describeShortcutTarget(field)).toEqual({ typing: true, inPeopleDialog: false, inOtherModal: true });
   });
 });

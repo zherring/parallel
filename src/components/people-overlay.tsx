@@ -11,7 +11,7 @@ import { PersonSearch } from "@/components/person-search/person-search";
 import { trapTab, useModalPage } from "@/components/side-panel/modal-page";
 import type { ElementLike } from "@/lib/hero-keys";
 import { hasRoom } from "@/lib/pending-people";
-import { describeShortcutTarget, isApplePlatform, peopleKeyAction, shortcutHint, shortcutKeys } from "@/lib/people-shortcut";
+import { describeShortcutTarget, isApplePlatform, peopleKeyAction, platformName, shortcutHint, shortcutKeys } from "@/lib/people-shortcut";
 import type { OpenPerson } from "@/lib/side-panel";
 
 interface PeopleOverlayProps {
@@ -45,12 +45,6 @@ export function usePeopleOverlayControl(): PeopleOverlayControl {
   const hide = useCallback(() => setOpened(null), []);
   const opener = opened?.opener ?? null;
   return useMemo(() => ({ open, show, hide, opener }), [open, show, hide, opener]);
-}
-
-/** The platform's name as the browser says it: the newer `userAgentData` where there is one (Chromium), else the old `platform`. */
-export function platformName(): string {
-  const { userAgentData } = navigator as Navigator & { userAgentData?: { platform?: string } };
-  return userAgentData?.platform ?? navigator.platform;
 }
 
 /**

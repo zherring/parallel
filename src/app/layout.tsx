@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { SiteFooter } from "@/components/site-footer";
-import { UniversalSearch } from "@/components/universal-search";
+import { SiteHeader } from "@/components/site-header";
 import { SITE_URL } from "@/lib/site-url";
 import "./globals.css";
 
@@ -21,9 +21,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
+        <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />
-        <UniversalSearch />
       </body>
     </html>
   );

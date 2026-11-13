@@ -37,9 +37,20 @@ export function rememberOpener(opener: Element | null): void {
 }
 
 /**
- * Remembers the control that was last pressed, for a panel to hand focus back to when it closes.
- * Call it once, from a component that is mounted while every panel is closed (the people page's
- * view): the press that opens a panel happens before the panel exists, so a panel cannot do it itself.
+ * The control a modal dialog hands focus back to when it closes, chosen as it opens (`pickOpener`): the one `rememberOpener` was told, else what has focus, else
+ * the control last pressed. A dialog whose field takes focus as it mounts (the universal search's input) has to ask from the handler that opens it,
+ * before it mounts; a panel asks in its first effect, before it takes focus itself. It clears what `rememberOpener` was told, which is good for the one dialog.
+ */
+export function takeOpener(): Element | null {
+  const opener = pickOpener({ said: saidOpener, active: document.activeElement, body: document.body, pressed: lastPressed });
+  saidOpener = null;
+  return opener;
+}
+
+/**
+ * Remembers the control that was last pressed, for a panel (or the universal search) to hand focus back to when it closes.
+ * Call it from a component that is mounted while every panel is closed (the people page's view, the universal search):
+ * the press that opens a panel happens before the panel exists, so a panel cannot do it itself.
  */
 export function useRememberPressed() {
   useEffect(() => {
@@ -195,8 +206,7 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
   // scrolls from the first key press.
   useEffect(() => {
     if (openerRef.current === undefined) {
-      openerRef.current = pickOpener({ said: saidOpener, active: document.activeElement, body: document.body, pressed: lastPressed });
-      saidOpener = null;
+      openerRef.current = takeOpener();
     }
     (scrollRef.current ?? panelRef.current)?.focus({ preventScroll: true });
   }, []);
