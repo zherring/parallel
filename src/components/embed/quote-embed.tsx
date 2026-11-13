@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { EMBED_BUTTON, FRAME_STYLE, EmbedWordmark, OpenInParallel, embedSize as size } from "@/components/embed/embed-shell";
 import { newsreader } from "@/components/newsreader";
 import { PersonAvatar } from "@/components/person-avatar";
@@ -10,10 +10,83 @@ import type { ElementLike } from "@/lib/hero-keys";
 import { quoteCardType } from "@/lib/og-quote";
 import { describeShortcutTarget } from "@/lib/people-shortcut";
 import { personColor, personColorCss } from "@/lib/person-colors";
-import { MORE_PAIRS_PATH, embedPath, quoteInPairPath, quoteKeyStep, quotePath, quoteUnits, type EmbedQuote } from "@/lib/quote-embed";
+import { MORE_PAIRS_PATH, QUOTE_FLOOR_PX, embedPath, quoteInPairPath, quoteKeyStep, quotePath, quoteUnits, type EmbedQuote } from "@/lib/quote-embed";
 
 /** The colour of a quote whose speaker is neither of the pair, and of every critic: the Clippings tab's quiet one. */
 const MUTED = "var(--text-muted)";
+
+const QUOTE_LINE_HEIGHT = 1.28;
+/** The size the fit stops searching at: to a quarter of a pixel. */
+const FIT_STEP_PX = 0.25;
+
+/**
+ * The quote, set at the largest size at which all of it is in the room the frame leaves it, and never in a box that scrolls. The first paint (the server's HTML, and
+ * the page before the script has run) is the size the quote's card image sets it at (`quoteCardType`, picked by its length, as a count of the frame's unit), which is
+ * close for a frame of the card's own shape; then, in the browser and before the next paint, the size is searched down from it (a binary search, to a quarter of a pixel)
+ * against the room's height, again whenever the room changes (a frame that is resized, the fonts arriving) and for each quote (it is a new element for each: see `key`).
+ * It is never set under `QUOTE_FLOOR_PX`; a quote that does not fit even then is cut at the last line that does, with an ellipsis, and the footer, which is outside the
+ * room, keeps its link.
+ */
+function FittedQuote({ quote, url, color, firstPaintSize }: { quote: string; url: string; color: string; firstPaintSize: string }) {
+  const roomRef = useRef<HTMLDivElement>(null);
+  const quoteRef = useRef<HTMLQuoteElement>(null);
+  const textRef = useRef<HTMLParagraphElement>(null);
+
+  useLayoutEffect(() => {
+    const room = roomRef.current;
+    const block = quoteRef.current;
+    const text = textRef.current;
+    if (!room || !block || !text) return;
+    const fit = () => {
+      const style = getComputedStyle(room);
+      const available = room.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+      // Start again from the first paint's size, uncut: the room may have grown since the last fit.
+      text.style.cssText = "";
+      block.style.fontSize = firstPaintSize;
+      const start = parseFloat(getComputedStyle(block).fontSize);
+      const fits = (px: number) => {
+        block.style.fontSize = `${px}px`;
+        return block.offsetHeight <= available;
+      };
+      if (block.offsetHeight <= available || !Number.isFinite(start)) return;
+      if (fits(QUOTE_FLOOR_PX)) {
+        let low = QUOTE_FLOOR_PX;
+        let high = start;
+        while (high - low > FIT_STEP_PX) {
+          const mid = (low + high) / 2;
+          if (fits(mid)) low = mid;
+          else high = mid;
+        }
+        block.style.fontSize = `${low}px`;
+        return;
+      }
+      // Too long even at the floor: as many lines as the room has, the last of them ending in an ellipsis.
+      const lines = Math.max(1, Math.floor(available / (QUOTE_FLOOR_PX * QUOTE_LINE_HEIGHT)));
+      text.style.cssText = `display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:${lines};line-clamp:${lines};overflow:hidden`;
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(room);
+    void document.fonts?.ready.then(fit);
+    return () => observer.disconnect();
+  }, [quote, firstPaintSize]);
+
+  return (
+    <div ref={roomRef} className="flex h-full flex-col justify-center" style={{ padding: `${size(8, 2)} 0` }}>
+      <blockquote ref={quoteRef} cite={url} className="font-serif text-quote text-pretty" style={{ fontSize: firstPaintSize, lineHeight: QUOTE_LINE_HEIGHT }}>
+        <p ref={textRef}>
+          <span aria-hidden="true" style={{ color }}>
+            &ldquo;
+          </span>
+          {quote}
+          <span aria-hidden="true" style={{ color }}>
+            &rdquo;
+          </span>
+        </p>
+      </blockquote>
+    </div>
+  );
+}
 
 interface QuoteEmbedProps {
   /** The pair's canonical slug (`/p/<slug>`), what every link of the frame is built from. */
@@ -42,7 +115,7 @@ interface QuoteEmbedProps {
  * (about 500 wide), so everything is sized in the frame's unit (container query units, see `size`) and set at the quote's
  * card image's type size, which fits the text to the frame. On a phone X shows the poster and opens this page in a panel
  * over the bottom of the screen, a short viewport: the arrows are in the top bar, where they stay in view, the quote
- * scrolls if it is too long for the room, and the footer's link sits under it. X sandboxes the frame (no forms, no popups
+ * is set smaller (down to `QUOTE_FLOOR_PX`, then cut with an ellipsis) if it is too long for the room, and the footer's link sits under it. X sandboxes the frame (no forms, no popups
  * but links), so nothing here needs a cookie, a login or a request: stepping is local state, and the links open a new tab.
  */
 export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedProps) {
@@ -118,25 +191,9 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
           )}
         </header>
 
-        {/* The quote scrolls when it is longer than the room the frame leaves it; short ones sit in the middle of it. */}
-        <div key={current.id} className="min-h-0 flex-1 overflow-y-auto" style={{ padding: `0 ${size(14, 6.67)}` }}>
-          <div className="flex min-h-full flex-col justify-center" style={{ padding: `${size(8, 2)} 0` }}>
-            <blockquote
-              cite={current.url}
-              className="font-serif text-quote text-pretty"
-              style={{ fontSize: `max(17px, calc(${quoteUnits(type.fontSize)} * var(--u)))`, lineHeight: 1.28 }}
-            >
-              <p>
-                <span aria-hidden="true" style={{ color }}>
-                  &ldquo;
-                </span>
-                {current.quote}
-                <span aria-hidden="true" style={{ color }}>
-                  &rdquo;
-                </span>
-              </p>
-            </blockquote>
-          </div>
+        {/* The quote is set to fit the room the frame leaves it (see `FittedQuote`): nothing in a frame scrolls, so a scrollbar never takes the room or the feed's gesture. */}
+        <div key={current.id} className="min-h-0 flex-1 overflow-hidden" style={{ padding: `0 ${size(14, 6.67)}` }}>
+          <FittedQuote quote={current.quote} url={current.url} color={color} firstPaintSize={`max(${QUOTE_FLOOR_PX}px, calc(${quoteUnits(type.fontSize)} * var(--u)))`} />
         </div>
         <p role="status" aria-live="polite" className="sr-only">
           {`Quote ${index + 1} of ${count}: ${current.speaker} on ${current.about}`}

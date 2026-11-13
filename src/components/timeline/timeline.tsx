@@ -151,8 +151,16 @@ interface TimelineProps {
    * frame has no room or use for: no lane headers (the frame's bar names the people), no connection legend, no minimap bar with the zoom, and no film
    * panel to open. A pressed film shows its hover card (a touch screen has no hover) instead of opening the panel, and that card asks for no metrics: a
    * frame is sandboxed and makes no request. The caller sets `--bar-h` (the room above the track, 0 under a bar of its own).
+   *
+   * A frame never scrolls up or down (that gesture belongs to the feed that holds it): the track is `embedRows` rows of cards over the year axis, `embedTrackHeight(embedRows)`
+   * tall, and the caller scales the whole of it to the room it has; the scroller pans sideways only (drag, a sideways wheel or a swipe;
+   * an up or down wheel or swipe is left for the page), and has no scrollbar: the compact minimap under the track (see `embedMinimap`) is the way to scrub.
    */
   embed?: boolean;
+  /** An `embed` with the compact minimap strip under the track (the default); false where the frame is too short for it. */
+  embedMinimap?: boolean;
+  /** An `embed`'s rows of poster cards, however many films there are (the films past them are nodes): one, unless the caller has room for more (`embedRowsFor`). */
+  embedRows?: number;
 }
 
 /** How long the lane a top-bar avatar jumped to keeps its highlight ring. */
@@ -220,6 +228,8 @@ export function Timeline({
   periodYears = [],
   onPeriodChange,
   embed = false,
+  embedMinimap = true,
+  embedRows = 1,
 }: TimelineProps) {
   const [pxPerYear, setPxPerYear] = useState(DEFAULT_ZOOM);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
@@ -241,7 +251,7 @@ export function Timeline({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const cornerRef = useRef<HTMLDivElement>(null);
   // Click-and-drag on the empty surface pans the scroller; starting one closes the hover card.
-  const { isPanning } = useDragPan(scrollerRef, hidePopover);
+  const { isPanning } = useDragPan(scrollerRef, hidePopover, embed ? { axis: "x" } : undefined);
   const pendingCenter = useRef<number | null>(null);
   /** A period link's first year and the zoom it needs: scrolled to once that zoom is the one on screen. */
   const pendingStart = useRef<{ from: number; zoom: number } | null>(null);
@@ -307,7 +317,7 @@ export function Timeline({
       ? new Set(entries.filter((entry) => entry.shared).map((entry) => entry.film.id))
       : sharedAcrossLanes(trackLanes, today);
     // The row cap's packing (the Depth view's poster cap is the same function, at this default zoom), and the options to repack without it.
-    const { quietIds, optionsFor, capped } = packTrackLanes(trackLanes, lanes, priorityIds, base, today);
+    const { quietIds, optionsFor, capped } = packTrackLanes(trackLanes, lanes, priorityIds, base, today, embed ? { rows: embedRows, strict: true } : undefined);
     const overflow = capped.map(overflowCount);
     const items = trackLanes.map((lane, index) =>
       showAll && overflow[index] > 0 ? packFilms(lane.films, optionsFor(index)) : capped[index],
@@ -350,7 +360,7 @@ export function Timeline({
       accents,
       notes,
     };
-  }, [entries, showAll, isCombined, lanes, pxPerYear, today, trackLanes]);
+  }, [embed, embedRows, entries, showAll, isCombined, lanes, pxPerYear, today, trackLanes]);
 
   const { scale, width, boxes } = layout;
 
@@ -841,13 +851,19 @@ export function Timeline({
           // The screen's, edge to edge: no box, no border. The scroller is focusable (arrow keys scroll it): its ring is for the keyboard only
           // (`focus-visible`), drawn inside its edge (the `!`s: the page's own `:focus-visible` rule is unlayered CSS and would win), not the page's usual ring round the outside.
           className={cn(
-            "min-h-0 flex-1 cursor-grab overflow-auto overscroll-contain bg-canvas outline-none [scroll-padding-left:var(--lane-head)] [scroll-padding-bottom:44px] [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin] focus-visible:outline-solid! focus-visible:outline-2! focus-visible:-outline-offset-2! focus-visible:outline-focus/60! data-[panning]:select-none [&[data-panning]_*]:cursor-grabbing! [&_[data-lane-head]]:cursor-auto",
+            "min-h-0 flex-1 cursor-grab bg-canvas outline-none [scroll-padding-left:var(--lane-head)] [scroll-padding-bottom:44px] focus-visible:outline-solid! focus-visible:outline-2! focus-visible:-outline-offset-2! focus-visible:outline-focus/60! data-[panning]:select-none [&[data-panning]_*]:cursor-grabbing! [&_[data-lane-head]]:cursor-auto",
+            // A frame in a post pans sideways only, and has no scrollbar. An up or down wheel or swipe over it is not the track's (nothing here takes
+            // it, and `overscroll-behavior-y: auto` lets it chain on): it is the feed's. `touch-action` is `pan-x pan-y`, never `pan-x` alone, which
+            // would refuse the page's own vertical pan to a finger that starts on the frame.
+            embed
+              ? "overflow-x-auto overflow-y-hidden [overscroll-behavior-x:contain] [overscroll-behavior-y:auto] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [touch-action:pan-x_pan-y]"
+              : "overflow-auto overscroll-contain [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin]",
           )}
         >
           {/* Row 1 starts clear of the page bar, with a little room: the top padding is the bar's bottom edge and 10px, less the lane's own 18px. */}
           <div
             className="relative flex min-h-full min-w-full flex-col"
-            style={{ width: `calc(var(--lane-head) + ${width}px)`, paddingTop: TRACK_TOP }}
+            style={{ width: `calc(var(--lane-head) + ${width}px)`, paddingTop: embed ? 0 : TRACK_TOP }}
           >
             {/* Keep the films and their SVG together above the bottom-aligned year axis when the box is taller than they are. */}
             <div className="relative mt-auto shrink-0">
@@ -1048,6 +1064,7 @@ export function Timeline({
 
             {/* The year axis closes the lanes and stays at the bottom edge of the scroller while the lanes scroll. */}
             <div
+              data-axis
               className="sticky bottom-0 z-40 flex shrink-0 border-t border-border bg-canvas"
               style={{ height: AXIS_HEIGHT }}
             >
@@ -1099,6 +1116,18 @@ export function Timeline({
       </div>
 
       {/* After the timeline, so that the pinned bar follows the lanes in reading and tab order. It is the last of the screen, under the track. */}
+      {embed && embedMinimap && (
+        <MinimapBar
+          pinned
+          compact
+          scrollerRef={scrollerRef}
+          cornerRef={cornerRef}
+          scrollerId={scrollerId}
+          scale={scale}
+          sharedFilms={minimapFilms.shared}
+          filmTicks={minimapFilms.ticks}
+        />
+      )}
       {!embed && (
         <MinimapBar
           pinned

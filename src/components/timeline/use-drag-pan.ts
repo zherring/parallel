@@ -52,8 +52,11 @@ export interface DragPanOptions {
    * and a poster only opens its film when the press was a click (the click that ends a drag is swallowed).
    */
   interactive?: string | null;
-  /** "both" (the default) pans sideways and down; "y" leaves a scroller's horizontal position alone (the Depth scene scrolls vertically). */
-  axis?: "both" | "y";
+  /**
+   * "both" (the default) pans sideways and down; "y" leaves a scroller's horizontal position alone (the Depth scene scrolls vertically); "x" leaves its
+   * vertical position alone (a frame in a post pans sideways only).
+   */
+  axis?: "both" | "x" | "y";
 }
 
 function describeTarget(scroller: HTMLElement, event: PointerEvent, interactive: string | null): PanTarget {
@@ -135,8 +138,11 @@ export function useDragPan(scrollerRef: RefObject<HTMLElement | null>, onPanStar
         finish();
         return;
       }
-      const dx = event.clientX - current.startX;
-      const dy = event.clientY - current.startY;
+      // A scroller drawn smaller than its layout (the pair embed scales its timeline down to the frame) scrolls further than the pointer moves.
+      const drawn = scroller.offsetWidth > 0 ? scroller.getBoundingClientRect().width / scroller.offsetWidth : 1;
+      const factor = drawn > 0 && Math.abs(drawn - 1) > 0.01 ? drawn : 1;
+      const dx = (event.clientX - current.startX) / factor;
+      const dy = (event.clientY - current.startY) / factor;
       if (!current.dragging) {
         if (!movedPastThreshold(dx, dy)) return;
         begin(current);
@@ -144,7 +150,7 @@ export function useDragPan(scrollerRef: RefObject<HTMLElement | null>, onPanStar
       const next = nextPanScroll(
         { left: current.startLeft, top: current.startTop },
         optionsRef.current?.axis === "y" ? 0 : dx,
-        dy,
+        optionsRef.current?.axis === "x" ? 0 : dy,
         scrollBounds(scroller),
       );
       // "instant", so that CSS `scroll-behavior: smooth` can never make the content lag behind the pointer.

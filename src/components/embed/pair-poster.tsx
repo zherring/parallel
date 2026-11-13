@@ -22,7 +22,6 @@ import {
   type OgPerson,
   type OgPoster,
 } from "@/lib/og-card";
-import { personColor, personGlow } from "@/lib/person-colors";
 
 /**
  * The pair's preview card (the 1200 x 630 PNG of `/p/<people>/opengraph-image`, drawn by `OgCardView` in `og-render.tsx`) rebuilt as HTML and CSS,
@@ -32,7 +31,8 @@ import { personColor, personGlow } from "@/lib/person-colors";
  * frame's size: the stage is 1200 x 630 and is fitted into the frame, centred, as a picture would be.
  *
  * Keep the look of the two in step: the colours, type and shadows below are `OgCardView`'s (and `og-theme.ts`'s, which a client file cannot import:
- * it reads the fonts from disk). The parts the animation moves carry `data-part` (wordmark, lane, node, poster, person, years, chip, caption, accent).
+ * it reads the fonts from disk). The parts the animation moves carry `data-part` (wordmark, lane, node, poster, years, chip, caption, accent). The headshots (`person`)
+ * are not moved or drawn over at any point: they stay as the PNG draws them, and nothing sits behind them or around them but the card's own canvas.
  */
 
 /** `og-theme.ts`'s palette, which is `globals.css`'s: the canvas, a card's surface and hairline, the text colours, the green and its glow. */
@@ -89,7 +89,6 @@ function Headshot({
   left,
   top,
   fontSize,
-  tint,
 }: {
   person: OgPerson;
   index: number;
@@ -98,24 +97,9 @@ function Headshot({
   left: number;
   top: number;
   fontSize: number;
-  /** The person's colour on the timeline (a pair's people each have one): drawn as a ring round the card by the animation, never in the first frame. */
-  tint: { color: string; glow: string } | null;
 }) {
   const src = tmdbImage(person.profilePath, "w342");
   return (
-    <>
-      {tint && (
-        <div
-          data-part="ring"
-          style={at(left, top, {
-            width: px(fan.width),
-            height: px(fan.height),
-            borderRadius: CARD_RADIUS,
-            boxShadow: `0 0 0 ${px(3)} ${tint.color}, 0 0 ${px(26)} ${tint.glow}`,
-            opacity: 0,
-          })}
-        />
-      )}
     <div
       data-part="person"
       data-index={index}
@@ -171,7 +155,6 @@ function Headshot({
         ))}
       </div>
     </div>
-    </>
   );
 }
 
@@ -304,7 +287,6 @@ export function PairPoster({ card }: { card: OgCard }) {
           left={fanLeft + fan.cards[i].left}
           top={place.headshotTop}
           fontSize={card.overlayFontSize}
-          tint={card.people.length > 1 ? { color: personColor(i), glow: personGlow(i) } : null}
         />
       ))}
 

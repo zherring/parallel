@@ -124,6 +124,9 @@ export function findQuoteIndex(quotes: readonly Pick<EmbedQuote, "id">[], id: st
   return wanted ? quotes.findIndex((quote) => quote.id === wanted) : -1;
 }
 
+/** The smallest size (px) the embed sets a quote at to fit its frame: readable in the panel X opens over a phone. A quote still too long at it is cut, with an ellipsis. */
+export const QUOTE_FLOOR_PX = 13;
+
 /**
  * A font size of the quote's card image (set for 1200px, see `quoteCardType`) as a count of the frame's unit `--u`, which is
  * 1/100 of the frame's width when it is 1200 x 630 (12px, so 72px is 6): the frame sets the quote at the size the card does.

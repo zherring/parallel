@@ -1,6 +1,8 @@
 import type { Locator, Page } from "@playwright/test";
 import { test as base, expect } from "next/experimental/testmode/playwright";
-import { embedPath, quotePath } from "../../src/lib/quote-embed";
+import clippings from "../../src/lib/clippings.json";
+import essays from "../../src/lib/essays.json";
+import { QUOTE_FLOOR_PX, embedPath, quotePath } from "../../src/lib/quote-embed";
 import { pairQuotes } from "../../src/lib/quote-embed-data";
 import type { PersonTimeline } from "../../src/lib/types";
 import { PIXEL } from "./fixtures";
@@ -37,7 +39,8 @@ const test = base.extend({
       const url = new URL(request.url);
       if (url.hostname !== "api.themoviedb.org") return "abort";
       const match = url.pathname.match(/^\/3\/person\/(\d+)(\/movie_credits)?$/);
-      const person = match && PEOPLE.find((p) => p.id === Number(match[1]));
+      // Any person: the four above by name, and every other id (the pairs of the Clippings, for the longest quote) as "Person <id>".
+      const person = match && (PEOPLE.find((p) => p.id === Number(match[1])) ?? { id: Number(match[1]), name: `Person ${match[1]}` });
       if (match && person) {
         if (!match[2]) return Response.json({ id: person.id, name: person.name, profile_path: null, biography: "A biography." });
         return Response.json({ cast: [...SHARED, film(person.id * 10, 1990), film(person.id * 10 + 1, 1995)], crew: [] });
@@ -296,4 +299,268 @@ test.describe("pair embed: the bar's controls are separate targets", () => {
       });
     }
   }
+});
+
+// ---- Nothing in either embed scrolls up or down, or draws a scrollbar --------------------------------------------------------------------------------------------
+
+/** Every element of the page that is a vertical scroller (`overflow-y` auto or scroll) or has a vertical overflow that is not clipped, and the document itself. */
+async function verticalScrollers(page: Page) {
+  return page.evaluate(() => {
+    const found: { what: string; overflowY: string; scrollHeight: number; clientHeight: number }[] = [];
+    for (const el of document.querySelectorAll("*")) {
+      const { overflowY } = getComputedStyle(el);
+      if (overflowY === "auto" || overflowY === "scroll") found.push({ what: `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)}`, overflowY, scrollHeight: el.scrollHeight, clientHeight: el.clientHeight });
+    }
+    const root = document.scrollingElement ?? document.documentElement;
+    found.push({ what: "document", overflowY: "document", scrollHeight: root.scrollHeight, clientHeight: root.clientHeight });
+    return found;
+  });
+}
+
+const FIT_FRAMES = [
+  { width: 600, height: 315, what: "an inline card on a desktop timeline" },
+  { width: 516, height: 271, what: "a narrow desktop column" },
+  { width: 390, height: 253, what: "the panel X opens over a phone" },
+] as const;
+
+test.describe("pair embed: the end state fits the frame", () => {
+  test.use({ reducedMotion: "reduce" });
+
+  for (const frame of FIT_FRAMES) {
+    test(`${frame.width} x ${frame.height} (${frame.what}): the bar is inset, the axis is whole above the minimap strip, and nothing scrolls up or down`, async ({ page }) => {
+      await page.setViewportSize({ width: frame.width, height: frame.height });
+      await page.goto(`/embed/p/${PAIR}`);
+      const replay = page.getByRole("button", { name: "Replay", exact: true });
+      await expect(replay).toBeVisible();
+
+      // The bar: every control is inset from the top and the sides by at least the bar's padding (12px at the top, 16px at the sides).
+      const controls = [
+        ...(await page.getByRole("list", { name: "The people", exact: true }).getByRole("link").all()),
+        replay,
+        page.getByRole("link", { name: /^Open in Parallel/ }),
+      ];
+      const boxes = await Promise.all(controls.map(boxOf));
+      expect(Math.min(...boxes.map((box) => box.y)), "the bar's controls start at least 12px under the frame's top edge").toBeGreaterThanOrEqual(12);
+      expect(Math.min(...boxes.map((box) => box.x)), "the bar's controls start at least 16px in from the left edge").toBeGreaterThanOrEqual(16);
+      expect(frame.width - Math.max(...boxes.map((box) => box.x + box.width)), "and end at least 16px in from the right edge").toBeGreaterThanOrEqual(16 - 0.5);
+
+      // The axis: whole inside the frame, every label inside the axis, and the minimap strip under it, not over it.
+      const axis = await boxOf(page.locator("[data-axis]"));
+      expect(axis.y + axis.height, "the year axis ends inside the frame").toBeLessThanOrEqual(frame.height + 0.5);
+      const strip = page.locator("[data-minimap-bar]");
+      await expect(strip, "the minimap strip is shown").toBeVisible();
+      const stripBox = await boxOf(strip);
+      expect(stripBox.y, "the strip is under the axis").toBeGreaterThanOrEqual(axis.y + axis.height - 0.5);
+      expect(stripBox.y + stripBox.height, "the strip ends inside the frame").toBeLessThanOrEqual(frame.height + 0.5);
+      await expect(page.getByRole("scrollbar", { name: "Timeline position", exact: true })).toBeVisible();
+      const labels = await page.locator("[data-axis] span.tabular-nums").evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const rect = node.getBoundingClientRect();
+          return { text: node.textContent, top: rect.top, bottom: rect.bottom };
+        }),
+      );
+      expect(labels.length, "the axis has year labels").toBeGreaterThan(0);
+      for (const label of labels) {
+        expect(label.top, `${label.text} is not above the axis`).toBeGreaterThanOrEqual(axis.y - 0.5);
+        expect(label.bottom, `${label.text} is not cut off by the axis's or the frame's bottom`).toBeLessThanOrEqual(Math.min(axis.y + axis.height, frame.height) + 0.5);
+      }
+
+      // Nothing scrolls up or down: no scroller of that axis has more to show, the track's own is clipped, and the track fits it.
+      for (const scroller of await verticalScrollers(page)) {
+        expect(scroller.scrollHeight, `${scroller.what} has no vertical overflow`).toBeLessThanOrEqual(scroller.clientHeight);
+      }
+      const track = page.getByRole("region", { name: /^Film timeline/ });
+      expect(await track.evaluate((node) => getComputedStyle(node).overflowY)).toBe("hidden");
+      expect(await track.evaluate((node) => ({ fits: node.scrollHeight <= node.clientHeight, scrollbar: (node as HTMLElement).offsetWidth - node.clientWidth }))).toEqual({ fits: true, scrollbar: 0 });
+      // A swipe starting on it is the page's up and down: the touch action allows that pan (never `pan-x` alone, which would refuse it).
+      expect(await track.evaluate((node) => getComputedStyle(node).touchAction)).toContain("pan-y");
+    });
+  }
+
+  test("a tall frame (the 1200 x 630 player, a phone's 70% panel) has the room for a second row of cards and still does not scroll", async ({ page }) => {
+    for (const frame of [{ width: 1200, height: 630 }, { width: 390, height: 591 }]) {
+      await page.setViewportSize(frame);
+      await page.goto(`/embed/p/${PAIR}`);
+      await expect(page.getByRole("button", { name: "Replay", exact: true })).toBeVisible();
+      const tops = await page.locator("[data-film]:not([data-film-node])").evaluateAll((nodes) => [...new Set(nodes.map((node) => Math.round(node.getBoundingClientRect().top)))]);
+      // Two rows are a card and a gap apart (150px at full size); a quiet card's top is a little lower in its row, so the rows are told apart by the spread, not the count.
+      expect(Math.max(...tops) - Math.min(...tops), `${frame.width} x ${frame.height} draws two rows of cards`).toBeGreaterThanOrEqual(140);
+      const axis = await boxOf(page.locator("[data-axis]"));
+      expect(axis.y + axis.height).toBeLessThanOrEqual(frame.height + 0.5);
+      for (const scroller of await verticalScrollers(page)) expect(scroller.scrollHeight).toBeLessThanOrEqual(scroller.clientHeight);
+    }
+  });
+
+  test("a frame too short for the minimap strip (360 x 200) has none, and the track and its axis still fit", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 200 });
+    await page.goto(`/embed/p/${PAIR}`);
+    await expect(page.getByRole("button", { name: "Replay", exact: true })).toBeVisible();
+    await expect(page.locator("[data-minimap-bar]")).toHaveCount(0);
+    const axis = await boxOf(page.locator("[data-axis]"));
+    expect(axis.y + axis.height).toBeLessThanOrEqual(200 + 0.5);
+    for (const scroller of await verticalScrollers(page)) expect(scroller.scrollHeight).toBeLessThanOrEqual(scroller.clientHeight);
+  });
+
+  test("an up or down wheel over the timeline is left for the page (not prevented, no sideways move); a sideways wheel pans it", async ({ page }) => {
+    await page.setViewportSize({ width: 600, height: 315 });
+    await page.goto(`/embed/p/${PAIR}`);
+    await expect(page.getByRole("button", { name: "Replay", exact: true })).toBeVisible();
+    const track = page.getByRole("region", { name: /^Film timeline/ });
+    await page.evaluate(() => {
+      const seen: boolean[] = [];
+      (window as unknown as { __wheelPrevented: boolean[] }).__wheelPrevented = seen;
+      // Last to run (the window's, in the bubble phase): whether anything on the way took the wheel.
+      window.addEventListener("wheel", (event) => seen.push(event.defaultPrevented));
+    });
+    const box = await boxOf(track);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 3);
+    const left = () => track.evaluate((node) => node.scrollLeft);
+    const before = await left();
+
+    await page.mouse.wheel(0, 240);
+    await page.mouse.wheel(0, -240);
+    // Past the browser's wheel latching (about half a second): the sideways wheel below is a gesture of its own, not a continuation of the vertical one.
+    await page.waitForTimeout(1200);
+    expect(await left(), "a vertical wheel does not pan the track sideways").toBe(before);
+    expect(await page.evaluate(() => (window as unknown as { __wheelPrevented: boolean[] }).__wheelPrevented)).toEqual([false, false]);
+
+    // The stubbed pair's track is no wider than its films, which it opens scrolled to the end of: the sideways wheel goes back.
+    expect(before).toBeGreaterThan(100);
+    await page.mouse.wheel(-300, 0);
+    await expect.poll(left).toBeLessThan(before - 50);
+  });
+});
+
+test.describe("pair embed: the sequence", () => {
+  test.use({ reducedMotion: "no-preference" });
+
+  test("the headshots do not move or change at any point of it (no nod, no ring, nothing behind them), and the posters still lift", async ({ page }) => {
+    await page.setViewportSize({ width: 600, height: 315 });
+    await page.goto(`/embed/p/${PAIR}`);
+    const samples = await page.evaluate(async () => {
+      const out: { people: string[]; posters: string; rings: number; rects: string[] }[] = [];
+      const start = performance.now();
+      while (performance.now() - start < 4800) {
+        const people = [...document.querySelectorAll<HTMLElement>('[data-part="person"]')];
+        out.push({
+          people: people.map((el) => `${getComputedStyle(el).transform}|${getComputedStyle(el).opacity}|${getComputedStyle(el).boxShadow}`),
+          posters: [...document.querySelectorAll<HTMLElement>('[data-part="poster"]')].map((el) => getComputedStyle(el).transform).join(" "),
+          rings: document.querySelectorAll('[data-part="ring"]').length,
+          // Relative to the stage, so that the poster's own fade and lift at the end (the whole card, one thing) is not counted.
+          rects: people.map((el) => {
+            const stage = el.closest<HTMLElement>('[data-part="stage"]')?.getBoundingClientRect();
+            const rect = el.getBoundingClientRect();
+            return stage ? `${(rect.left - stage.left).toFixed(1)},${(rect.top - stage.top).toFixed(1)},${(rect.width / stage.width).toFixed(4)}` : "";
+          }),
+        });
+        await new Promise((resolve) => setTimeout(resolve, 40));
+      }
+      return out;
+    });
+    expect(samples.length).toBeGreaterThan(20);
+    expect(samples[0].people.length).toBe(2);
+    for (const sample of samples) {
+      expect(sample.people).toEqual(samples[0].people);
+      expect(sample.rings).toBe(0);
+    }
+    // The posters' lift is kept: they are at a different transform at some point of the sequence.
+    expect(new Set(samples.map((sample) => sample.posters)).size).toBeGreaterThan(2);
+    await expect(page.getByRole("button", { name: "Replay", exact: true })).toBeVisible();
+  });
+});
+
+// ---- The quote embed: the quote is set to fit, never scrolls ------------------------------------------------------------------------------------------------------
+
+/** Where the quote's last character, the frame's edges and the footer's link are, in the frame's pixels. */
+async function quoteFit(page: Page) {
+  return page.evaluate(() => {
+    const block = document.querySelector("blockquote");
+    const paragraph = block?.querySelector("p");
+    const text = [...(paragraph?.childNodes ?? [])].find((node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim().length > 0);
+    if (!block || !paragraph || !text) return null;
+    const last = document.createRange();
+    last.setStart(text, (text.textContent ?? "").length - 1);
+    last.setEnd(text, (text.textContent ?? "").length);
+    const rect = last.getBoundingClientRect();
+    const footer = document.querySelector("footer")?.getBoundingClientRect();
+    const open = [...document.querySelectorAll("a")].find((a) => /^Open in Parallel/.test(a.textContent ?? ""))?.getBoundingClientRect();
+    return {
+      fontSize: Number.parseFloat(getComputedStyle(block).fontSize),
+      clamped: getComputedStyle(paragraph).webkitLineClamp !== "none",
+      last: { top: rect.top, bottom: rect.bottom, right: rect.right },
+      footerTop: footer?.top ?? Number.POSITIVE_INFINITY,
+      open: open ? { top: open.top, bottom: open.bottom, left: open.left, right: open.right } : null,
+      frame: { width: window.innerWidth, height: window.innerHeight },
+    };
+  });
+}
+
+async function expectQuoteFits(page: Page, label: string) {
+  const fit = await quoteFit(page);
+  expect(fit, `${label}: the quote is on the page`).not.toBeNull();
+  if (!fit) return;
+  expect(fit.fontSize, `${label}: the type is not under the floor`).toBeGreaterThanOrEqual(QUOTE_FLOOR_PX);
+  // The link out stays whole in the frame, cut quote or not.
+  expect(fit.open, `${label}: Open in Parallel is there`).not.toBeNull();
+  expect(fit.open?.bottom ?? 0, `${label}: Open in Parallel is inside the frame`).toBeLessThanOrEqual(fit.frame.height + 0.5);
+  expect(fit.open?.right ?? 0).toBeLessThanOrEqual(fit.frame.width + 0.5);
+  if (fit.clamped) {
+    // Only a quote that is too long at the floor is cut (with an ellipsis).
+    expect(fit.fontSize, `${label}: a cut quote is at the floor`).toBeCloseTo(QUOTE_FLOOR_PX, 0);
+  } else {
+    expect(fit.last.bottom, `${label}: the last character is inside the frame`).toBeLessThanOrEqual(fit.frame.height + 0.5);
+    expect(fit.last.right).toBeLessThanOrEqual(fit.frame.width + 0.5);
+    expect(fit.last.bottom, `${label}: and above the footer`).toBeLessThanOrEqual(fit.footerTop + 0.5);
+  }
+  for (const scroller of await verticalScrollers(page)) {
+    expect(scroller.scrollHeight, `${label}: ${scroller.what} does not scroll`).toBeLessThanOrEqual(scroller.clientHeight);
+  }
+  // No scroll container at all in the quote's area: nothing is `auto` or `scroll`.
+  expect((await verticalScrollers(page)).filter((scroller) => scroller.overflowY !== "document"), `${label}: no vertical scroller`).toEqual([]);
+}
+
+test.describe("quote embed: every quote fits its frame without scrolling", () => {
+  test.use({ reducedMotion: "reduce" });
+
+  for (const frame of FIT_FRAMES) {
+    test(`all ${COUNT} quotes of Spielberg and Williams at ${frame.width} x ${frame.height}`, async ({ page }) => {
+      test.setTimeout(120_000);
+      await page.setViewportSize({ width: frame.width, height: frame.height });
+      await page.goto(embedPath(PAIR, QUOTES[0].id));
+      for (let index = 0; index < COUNT; index++) {
+        await expectAt(page, (id) => embedPath(PAIR, id), index);
+        await expectQuoteFits(page, `quote ${index + 1} (${QUOTES[index].id})`);
+        await page.getByRole("button", { name: "Next quote", exact: true }).click();
+      }
+    });
+  }
+
+  test("a frame that is resized fits the quote again", async ({ page }) => {
+    await page.setViewportSize({ width: 600, height: 315 });
+    await page.goto(embedPath(PAIR, QUOTES[0].id));
+    const wide = (await quoteFit(page))?.fontSize ?? 0;
+    await page.setViewportSize({ width: 390, height: 253 });
+    await expect.poll(async () => (await quoteFit(page))?.fontSize ?? 0).toBeLessThan(wide);
+    await expectQuoteFits(page, "after the resize");
+  });
+
+  test("the longest real quote (of the Clippings and the critics, over every pair) fits at each frame, or ends in an ellipsis at the floor, with its link in view", async ({ page }) => {
+    test.setTimeout(90_000);
+    const keys = [...new Set([...Object.keys(clippings), ...Object.keys(essays)])];
+    let longest: { key: string; id: string; length: number } | null = null;
+    for (const key of keys) {
+      const ids = key.split("+").map(Number);
+      const quotes = pairQuotes(ids.map((id) => ({ person: { id, name: `Person ${id}`, profilePath: null }, films: [] })) as unknown as PersonTimeline[]);
+      for (const quote of quotes) if (!longest || quote.quote.length > longest.length) longest = { key, id: quote.id, length: quote.quote.length };
+    }
+    expect(longest, "there are quotes").not.toBeNull();
+    if (!longest) return;
+    expect(longest.length).toBeGreaterThan(300);
+    for (const frame of FIT_FRAMES) {
+      await page.setViewportSize({ width: frame.width, height: frame.height });
+      await page.goto(`/embed/q/${longest.key}/${longest.id}`);
+      await expect(page.locator("blockquote")).toBeVisible();
+      await expectQuoteFits(page, `the longest quote (${longest.length} characters) at ${frame.width} x ${frame.height}`);
+    }
+  });
 });

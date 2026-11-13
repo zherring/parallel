@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import { GROUP_SLOT, connectionLegend, pairIndex } from "@/lib/connections";
 import { sharedFilms } from "@/lib/shared";
 import {
+  AXIS_HEIGHT,
   CARD_GAP,
   CARD_FROM_BOTTOM,
   CARD_HEIGHT,
   CARD_WIDTH,
   DEFAULT_MAX_ROWS,
   DEFAULT_ZOOM,
+  EMBED_MAX_ROWS,
   DOT_HIT_MIN,
   DOT_HIT_SIZE,
   LANE_PAD_TOP,
@@ -33,6 +35,8 @@ import {
   filmMembership,
   isCrossed,
   labelStep,
+  embedRowsFor,
+  embedTrackHeight,
   laneHeight,
   laneObstacles,
   makeScale,
@@ -1367,5 +1371,26 @@ describe("films that are not out yet", () => {
     const layout = layOut([a, b].map((t) => t.films.map((x) => released(x.id, x.releaseDate))));
     expect(shared.map((x) => x.id)).toEqual([10]);
     expect(layout.connectors.filter((c) => c.kind === "all").map((c) => c.filmId)).toEqual(shared.map((x) => x.id));
+  });
+});
+
+describe("the track of a frame in a post", () => {
+  it("is a lane of the rows and the year axis, and a frame draws the most rows its room holds at full size: one in a short frame, never under one", () => {
+    expect(embedTrackHeight(1)).toBe(laneHeight(1) + AXIS_HEIGHT);
+    expect(embedTrackHeight(2)).toBe(laneHeight(2) + AXIS_HEIGHT);
+    expect(embedRowsFor(embedTrackHeight(2))).toBe(EMBED_MAX_ROWS);
+    expect(embedRowsFor(embedTrackHeight(2) - 1)).toBe(1);
+    expect(embedRowsFor(embedTrackHeight(1))).toBe(1);
+    expect(embedRowsFor(0)).toBe(1);
+    expect(embedRowsFor(10_000)).toBe(EMBED_MAX_ROWS);
+  });
+
+  it("holds the priority films to the row cap when asked: nothing is drawn in a row the frame has no room for", () => {
+    const films = Array.from({ length: 12 }, (_, index) => ({ id: index + 1, releaseDate: `${2000 + (index % 2)}-06-01`, voteCount: 100 - index }));
+    const options = { pxPerYear: 80, axisStartYear: 1999, priorityIds: new Set(films.map((film) => film.id)) };
+    expect(rowCount(packFilms(films, { ...options, maxRows: 1 }))).toBeGreaterThan(1);
+    const held = packFilms(films, { ...options, maxRows: 1, capPriority: true });
+    expect(rowCount(held)).toBe(1);
+    expect(held.some((item) => item.overflow)).toBe(true);
   });
 });

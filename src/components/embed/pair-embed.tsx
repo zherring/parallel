@@ -1,17 +1,19 @@
 "use client";
 
 import { RotateCcw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { EMBED_BUTTON, EXTERNAL, EmbedWordmark, OpenInParallel, FRAME_STYLE, embedSize as size } from "@/components/embed/embed-shell";
 import { PairPoster, POSTER_PX } from "@/components/embed/pair-poster";
 import { springEasing } from "@/components/landing/hero-motion";
 import { PersonAvatar } from "@/components/person-avatar";
 import { cn } from "@/components/timeline/cn";
+import { COMPACT_MINIMAP_HEIGHT } from "@/components/timeline/minimap";
 import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
 import { joinNames } from "@/lib/format";
 import { peopleHref } from "@/lib/lanes";
 import { captionText, type OgCard } from "@/lib/og-card";
 import { personColor, personColorCss } from "@/lib/person-colors";
+import { embedRowsFor, embedTrackHeight } from "@/lib/timeline-layout";
 import type { PersonTimeline } from "@/lib/types";
 
 interface PairEmbedProps {
@@ -46,6 +48,30 @@ const GLIDE_MS = 900;
 const IMAGES_MS = 2500;
 /** Reduced motion: the picture is held this long on a replay before the plain fade to the timeline. */
 const REDUCED_REPLAY_HOLD = 700;
+/**
+ * The bar's room from the frame's edges: the top and the sides (the unit follows the frame, never under these pixels), and the height of its row under the top.
+ * The compact minimap's gutter is the sides'.
+ */
+const INSET_TOP = size(12, 1.8);
+const INSET_X = size(16, 2.6);
+const BAR_ROW = 34;
+/**
+ * A frame shorter than this (px) has no minimap strip: with it the track would have to be drawn under three quarters of its size (a 390 x 253 panel draws it at
+ * about four fifths, and the strip is there), and the strip is only a second way to scrub: the track is still dragged, swiped and sent sideways by a sideways
+ * wheel. The 600 x 315 an inline card is, and everything above it, always has the strip.
+ */
+const MINIMAP_MIN_FRAME_HEIGHT = 240;
+
+/** `?motion=reduce` plays the reduced-motion sequence in a development build (the X preview page's toggle): production reads only the visitor's own setting. */
+function wantsReducedMotion(): boolean {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true;
+  if (process.env.NODE_ENV === "production") return false;
+  try {
+    return new URLSearchParams(window.location.search).get("motion") === "reduce";
+  } catch {
+    return false;
+  }
+}
 
 const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
 
@@ -61,9 +87,11 @@ function imagesReady(root: HTMLElement, ms: number): Promise<void> {
  */
 function pairScrollLeft(scroller: HTMLElement, filmIds: readonly number[]): number | null {
   const box = scroller.getBoundingClientRect();
+  // The timeline is drawn smaller than its layout in a short frame (see `fit`): what is read from the screen is in the drawn size, the track's scrolling in its own.
+  const drawn = scroller.offsetWidth > 0 && box.width > 0 ? box.width / scroller.offsetWidth : 1;
   const spans = filmIds.flatMap((id) => {
     const rect = scroller.querySelector<HTMLElement>(`[data-film="${id}"]`)?.getBoundingClientRect();
-    return rect ? [{ left: rect.left - box.left + scroller.scrollLeft, right: rect.right - box.left + scroller.scrollLeft }] : [];
+    return rect ? [{ left: (rect.left - box.left) / drawn + scroller.scrollLeft, right: (rect.right - box.left) / drawn + scroller.scrollLeft }] : [];
   });
   if (spans.length === 0) return null;
   const left = Math.min(...spans.map((s) => s.left));
@@ -103,13 +131,15 @@ const onTheServer = () => false;
  * into the pair's timeline, so that the post itself is the first look at their films.
  *
  * It opens on the preview card exactly (`PairPoster`: the same picture as the PNG X shows as the poster until this frame loads, so the hand-off is not seen). Then, once
- * the pictures are in and the first frame has been held a moment: the posters lift one after another along the lane and each person's card takes their colour on the
- * timeline (the ring round their card); the card gives way to the timeline (it settles up from below on the site's spring while the card lifts and blurs away), which
- * glides into the years the pair worked together, and the count of their films counts in. A visitor who asked for less motion gets the timeline with a plain fade, no
+ * the pictures are in and the first frame has been held a moment: the posters lift one after another along the lane, their green nodes swelling; the headshots do not
+ * move (they stay as the picture shows them, with nothing drawn round them); the card gives way to the timeline (it settles up from below on the site's spring while the
+ * card lifts and blurs away), which glides into the years the pair worked together, and the count of their films counts in. A visitor who asked for less motion gets the timeline with a plain fade, no
  * sequence. Replay starts it again. With no script the first frame stays, with its link to the page.
  *
  * The timeline is the page's own (`Timeline`, in its `embed` mode: the combined track, the same cards, nodes, connections and hover card), so panning, zooming by the
- * browser, and hovering or pressing a film work as they do on the site; the pressed film's card replaces its panel, which a frame has no room for. The people's names and
+ * browser, and hovering or pressing a film work as they do on the site; the pressed film's card replaces its panel, which a frame has no room for. The frame never scrolls
+ * up or down (that is the feed's gesture): the timeline is one or two rows of cards over the year axis and the compact minimap, drawn at the size that fits the frame's height (`fit`),
+ * and pans sideways only. The people's names and
  * pictures lead to their pages (a bio is the person's own page, which opens in a new tab: X sandboxes the frame, so nothing here navigates it or needs a cookie or a request).
  */
 export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProps) {
@@ -120,8 +150,11 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
   const mounted = useSyncExternalStore(subscribeNever, onTheClient, onTheServer);
   /** The run the count was last asked to count in for; 0 before the first. */
   const [counted, setCounted] = useState(0);
+  const frameRef = useRef<HTMLDivElement>(null);
   const posterRef = useRef<HTMLDivElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
+  /** The frame's height and the room under the bar (px), measured in the browser: what the timeline is fitted to (see `fit`). */
+  const [room, setRoom] = useState<{ frame: number; width: number; height: number } | null>(null);
   const timelineRef = useRef<TimelineHandle>(null);
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
@@ -154,7 +187,7 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
   // The sequence: once per run, from the first frame. Everything it moves is a plain element animated with the Web Animations API, and all of it is undone when the run is.
   useEffect(() => {
     if (!mounted) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced = wantsReducedMotion();
     const poster = posterRef.current;
     const layer = layerRef.current;
     if (!poster || !layer) return;
@@ -200,12 +233,7 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
         nodes.forEach((el, i) =>
           play(el, [{ transform: "scale(1)" }, { transform: "scale(1.7)", offset: 0.42 }, { transform: "scale(1)" }], { duration: LIFT, delay: i * LIFT_STAGGER, easing: "ease-in-out" }),
         );
-        // 2. Each person's card takes their colour on the timeline (the ring), and nods, the way the landing page's card does when its pair changes.
-        parts("person").forEach((el, i) => {
-          play(el, [{ transform: "scale(1)" }, { transform: "scale(1.025)", offset: 0.4 }, { transform: "scale(1)" }], { duration: 520, delay: 250 + i * 130, easing: "ease-in-out" });
-        });
-        parts("ring").forEach((el, i) => play(el, [{ opacity: 0 }, { opacity: 1 }], { duration: 420, delay: 250 + i * 130, easing: "ease-out" }));
-        // 3. The numbers of the caption tick.
+        // 2. The numbers of the caption tick. (The headshots do not move, and nothing is drawn round them: they stay as the first frame shows them.)
         parts("accent").forEach((el, i) =>
           play(el, [{ transform: "scale(1)" }, { transform: "scale(1.16)", offset: 0.4 }, { transform: "scale(1)" }], { duration: 460, delay: 700 + i * 120, easing: "ease-in-out" }),
         );
@@ -213,12 +241,13 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
 
       // 4. The card gives way to the timeline: the card lifts, blurs and fades; the timeline rises into place on the site's spring.
       later(() => {
+        // The card is gone (past 60% of the way) before the timeline is more than a shadow of itself (from 40%): at no point is a card of the timeline seen through the headshots.
         play(poster, [{ opacity: 1, transform: "translate3d(0, 0, 0) scale(1)", filter: "blur(0px)" }, { opacity: 0, transform: "translate3d(0, -3%, 0) scale(0.97)", filter: "blur(2px)" }], {
           duration: OPEN,
           easing: "cubic-bezier(0.4, 0, 0.2, 1)",
         });
         play(layer, [{ transform: "translate3d(0, 6%, 0)" }, { transform: "translate3d(0, 0, 0)" }], { duration: RISE, easing: springEasing() });
-        play(layer, [{ opacity: 0 }, { opacity: 1 }], { duration: OPEN * 0.8, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+        play(layer, [{ opacity: 0 }, { opacity: 1 }], { duration: OPEN * 0.6, delay: OPEN * 0.4, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
         setCounted(run + 1);
         // The track glides the last stretch into the pair's years.
         if (scroller && start !== null && left !== null && left !== start) {
@@ -249,12 +278,34 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
     setRun((r) => r + 1);
   }, []);
 
-  const barHeight = size(36, 4.6);
+  // The room: measured in the browser, from the frame (the minimap strip's threshold) and from the layer under the bar (what the timeline is fitted to).
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    const layer = layerRef.current;
+    if (!frame || !layer) return;
+    const measure = () => setRoom((was) => (was && was.frame === frame.clientHeight && was.width === layer.clientWidth && was.height === layer.clientHeight ? was : { frame: frame.clientHeight, width: layer.clientWidth, height: layer.clientHeight }));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, [mounted]);
+  const minimap = room !== null && room.frame >= MINIMAP_MIN_FRAME_HEIGHT;
+  /**
+   * The timeline is laid out at its own full size (`rows` rows of cards (the most the room holds, one in a short frame), the year axis and the minimap strip) and drawn at `fit` of it: the largest
+   * size, up to its own, at which all of it is in the room under the bar, so that it never needs to scroll up or down. A layout that is `1 / fit` as large (in both axes) is
+   * drawn into the room, so everything inside is in its own pixels: the scroll, the pan and the minimap are as they are on the site.
+   */
+  const strip = minimap ? COMPACT_MINIMAP_HEIGHT : 0;
+  const rows = room ? embedRowsFor(room.height - strip) : 1;
+  const fit = room && room.height > 0 ? Math.min(1, room.height / (embedTrackHeight(rows) + strip)) : 1;
+
+  const barHeight = `calc(${INSET_TOP} + ${BAR_ROW}px)`;
   const timelineVisible = phase === "timeline";
   const pairHref = `/p/${slug}`;
 
   return (
     <div
+      ref={frameRef}
       className="fixed inset-0 overflow-hidden bg-canvas text-body"
       style={{ ...FRAME_STYLE, "--px": POSTER_PX } as CSSProperties}
     >
@@ -263,7 +314,7 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
       <h1 className="sr-only">{summary ? `${names}: ${summary}` : names}</h1>
 
       {/* The bar over both (first in the page, so that the way to the page is the first stop of the keyboard, not the last after every film): the people and their count on the left once the timeline is up, and always, on the right, the way to the page. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between gap-3" style={{ height: barHeight, padding: `0 ${size(14, 2.4)}` }}>
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between gap-3" style={{ height: barHeight, padding: `${INSET_TOP} ${INSET_X} 0` }}>
         <div
           inert={!timelineVisible}
           className={cn("flex min-w-0 items-center transition-opacity duration-300 motion-reduce:duration-300", timelineVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0")}
@@ -315,19 +366,34 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
         <PairPoster card={card} />
       </div>
 
-      {/* The timeline, under a bar of its own: built in the browser only, and shown when the card has given way to it. */}
+      {/* The timeline, under a bar of its own: built in the browser only, and shown when the card has given way to it. It is laid out `1 / fit` as large as the room it
+          has under the bar and drawn at `fit` (see above), so that it fits whatever the frame's height; the clip is the room's, and nothing in it scrolls up or down. */}
       {mounted && (
         <div
           ref={layerRef}
           inert={!timelineVisible}
-          className={cn("absolute inset-0 flex flex-col transition-opacity duration-300 motion-reduce:duration-300", timelineVisible ? "opacity-100" : "pointer-events-none opacity-0")}
-          style={{ paddingTop: barHeight, "--bar-h": "0px" } as CSSProperties}
+          className={cn("absolute inset-x-0 bottom-0 overflow-hidden transition-opacity duration-300 motion-reduce:duration-300", timelineVisible ? "opacity-100" : "pointer-events-none opacity-0")}
+          style={{ top: barHeight }}
         >
-          <div className="min-h-0 flex-1">
+          <div
+            data-part="fit"
+            className="absolute left-0 top-0 origin-top-left"
+            style={
+              {
+                width: room ? room.width / fit : "100%",
+                height: room ? room.height / fit : "100%",
+                transform: fit < 1 ? `scale(${fit})` : undefined,
+                "--bar-h": "0px",
+                "--embed-gutter": `calc(${INSET_X} / ${fit})`,
+              } as CSSProperties
+            }
+          >
             <Timeline
               ref={timelineRef}
               active
               embed
+              embedMinimap={minimap}
+              embedRows={rows}
               lanes={lanes}
               combined={multi}
               showAll={false}
