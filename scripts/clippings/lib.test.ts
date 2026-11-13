@@ -9,6 +9,7 @@ import {
   idLosses,
   isHttps,
   keyFromIds,
+  looksNonEnglish,
   nestQuotes,
   quotesFlags,
   shortHash,
@@ -396,6 +397,52 @@ describe("flags", () => {
   it("notes critic quotes of an odd length", () => {
     const c = buildCriticsEntry({ pair: ["A", "B"], tmdb_ids: [1, 2], critics: [critic({ quote: "Too short." })], reading: [] });
     expect(criticsFlags(c)).toEqual(["1 quotes outside 15-80 words"]);
+  });
+});
+
+describe("translated quotes (original / original_lang)", () => {
+  const translated = quote({
+    quote: "We had spent the whole day fiddling about at the piano, but nothing was coming.",
+    original: "Eravamo stati tutta la giornata a cincischiare al pianoforte, ma non usciva niente.",
+    original_lang: "it",
+  });
+  it("accepts both fields together", () => {
+    expect(validateQuotesFile(quotesFile({}, [translated]), "488+491", KNOWN)).toEqual([]);
+  });
+  it("rejects one without the other, an empty original and a code that is not two letters", () => {
+    const errors = validateQuotesFile(
+      quotesFile({}, [
+        quote({ original: "Testo originale." }),
+        quote({ original_lang: "it" }),
+        quote({ original: " ", original_lang: "it" }),
+        quote({ original: "Testo.", original_lang: "Italian" }),
+      ]),
+      "488+491",
+      KNOWN,
+    );
+    expect(errors).toEqual([
+      'clippings[0]: "original" needs "original_lang"',
+      'clippings[1]: "original_lang" needs "original"',
+      'clippings[2]: "original" must be the source\'s words or absent',
+      'clippings[3]: "original_lang" must be a two-letter language code ("it", "es") or absent',
+    ]);
+  });
+  it("keeps them right after the quote, ids from the English, and adds neither key to an English quote", () => {
+    const entry = buildQuotesEntry(quotesFile({}, [translated, quote()]) as unknown as RawQuotesFile);
+    const [t, e] = entry.clippings;
+    expect(Object.keys(t).slice(0, 7)).toEqual(["id", "speaker", "about", "quote", "original", "original_lang", "film"]);
+    expect(t.id).toBe("we-had-spent-the-whole-day");
+    expect(t.original_lang).toBe("it");
+    expect("original" in e).toBe(false);
+    expect("original_lang" in e).toBe(false);
+  });
+  it("flags a quote that looks non-English and has no original", () => {
+    expect(looksNonEnglish("Eravamo stati tutta la giornata a cincischiare al pianoforte, ma non usciva niente.")).toBe(true);
+    expect(looksNonEnglish("Con Nino puedo pasarme días enteros, oyéndolo tocar el piano con el fin de precisar un motivo")).toBe(true);
+    expect(looksNonEnglish("John Williams has been the single most significant contributor to my success.")).toBe(false);
+    const untranslated = quote({ quote: "Eravamo stati tutta la giornata a cincischiare al pianoforte, ma non usciva niente." });
+    const flags = quotesFlags(buildQuotesEntry(quotesFile({}, [untranslated, translated]) as unknown as RawQuotesFile));
+    expect(flags).toContain('1 may not be in English (no "original"; translate it)');
   });
 });
 

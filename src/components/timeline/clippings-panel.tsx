@@ -14,6 +14,7 @@ import {
   pagePersonFor,
   parseQuoteId,
   speakerIndex,
+  translatedFrom,
   type ClippingsFilter,
 } from "@/lib/clippings-view";
 import type { Critic, PairCritics } from "@/lib/critics";
@@ -247,12 +248,15 @@ function ClippingQuote({
   color: string;
   highlighted: boolean;
 }) {
-  const { id, speaker, about, quote, film, publication, title, url, via, context, secondhand } = clipping;
+  const { id, speaker, about, quote, film, publication, title, url, via, context, secondhand, original } = clipping;
+  const translated = translatedFrom(clipping);
 
-  // Where and why it was said; a quote that is reported rather than spoken says so here too, not as a tag on the quote.
+  // Where and why it was said; a quote that is reported rather than spoken says so here too, not as a tag on the quote,
+  // and one that is our translation gives the words as the source prints them.
   const background = [
     context,
     secondhand ? `Secondhand: ${speaker} is reported by someone else here, not quoted in their own words.` : "",
+    translated && original ? `${translated}. The original: “${original}”` : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -273,6 +277,7 @@ function ClippingQuote({
       year={clippingYear(clipping)}
       via={via}
       background={background}
+      translation={translated && original ? { label: translated, original } : null}
       highlighted={highlighted}
     />
   );

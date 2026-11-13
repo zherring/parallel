@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import type { Clipping, PairClippings } from "@/lib/clippings";
-import { clippingVoices, clippingYear, speakerIndex, truncateQuote } from "@/lib/clippings-view";
+import { clippingVoices, clippingYear, speakerIndex, translatedFrom, truncateQuote } from "@/lib/clippings-view";
 import type { Critic, PairCritics } from "@/lib/critics";
 import { criticAbout, criticName, criticYear } from "@/lib/critics-view";
 import { OG_CACHE_CONTROL, loadImage } from "@/lib/og-render";
@@ -197,7 +197,7 @@ export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgIm
     people: ordered.map((p, i) => ({ name: p.person.name, profilePath: p.person.profilePath, ring: i === 0 ? accent : OG.border })),
     speaker: clipping.speaker,
     about: ` on ${clipping.about}`,
-    source: sourceLine(clipping.publication, clippingYear(clipping)),
+    source: [sourceLine(clipping.publication, clippingYear(clipping)), translatedFrom(clipping)].filter(Boolean).join(" · "),
   });
 }
 

@@ -51,6 +51,11 @@ export interface PullQuoteProps {
   via: string | null;
   /** What the ⓘ unfolds: where and why it was said, or the piece a critic's line comes from. Empty for no ⓘ. */
   background: string;
+  /**
+   * For a quote that is our translation: the quiet note at the end of the source line ("Translated from Italian"), and the
+   * words as the source prints them, its tooltip (the caller puts them in `background` too, for a touch screen).
+   */
+  translation?: { label: string; original: string } | null;
   highlighted: boolean;
 }
 
@@ -75,6 +80,7 @@ export function PullQuote({
   year,
   via,
   background,
+  translation,
   highlighted,
 }: PullQuoteProps) {
   const [showContext, setShowContext] = useState(false);
@@ -193,6 +199,11 @@ export function PullQuote({
             {via && (
               <span className="whitespace-nowrap">
                 <span aria-hidden="true">&middot;</span> via {via}
+              </span>
+            )}
+            {translation && (
+              <span className="whitespace-nowrap" title={translation.original}>
+                <span aria-hidden="true">&middot;</span> {translation.label}
               </span>
             )}
           </p>
