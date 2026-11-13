@@ -2,7 +2,7 @@ import type { Locator, Page } from "@playwright/test";
 import { test as base, expect } from "next/experimental/testmode/playwright";
 import clippings from "../../src/lib/clippings.json";
 import essays from "../../src/lib/essays.json";
-import { QUOTE_FLOOR_PX, embedPath, quotePath } from "../../src/lib/quote-embed";
+import { QUOTE_FLOOR_PX, QUOTE_MAX_PX, embedPath, quotePath } from "../../src/lib/quote-embed";
 import { pairQuotes } from "../../src/lib/quote-embed-data";
 import type { PersonTimeline } from "../../src/lib/types";
 import { PIXEL } from "./fixtures";
@@ -326,6 +326,12 @@ const FIT_FRAMES = [
   { width: 390, height: 253, what: "the panel X opens over a phone" },
 ] as const;
 
+/** Frames taller than they are wide: the panel X opens over a phone when it is tall (70% of the screen), and the X preview page's mobile panel. */
+const TALL_FRAMES = [
+  { width: 390, height: 591, what: "a phone's 70% panel" },
+  { width: 435, height: 600, what: "the X preview page's mobile panel" },
+] as const;
+
 test.describe("pair embed: the end state fits the frame", () => {
   test.use({ reducedMotion: "reduce" });
 
@@ -525,7 +531,7 @@ async function expectQuoteFits(page: Page, label: string) {
 test.describe("quote embed: every quote fits its frame without scrolling", () => {
   test.use({ reducedMotion: "reduce" });
 
-  for (const frame of FIT_FRAMES) {
+  for (const frame of [...FIT_FRAMES, ...TALL_FRAMES]) {
     test(`all ${COUNT} quotes of Spielberg and Williams at ${frame.width} x ${frame.height}`, async ({ page }) => {
       test.setTimeout(120_000);
       await page.setViewportSize({ width: frame.width, height: frame.height });
@@ -559,11 +565,122 @@ test.describe("quote embed: every quote fits its frame without scrolling", () =>
     expect(longest, "there are quotes").not.toBeNull();
     if (!longest) return;
     expect(longest.length).toBeGreaterThan(300);
-    for (const frame of FIT_FRAMES) {
+    for (const frame of [...FIT_FRAMES, ...TALL_FRAMES]) {
       await page.setViewportSize({ width: frame.width, height: frame.height });
       await page.goto(`/embed/q/${longest.key}/${longest.id}`);
       await expect(page.locator("blockquote")).toBeVisible();
       await expectQuoteFits(page, `the longest quote (${longest.length} characters) at ${frame.width} x ${frame.height}`);
+    }
+  });
+});
+
+// ---- The quote embed: the quote takes the room it has --------------------------------------------------------------------------------------------------------------
+
+/** What the quote, the bar and the footer take of the frame, in the frame's pixels. */
+async function quoteLayout(page: Page) {
+  const layout = await page.evaluate(() => {
+    const block = document.querySelector("blockquote");
+    const header = document.querySelector("header")?.getBoundingClientRect();
+    const footer = document.querySelector("footer")?.getBoundingClientRect();
+    if (!block || !header || !footer) return null;
+    const rect = block.getBoundingClientRect();
+    return {
+      fontSize: Number.parseFloat(getComputedStyle(block).fontSize),
+      width: block.clientWidth,
+      top: rect.top,
+      bottom: rect.bottom,
+      headerBottom: header.bottom,
+      footerTop: footer.top,
+      footerHeight: footer.height,
+      frameHeight: window.innerHeight,
+    };
+  });
+  if (!layout) throw new Error("the quote, the bar or the footer is not on the page");
+  return layout;
+}
+
+/** The quote's layout once the page has hydrated and its fonts are in (that is when it is fitted), not the server's first paint. */
+async function settledQuote(page: Page) {
+  await page.waitForFunction(() => {
+    const block = document.querySelector("blockquote");
+    return Boolean(block) && Object.keys(block as object).some((key) => key.startsWith("__reactFiber"));
+  });
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
+  return quoteLayout(page);
+}
+
+/** The quote of the Clippings and the critics, over every pair, that has the fewest characters (and the pair it is of). */
+function shortestQuote() {
+  let shortest: { key: string; id: string; length: number } | null = null;
+  for (const key of new Set([...Object.keys(clippings), ...Object.keys(essays)])) {
+    const ids = key.split("+").map(Number);
+    const quotes = pairQuotes(ids.map((id) => ({ person: { id, name: `Person ${id}`, profilePath: null }, films: [] })) as unknown as PersonTimeline[]);
+    for (const quote of quotes) if (!shortest || quote.quote.length < shortest.length) shortest = { key, id: quote.id, length: quote.quote.length };
+  }
+  return shortest;
+}
+
+test.describe("quote embed: the quote is set to the room it has, whatever the frame's shape", () => {
+  test.use({ reducedMotion: "reduce" });
+  /** Quote 11 of Spielberg and Williams, a mid-length one (248 characters). */
+  const MID = 10;
+
+  test("a tall panel sets a mid-length quote at least 1.4 times as large as the short panel does, and the quote and footer fill at least half the height under the bar", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 253 });
+    await page.goto(embedPath(PAIR, QUOTES[MID].id));
+    const short = await settledQuote(page);
+    for (const frame of TALL_FRAMES) {
+      await page.setViewportSize({ width: frame.width, height: frame.height });
+      await page.goto(embedPath(PAIR, QUOTES[MID].id));
+      const tall = await settledQuote(page);
+      expect(tall.fontSize / short.fontSize, `${frame.width} x ${frame.height} (${frame.what}): ${tall.fontSize}px against ${short.fontSize}px at 390 x 253`).toBeGreaterThanOrEqual(1.4);
+      const fill = (tall.bottom - tall.top + tall.footerHeight) / (tall.frameHeight - tall.headerBottom);
+      expect(fill, `${frame.width} x ${frame.height}: the quote and the footer fill at least half the height under the bar`).toBeGreaterThanOrEqual(0.5);
+      expect(tall.top, "the quote starts under the bar").toBeGreaterThanOrEqual(tall.headerBottom);
+      expect(tall.bottom, "and ends above the footer").toBeLessThanOrEqual(tall.footerTop + 0.5);
+    }
+  });
+
+  test("a frame that is resized taller sets the quote larger again, and shorter, smaller", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 253 });
+    await page.goto(embedPath(PAIR, QUOTES[MID].id));
+    const short = (await settledQuote(page)).fontSize;
+    await page.setViewportSize({ width: 435, height: 600 });
+    await expect.poll(async () => (await quoteLayout(page)).fontSize).toBeGreaterThanOrEqual(short * 1.4);
+    await page.setViewportSize({ width: 390, height: 253 });
+    await expect.poll(async () => (await quoteLayout(page)).fontSize).toBeCloseTo(short, 1);
+    await expectQuoteFits(page, "after the resize back");
+  });
+
+  test("a quote that has room to spare in a tall panel is a little above the middle of it; in the wide card it is centred, as it was", async ({ page }) => {
+    // Quote 1 (170 characters) is one of the pair's shortest: it leaves room over in a tall frame, and in the wide card.
+    await page.setViewportSize({ width: 435, height: 600 });
+    await page.goto(embedPath(PAIR, QUOTES[0].id));
+    const tall = await settledQuote(page);
+    const above = tall.top - tall.headerBottom;
+    const below = tall.footerTop - tall.bottom;
+    expect(Math.min(above, below), "there is room over, above and under the quote").toBeGreaterThan(24);
+    expect(below, "more of it is under the quote than above it").toBeGreaterThan(above + 8);
+
+    await page.setViewportSize({ width: 600, height: 315 });
+    await page.goto(embedPath(PAIR, QUOTES[0].id));
+    const wide = await settledQuote(page);
+    expect(Math.abs(wide.top - wide.headerBottom - (wide.footerTop - wide.bottom)), "centred in the wide card").toBeLessThanOrEqual(1);
+  });
+
+  test("a short quote is not blown up: no larger than the cap, and never so large that a line holds under about 22 characters", async ({ page }) => {
+    const shortest = shortestQuote();
+    expect(shortest, "there are quotes").not.toBeNull();
+    if (!shortest) return;
+    expect(shortest.length, "the shortest quote of all is short").toBeLessThan(60);
+    for (const frame of [...TALL_FRAMES, { width: 1200, height: 630, what: "the player at its own size" }]) {
+      await page.setViewportSize({ width: frame.width, height: frame.height });
+      await page.goto(`/embed/q/${shortest.key}/${shortest.id}`);
+      const layout = await settledQuote(page);
+      expect(layout.fontSize, `${frame.width} x ${frame.height}: not over the cap`).toBeLessThanOrEqual(QUOTE_MAX_PX + 0.01);
+      // An average character of the face is at most half its size wide: a line of `width` px holds at least 22 of them at this size or smaller.
+      expect(layout.fontSize, `${frame.width} x ${frame.height}: a line holds at least about 22 characters`).toBeLessThanOrEqual(Math.max(QUOTE_FLOOR_PX, layout.width / 11) + 0.3);
+      await expectQuoteFits(page, `the shortest quote (${shortest.length} characters) at ${frame.width} x ${frame.height}`);
     }
   });
 });

@@ -6,6 +6,9 @@ import { voiceClippings } from "@/lib/clippings-view";
 import type { PairCritics } from "@/lib/critics";
 import {
   MORE_PAIRS_PATH,
+  QUOTE_FLOOR_PX,
+  QUOTE_MAX_PX,
+  QUOTE_MIN_LINE_CHARS,
   PLAYER_SIZE,
   embedPath,
   embedQuotes,
@@ -14,6 +17,7 @@ import {
   quoteKeyStep,
   quotePath,
   quoteSharePath,
+  quoteSizeCeiling,
   quoteUnits,
 } from "@/lib/quote-embed";
 import { pairQuotes } from "@/lib/quote-embed-data";
@@ -218,5 +222,24 @@ describe("quoteKeyStep", () => {
     expect(quoteKeyStep({ key: "ArrowRight" }, { ...page, inPeopleDialog: true }, 5)).toBeNull();
     expect(quoteKeyStep({ key: "ArrowRight" }, { ...page, inOtherModal: true }, 5)).toBeNull();
     expect(quoteKeyStep({ key: "ArrowRight" }, { typing: true, inPeopleDialog: true, inOtherModal: false }, 5)).toBeNull();
+  });
+});
+
+describe("quoteSizeCeiling", () => {
+  it("is the size at which a line of the column holds about 22 characters, so a narrow frame never sets a short quote at two or three words to a line", () => {
+    // An average character is at most half the size wide: 22 of them are 11 sizes wide.
+    expect(quoteSizeCeiling(377)).toBeCloseTo(377 / (QUOTE_MIN_LINE_CHARS * 0.5), 5);
+    expect(quoteSizeCeiling(338)).toBeCloseTo(338 / 11, 5);
+  });
+
+  it("is never over the cap, however wide the column", () => {
+    expect(quoteSizeCeiling(520)).toBe(QUOTE_MAX_PX);
+    expect(quoteSizeCeiling(1040)).toBe(QUOTE_MAX_PX);
+  });
+
+  it("is never under the floor: a column too narrow for 22 characters at it, or with no width yet, is set at the floor", () => {
+    expect(quoteSizeCeiling(100)).toBe(QUOTE_FLOOR_PX);
+    expect(quoteSizeCeiling(0)).toBe(QUOTE_FLOOR_PX);
+    expect(quoteSizeCeiling(Number.NaN)).toBe(QUOTE_FLOOR_PX);
   });
 });

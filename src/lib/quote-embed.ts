@@ -127,6 +127,24 @@ export function findQuoteIndex(quotes: readonly Pick<EmbedQuote, "id">[], id: st
 /** The smallest size (px) the embed sets a quote at to fit its frame: readable in the panel X opens over a phone. A quote still too long at it is cut, with an ellipsis. */
 export const QUOTE_FLOOR_PX = 13;
 
+/** The largest size (px) the embed sets a quote at, however much room it has: past it a short quote is a headline, not something to read. */
+export const QUOTE_MAX_PX = 44;
+
+/** The fewest characters (about four words) an average line of the quote holds: the size is held down in a narrow frame so that a short quote is never set at two or three words to a line. */
+export const QUOTE_MIN_LINE_CHARS = 22;
+
+/** The width of an average character of the quote's face (Newsreader) as a multiple of its size, rounded up as the card image's is (`og-quote.ts`), so that a line holds at least `QUOTE_MIN_LINE_CHARS`. */
+const QUOTE_CHAR_EM = 0.5;
+
+/**
+ * The largest size (px) a quote may be set at in a column `width` px wide: the one at which a line holds `QUOTE_MIN_LINE_CHARS` characters, up to `QUOTE_MAX_PX` and never under
+ * `QUOTE_FLOOR_PX`. It is a ceiling: the embed sets the quote at the largest size under it at which all of the quote is in the room it has (see `FittedQuote`).
+ */
+export function quoteSizeCeiling(width: number): number {
+  const byMeasure = Number.isFinite(width) && width > 0 ? width / (QUOTE_MIN_LINE_CHARS * QUOTE_CHAR_EM) : 0;
+  return Math.max(QUOTE_FLOOR_PX, Math.min(QUOTE_MAX_PX, byMeasure));
+}
+
 /**
  * A font size of the quote's card image (set for 1200px, see `quoteCardType`) as a count of the frame's unit `--u`, which is
  * 1/100 of the frame's width when it is 1200 x 630 (12px, so 72px is 6): the frame sets the quote at the size the card does.

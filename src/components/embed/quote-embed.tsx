@@ -10,7 +10,7 @@ import type { ElementLike } from "@/lib/hero-keys";
 import { quoteCardType } from "@/lib/og-quote";
 import { describeShortcutTarget } from "@/lib/people-shortcut";
 import { personColor, personColorCss } from "@/lib/person-colors";
-import { MORE_PAIRS_PATH, QUOTE_FLOOR_PX, embedPath, quoteInPairPath, quoteKeyStep, quotePath, quoteUnits, type EmbedQuote } from "@/lib/quote-embed";
+import { MORE_PAIRS_PATH, QUOTE_FLOOR_PX, embedPath, quoteInPairPath, quoteKeyStep, quotePath, quoteSizeCeiling, quoteUnits, type EmbedQuote } from "@/lib/quote-embed";
 
 /** The colour of a quote whose speaker is neither of the pair, and of every critic: the Clippings tab's quiet one. */
 const MUTED = "var(--text-muted)";
@@ -20,12 +20,18 @@ const QUOTE_LINE_HEIGHT = 1.28;
 const FIT_STEP_PX = 0.25;
 
 /**
- * The quote, set at the largest size at which all of it is in the room the frame leaves it, and never in a box that scrolls. The first paint (the server's HTML, and
- * the page before the script has run) is the size the quote's card image sets it at (`quoteCardType`, picked by its length, as a count of the frame's unit), which is
- * close for a frame of the card's own shape; then, in the browser and before the next paint, the size is searched down from it (a binary search, to a quarter of a pixel)
- * against the room's height, again whenever the room changes (a frame that is resized, the fonts arriving) and for each quote (it is a new element for each: see `key`).
- * It is never set under `QUOTE_FLOOR_PX`; a quote that does not fit even then is cut at the last line that does, with an ellipsis, and the footer, which is outside the
- * room, keeps its link.
+ * The quote, set at the largest size at which all of it is in the room the frame leaves it, and never in a box that scrolls. The size is the room's, not the frame's
+ * shape: in the browser and before the next paint, it is searched (a binary search, to a quarter of a pixel) between `QUOTE_FLOOR_PX` and the ceiling the room's width
+ * allows (`quoteSizeCeiling`: at most `QUOTE_MAX_PX`, and no more than the size at which a line holds about 22 characters), for the room's height. So a tall, narrow panel gets
+ * large type wrapped over its height, a short one small type, and a short quote is not blown up into two or three words to a line. It is searched again whenever the room
+ * changes (a frame that is resized, the fonts arriving) and for each quote (it is a new element for each: see `key`). A quote that does not fit even at the floor is cut at
+ * the last line that does, with an ellipsis, and the footer, which is outside the room, keeps its link.
+ *
+ * The first paint (the server's HTML, and the page before the script has run) is the size the quote's card image sets it at (`quoteCardType`, picked by its length, as a
+ * count of the frame's unit), which is close for a frame of the card's own shape.
+ *
+ * Where the quote sits in the room follows the frame's shape: centred in a frame that is wider than it is tall (as the card is), and a little above the middle in one that
+ * is taller (the room is then left over below the quote, not equally above and under it: the quote reads as leading to the attribution, which is pinned under the room).
  */
 function FittedQuote({ quote, url, color, firstPaintSize }: { quote: string; url: string; color: string; firstPaintSize: string }) {
   const roomRef = useRef<HTMLDivElement>(null);
@@ -40,18 +46,17 @@ function FittedQuote({ quote, url, color, firstPaintSize }: { quote: string; url
     const fit = () => {
       const style = getComputedStyle(room);
       const available = room.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-      // Start again from the first paint's size, uncut: the room may have grown since the last fit.
+      // Start again uncut: the room may have grown since the last fit.
       text.style.cssText = "";
-      block.style.fontSize = firstPaintSize;
-      const start = parseFloat(getComputedStyle(block).fontSize);
       const fits = (px: number) => {
         block.style.fontSize = `${px}px`;
         return block.offsetHeight <= available;
       };
-      if (block.offsetHeight <= available || !Number.isFinite(start)) return;
+      const ceiling = quoteSizeCeiling(block.clientWidth);
+      if (fits(ceiling)) return;
       if (fits(QUOTE_FLOOR_PX)) {
         let low = QUOTE_FLOOR_PX;
-        let high = start;
+        let high = ceiling;
         while (high - low > FIT_STEP_PX) {
           const mid = (low + high) / 2;
           if (fits(mid)) low = mid;
@@ -69,10 +74,13 @@ function FittedQuote({ quote, url, color, firstPaintSize }: { quote: string; url
     observer.observe(room);
     void document.fonts?.ready.then(fit);
     return () => observer.disconnect();
-  }, [quote, firstPaintSize]);
+  }, [quote]);
 
   return (
-    <div ref={roomRef} className="flex h-full flex-col justify-center" style={{ padding: `${size(8, 2)} 0` }}>
+    // The room's own air above and under the quote: the frame's unit in a frame wider than it is tall, and a little more in a taller one, where the quote fills the height and would otherwise stand 9px from the bar.
+    <div ref={roomRef} className="flex h-full flex-col py-[max(8px,calc(2*var(--u)))] [@container(max-aspect-ratio:1/1)]:py-[max(16px,calc(3.5*var(--u)))]">
+      {/* What is left of the room around the quote: equal above and under it (centred) in a frame wider than it is tall; two parts above to three under in a taller one. */}
+      <div aria-hidden="true" className="grow [@container(max-aspect-ratio:1/1)]:grow-[2]" />
       <blockquote ref={quoteRef} cite={url} className="font-serif text-quote text-pretty" style={{ fontSize: firstPaintSize, lineHeight: QUOTE_LINE_HEIGHT }}>
         <p ref={textRef}>
           <span aria-hidden="true" style={{ color }}>
@@ -84,6 +92,7 @@ function FittedQuote({ quote, url, color, firstPaintSize }: { quote: string; url
           </span>
         </p>
       </blockquote>
+      <div aria-hidden="true" className="grow [@container(max-aspect-ratio:1/1)]:grow-[3]" />
     </div>
   );
 }
@@ -112,10 +121,10 @@ interface QuoteEmbedProps {
  * About" and the source line (film, publication, year, the link to the original).
  *
  * Built for what X does with it. On a desktop timeline the frame is the card's own 1200 x 630 shrunk to the column
- * (about 500 wide), so everything is sized in the frame's unit (container query units, see `size`) and set at the quote's
- * card image's type size, which fits the text to the frame. On a phone X shows the poster and opens this page in a panel
- * over the bottom of the screen, a short viewport: the arrows are in the top bar, where they stay in view, the quote
- * is set smaller (down to `QUOTE_FLOOR_PX`, then cut with an ellipsis) if it is too long for the room, and the footer's link sits under it. X sandboxes the frame (no forms, no popups
+ * (about 500 wide), so the bar, the footer and the spacing are sized in the frame's unit (container query units, see `size`) and the quote is set to fit the room
+ * they leave it (see `FittedQuote`). On a phone X shows the poster and opens this page in a panel over the bottom of the screen, which is short or tall, as the
+ * visitor has it: the arrows are in the top bar, where they stay in view, the quote is set as large as the room allows (up to `QUOTE_MAX_PX`) or, if it is too long for it, as
+ * small as `QUOTE_FLOOR_PX` and then cut with an ellipsis, and the footer's link sits under it. X sandboxes the frame (no forms, no popups
  * but links), so nothing here needs a cookie, a login or a request: stepping is local state, and the links open a new tab.
  */
 export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedProps) {
