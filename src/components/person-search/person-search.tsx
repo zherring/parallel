@@ -104,6 +104,8 @@ export interface PersonSearchProps {
    * which would otherwise redraw the screen behind them as soon as someone was picked). `peopleInView` is then the people as the owner will have them.
    */
   onPick?: (person: PickedPerson) => void;
+  /** Called after a timeline navigation starts (e.g. to dismiss a search dialog). */
+  onNavigate?: () => void;
 }
 
 /** What picking an option needs, whether it is a search result or a suggested collaborator. */
@@ -139,6 +141,7 @@ export function PersonSearch({
   wideMenu = false,
   onIdleEscape,
   onPick,
+  onNavigate,
 }: PersonSearchProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -284,7 +287,10 @@ export function PersonSearch({
     setOpen(false);
     setActiveIndex(-1);
     inputRef.current?.blur();
-    startNavigation(() => router.push(href));
+    startNavigation(() => {
+      router.push(href);
+      onNavigate?.();
+    });
   }
 
   function select(result: PickedPerson) {
@@ -308,7 +314,10 @@ export function PersonSearch({
     setQuery("");
     setActiveIndex(-1);
     inputRef.current?.blur();
-    startNavigation(() => router.push(href));
+    startNavigation(() => {
+      router.push(href);
+      onNavigate?.();
+    });
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
