@@ -2,7 +2,7 @@ import type { Locator, Page } from "@playwright/test";
 import { test as base, expect } from "next/experimental/testmode/playwright";
 import clippings from "../../src/lib/clippings.json";
 import essays from "../../src/lib/essays.json";
-import { QUOTE_FLOOR_PX, QUOTE_MAX_PX, embedPath, quotePath } from "../../src/lib/quote-embed";
+import { QUOTE_BAND, QUOTE_FLOOR_PX, QUOTE_MAX_PX, QUOTE_MIN_LINE_CHARS, embedPath, quotePath } from "../../src/lib/quote-embed";
 import { pairQuotes } from "../../src/lib/quote-embed-data";
 import type { PersonTimeline } from "../../src/lib/types";
 import { PIXEL } from "./fixtures";
@@ -240,6 +240,18 @@ async function isOnTopAtCentre(page: Page, locator: Locator) {
 const intersects = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) =>
   a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
+/** The size of a control's invisible hit area (its `::before`, which extends past its box), and of its box: what a finger has to hit, and what is drawn. */
+async function touchTarget(locator: Locator) {
+  return locator.evaluate((node) => {
+    const area = getComputedStyle(node, "::before");
+    const box = node.getBoundingClientRect();
+    return { width: box.width, height: box.height, areaWidth: Number.parseFloat(area.width), areaHeight: Number.parseFloat(area.height) };
+  });
+}
+
+/** A frame of a phone's width (the controls are touch targets in it): at most 30rem. */
+const isPhoneWidth = (frame: { width: number }) => frame.width <= 480;
+
 const FRAMES = [
   { width: 390, height: 253, what: "the panel X opens over a phone" },
   { width: 600, height: 315, what: "an inline card on a desktop timeline" },
@@ -296,6 +308,17 @@ test.describe("pair embed: the bar's controls are separate targets", () => {
         for (let i = 0; i + 1 < peopleCount; i++) {
           expect(boxes[i + 1].x - boxes[i].x, `${controls[i].name} is a target of at least 22px`).toBeGreaterThanOrEqual(22);
         }
+
+        // In a phone's width the buttons are at least 32px tall (Replay 32 wide too), with an invisible hit area round each that takes it to about 44px by 40px.
+        if (isPhoneWidth(frame)) {
+          for (const [name, locator, round] of [["Replay", replay, true], ["Open in Parallel", open, false]] as const) {
+            const target = await touchTarget(locator);
+            expect(target.height, `${name} is at least 32px tall`).toBeGreaterThanOrEqual(32 - 0.5);
+            if (round) expect(target.width, `${name} is at least 32px wide`).toBeGreaterThanOrEqual(32 - 0.5);
+            expect(target.areaHeight, `${name}'s hit area is about 44px tall`).toBeGreaterThanOrEqual(43);
+            expect(target.areaWidth, `${name}'s hit area is wider than the button`).toBeGreaterThan(target.width);
+          }
+        }
       });
     }
   }
@@ -317,8 +340,8 @@ async function verticalScrollers(page: Page) {
   });
 }
 
-/** The room the track leaves under the year axis, at the frames below: the bar's side inset (16px, the least it is at any frame), so that the axis's labels are clear of the frame's bottom edge and its rounded corners. */
-const BOTTOM_INSET = 16;
+/** The room the track leaves under the year axis, at the frames below: the bar's side inset (14px, the least it is at any frame), so that the axis's labels are clear of the frame's bottom edge and its rounded corners. */
+const BOTTOM_INSET = 14;
 
 const FIT_FRAMES = [
   { width: 600, height: 315, what: "an inline card on a desktop timeline" },
@@ -328,6 +351,7 @@ const FIT_FRAMES = [
 
 /** Frames taller than they are wide: the panel X opens over a phone when it is tall (70% of the screen), and the X preview page's mobile panel. */
 const TALL_FRAMES = [
+  { width: 383, height: 555, what: "a phone's panel (the report of the clipped footer)" },
   { width: 390, height: 591, what: "a phone's 70% panel" },
   { width: 435, height: 600, what: "the X preview page's mobile panel" },
 ] as const;
@@ -342,16 +366,16 @@ test.describe("pair embed: the end state fits the frame", () => {
       const replay = page.getByRole("button", { name: "Replay", exact: true });
       await expect(replay).toBeVisible();
 
-      // The bar: every control is inset from the top and the sides by at least the bar's padding (12px at the top, 16px at the sides).
+      // The bar: every control is inset from the top and the sides by at least the bar's padding (10px at the top, 14px at the sides).
       const controls = [
         ...(await page.getByRole("list", { name: "The people", exact: true }).getByRole("link").all()),
         replay,
         page.getByRole("link", { name: /^Open in Parallel/ }),
       ];
       const boxes = await Promise.all(controls.map(boxOf));
-      expect(Math.min(...boxes.map((box) => box.y)), "the bar's controls start at least 12px under the frame's top edge").toBeGreaterThanOrEqual(12);
-      expect(Math.min(...boxes.map((box) => box.x)), "the bar's controls start at least 16px in from the left edge").toBeGreaterThanOrEqual(16);
-      expect(frame.width - Math.max(...boxes.map((box) => box.x + box.width)), "and end at least 16px in from the right edge").toBeGreaterThanOrEqual(16 - 0.5);
+      expect(Math.min(...boxes.map((box) => box.y)), "the bar's controls start at least 10px under the frame's top edge").toBeGreaterThanOrEqual(10 - 0.5);
+      expect(Math.min(...boxes.map((box) => box.x)), "the bar's controls start at least 14px in from the left edge").toBeGreaterThanOrEqual(14 - 0.5);
+      expect(frame.width - Math.max(...boxes.map((box) => box.x + box.width)), "and end at least 14px in from the right edge").toBeGreaterThanOrEqual(14 - 0.5);
 
       // No minimap in the frame: it is the site's, and a frame only has the track (dragged, swiped or sent sideways by a sideways wheel).
       await expect(page.locator("[data-minimap-bar]"), "the embed has no minimap bar").toHaveCount(0);
@@ -480,7 +504,13 @@ test.describe("pair embed: the sequence", () => {
 
 // ---- The quote embed: the quote is set to fit, never scrolls ------------------------------------------------------------------------------------------------------
 
-/** Where the quote's last character, the frame's edges and the footer's link are, in the frame's pixels. */
+/** The room the footer leaves under its last part (the avatar, the attribution, the pill): the footer's bottom padding, 12px at every frame size. */
+const QUOTE_BOTTOM_INSET = 12;
+
+/**
+ * Where the quote's last character, the frame's edges, the bar, the footer and each part of it, and the lines the quote is set in are, in the frame's pixels. `lines` is the
+ * number of characters on each rendered line of the quote (read from the rect of every character).
+ */
 async function quoteFit(page: Page) {
   return page.evaluate(() => {
     const block = document.querySelector("blockquote");
@@ -491,28 +521,75 @@ async function quoteFit(page: Page) {
     last.setStart(text, (text.textContent ?? "").length - 1);
     last.setEnd(text, (text.textContent ?? "").length);
     const rect = last.getBoundingClientRect();
-    const footer = document.querySelector("footer")?.getBoundingClientRect();
-    const open = [...document.querySelectorAll("a")].find((a) => /^Open in Parallel/.test(a.textContent ?? ""))?.getBoundingClientRect();
+    const header = document.querySelector("header")?.getBoundingClientRect();
+    const footerElement = document.querySelector("footer");
+    const footer = footerElement?.getBoundingClientRect();
+    const attribution = footerElement?.firstElementChild?.getBoundingClientRect();
+    // Every part of the footer that takes room (not the screen-reader text, which is placed out of the way).
+    const partsBottom = footerElement
+      ? Math.max(...[...footerElement.querySelectorAll<HTMLElement>("*")].filter((el) => getComputedStyle(el).position !== "absolute").map((el) => el.getBoundingClientRect().bottom))
+      : Number.NEGATIVE_INFINITY;
+    const open = document.querySelector('a[aria-label^="Open in Parallel"]')?.getBoundingClientRect();
+    // The characters on each line: every character of the quote is a rect, and a new line is a rect a half line lower than the one before.
+    const lines: number[] = [];
+    let lineTop: number | null = null;
+    const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const content = node.textContent ?? "";
+      for (let index = 0; index < content.length; index++) {
+        const range = document.createRange();
+        range.setStart(node, index);
+        range.setEnd(node, index + 1);
+        const rects = range.getClientRects();
+        if (rects.length === 0) continue;
+        if (lineTop === null || Math.abs(rects[0].top - lineTop) > 4) {
+          lines.push(0);
+          lineTop = rects[0].top;
+        }
+        lines[lines.length - 1] += 1;
+      }
+    }
     return {
       fontSize: Number.parseFloat(getComputedStyle(block).fontSize),
       clamped: getComputedStyle(paragraph).webkitLineClamp !== "none",
       last: { top: rect.top, bottom: rect.bottom, right: rect.right },
+      blockHeight: block.getBoundingClientRect().height,
+      headerBottom: header?.bottom ?? 0,
       footerTop: footer?.top ?? Number.POSITIVE_INFINITY,
+      footerBottom: footer?.bottom ?? Number.POSITIVE_INFINITY,
+      partsBottom,
+      attribution: attribution ? { top: attribution.top, bottom: attribution.bottom } : null,
       open: open ? { top: open.top, bottom: open.bottom, left: open.left, right: open.right } : null,
+      lines,
       frame: { width: window.innerWidth, height: window.innerHeight },
     };
   });
 }
+
+/** An average line of the quote, the last (which is a rest of it, as long as it is) left out: the characters a reader's eye takes in along a line. */
+const averageLine = (lines: readonly number[]) => {
+  const body = lines.slice(0, -1);
+  return body.reduce((sum, n) => sum + n, 0) / body.length;
+};
 
 async function expectQuoteFits(page: Page, label: string) {
   const fit = await quoteFit(page);
   expect(fit, `${label}: the quote is on the page`).not.toBeNull();
   if (!fit) return;
   expect(fit.fontSize, `${label}: the type is not under the floor`).toBeGreaterThanOrEqual(QUOTE_FLOOR_PX);
-  // The link out stays whole in the frame, cut quote or not.
+
+  // The footer is whole in the frame, with its bottom inset: every part of it (the picture, the attribution, the link out) and the footer itself, cut quote or not.
   expect(fit.open, `${label}: Open in Parallel is there`).not.toBeNull();
-  expect(fit.open?.bottom ?? 0, `${label}: Open in Parallel is inside the frame`).toBeLessThanOrEqual(fit.frame.height + 0.5);
-  expect(fit.open?.right ?? 0).toBeLessThanOrEqual(fit.frame.width + 0.5);
+  expect(fit.footerBottom, `${label}: the footer ends inside the frame`).toBeLessThanOrEqual(fit.frame.height + 0.5);
+  expect(fit.partsBottom, `${label}: every part of the footer ends at least ${QUOTE_BOTTOM_INSET}px inside the frame`).toBeLessThanOrEqual(fit.frame.height - QUOTE_BOTTOM_INSET + 0.5);
+  expect(fit.open?.bottom ?? 0, `${label}: Open in Parallel ends at least ${QUOTE_BOTTOM_INSET}px inside the frame`).toBeLessThanOrEqual(fit.frame.height - QUOTE_BOTTOM_INSET + 0.5);
+  expect(fit.open?.right ?? 0, `${label}: and inside it at the side`).toBeLessThanOrEqual(fit.frame.width + 0.5);
+  expect(fit.open?.left ?? 0).toBeGreaterThanOrEqual(0);
+  // On the one row with the attribution (it never wraps under it): its middle is in the attribution's height.
+  const middle = ((fit.open?.top ?? 0) + (fit.open?.bottom ?? 0)) / 2;
+  expect(middle, `${label}: Open in Parallel is on the attribution's row`).toBeGreaterThanOrEqual((fit.attribution?.top ?? 0) - 0.5);
+  expect(middle, `${label}: Open in Parallel is on the attribution's row`).toBeLessThanOrEqual((fit.attribution?.bottom ?? 0) + 0.5);
+
   if (fit.clamped) {
     // Only a quote that is too long at the floor is cut (with an ellipsis).
     expect(fit.fontSize, `${label}: a cut quote is at the floor`).toBeCloseTo(QUOTE_FLOOR_PX, 0);
@@ -521,6 +598,16 @@ async function expectQuoteFits(page: Page, label: string) {
     expect(fit.last.right).toBeLessThanOrEqual(fit.frame.width + 0.5);
     expect(fit.last.bottom, `${label}: and above the footer`).toBeLessThanOrEqual(fit.footerTop + 0.5);
   }
+
+  // The quote is a band, not a wall: no more than about 60% of the room between the bar and the footer (62% with the rounding of the lines), cut or not.
+  const room = fit.footerTop - fit.headerBottom;
+  expect(fit.blockHeight / room, `${label}: the quote takes ${Math.round((fit.blockHeight / room) * 100)}% of the room between the bar and the footer`).toBeLessThanOrEqual(QUOTE_BAND + 0.02);
+
+  // And in a phone's width its lines are about 30 to 45 characters, never fewer than 28 on average (a quote cut at the floor has a longer line still).
+  if (fit.frame.width <= 480 && !fit.clamped && fit.lines.length >= 3) {
+    expect(averageLine(fit.lines), `${label}: a line of the quote holds ${averageLine(fit.lines).toFixed(1)} characters on average (${fit.lines.join(", ")})`).toBeGreaterThanOrEqual(28);
+  }
+
   for (const scroller of await verticalScrollers(page)) {
     expect(scroller.scrollHeight, `${label}: ${scroller.what} does not scroll`).toBeLessThanOrEqual(scroller.clientHeight);
   }
@@ -625,7 +712,7 @@ test.describe("quote embed: the quote is set to the room it has, whatever the fr
   /** Quote 11 of Spielberg and Williams, a mid-length one (248 characters). */
   const MID = 10;
 
-  test("a tall panel sets a mid-length quote at least 1.4 times as large as the short panel does, and the quote and footer fill at least half the height under the bar", async ({ page }) => {
+  test("a tall panel sets a mid-length quote at least 1.4 times as large as the short panel does, and it sits in its band: 35% to 62% of the room between the bar and the footer, with air above and under", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 253 });
     await page.goto(embedPath(PAIR, QUOTES[MID].id));
     const short = await settledQuote(page);
@@ -634,10 +721,13 @@ test.describe("quote embed: the quote is set to the room it has, whatever the fr
       await page.goto(embedPath(PAIR, QUOTES[MID].id));
       const tall = await settledQuote(page);
       expect(tall.fontSize / short.fontSize, `${frame.width} x ${frame.height} (${frame.what}): ${tall.fontSize}px against ${short.fontSize}px at 390 x 253`).toBeGreaterThanOrEqual(1.4);
-      const fill = (tall.bottom - tall.top + tall.footerHeight) / (tall.frameHeight - tall.headerBottom);
-      expect(fill, `${frame.width} x ${frame.height}: the quote and the footer fill at least half the height under the bar`).toBeGreaterThanOrEqual(0.5);
-      expect(tall.top, "the quote starts under the bar").toBeGreaterThanOrEqual(tall.headerBottom);
-      expect(tall.bottom, "and ends above the footer").toBeLessThanOrEqual(tall.footerTop + 0.5);
+      // A mid-length quote sits in the band (it was at least half of the room under the bar, with the footer, when it filled the whole room): over a third of the room, and no more than the band.
+      const room = tall.footerTop - tall.headerBottom;
+      const fill = (tall.bottom - tall.top) / room;
+      expect(fill, `${frame.width} x ${frame.height}: the quote takes at least 35% of the room between the bar and the footer`).toBeGreaterThanOrEqual(0.35);
+      expect(fill, `${frame.width} x ${frame.height}: and no more than 62% of it`).toBeLessThanOrEqual(QUOTE_BAND + 0.02);
+      expect(tall.top - tall.headerBottom, "there is at least 15% of the room empty above the quote").toBeGreaterThanOrEqual(room * 0.15);
+      expect(tall.footerTop - tall.bottom, "and at least 15% under it").toBeGreaterThanOrEqual(room * 0.15);
     }
   });
 
@@ -659,7 +749,7 @@ test.describe("quote embed: the quote is set to the room it has, whatever the fr
     const tall = await settledQuote(page);
     const above = tall.top - tall.headerBottom;
     const below = tall.footerTop - tall.bottom;
-    expect(Math.min(above, below), "there is room over, above and under the quote").toBeGreaterThan(24);
+    expect(Math.min(above, below), "there is room over, above and under the quote (at least 15% of the room between the bar and the footer)").toBeGreaterThan((above + below + tall.bottom - tall.top) * 0.15);
     expect(below, "more of it is under the quote than above it").toBeGreaterThan(above + 8);
 
     await page.setViewportSize({ width: 600, height: 315 });
@@ -668,7 +758,7 @@ test.describe("quote embed: the quote is set to the room it has, whatever the fr
     expect(Math.abs(wide.top - wide.headerBottom - (wide.footerTop - wide.bottom)), "centred in the wide card").toBeLessThanOrEqual(1);
   });
 
-  test("a short quote is not blown up: no larger than the cap, and never so large that a line holds under about 22 characters", async ({ page }) => {
+  test("a short quote is not blown up: no larger than the cap, and never so large that a line holds under about 30 characters", async ({ page }) => {
     const shortest = shortestQuote();
     expect(shortest, "there are quotes").not.toBeNull();
     if (!shortest) return;
@@ -678,9 +768,70 @@ test.describe("quote embed: the quote is set to the room it has, whatever the fr
       await page.goto(`/embed/q/${shortest.key}/${shortest.id}`);
       const layout = await settledQuote(page);
       expect(layout.fontSize, `${frame.width} x ${frame.height}: not over the cap`).toBeLessThanOrEqual(QUOTE_MAX_PX + 0.01);
-      // An average character of the face is at most half its size wide: a line of `width` px holds at least 22 of them at this size or smaller.
-      expect(layout.fontSize, `${frame.width} x ${frame.height}: a line holds at least about 22 characters`).toBeLessThanOrEqual(Math.max(QUOTE_FLOOR_PX, layout.width / 11) + 0.3);
+      // An average character of the face is at most half its size wide: a line of `width` px holds at least `QUOTE_MIN_LINE_CHARS` of them at this size or smaller.
+      expect(layout.fontSize, `${frame.width} x ${frame.height}: a line holds at least about ${QUOTE_MIN_LINE_CHARS} characters`).toBeLessThanOrEqual(Math.max(QUOTE_FLOOR_PX, layout.width / (QUOTE_MIN_LINE_CHARS * 0.5)) + 0.3);
       await expectQuoteFits(page, `the shortest quote (${shortest.length} characters) at ${frame.width} x ${frame.height}`);
+    }
+  });
+});
+
+// ---- The quote embed: the bar's arrows and the footer's link are touch targets -----------------------------------------------------------------------------------
+
+test.describe("quote embed: the arrows and Open in Parallel are separate targets, 32px tall in a phone's width, and the footer is on one row", () => {
+  test.use({ reducedMotion: "reduce" });
+
+  for (const frame of [...TALL_FRAMES, ...FIT_FRAMES, { width: 320, height: 253, what: "the smallest phone" }, { width: 360, height: 640, what: "a small phone's tall panel" }]) {
+    test(`${frame.width} x ${frame.height} (${frame.what})`, async ({ page }) => {
+      await page.setViewportSize({ width: frame.width, height: frame.height });
+      await page.goto(embedPath(PAIR, QUOTES[START].id));
+      const previous = page.getByRole("button", { name: "Previous quote", exact: true });
+      const next = page.getByRole("button", { name: "Next quote", exact: true });
+      const open = page.getByRole("link", { name: /^Open in Parallel/ });
+      await expect(open).toBeVisible();
+      const wordmark = page.getByRole("link", { name: "Parallel: more pairs", exact: true });
+      const controls = [
+        { name: "Previous quote", locator: previous },
+        { name: "Next quote", locator: next },
+        { name: "Open in Parallel", locator: open },
+        { name: "the wordmark", locator: wordmark },
+      ];
+      const boxes = await Promise.all(controls.map(({ locator }) => boxOf(locator)));
+      for (const [index, { name, locator }] of controls.entries()) {
+        expect(boxes[index].x, `${name} starts inside the frame`).toBeGreaterThanOrEqual(0);
+        expect(boxes[index].x + boxes[index].width, `${name} ends inside the frame`).toBeLessThanOrEqual(frame.width);
+        expect(boxes[index].y + boxes[index].height, `${name} ends inside the frame`).toBeLessThanOrEqual(frame.height - (name === "Open in Parallel" ? QUOTE_BOTTOM_INSET : 0) + 0.5);
+        expect(await isOnTopAtCentre(page, locator), `${name} is on top at its middle`).toBe(true);
+      }
+      for (let a = 0; a < controls.length; a++) {
+        for (let b = a + 1; b < controls.length; b++) expect(intersects(boxes[a], boxes[b]), `${controls[a].name} and ${controls[b].name} do not overlap`).toBe(false);
+      }
+
+      // The label is the whole of the name in a wide frame and "Open" in a narrow one (under 26rem), and the name is the same.
+      await expect(open).toHaveAttribute("aria-label", /^Open in Parallel \(opens in a new tab\)$/);
+      expect(await open.evaluate((node) => (node as HTMLElement).innerText.trim()), `${frame.width}px wide: the pill's label`).toBe(frame.width < 416 ? "Open" : "Open in Parallel");
+
+      if (isPhoneWidth(frame)) {
+        for (const [name, locator, round] of [["Previous quote", previous, true], ["Next quote", next, true], ["Open in Parallel", open, false]] as const) {
+          const target = await touchTarget(locator);
+          expect(target.height, `${name} is at least 32px tall`).toBeGreaterThanOrEqual(32 - 0.5);
+          if (round) expect(target.width, `${name} is at least 32px wide`).toBeGreaterThanOrEqual(32 - 0.5);
+          expect(target.areaHeight, `${name}'s hit area is about 44px tall`).toBeGreaterThanOrEqual(43);
+          expect(target.areaWidth, `${name}'s hit area is wider than the button`).toBeGreaterThan(target.width);
+        }
+      }
+    });
+  }
+
+  test("the footer is on one row and whole at every width from the smallest phone up, for every quote, however long its attribution", async ({ page }) => {
+    test.setTimeout(120_000);
+    for (const frame of [{ width: 320, height: 568 }, { width: 360, height: 640 }, { width: 414, height: 400 }]) {
+      await page.setViewportSize(frame);
+      await page.goto(embedPath(PAIR, QUOTES[0].id));
+      for (let index = 0; index < COUNT; index++) {
+        await expectAt(page, (id) => embedPath(PAIR, id), index);
+        await expectQuoteFits(page, `quote ${index + 1} at ${frame.width} x ${frame.height}`);
+        await page.getByRole("button", { name: "Next quote", exact: true }).click();
+      }
     }
   });
 });

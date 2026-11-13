@@ -10,7 +10,7 @@ import type { ElementLike } from "@/lib/hero-keys";
 import { quoteCardType } from "@/lib/og-quote";
 import { describeShortcutTarget } from "@/lib/people-shortcut";
 import { personColor, personColorCss } from "@/lib/person-colors";
-import { MORE_PAIRS_PATH, QUOTE_FLOOR_PX, embedPath, quoteInPairPath, quoteKeyStep, quotePath, quoteSizeCeiling, quoteUnits, type EmbedQuote } from "@/lib/quote-embed";
+import { MORE_PAIRS_PATH, QUOTE_BAND, QUOTE_FLOOR_PX, embedPath, quoteInPairPath, quoteKeyStep, quotePath, quoteSizeCeiling, quoteUnits, type EmbedQuote } from "@/lib/quote-embed";
 
 /** The colour of a quote whose speaker is neither of the pair, and of every critic: the Clippings tab's quiet one. */
 const MUTED = "var(--text-muted)";
@@ -18,17 +18,20 @@ const MUTED = "var(--text-muted)";
 const QUOTE_LINE_HEIGHT = 1.28;
 /** The size the fit stops searching at: to a quarter of a pixel. */
 const FIT_STEP_PX = 0.25;
+/** The embed's type is the card image's (`quoteCardType`, the size of the poster X shows) less this much, in the frame's unit: the first paint's size, close to what the fit then picks. */
+const FIRST_PAINT_SCALE = 0.85;
 
 /**
- * The quote, set at the largest size at which all of it is in the room the frame leaves it, and never in a box that scrolls. The size is the room's, not the frame's
- * shape: in the browser and before the next paint, it is searched (a binary search, to a quarter of a pixel) between `QUOTE_FLOOR_PX` and the ceiling the room's width
- * allows (`quoteSizeCeiling`: at most `QUOTE_MAX_PX`, and no more than the size at which a line holds about 22 characters), for the room's height. So a tall, narrow panel gets
- * large type wrapped over its height, a short one small type, and a short quote is not blown up into two or three words to a line. It is searched again whenever the room
- * changes (a frame that is resized, the fonts arriving) and for each quote (it is a new element for each: see `key`). A quote that does not fit even at the floor is cut at
- * the last line that does, with an ellipsis, and the footer, which is outside the room, keeps its link.
+ * The quote, set at the largest size at which all of it is in its band, and never in a box that scrolls. The band is the middle `QUOTE_BAND` (60%) of the room the frame leaves
+ * between the bar and the footer: the rest is empty, above and under the quote, so that it is a block to read in and not a wall that runs from the bar to the footer. The
+ * size is the band's, not the frame's shape: in the browser and before the next paint, it is searched (a binary search, to a quarter of a pixel) between `QUOTE_FLOOR_PX` and the
+ * ceiling the room's width allows (`quoteSizeCeiling`: at most `QUOTE_MAX_PX`, and no more than the size at which a line holds about 28 characters), for the band's height. So a tall,
+ * narrow panel gets type that fills its band over its height, a short one small type, and a short quote is not blown up into two or three words to a line (it takes less than the
+ * band). It is searched again whenever the room changes (a frame that is resized, the fonts arriving) and for each quote (it is a new element for each: see `key`). A quote that does
+ * not fit its band even at the floor is cut at the last line that does, with an ellipsis, and the footer, which is outside the room, keeps its link.
  *
  * The first paint (the server's HTML, and the page before the script has run) is the size the quote's card image sets it at (`quoteCardType`, picked by its length, as a
- * count of the frame's unit), which is close for a frame of the card's own shape.
+ * count of the frame's unit) less 15%, which is close for a frame of the card's own shape.
  *
  * Where the quote sits in the room follows the frame's shape: centred in a frame that is wider than it is tall (as the card is), and a little above the middle in one that
  * is taller (the room is then left over below the quote, not equally above and under it: the quote reads as leading to the attribution, which is pinned under the room).
@@ -44,8 +47,8 @@ function FittedQuote({ quote, url, color, firstPaintSize }: { quote: string; url
     const text = textRef.current;
     if (!room || !block || !text) return;
     const fit = () => {
-      const style = getComputedStyle(room);
-      const available = room.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+      // The band: what the quote may take of the room (the room has no padding of its own; the empty rest of it is the air above and under the quote).
+      const available = room.clientHeight * QUOTE_BAND;
       // Start again uncut: the room may have grown since the last fit.
       text.style.cssText = "";
       const fits = (px: number) => {
@@ -65,7 +68,7 @@ function FittedQuote({ quote, url, color, firstPaintSize }: { quote: string; url
         block.style.fontSize = `${low}px`;
         return;
       }
-      // Too long even at the floor: as many lines as the room has, the last of them ending in an ellipsis.
+      // Too long even at the floor: as many lines as the band has, the last of them ending in an ellipsis.
       const lines = Math.max(1, Math.floor(available / (QUOTE_FLOOR_PX * QUOTE_LINE_HEIGHT)));
       text.style.cssText = `display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:${lines};line-clamp:${lines};overflow:hidden`;
     };
@@ -77,8 +80,7 @@ function FittedQuote({ quote, url, color, firstPaintSize }: { quote: string; url
   }, [quote]);
 
   return (
-    // The room's own air above and under the quote: the frame's unit in a frame wider than it is tall, and a little more in a taller one, where the quote fills the height and would otherwise stand 9px from the bar.
-    <div ref={roomRef} className="flex h-full flex-col py-[max(8px,calc(2*var(--u)))] [@container(max-aspect-ratio:1/1)]:py-[max(16px,calc(3.5*var(--u)))]">
+    <div ref={roomRef} className="flex h-full flex-col">
       {/* What is left of the room around the quote: equal above and under it (centred) in a frame wider than it is tall; two parts above to three under in a taller one. */}
       <div aria-hidden="true" className="grow [@container(max-aspect-ratio:1/1)]:grow-[2]" />
       <blockquote ref={quoteRef} cite={url} className="font-serif text-quote text-pretty" style={{ fontSize: firstPaintSize, lineHeight: QUOTE_LINE_HEIGHT }}>
@@ -161,7 +163,7 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
   const type = quoteCardType(current.quote);
   const step = (delta: number) => setIndex((i) => (i + delta + count) % count);
   const button = EMBED_BUTTON;
-  const buttonSize: CSSProperties = { width: size(40, 4), height: size(40, 4) };
+  const buttonSize: CSSProperties = { width: size(34, 3.4), height: size(34, 3.4) };
 
   return (
     <div
@@ -179,18 +181,18 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
         // A faint wash of the speaker's colour from the top left, as the quote's card image has behind it.
         style={{ backgroundImage: `radial-gradient(ellipse 75% 95% at 0% 0%, color-mix(in srgb, ${color} 15%, transparent), transparent 70%)` }}
       >
-        <header className="flex items-center justify-between gap-3" style={{ padding: `${size(10, 2.8)} ${size(14, 6.67)} 0` }}>
+        <header className="flex shrink-0 items-center justify-between gap-3" style={{ padding: `${size(9, 2.4)} ${size(12, 5.67)} 0` }}>
           {/* More pairs: the wordmark leads to the landing page's Quotes tab. */}
           <EmbedWordmark href={MORE_PAIRS_PATH} title="More pairs on Parallel" label="Parallel: more pairs" external={framed} />
-          <p className="hidden min-w-0 flex-1 truncate text-muted @2xl:block" style={{ fontSize: size(13, 1.7) }}>
+          <p className="hidden min-w-0 flex-1 truncate text-muted @2xl:block" style={{ fontSize: size(11, 1.45) }}>
             {pair}
           </p>
           {count > 1 && (
-            <nav aria-label="Browse quotes" className="flex shrink-0 items-center" style={{ gap: size(6, 0.8) }}>
+            <nav aria-label="Browse quotes" className="flex shrink-0 items-center" style={{ gap: size(8, 0.8) }}>
               <button type="button" onClick={() => step(-1)} aria-label="Previous quote" title="Previous quote" className={button} style={buttonSize}>
                 <ChevronLeft aria-hidden="true" className="size-1/2" />
               </button>
-              <span className="min-w-[3.5ch] text-center tabular-nums text-muted" style={{ fontSize: size(12, 1.5) }}>
+              <span className="min-w-[3.5ch] text-center tabular-nums text-muted" style={{ fontSize: size(10.5, 1.28) }}>
                 {index + 1} / {count}
               </span>
               <button type="button" onClick={() => step(1)} aria-label="Next quote" title="Next quote" className={button} style={buttonSize}>
@@ -200,36 +202,39 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
           )}
         </header>
 
-        {/* The quote is set to fit the room the frame leaves it (see `FittedQuote`): nothing in a frame scrolls, so a scrollbar never takes the room or the feed's gesture. */}
-        <div key={current.id} className="min-h-0 flex-1 overflow-hidden" style={{ padding: `0 ${size(14, 6.67)}` }}>
-          <FittedQuote quote={current.quote} url={current.url} color={color} firstPaintSize={`max(${QUOTE_FLOOR_PX}px, calc(${quoteUnits(type.fontSize)} * var(--u)))`} />
+        {/* The quote is set to its band of the room the frame leaves it (see `FittedQuote`): nothing in a frame scrolls, so a scrollbar never takes the room or the feed's gesture. */}
+        <div key={current.id} className="min-h-0 flex-1 overflow-hidden" style={{ padding: `0 ${size(12, 5.67)}` }}>
+          <FittedQuote
+            quote={current.quote}
+            url={current.url}
+            color={color}
+            firstPaintSize={`max(${QUOTE_FLOOR_PX}px, calc(${Math.round(quoteUnits(type.fontSize) * FIRST_PAINT_SCALE * 100) / 100} * var(--u)))`}
+          />
         </div>
         <p role="status" aria-live="polite" className="sr-only">
           {`Quote ${index + 1} of ${count}: ${current.speaker} on ${current.about}`}
         </p>
 
-        <footer
-          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2"
-          style={{ padding: `${size(6, 1.5)} ${size(14, 6.67)} ${size(12, 3.6)}` }}
-        >
-          <div className="flex min-w-0 items-center" style={{ gap: size(10, 1.4) }}>
+        {/* One row that never wraps: the attribution takes what the pill leaves (it wraps inside its own column), so the footer is as tall as its tallest part and its bottom inset is whole at any width. */}
+        <footer className="flex shrink-0 items-center justify-between gap-x-3" style={{ padding: `${size(5, 1.3)} ${size(12, 5.67)} ${size(12, 3.6)}` }}>
+          <div className="flex min-w-0 items-center" style={{ gap: size(8.5, 1.2) }}>
             {current.avatar && (
               <>
                 {/* In a short, narrow frame (the panel X opens over a phone) the picture goes, and its room is the quote's. */}
                 <span className="@2xl:hidden [@container(max-height:300px)_and_(max-width:480px)]:hidden">
-                  <PersonAvatar name={current.avatar.name} profilePath={current.avatar.profilePath} size={36} imageSize="w185" ringColor={color} />
+                  <PersonAvatar name={current.avatar.name} profilePath={current.avatar.profilePath} size={31} imageSize="w185" ringColor={color} />
                 </span>
                 <span className="hidden @2xl:inline-flex [@container(max-height:300px)_and_(max-width:480px)]:hidden">
-                  <PersonAvatar name={current.avatar.name} profilePath={current.avatar.profilePath} size={64} imageSize="w185" ringColor={color} />
+                  <PersonAvatar name={current.avatar.name} profilePath={current.avatar.profilePath} size={54} imageSize="w185" ringColor={color} />
                 </span>
               </>
             )}
             <div className="min-w-0">
-              <p className="leading-snug" style={{ fontSize: size(14, 2) }}>
+              <p className="leading-snug" style={{ fontSize: size(12, 1.7) }}>
                 <span className="font-medium text-strong">{current.speaker}</span> <span className="text-muted">on {current.about}</span>
               </p>
               {/* The film, then the source as the link to the original, as the pull quote of the Clippings tab sets them. */}
-              <p className="flex flex-wrap items-center gap-x-1.5 leading-snug text-muted" style={{ fontSize: size(12, 1.5) }}>
+              <p className="flex flex-wrap items-center gap-x-1.5 leading-snug text-muted" style={{ fontSize: size(10.5, 1.28) }}>
                 {current.film && (
                   <>
                     <i>{current.film}</i>
@@ -245,14 +250,14 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
                   {current.publication}
                   <span className="whitespace-nowrap">
                     {current.year !== null && <> &middot; {current.year}</>}
-                    <ExternalLink aria-hidden="true" className="ml-1 inline size-3 align-[-0.1em]" />
+                    <ExternalLink aria-hidden="true" className="ml-1 inline size-2.5 align-[-0.1em]" />
                     <span className="sr-only">(opens in a new tab)</span>
                   </span>
                 </a>
               </p>
             </div>
           </div>
-          <OpenInParallel href={quoteInPairPath(slug, current.id)} external={framed} />
+          <OpenInParallel href={quoteInPairPath(slug, current.id)} external={framed} short />
         </footer>
       </section>
     </div>

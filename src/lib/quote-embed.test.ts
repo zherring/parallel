@@ -7,6 +7,7 @@ import type { PairCritics } from "@/lib/critics";
 import {
   MORE_PAIRS_PATH,
   QUOTE_FLOOR_PX,
+  QUOTE_BAND,
   QUOTE_MAX_PX,
   QUOTE_MIN_LINE_CHARS,
   PLAYER_SIZE,
@@ -226,20 +227,33 @@ describe("quoteKeyStep", () => {
 });
 
 describe("quoteSizeCeiling", () => {
-  it("is the size at which a line of the column holds about 22 characters, so a narrow frame never sets a short quote at two or three words to a line", () => {
-    // An average character is at most half the size wide: 22 of them are 11 sizes wide.
-    expect(quoteSizeCeiling(377)).toBeCloseTo(377 / (QUOTE_MIN_LINE_CHARS * 0.5), 5);
-    expect(quoteSizeCeiling(338)).toBeCloseTo(338 / 11, 5);
+  it("is the size at which a line of the column holds about 30 characters, so a narrow frame never sets a quote at a wall of two or three words to a line", () => {
+    // An average character is at most half the size wide: 30 of them are 15 sizes wide.
+    expect(QUOTE_MIN_LINE_CHARS).toBe(30);
+    expect(quoteSizeCeiling(359)).toBeCloseTo(359 / (QUOTE_MIN_LINE_CHARS * 0.5), 5);
+    expect(quoteSizeCeiling(338)).toBeCloseTo(338 / 15, 5);
+  });
+
+  it("sets a phone's column (a 383px panel less its 12px sides) at under 24px, and a 435px one at under 27px", () => {
+    expect(quoteSizeCeiling(383 - 24)).toBeLessThan(24);
+    expect(quoteSizeCeiling(435 - 24)).toBeLessThan(27.5);
   });
 
   it("is never over the cap, however wide the column", () => {
-    expect(quoteSizeCeiling(520)).toBe(QUOTE_MAX_PX);
+    expect(QUOTE_MAX_PX).toBe(37);
+    expect(quoteSizeCeiling(600)).toBe(QUOTE_MAX_PX);
     expect(quoteSizeCeiling(1040)).toBe(QUOTE_MAX_PX);
   });
 
-  it("is never under the floor: a column too narrow for 22 characters at it, or with no width yet, is set at the floor", () => {
+  it("is never under the floor: a column too narrow for 30 characters at it, or with no width yet, is set at the floor", () => {
     expect(quoteSizeCeiling(100)).toBe(QUOTE_FLOOR_PX);
     expect(quoteSizeCeiling(0)).toBe(QUOTE_FLOOR_PX);
     expect(quoteSizeCeiling(Number.NaN)).toBe(QUOTE_FLOOR_PX);
+  });
+});
+
+describe("QUOTE_BAND", () => {
+  it("is the middle 60% of the room between the bar and the footer: the rest is empty", () => {
+    expect(QUOTE_BAND).toBe(0.6);
   });
 });

@@ -2,7 +2,7 @@
 
 import { RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { EMBED_BUTTON, EXTERNAL, EmbedWordmark, OpenInParallel, FRAME_STYLE, embedSize as size } from "@/components/embed/embed-shell";
+import { EMBED_AVATAR_LINK, EMBED_BUTTON, EXTERNAL, EmbedWordmark, OpenInParallel, FRAME_STYLE, embedSize as size } from "@/components/embed/embed-shell";
 import { PairPoster, POSTER_PX } from "@/components/embed/pair-poster";
 import { springEasing } from "@/components/landing/hero-motion";
 import { PersonAvatar } from "@/components/person-avatar";
@@ -48,12 +48,13 @@ const IMAGES_MS = 2500;
 /** Reduced motion: the picture is held this long on a replay before the plain fade to the timeline. */
 const REDUCED_REPLAY_HOLD = 700;
 /**
- * The bar's room from the frame's edges: the top and the sides (the unit follows the frame, never under these pixels), and the height of its row under the top.
+ * The bar's room from the frame's edges: the top and the sides (the unit follows the frame, never under these pixels), and the height of its row under the top
+ * (`--bar-row`: 29px, and 32px in a phone-width frame, where a button is at least 32px tall, see `EMBED_BUTTON`).
  * The track ends the sides' inset above the frame's bottom edge, so that the year axis's labels are clear of the edge and of the frame's rounded corners.
  */
-const INSET_TOP = size(12, 1.8);
-const INSET_X = size(16, 2.6);
-const BAR_ROW = 34;
+const INSET_TOP = size(10, 1.5);
+const INSET_X = size(14, 2.2);
+const BAR_ROW = "[--bar-row:29px] @max-[30rem]:[--bar-row:32px]";
 
 /** `?motion=reduce` plays the reduced-motion sequence in a development build (the X preview page's toggle): production reads only the visitor's own setting. */
 function wantsReducedMotion(): boolean {
@@ -154,7 +155,7 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
   const multi = timelines.length > 1;
   // Three or four people crowd the bar in a narrow frame (the panel X opens over a phone): there the wordmark gives way to the people (the way to the site is
   // still the pill's). Two fit with the wordmark down to a very small phone, and then it goes too. On the smallest phones (under 22rem) the people's
-  // pictures overlap a little, as the site's own lane avatars do, each still a target of its own.
+  // pictures are tucked together, as the site's own lane avatars are, each still a target of its own.
   const crowded = timelines.length > 2;
   const wordmarkHides = crowded ? "@max-[30rem]:hidden" : multi ? "@max-[22rem]:hidden" : "";
   const lanes: LaneData[] = useMemo(
@@ -290,7 +291,7 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
   const rows = room ? embedRowsFor(room.height) : 1;
   const fit = room && room.height > 0 ? Math.min(1, room.height / embedTrackHeight(rows)) : 1;
 
-  const barHeight = `calc(${INSET_TOP} + ${BAR_ROW}px)`;
+  const barHeight = `calc(${INSET_TOP} + var(--bar-row))`;
   const timelineVisible = phase === "timeline";
   const pairHref = `/p/${slug}`;
 
@@ -305,21 +306,21 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
       <h1 className="sr-only">{summary ? `${names}: ${summary}` : names}</h1>
 
       {/* The bar over both (first in the page, so that the way to the page is the first stop of the keyboard, not the last after every film): the people and their count on the left once the timeline is up, and always, on the right, the way to the page. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between gap-3" style={{ height: barHeight, padding: `${INSET_TOP} ${INSET_X} 0` }}>
+      <div className={cn("pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between gap-3", BAR_ROW)} style={{ height: barHeight, padding: `${INSET_TOP} ${INSET_X} 0` }}>
         <div
           inert={!timelineVisible}
           className={cn("flex min-w-0 items-center transition-opacity duration-300 motion-reduce:duration-300", timelineVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0")}
-          style={{ gap: size(10, 1.2) }}
+          style={{ gap: size(9, 1.02) }}
         >
           <span className={cn("flex shrink-0", wordmarkHides)}>
             <EmbedWordmark href="/" title="Parallel" label="Parallel: home" external />
           </span>
           <ul className="flex shrink-0 items-center" style={{ gap: size(8, 0.8) }} aria-label="The people">
             {timelines.map(({ person }, i) => (
-              // Overlapped by 4px (the gap is 8px) in the smallest frames: the one on the right is over the one on the left, and the one pressed or focused comes up.
-              <li key={person.id} className={cn("relative", crowded && i > 0 && "@max-[22rem]:-ml-3", "hover:z-10 focus-within:z-10")}>
-                <a href={peopleHref([person])} {...EXTERNAL} title={`${person.name} on Parallel`} className="inline-flex rounded-full no-underline">
-                  <PersonAvatar name={person.name} profilePath={person.profilePath} size={26} imageSize="w185" ringColor={multi ? personColor(i) : undefined} />
+              // Tucked under each other (the gap is 8px, the pitch 22px, so that the pictures touch and their rings overlap) in the smallest frames: the one on the right is over the one on the left, and the one pressed or focused comes up.
+              <li key={person.id} className={cn("relative", crowded && i > 0 && "@max-[22rem]:-ml-2", "hover:z-10 focus-within:z-10")}>
+                <a href={peopleHref([person])} {...EXTERNAL} title={`${person.name} on Parallel`} className={EMBED_AVATAR_LINK}>
+                  <PersonAvatar name={person.name} profilePath={person.profilePath} size={22} imageSize="w185" ringColor={multi ? personColor(i) : undefined} />
                   <span className="sr-only">
                     {person.name} (opens in a new tab)
                   </span>
@@ -328,11 +329,11 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
             ))}
           </ul>
           <div className="hidden min-w-0 leading-tight @[34rem]:block">
-            <p className="truncate font-medium text-strong" style={{ fontSize: size(13, 1.5) }}>
+            <p className="truncate font-medium text-strong" style={{ fontSize: size(11, 1.28) }}>
               {names}
             </p>
             {count !== null && (
-              <p className="truncate text-muted" style={{ fontSize: size(11, 1.3) }}>
+              <p className="truncate text-muted" style={{ fontSize: size(10, 1.1) }}>
                 <span className="text-lit">
                   <CountUp to={count} start={counted} />
                 </span>{" "}
@@ -344,7 +345,7 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
         </div>
         <div className="pointer-events-auto flex shrink-0 items-center" style={{ gap: size(8, 0.8) }}>
           {timelineVisible && (
-            <button type="button" onClick={replay} aria-label="Replay" title="Replay" className={EMBED_BUTTON} style={{ width: size(30, 3.2), height: size(30, 3.2) }}>
+            <button type="button" onClick={replay} aria-label="Replay" title="Replay" className={EMBED_BUTTON} style={{ width: size(26, 2.7), height: size(26, 2.7) }}>
               <RotateCcw aria-hidden="true" className="size-1/2" />
             </button>
           )}
@@ -364,7 +365,7 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
         <div
           ref={layerRef}
           inert={!timelineVisible}
-          className={cn("absolute inset-x-0 overflow-hidden transition-opacity duration-300 motion-reduce:duration-300", timelineVisible ? "opacity-100" : "pointer-events-none opacity-0")}
+          className={cn("absolute inset-x-0 overflow-hidden transition-opacity duration-300 motion-reduce:duration-300", BAR_ROW, timelineVisible ? "opacity-100" : "pointer-events-none opacity-0")}
           style={{ top: barHeight, bottom: INSET_X }}
         >
           <div

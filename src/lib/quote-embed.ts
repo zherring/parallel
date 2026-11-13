@@ -128,17 +128,29 @@ export function findQuoteIndex(quotes: readonly Pick<EmbedQuote, "id">[], id: st
 export const QUOTE_FLOOR_PX = 13;
 
 /** The largest size (px) the embed sets a quote at, however much room it has: past it a short quote is a headline, not something to read. */
-export const QUOTE_MAX_PX = 44;
+export const QUOTE_MAX_PX = 37;
 
-/** The fewest characters (about four words) an average line of the quote holds: the size is held down in a narrow frame so that a short quote is never set at two or three words to a line. */
-export const QUOTE_MIN_LINE_CHARS = 22;
+/**
+ * The fewest characters (about five words) a line of the quote holds in a phone's column: the size is held down in a narrow frame so that a quote is never a wall of short, ragged lines
+ * of three or four words (22 was the rule before: it set a quote at 32px in a 383px panel, and its lines ran 19 to 27 characters). At 30 the ceiling is the column's width over 15, so
+ * 359px (a 383px panel less its sides) is 23.9px, and its lines run 30 to 45 characters (the face's average character is about 0.45 of its size wide, and a line fills about nine tenths
+ * of the column); a longer quote is set smaller by its band (see `QUOTE_BAND`) and its lines are longer. The embed's browser test holds an average line to at least 28.
+ */
+export const QUOTE_MIN_LINE_CHARS = 30;
+
+/**
+ * How much of the room between the bar and the footer the quote may take: the middle 60%, with the rest (20% over it and 20% under it, or a little more under it than over it in a
+ * tall frame) left empty so that the quote is a block to read in, not a wall to the bar and the footer. A short quote is set at its ceiling and takes less than this; a long
+ * one takes the whole band, by being set smaller, and only at the floor is it cut.
+ */
+export const QUOTE_BAND = 0.6;
 
 /** The width of an average character of the quote's face (Newsreader) as a multiple of its size, rounded up as the card image's is (`og-quote.ts`), so that a line holds at least `QUOTE_MIN_LINE_CHARS`. */
 const QUOTE_CHAR_EM = 0.5;
 
 /**
  * The largest size (px) a quote may be set at in a column `width` px wide: the one at which a line holds `QUOTE_MIN_LINE_CHARS` characters, up to `QUOTE_MAX_PX` and never under
- * `QUOTE_FLOOR_PX`. It is a ceiling: the embed sets the quote at the largest size under it at which all of the quote is in the room it has (see `FittedQuote`).
+ * `QUOTE_FLOOR_PX`. It is a ceiling: the embed sets the quote at the largest size under it at which all of the quote is in its band (see `FittedQuote`).
  */
 export function quoteSizeCeiling(width: number): number {
   const byMeasure = Number.isFinite(width) && width > 0 ? width / (QUOTE_MIN_LINE_CHARS * QUOTE_CHAR_EM) : 0;
