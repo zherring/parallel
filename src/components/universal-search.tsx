@@ -41,6 +41,9 @@ function SearchControl() {
   useRememberPressed();
   const [opened, setOpened] = useState<{ opener: Element | null } | null>(null);
   const fine = useMediaQuery(FINE_POINTER);
+  // False in the server's markup and while hydrating, true after: until then (a hard navigation, a Back to a 404) the button is on screen with no handler behind it,
+  // and a press would be lost without a trace. It is disabled for that gap, so an early press is refused by the browser (and awaited by a test), not swallowed.
+  const hydrated = useSyncExternalStore(subscribeNothing, () => true, () => false);
   // The platform is known in the browser only: the server's markup and the hydrating render say Ctrl K, and the render after says the real one.
   const mac = useSyncExternalStore(subscribeNothing, () => isApplePlatform(platformName()), () => false);
 
@@ -81,6 +84,7 @@ function SearchControl() {
     <>
       <button
         type="button"
+        disabled={!hydrated}
         aria-haspopup="dialog"
         aria-keyshortcuts={shortcutKeys(mac)}
         onClick={(event) => {
@@ -88,7 +92,7 @@ function SearchControl() {
           rememberOpener(event.currentTarget);
           setOpened({ opener: takeOpener() });
         }}
-        className="ml-auto flex h-9 cursor-pointer items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium text-strong hover:bg-border pointer-coarse:h-11"
+        className="ml-auto flex h-9 cursor-pointer items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium text-strong hover:bg-border disabled:cursor-default disabled:hover:bg-surface pointer-coarse:h-11"
       >
         <Search aria-hidden="true" className="size-4 shrink-0 text-muted" />
         Search

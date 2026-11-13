@@ -27,7 +27,7 @@ const searchButton = (page: Page) => page.getByRole("banner").getByRole("button"
 const searchDialog = (page: Page) => page.getByRole("dialog", { name: "Search people", exact: true });
 const peopleDialog = (page: Page) => page.getByRole("dialog", { name: "People", exact: true });
 
-/** Waits for the header's button to be live: a real press opens the dialog and the close button shuts it. */
+/** Waits for the header's button to be live (it is disabled until its handler is hydrated, and a press waits for it): a real press opens the dialog and the close button shuts it. */
 async function openFromButton(page: Page, path: string) {
   await page.goto(path);
   await searchButton(page).click();
@@ -210,6 +210,21 @@ test("Escape is the field's first (its list, its text) and then closes the searc
   await expect(dialog).toBeHidden();
 });
 
+test.describe("the server's markup, before any script runs", () => {
+  test.use({ javaScriptEnabled: false });
+
+  test("the Search button is there but disabled: a press before its handler exists is not accepted", async ({ page }) => {
+    await page.goto(NOT_FOUND);
+    await expect(searchButton(page)).toBeVisible();
+    await expect(searchButton(page)).toBeDisabled();
+  });
+});
+
+test("the Search button is enabled once the page is live", async ({ page }) => {
+  await page.goto(NOT_FOUND);
+  await expect(searchButton(page)).toBeEnabled();
+});
+
 test("starts a timeline from search, and the next search starts empty", async ({ page }) => {
   const dialog = await openFromButton(page, NOT_FOUND);
   await dialog.getByRole("combobox").fill("Scroll Alpha");
@@ -219,7 +234,7 @@ test("starts a timeline from search, and the next search starts empty", async ({
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole("banner")).toHaveCount(0);
 
-  // Back on a page with the header, the dialog opens with no draft.
+  // Back on a page with the header (a new document: its button is server-rendered, disabled until hydrated, and the press waits for it), the dialog opens with no draft.
   await page.goBack();
   await expect(page).toHaveURL(NOT_FOUND);
   await searchButton(page).click();
