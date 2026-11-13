@@ -123,7 +123,13 @@ interface FilmPopoverProps {
    */
   bottomEdge?: () => number;
   onDismiss: () => void;
+  /**
+   * The card in a frame on X (the pair embed): no metrics (a frame makes no request: they are fetched from this site's API), and, in a frame under
+   * 440px tall (a phone's panel, a post's inline player), a smaller poster and padding so that the card leaves some of the timeline in sight.
+   */
+  embed?: boolean;
 }
+
 
 function RoleText({ row }: { row: CreditsRow }) {
   return (
@@ -149,13 +155,13 @@ function RoleText({ row }: { row: CreditsRow }) {
  * cannot cover the nodes around its trigger, and it never takes focus. The poster is only
  * fetched while the card is open.
  */
-export function FilmPopover({ id, target, content, lit, colorOf, today, bottomEdge, onDismiss }: FilmPopoverProps) {
+export function FilmPopover({ id, target, content, lit, colorOf, today, bottomEdge, onDismiss, embed = false }: FilmPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
   const side = useRef<{ trigger: HTMLElement; placement: Placement["placement"] } | null>(null);
   const animated = useRef(false);
   const poster = tmdbImage(content.posterPath, "w342");
-  const metrics = useFilmMetrics(content.filmId, place !== null);
+  const metrics = useFilmMetrics(content.filmId, place !== null && !embed);
 
   // Measure the card and its trigger, then place it before the first paint. It runs again when the
   // metrics arrive (the card's height changes), still before paint: the card keeps its side of the
@@ -200,12 +206,17 @@ export function FilmPopover({ id, target, content, lit, colorOf, today, bottomEd
       ref={ref}
       id={id}
       role="tooltip"
-      className="pointer-events-none fixed z-[1000] flex w-[min(26rem,calc(100vw-1rem))] gap-4 rounded-xl border border-border bg-surface p-4 text-left shadow-2xl shadow-black/60"
+      className={cn(
+        "pointer-events-none fixed z-[1000] flex w-[min(26rem,calc(100vw-1rem))] gap-4 rounded-xl border border-border bg-surface p-4 text-left shadow-2xl shadow-black/60",
+        // In a short frame (see `embed`); whole class names, which is what Tailwind finds.
+        embed && "[@media(max-height:440px)]:w-[min(22rem,calc(100vw-1rem))] [@media(max-height:440px)]:gap-3 [@media(max-height:440px)]:p-3",
+      )}
       style={{ left: place?.left ?? 0, top: place?.top ?? 0, visibility: place ? "visible" : "hidden" }}
     >
       <div
         className={cn(
           "relative h-[210px] w-[140px] shrink-0 overflow-hidden rounded-md bg-canvas",
+          embed && "[@media(max-height:440px)]:h-[138px] [@media(max-height:440px)]:w-[92px]",
           lit ? "shadow-lit" : "border border-strong/20",
         )}
       >
@@ -242,9 +253,11 @@ export function FilmPopover({ id, target, content, lit, colorOf, today, bottomEd
             ))}
           </ul>
         )}
-        <div className="pt-1 empty:hidden">
-          <FilmMetricsRows state={metrics} today={today} />
-        </div>
+        {!embed && (
+          <div className="pt-1 empty:hidden">
+            <FilmMetricsRows state={metrics} today={today} />
+          </div>
+        )}
       </div>
     </div>,
     document.body,
