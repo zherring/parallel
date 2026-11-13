@@ -134,6 +134,9 @@ test.describe("a page of three people", () => {
       test(`${view}: the hero's body does not overlap the bar's controls, expanded`, async ({ page }) => {
         await page.goto(`${TRIO}?view=${view}`);
         await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
+        // The flat page reads ?view= after hydration: wait for the Table's body to move out of the band before measuring it.
+        await expect(bar(page)).toHaveAttribute("data-hero-placement", view === "table" ? "page" : "band");
+        await expect(heroBody(page)).toBeVisible();
         const body = await box(heroBody(page));
         const controls = await controlBoxes(page);
         expect(controls.length).toBeGreaterThan(2);

@@ -552,24 +552,33 @@ test.describe("at 390px wide", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
   for (const view of ALL_VIEWS) {
-    test(`on the ${view} view the hero is short: small portraits beside the quote, as many whole films as fit on one line, and no more than 220px before any scroll`, async ({ page }) => {
+    test(`on the ${view} view the hero has upright overlapping portraits, readable text beside them, and film tags underneath`, async ({ page }) => {
       await openView(page, view);
       await expect(title(page)).toBeVisible();
       const portraits = heroBody(page).locator("[data-hero-portrait]");
       const first = await box(portraits.first());
-      expect(first.height).toBeGreaterThanOrEqual(40);
-      expect(first.height).toBeLessThanOrEqual(48);
-      // The quote starts beside the portraits (they float at its left), not under them.
+      expect(first.height).toBe(80);
+      const second = await box(portraits.nth(1));
+      expect(second.x).toBeLessThan(first.x + first.width);
+      expect(second.x).toBeGreaterThan(first.x);
+      expect(second.y).toBe(first.y);
+      await expect(portraits.first()).toHaveCSS("transform", "none");
+      // Every line of the quote stays in a separate right column, never wrapping under the faces.
       const note = await box(heroBody(page).locator("[data-hero-note]"));
+      expect(note.x).toBeGreaterThan(second.x + second.width);
       expect(note.y).toBeLessThan(first.y + first.height);
+      await expect(heroBody(page).locator("blockquote")).toHaveCSS("font-size", "15px");
+      await expect(title(page).locator("p").first()).toHaveCSS("font-size", "18px");
+      const tags = await box(heroBody(page).getByRole("group"));
+      expect(tags.y).toBeGreaterThanOrEqual(Math.max(first.y + first.height, note.y + note.height));
       // The films that fit whole (up to three, one or two on a phone) and "+N more" for the rest: one line, which does not scroll, nor does the page; every film is a chip or counted.
       const line = await chipLine(page);
       expect(line).toMatchObject({ more: 1, tops: [expect.any(Number)], scrolls: false, pageScrolls: false });
       expect(line.chips).toBeGreaterThanOrEqual(1);
       expect(line.chips).toBeLessThanOrEqual(3);
       expect(line.chips + line.moreCount).toBe(FILM_COUNT);
-      // The whole hero, bar and body, reaches no further down than 220px.
-      expect(await heroBottom(page)).toBeLessThanOrEqual(220);
+      // Readability takes priority over the old 220px cap, while the films still start in the first screen.
+      expect(await heroBottom(page)).toBeLessThanOrEqual(360);
     });
   }
 

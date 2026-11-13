@@ -352,7 +352,7 @@ test.describe("at 390px wide", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
   for (const view of ["timeline", "table", "depth"]) {
-    test(`${view}: the masthead is 220px tall at most before any scroll, with the biography whole and More on the screen`, async ({ page }) => {
+    test(`${view}: the masthead keeps the readable biography beside the portrait, whole and with More on the screen`, async ({ page }) => {
       await openView(page, SOLO, view);
       await expect(note(page)).toBeVisible();
       // Whole: no clamp or clip cuts it, and More is in the note, on the screen.
@@ -363,7 +363,10 @@ test.describe("at 390px wide", () => {
       });
       expect(state).toEqual({ clamped: false, more: true });
       expect((await note(page).innerText()).replace(/\s+/g, " ")).toContain(SENTENCES[1]);
-      expect(await mastheadBottom(page)).toBeLessThanOrEqual(220);
+      await expect(note(page)).toHaveCSS("font-size", "14px");
+      const portrait = await box(heroBody(page).locator("[data-hero-portrait]"));
+      expect((await box(note(page))).x).toBeGreaterThan(portrait.x + portrait.width);
+      expect(await mastheadBottom(page)).toBeLessThanOrEqual(360);
       // One line of chips, and nothing wider than the screen.
       const wide = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
       expect(wide).toBe(false);
@@ -398,7 +401,7 @@ test.describe("at 390px wide", () => {
     [LONG, LONG_COUNT],
   ] as const) {
     for (const view of ["timeline", "table", "depth"]) {
-      test(`${path === LONG ? "long titles" : "short titles"}, ${view}: the chips on the line are whole, one line with '+N more', every film is on it or in the count, and the masthead is 220px at most`, async ({ page }) => {
+      test(`${path === LONG ? "long titles" : "short titles"}, ${view}: the chips on the line are whole, one line with '+N more', every film is on it or in the count, and the masthead is 360px at most`, async ({ page }) => {
         await openView(page, path, view);
         await expect(note(page)).toBeVisible();
         const line = await chipLine(page);
@@ -411,7 +414,7 @@ test.describe("at 390px wide", () => {
         expect(line).toMatchObject({ mores: 1, tops: [expect.any(Number)], cutOff: false, scrolls: false, pageScrolls: false });
         // Every film is a chip or in the count.
         expect(line.chips + line.moreCount).toBe(count);
-        expect(await mastheadBottom(page)).toBeLessThanOrEqual(220);
+        expect(await mastheadBottom(page)).toBeLessThanOrEqual(360);
       });
     }
   }
