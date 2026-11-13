@@ -5,7 +5,9 @@ import type { Critic } from "@/lib/critics";
 import { criticAbout, criticName } from "@/lib/critics-view";
 import { joinNames } from "@/lib/format";
 import { inPeriod, periodLabel, searchWithPeriod, type Period } from "@/lib/period";
+import type { EmbedQuote } from "@/lib/quote-embed";
 import type { HeadingPerson } from "@/lib/short-name";
+import { SITE_URL } from "@/lib/site-url";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
 const MAX_TITLES = 6;
@@ -92,10 +94,36 @@ export function quoteImagePath(canonicalSlug: string, id: string): string {
   return `/p/${canonicalSlug}/og${quoteCardSearch(id)}`;
 }
 
+/**
+ * The title and description of a link to a quote of an `EmbedQuote` (an artist's or a critic's): the words the Clippings
+ * tab's link to it carries (`quoteTitle`, `quoteDescription`), since the share URL unfurls as the same card.
+ */
+export function embedQuoteText(quote: Pick<EmbedQuote, "quote" | "speaker" | "about" | "publication" | "year">): {
+  title: string;
+  description: string;
+} {
+  return { title: quoteTitle(quote), description: quoteDescription({ ...quote, said_year: quote.year, date: "" }) };
+}
+
 /** A card of its own for the page's link: the path of the image, and what it shows (alt text). */
 export interface SocialImage {
   path: string;
   alt: string;
+}
+
+/**
+ * A page that X draws as an iframe in the post (a `twitter:card=player` card): `path` is the page it frames (see
+ * `embedPath`), `width` and `height` the size it is asked to be, which is also the shape the poster (`twitter:image`) has.
+ */
+export interface PlayerCard {
+  path: string;
+  width: number;
+  height: number;
+}
+
+/** `path` on this site as the absolute URL a card must carry: the player's `twitter:player` is not resolved against `metadataBase` as an image is. */
+export function absoluteUrl(path: string): string {
+  return new URL(path, SITE_URL).toString();
 }
 
 /**
@@ -106,16 +134,30 @@ export interface SocialImage {
  * `quoteImagePath`): that card replaces the default one, because the file convention cannot see the
  * page's search params. `siteName` is
  * repeated because a page's `openGraph` replaces the layout's wholesale.
+ *
+ * With a `player`, the Twitter card is `player` instead of `summary_large_image`: X frames that page in the post, and shows
+ * `image` (the poster) until it does, where it does not (a phone, a client that has no player). The card's
+ * `twitter:player`, `:width` and `:height` are written as plain tags (`other`) rather than through Next's `players`, which
+ * also demands a `twitter:player:stream` that a page player has none of. The Open Graph tags are the same either way, so
+ * every other site that unfurls the link reads it as before.
  */
 export function peopleSocial(
   title: string,
   description: string,
   path: string,
   image?: SocialImage,
-): Pick<Metadata, "openGraph" | "twitter"> {
+  player?: PlayerCard,
+): Pick<Metadata, "openGraph" | "twitter" | "other"> {
   const images = image ? [{ url: image.path, width: 1200, height: 630, alt: image.alt }] : undefined;
+  const openGraph = { title, description, url: path, type: "website", siteName: "Parallel", ...(images ? { images } : {}) } as const;
+  if (!player) return { openGraph, twitter: { card: "summary_large_image", title, description, ...(images ? { images } : {}) } };
   return {
-    openGraph: { title, description, url: path, type: "website", siteName: "Parallel", ...(images ? { images } : {}) },
-    twitter: { card: "summary_large_image", title, description, ...(images ? { images } : {}) },
+    openGraph,
+    twitter: { card: "player", title, description, ...(images ? { images } : {}), players: [] },
+    other: {
+      "twitter:player": absoluteUrl(player.path),
+      "twitter:player:width": String(player.width),
+      "twitter:player:height": String(player.height),
+    },
   };
 }
