@@ -45,6 +45,7 @@ export function ConnectionLegend({ entries, names, laneCount, activeKey, pinnedK
               <button
                 type="button"
                 aria-pressed={pinned}
+                aria-label={entry.lanes ? pairChipName(names, entry.lanes, entry.count) : undefined}
                 onClick={() => onTogglePin(entry.key)}
                 onPointerEnter={(event) => event.pointerType !== "touch" && onPreview(entry.key)}
                 onPointerLeave={() => onPreview(null)}
@@ -78,6 +79,14 @@ export function ConnectionLegend({ entries, names, laneCount, activeKey, pinnedK
       </ul>
     </div>
   );
+}
+
+/**
+ * What a pair chip is called by assistive tech: "Fincher and Cronenweth, 3 films". Set as the button's
+ * aria-label so the name is the same for every reader and never carries the "×" along with the word "and".
+ */
+export function pairChipName(names: string[], lanes: [number, number], count: number): string {
+  return `${names[lanes[0]]} and ${names[lanes[1]]}, ${count} ${count === 1 ? "film" : "films"}`;
 }
 
 /** "Fincher × Cronenweth" to the eye, "Fincher and Cronenweth" to a screen reader. */
