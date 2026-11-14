@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { rememberOpener } from "@/components/side-panel/side-panel";
 import type { ClippingsVoice } from "@/lib/clippings";
+import { parseQuoteId } from "@/lib/clippings-view";
 import type { ReadingItem } from "@/lib/critics";
 import { INTERACTIVE_SELECTOR, OVERLAY_SELECTOR } from "@/lib/interaction-target";
 import { exhibitSpaceAction, nextExhibitIndex, quoteExhibitQuoteSearch, quotePaneCanScroll } from "@/lib/quote-exhibit";
@@ -63,7 +64,11 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
   }, [publish, slides]);
 
   useLayoutEffect(() => {
-    const wanted = Math.max(0, slides.findIndex((slide) => slide.id === quoteId));
+    // Read the address bar, not `quoteId`: that is the router's copy, which trails what `publish` writes by a transition, and any urgent re-render
+    // of the page in between (the people dialog opening, a metrics response) hands us the older address, which would undo the press just made.
+    // `quoteId` stays a dependency, so that a navigation the router makes (back, a pushed link) still runs this.
+    const address = parseQuoteId(window.location.search);
+    const wanted = Math.max(0, slides.findIndex((slide) => slide.id === address));
     // An address we just wrote is not an instruction to restart the scroll or reorder the deck.
     if (!initialized.current || wanted !== currentRef.current) {
       initialized.current = true;

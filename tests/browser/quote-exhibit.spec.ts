@@ -220,6 +220,33 @@ test("Space advances, Shift+Space goes back, held Space advances once, and the e
   expect(await page.evaluate(() => Object.fromEntries(new URLSearchParams(location.search)))).toEqual({ view: "clippings", from: "1980", to: "2000", quote: FIRST });
 });
 
+// The router's copy of the address (`useSearchParams`, which the Views links below are built from) trails what the deck writes by a transition. An urgent
+// re-render of the page in that gap (the people dialog opening here; a metrics response or a hydration effect for a visitor) hands the deck the older address.
+test("a re-render that still carries the router's older address does not undo a Space press", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openExhibit(page);
+  const quotes = page.getByRole("navigation", { name: "Views", exact: true }).getByRole("link", { name: "Quotes", exact: true });
+  await expect(quotes).toHaveAttribute("href", new RegExp(`quote=${FIRST}`));
+  await page.evaluate(() => {
+    const seen: string[] = [];
+    const target = document.querySelector("[data-quote-exhibit-deck]")!;
+    new MutationObserver(() => seen.push(target.getAttribute("data-active-quote")!)).observe(target, { attributes: true, attributeFilter: ["data-active-quote"] });
+    (window as unknown as { __seen: string[] }).__seen = seen;
+  });
+
+  // One task: the press writes the address and queues the router's update; the click then re-renders the page before that update has been rendered.
+  await page.evaluate((id) => {
+    document.querySelector("[data-quote-exhibit-deck] [role=region]")!.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }));
+    document.querySelector<HTMLElement>(`[data-quote-slide="${id}"] .quote-exhibit-context a`)!.click();
+  }, FIRST);
+
+  await expect(quotes, "the router catches up with the quote the press moved to, not the one it left").toHaveAttribute("href", new RegExp(`quote=${SECOND}`));
+  await expect(page.getByRole("dialog", { name: "Thelma Schoonmaker", exact: true })).toBeVisible();
+  await expect(deck(page)).toHaveAttribute("data-active-quote", SECOND);
+  expect(new URL(page.url()).searchParams.get("quote")).toBe(SECOND);
+  expect(await page.evaluate(() => (window as unknown as { __seen: string[] }).__seen)).toEqual([SECOND]);
+});
+
 for (const reducedMotion of ["no-preference", "reduce"] as const) {
   test(`wrapping to quote one visibly rewinds, unless reduced motion is requested: ${reducedMotion}`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion });
