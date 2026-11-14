@@ -14,6 +14,7 @@ import {
   embedPath,
   embedQuotes,
   findQuoteIndex,
+  noScriptClampCss,
   quoteInPairPath,
   quoteKeyStep,
   quotePath,
@@ -223,6 +224,36 @@ describe("quoteKeyStep", () => {
     expect(quoteKeyStep({ key: "ArrowRight" }, { ...page, inPeopleDialog: true }, 5)).toBeNull();
     expect(quoteKeyStep({ key: "ArrowRight" }, { ...page, inOtherModal: true }, 5)).toBeNull();
     expect(quoteKeyStep({ key: "ArrowRight" }, { typing: true, inPeopleDialog: true, inOtherModal: false }, 5)).toBeNull();
+  });
+});
+
+describe("noScriptClampCss", () => {
+  const css = noScriptClampCss("[data-quote-text]", 1.28);
+
+  it("starts at one line for any room, and steps up by the room's height in the quote's own ems", () => {
+    expect(css.startsWith("[data-quote-text]{--quote-lines:1}")).toBe(true);
+    // Two lines of a 1.28 line height, in a band of 0.6 of the room: 2 * 1.28 / 0.6 ems.
+    expect(css).toContain("@container (min-height:4.267em){[data-quote-text]{--quote-lines:2}}");
+    expect(css).toContain("@container (min-height:6.4em){[data-quote-text]{--quote-lines:3}}");
+  });
+
+  it("has every step taller than the one before it and a count more than it, so that the last that matches is the most that fit", () => {
+    const steps = [...css.matchAll(/min-height:([\d.]+)em\)\{[^{]+\{--quote-lines:(\d+)\}/g)].map((m) => ({ em: Number(m[1]), lines: Number(m[2]) }));
+    expect(steps.length).toBeGreaterThan(10);
+    for (let i = 1; i < steps.length; i++) {
+      expect(steps[i].em).toBeGreaterThan(steps[i - 1].em);
+      expect(steps[i].lines).toBeGreaterThan(steps[i - 1].lines);
+    }
+    // A step is never taller than its lines need, in the band: `lines` lines of the line height fit its band exactly or with the rounding up of a thousandth of an em.
+    for (const { em, lines } of steps) {
+      expect(em * QUOTE_BAND).toBeGreaterThanOrEqual(lines * 1.28 - 1e-9);
+      expect(em * QUOTE_BAND).toBeLessThan(lines * 1.28 + 0.001);
+    }
+  });
+
+  it("is plain CSS for the selector it is given: nothing else is in it", () => {
+    expect(css).not.toMatch(/[<>;]/);
+    expect(noScriptClampCss(".q", 1.5).startsWith(".q{--quote-lines:1}")).toBe(true);
   });
 });
 

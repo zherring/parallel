@@ -11,7 +11,7 @@ import { QUOTE_FOOTER_BOTTOM_PX } from "@/lib/embed-insets";
 import { quoteCardType } from "@/lib/og-quote";
 import { describeShortcutTarget } from "@/lib/people-shortcut";
 import { personColor, personColorCss } from "@/lib/person-colors";
-import { MORE_PAIRS_PATH, QUOTE_BAND, QUOTE_FLOOR_PX, embedPath, quoteInPairPath, quoteKeyStep, quotePath, quoteSizeCeiling, quoteUnits, type EmbedQuote } from "@/lib/quote-embed";
+import { MORE_PAIRS_PATH, QUOTE_BAND, QUOTE_FLOOR_PX, embedPath, noScriptClampCss, quoteInPairPath, quoteKeyStep, quotePath, quoteSizeCeiling, quoteUnits, type EmbedQuote } from "@/lib/quote-embed";
 
 /** The colour of a quote whose speaker is neither of the pair, and of every critic: the Clippings tab's quiet one. */
 const MUTED = "var(--text-muted)";
@@ -23,6 +23,27 @@ const FIT_STEP_PX = 0.25;
 const FIRST_PAINT_SCALE = 0.85;
 
 /**
+ * The frame's name as a size container (`containerName`): the quote's room is one too (the clamp's steps ask its height), and what follows the frame's shape (the room's spacers, in
+ * `FittedQuote`) must ask the frame, not the room. The name is in their class names (`[@container_quote-frame_...]`), whole, as Tailwind finds them.
+ */
+const FRAME = "quote-frame";
+
+/**
+ * The quote's first paint and a page with no script: as many lines as the room's band holds (`--quote-lines`, stepped by the room's height in `noScriptClampCss`), the last of them ending
+ * in an ellipsis, so that a long quote in a short frame is cut with a cue and not mid-line. The fit takes it off (`style.cssText = ""`) and sets the size at which the whole quote fits its
+ * band, or, past the floor, its own clamp. Inline, so that nothing but the fit's own reset removes it.
+ */
+const NO_SCRIPT_CLAMP: CSSProperties = {
+  display: "-webkit-box",
+  WebkitBoxOrient: "vertical",
+  WebkitLineClamp: "var(--quote-lines, none)",
+  lineClamp: "var(--quote-lines, none)",
+  overflow: "hidden",
+};
+/** The clamp's steps: in the quote's own ems, asked of its room, which is a size container with the quote's first-paint size as its font size (see `QuoteEmbed`). */
+const CLAMP_CSS = noScriptClampCss("[data-quote-text]", QUOTE_LINE_HEIGHT);
+
+/**
  * The quote, set at the largest size at which all of it is in its band, and never in a box that scrolls. The band is the middle `QUOTE_BAND` (60%) of the room the frame leaves
  * between the bar and the footer: the rest is empty, above and under the quote, so that it is a block to read in and not a wall that runs from the bar to the footer. The
  * size is the band's, not the frame's shape: in the browser and before the next paint, it is searched (a binary search, to a quarter of a pixel) between `QUOTE_FLOOR_PX` and the
@@ -32,12 +53,13 @@ const FIRST_PAINT_SCALE = 0.85;
  * not fit its band even at the floor is cut at the last line that does, with an ellipsis, and the footer, which is outside the room, keeps its link.
  *
  * The first paint (the server's HTML, and the page before the script has run) is the size the quote's card image sets it at (`quoteCardType`, picked by its length, as a
- * count of the frame's unit) less 15%, which is close for a frame of the card's own shape.
+ * count of the frame's unit) less 15%, which is close for a frame of the card's own shape. It is cut at the lines the band holds, with an ellipsis, by CSS alone (`NO_SCRIPT_CLAMP`),
+ * so that a page whose script never runs (a crawler, a failed hydration) is the same shape as the one the fit sets, and a long quote is not cut mid-line with no cue.
  *
  * Where the quote sits in the room follows the frame's shape: centred in a frame that is wider than it is tall (as the card is), and a little above the middle in one that
  * is taller (the room is then left over below the quote, not equally above and under it: the quote reads as leading to the attribution, which is pinned under the room).
  */
-function FittedQuote({ quote, url, color, firstPaintSize }: { quote: string; url: string; color: string; firstPaintSize: string }) {
+function FittedQuote({ quote, url, color }: { quote: string; url: string; color: string }) {
   const roomRef = useRef<HTMLDivElement>(null);
   const quoteRef = useRef<HTMLQuoteElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
@@ -89,9 +111,9 @@ function FittedQuote({ quote, url, color, firstPaintSize }: { quote: string; url
   return (
     <div ref={roomRef} className="flex h-full flex-col">
       {/* What is left of the room around the quote: equal above and under it (centred) in a frame wider than it is tall; two parts above to three under in a taller one. */}
-      <div aria-hidden="true" className="grow [@container(max-aspect-ratio:1/1)]:grow-[2]" />
-      <blockquote ref={quoteRef} cite={url} className="font-serif text-quote text-pretty" style={{ fontSize: firstPaintSize, lineHeight: QUOTE_LINE_HEIGHT }}>
-        <p ref={textRef}>
+      <div aria-hidden="true" className="grow [@container_quote-frame_(max-aspect-ratio:1/1)]:grow-[2]" />
+      <blockquote ref={quoteRef} cite={url} className="font-serif text-quote text-pretty" style={{ lineHeight: QUOTE_LINE_HEIGHT }}>
+        <p ref={textRef} data-quote-text="" style={NO_SCRIPT_CLAMP}>
           <span aria-hidden="true" style={{ color }}>
             &ldquo;
           </span>
@@ -101,7 +123,7 @@ function FittedQuote({ quote, url, color, firstPaintSize }: { quote: string; url
           </span>
         </p>
       </blockquote>
-      <div aria-hidden="true" className="grow [@container(max-aspect-ratio:1/1)]:grow-[3]" />
+      <div aria-hidden="true" className="grow [@container_quote-frame_(max-aspect-ratio:1/1)]:grow-[3]" />
     </div>
   );
 }
@@ -178,10 +200,12 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
         newsreader.variable,
         framed ? "fixed inset-0" : "relative h-[30rem] w-full overflow-hidden rounded-2xl border border-border sm:h-auto sm:aspect-[1200/630]",
       )}
-      style={FRAME_STYLE}
+      style={{ ...FRAME_STYLE, containerName: FRAME }}
     >
       {/* The palette's custom properties: the page's own view sets them (see `PeopleView`), and a frame has no page. */}
       <style>{personColorCss()}</style>
+      {/* The quote's clamp for a page with no script (see `NO_SCRIPT_CLAMP`). */}
+      <style>{CLAMP_CSS}</style>
       <section
         aria-label={`Quotes on ${pair}`}
         className="flex h-full w-full flex-col bg-canvas text-body"
@@ -210,13 +234,18 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
         </header>
 
         {/* The quote is set to its band of the room the frame leaves it (see `FittedQuote`): nothing in a frame scrolls, so a scrollbar never takes the room or the feed's gesture. */}
-        <div key={current.id} className="min-h-0 flex-1 overflow-hidden" style={{ padding: `0 ${size(12, 5.67)}` }}>
-          <FittedQuote
-            quote={current.quote}
-            url={current.url}
-            color={color}
-            firstPaintSize={`max(${QUOTE_FLOOR_PX}px, calc(${Math.round(quoteUnits(type.fontSize) * FIRST_PAINT_SCALE * 100) / 100} * var(--u)))`}
-          />
+        {/* The room is a size container, and its type size is the quote's first paint (it is inherited by the quote until the fit sets its own), so that the clamp's steps, in ems, are asked of its height. */}
+        <div
+          key={current.id}
+          data-quote-room=""
+          className="min-h-0 flex-1 overflow-hidden"
+          style={{
+            padding: `0 ${size(12, 5.67)}`,
+            containerType: "size",
+            fontSize: `max(${QUOTE_FLOOR_PX}px, calc(${Math.round(quoteUnits(type.fontSize) * FIRST_PAINT_SCALE * 100) / 100} * var(--u)))`,
+          }}
+        >
+          <FittedQuote quote={current.quote} url={current.url} color={color} />
         </div>
         <p role="status" aria-live="polite" className="sr-only">
           {`Quote ${index + 1} of ${count}: ${current.speaker} on ${current.about}`}

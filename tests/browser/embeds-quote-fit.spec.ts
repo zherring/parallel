@@ -166,13 +166,7 @@ test.describe("quote embed: every quote fits its frame without scrolling", () =>
 
   test("the longest real quote (of the Clippings and the critics, over every pair) fits at each frame, or ends in an ellipsis at the floor, with its link in view", async ({ page }) => {
     test.setTimeout(90_000);
-    const keys = [...new Set([...Object.keys(clippings), ...Object.keys(essays)])];
-    let longest: { key: string; id: string; length: number } | null = null;
-    for (const key of keys) {
-      const ids = key.split("+").map(Number);
-      const quotes = pairQuotes(ids.map((id) => ({ person: { id, name: `Person ${id}`, profilePath: null }, films: [] })) as unknown as PersonTimeline[]);
-      for (const quote of quotes) if (!longest || quote.quote.length > longest.length) longest = { key, id: quote.id, length: quote.quote.length };
-    }
+    const longest = longestQuote();
     expect(longest, "there are quotes").not.toBeNull();
     if (!longest) return;
     expect(longest.length).toBeGreaterThan(300);
@@ -183,6 +177,65 @@ test.describe("quote embed: every quote fits its frame without scrolling", () =>
       await expectQuoteFits(page, `the longest quote (${longest.length} characters) at ${frame.width} x ${frame.height}`);
     }
   });
+});
+
+/** The quote of the Clippings and the critics, over every pair, that has the most characters (and the pair it is of). */
+function longestQuote() {
+  let longest: { key: string; id: string; length: number } | null = null;
+  for (const key of new Set([...Object.keys(clippings), ...Object.keys(essays)])) {
+    const ids = key.split("+").map(Number);
+    const quotes = pairQuotes(ids.map((id) => ({ person: { id, name: `Person ${id}`, profilePath: null }, films: [] })) as unknown as PersonTimeline[]);
+    for (const quote of quotes) if (!longest || quote.quote.length > longest.length) longest = { key, id: quote.id, length: quote.quote.length };
+  }
+  return longest;
+}
+
+// ---- The quote embed with no script: a quote that is too long for its room ends in a clamp ------------------------------------------------------------------------
+
+test.describe("quote embed: with no script, the first paint is cut at the lines the room's band holds, with an ellipsis", () => {
+  test.use({ reducedMotion: "reduce", javaScriptEnabled: false });
+
+  for (const frame of [...FIT_FRAMES, ...TALL_FRAMES].map((f) => ({ ...f, cut: f.width === 390 && f.height === 253 }))) {
+    test(`${frame.width} x ${frame.height} (${frame.what})`, async ({ page }) => {
+      const longest = longestQuote();
+      expect(longest, "there are quotes").not.toBeNull();
+      if (!longest) return;
+      await page.setViewportSize({ width: frame.width, height: frame.height });
+      await page.goto(`/embed/q/${longest.key}/${longest.id}`);
+      await expect(page.locator("blockquote")).toBeVisible();
+
+      const measured = await page.evaluate(() => {
+        const text = document.querySelector<HTMLElement>("blockquote p");
+        const room = document.querySelector<HTMLElement>("[data-quote-room]");
+        if (!text || !room) return null;
+        const box = text.getBoundingClientRect();
+        const roomBox = room.getBoundingClientRect();
+        return {
+          clamp: getComputedStyle(text).webkitLineClamp,
+          top: box.top,
+          bottom: box.bottom,
+          height: box.height,
+          cut: text.scrollHeight > text.clientHeight + 1,
+          roomTop: roomBox.top,
+          roomBottom: roomBox.bottom,
+          roomHeight: room.clientHeight,
+          fontSize: Number.parseFloat(getComputedStyle(text).fontSize),
+        };
+      });
+      expect(measured, "the quote and its room are on the page").not.toBeNull();
+      if (!measured) return;
+
+      // Set in the server's HTML: no script has run to set it.
+      expect(measured.clamp, "the quote's text carries a line clamp").not.toBe("none");
+      expect(Number(measured.clamp), "of at least one line").toBeGreaterThanOrEqual(1);
+      // In its room, and in the band the script's fit gives it (a line more than the band only where the room holds under two lines of type).
+      expect(measured.top, "the quote starts inside its room").toBeGreaterThanOrEqual(measured.roomTop - 0.5);
+      expect(measured.bottom, "and ends inside it: nothing past the room").toBeLessThanOrEqual(measured.roomBottom + 0.5);
+      expect(measured.height, `the quote takes at most the band (${QUOTE_BAND}) of its ${measured.roomHeight}px room`).toBeLessThanOrEqual(measured.roomHeight * QUOTE_BAND + 0.5);
+      // The short frame is where the longest quote does not fit: it is cut there, at the clamp, which is what ends it in an ellipsis.
+      if (frame.cut) expect(measured.cut, "the longest quote is cut at the clamp in a short frame").toBe(true);
+    });
+  }
 });
 
 // ---- The quote embed: the quote takes the room it has --------------------------------------------------------------------------------------------------------------

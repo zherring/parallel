@@ -155,6 +155,21 @@ export function quoteSizeCeiling(width: number): number {
   return Math.max(QUOTE_FLOOR_PX, Math.min(QUOTE_MAX_PX, byMeasure));
 }
 
+/** The line counts the no-script clamp steps through (see `noScriptClampCss`): every one up to twelve, then coarser, to a count no real quote runs to in any frame. */
+const CLAMP_STEPS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 20, 24, 32] as const;
+
+/**
+ * The stylesheet that sets `--quote-lines` on every element with `selector`, in a page with no script: the number of lines of the quote's type size that the room it is in
+ * holds in its band (`QUOTE_BAND`), at least 1. The quote's first paint (and a page whose script never runs or fails) is cut at that many lines with an ellipsis, by `-webkit-line-clamp`,
+ * which needs a count and so cannot be told "as many as fit": it is stepped by the room's height in a container query. The room is a size container whose own font size is
+ * the quote's, and `em` in a container query is the container's, so a step is `lines * lineHeight / QUOTE_BAND` ems tall, whatever the frame: the same arithmetic the script's
+ * fit does (`FittedQuote`), without measuring. When the script runs, the fit takes the clamp off and sets the largest size at which the whole quote is in its band.
+ */
+export function noScriptClampCss(selector: string, lineHeight: number): string {
+  const steps = CLAMP_STEPS.map((lines) => `@container (min-height:${Math.ceil((lines * lineHeight * 1000) / QUOTE_BAND) / 1000}em){${selector}{--quote-lines:${lines}}}`);
+  return `${selector}{--quote-lines:1}${steps.join("")}`;
+}
+
 /**
  * A font size of the quote's card image (set for 1200px, see `quoteCardType`) as a count of the frame's unit `--u`, which is
  * 1/100 of the frame's width when it is 1200 x 630 (12px, so 72px is 6): the frame sets the quote at the size the card does.
