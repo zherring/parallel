@@ -3,8 +3,7 @@ html:has([data-quote-exhibit-deck]) {
   overflow: hidden;
 }
 
-/* Keep pairing, navigation and settings; only the expanded masthead steps aside. */
-body:has([data-quotes-page="true"]) [data-people-bar] > [aria-hidden="true"],
+/* The full-screen deck replaces the document footer; the masthead uses its existing collapsed state. */
 body:has([data-quote-exhibit-deck]) > footer {
   display: none;
 }
