@@ -6,7 +6,8 @@
 //   npm run clippings:review -- --base main  # compare against another ref
 //   npm run clippings:review -- --no-open --out /tmp/review.html
 import { readFileSync, writeFileSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { endsLikeASentence, isHttps, looksNonEnglish } from "./lib.ts";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -19,9 +20,10 @@ const repo = process.cwd();
 const ref = opt("--base", "origin/main");
 const out = opt("--out", join(tmpdir(), "clippings-review.html"));
 const now = JSON.parse(readFileSync(`${repo}/src/lib/clippings.json`, "utf8"));
-const base = JSON.parse(execSync(`git show ${ref}:src/lib/clippings.json`, { cwd: repo, maxBuffer: 1 << 28 }).toString());
+const base = JSON.parse(execFileSync("git", ["show", `${ref}:src/lib/clippings.json`], { cwd: repo, maxBuffer: 1 << 28 }).toString());
 
 const slug = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+// Warning chips, using the merge's own rules from lib.ts so the two never drift apart.
 const issues = (c) => {
   const q = c.quote.trim(), words = q.split(/\s+/).length, out = [];
   if (c.secondhand) out.push("secondhand");
@@ -29,9 +31,10 @@ const issues = (c) => {
   if (words < 6) out.push(`short (${words}w)`);
   if (/^[a-z]/.test(q)) out.push("starts lowercase");
   if (/,$/.test(q)) out.push("ends with comma");
-  else if (!/([.!?…"'”’)]|STOP)$/.test(q)) out.push("no end punctuation");
+  else if (!endsLikeASentence(q)) out.push("no end punctuation");
   if (c.original) out.push(`translated (${c.original_lang})`);
-  if (/^http:/.test(c.url)) out.push("http");
+  else if (looksNonEnglish(q)) out.push("may not be English");
+  if (!isHttps(c.url)) out.push("not https");
   return out;
 };
 
@@ -108,4 +111,10 @@ render();
 writeFileSync(out, html);
 if (pairs.length === 0) console.log(`No quotes in src/lib/clippings.json that are not on ${ref}.`);
 else console.log(`${pairs.length} pairs, ${total} quotes, ${pairs.reduce((n, p) => n + p.quotes.filter((q) => q.issues.length).length, 0)} with warnings -> ${out}`);
-if (pairs.length > 0 && !argv.includes("--no-open")) execSync(`open "${out}"`);
+if (pairs.length > 0 && !argv.includes("--no-open")) {
+  try {
+    execFileSync(process.platform === "darwin" ? "open" : "xdg-open", [out]);
+  } catch {
+    console.log("Could not open a browser; open the file above by hand.");
+  }
+}

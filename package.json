@@ -17,7 +17,7 @@
     "people:eval": "node --experimental-transform-types --conditions=react-server --import ./scripts/register-loader.mjs --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env scripts/eval-people-search.ts",
     "clippings:merge": "node --experimental-transform-types --import ./scripts/register-loader.mjs --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/clippings/merge.ts",
     "clippings:check": "node --experimental-transform-types --import ./scripts/register-loader.mjs --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/clippings/check-links.ts",
-    "clippings:review": "node scripts/clippings/review.mjs"
+    "clippings:review": "node --experimental-transform-types --import ./scripts/register-loader.mjs --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/clippings/review.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.62.0",
