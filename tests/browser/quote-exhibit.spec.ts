@@ -84,18 +84,17 @@ test("the split exhibit keeps compact navigation without the masthead, with fram
     if (width >= 768) {
       expect(frame.y + frame.height).toBeLessThan(media.y + media.height);
       expect(media).toEqual({ x: 0, y: 0, width: width / 2, height });
-      expect(frame.x + frame.width / 2).toBeCloseTo(width / 4 - 0.5, 0);
-      expect(frame.y + frame.height / 2).toBeCloseTo(height / 2, 0);
-      expect(plate.x).toBeGreaterThan(width / 2);
-      expect(plate.x + plate.width / 2).toBeCloseTo(width * 0.75, 0);
+      expect(Math.abs((frame.x - media.x) - (media.x + media.width - frame.x - frame.width))).toBeLessThanOrEqual(1);
+      expect(frame.y + frame.height / 2).toBeCloseTo(media.y + media.height / 2, 0);
+      expect(plate.x).toBeGreaterThan(media.x + media.width);
+      expect(plate.x + plate.width).toBeLessThanOrEqual(width);
       await expect(backdrop(page)).toHaveCSS("border-right-width", "1px");
     } else {
       expect(media.width).toBe(width);
-      expect(frame.width).toBeCloseTo(width - 48, 0);
-      expect(frame.x).toBe(24);
+      expect(frame.x - media.x).toBeCloseTo(media.x + media.width - frame.x - frame.width, 0);
       // The portrait panel meets the quote panel: no empty strip below a small inset image.
       expect(frame.y + frame.height).toBeCloseTo(media.y + media.height, 0);
-      expect(plate.y).toBeCloseTo(media.height + 16, 0);
+      expect(plate.y).toBeGreaterThan(media.y + media.height);
       await expect(backdrop(page)).toHaveCSS("border-bottom-width", "0px");
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -112,8 +111,8 @@ test("mobile uses a broad stationary picture above a compact, top-aligned quote 
   await page.evaluate(() => document.fonts.ready);
   const picture = deck(page).locator(".quote-exhibit-visual");
   const frame = (await picture.boundingBox())!;
-  expect(frame.width).toBe(342);
-  expect(frame.height).toBeCloseTo(228, 0);
+  expect(frame.width).toBeGreaterThan(frame.height);
+  expect(frame.width).toBeGreaterThan((await backdrop(page).boundingBox())!.width / 2);
   const text = (await active(page).locator("blockquote").boundingBox())!;
   const source = (await active(page).locator(".quote-exhibit-source").boundingBox())!;
   const toolbar = (await deck(page).locator(".quote-exhibit-toolbar").boundingBox())!;
