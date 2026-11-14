@@ -21,8 +21,9 @@ export const EXTERNAL = { target: "_blank", rel: "noopener" } as const;
 
 /**
  * What makes a control of the frame a touch target. In a phone-width frame (30rem or less) it is at least 32px tall (and a round button 32px wide), and an invisible
- * hit area round it (`before`, as the site's own small buttons have, see the search's) takes it to 44px by 40px: 4px to each side beyond its 1px border, which the gap between
- * neighbours (8px) holds, and 6px above and under, which the bar has room for.
+ * hit area round it (`before`, as the site's own small buttons have, see the search's) reaches 4px to each side beyond its border box, which the gap between neighbours (8px)
+ * holds, and 6px above and under, which the bar has room for (the `before` is placed against the padding box, 1px inside the border, hence the 5px and the 7px of the classes):
+ * about 40 wide by 44 tall round a 32px button. A pill that is taller than 32px for its type has the same added to its own height. The browser tests assert the floor.
  */
 const HIT_AREA = "relative before:absolute before:-inset-x-[5px] before:-inset-y-[7px]";
 

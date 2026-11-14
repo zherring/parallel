@@ -47,7 +47,10 @@ function FittedQuote({ quote, url, color, firstPaintSize }: { quote: string; url
     const block = quoteRef.current;
     const text = textRef.current;
     if (!room || !block || !text) return;
+    // `document.fonts.ready` cannot be cancelled, and `fit` holds these three elements: after the quote is gone (stepping to the next remounts it) it would fit detached nodes.
+    let cancelled = false;
     const fit = () => {
+      if (cancelled) return;
       // The band: what the quote may take of the room (the room has no padding of its own; the empty rest of it is the air above and under the quote).
       const available = room.clientHeight * QUOTE_BAND;
       // Start again uncut: the room may have grown since the last fit.
@@ -77,7 +80,10 @@ function FittedQuote({ quote, url, color, firstPaintSize }: { quote: string; url
     const observer = new ResizeObserver(fit);
     observer.observe(room);
     void document.fonts?.ready.then(fit);
-    return () => observer.disconnect();
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
   }, [quote]);
 
   return (
