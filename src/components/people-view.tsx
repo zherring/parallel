@@ -223,7 +223,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
 
   // ---- the pair hero ------------------------------------------------------------------------------------------------------------------
   const { subtitle, chips } = usePairHero({ timelines, rows, includeMinor, today });
-  // The view's main scroller: the Timeline's track, sideways (or down, where it has nothing to scroll sideways), from where it starts (its left end, and its bottom where it scrolls down); the Table and the Quotes are the page, from its top.
+  // The hero follows the Timeline's track or the Table's page scroll. Quotes keeps the compact bar independently of its own deck scroller.
   const timelineView = view === "timeline";
   const getHeroScroller = useCallback(() => (timelineView ? (timelineRef.current?.getScroller() ?? null) : window), [timelineView]);
   const { collapsed, collapse } = useHeroCollapse({
@@ -333,7 +333,8 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         // The eyes are the pill's, where the films they show and hide are: the Timeline of several people (the Table and Clippings list films the
         // eyes do not change, and Focus draws them all).
         onToggleVisible={multi && view === "timeline" ? handleToggleVisible : undefined}
-        hero={{ subtitle, collapsed, body: timelineView ? heroBody : null, onWheel: forwardWheel }}
+        // Quotes keeps the compact pairing/navigation bar, without the expanded masthead.
+        hero={{ subtitle, collapsed: collapsed || view === "clippings", body: timelineView ? heroBody : null, onWheel: forwardWheel }}
         clippings={clippingsTab}
         view={view}
         hrefFor={hrefFor}
@@ -355,8 +356,8 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       <PageHeadline people={people} count={rows.length} />
       {/* As wide as the page, with the bar's own gutter (12px): the Timeline spans it, and the Table and Quotes keep a reading column (see `FilmsSection`). Its top is under the bar (4.5rem), or under the title of the expanded hero when that wraps to more lines (see `PeopleBar`). */}
       <div className="w-full min-w-0 px-3 pb-8 pt-[max(4.5rem,var(--people-bar-top,0px))]">
-        {/* The hero's body for the Table and the Quotes: in the page, above the films, and gone from the screen as the page is scrolled. The Timeline's is in the bar's band. */}
-        {!timelineView && <div className="pb-2 pt-0.5">{heroBody}</div>}
+        {/* Only the Table has an in-page masthead; Quotes keeps the compact bar and its own full-screen layout. */}
+        {view === "table" && <div className="pb-2 pt-0.5">{heroBody}</div>}
         {/* The combined timeline's colours, as custom properties (src/lib/person-colors.ts): the hover card is in a portal. */}
         {multi && <style>{personColorCss()}</style>}
 

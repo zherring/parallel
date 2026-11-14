@@ -65,6 +65,10 @@ async function measureBar(page: Page) {
   // The hero's body eases away over 300ms: wait until the bar is its compact self (the Films view's rail is at the top of the screen, open hero or collapsed).
   const compact = (page.viewportSize()?.width ?? 1440) < 640 ? 58 : 62;
   await expect.poll(async () => (await root.boundingBox())!.height).toBe(compact);
+  // The Table's bar is compact before its portraits finish flying into the pill. Measure the settled heads, not an intermediate FLIP scale.
+  await root.locator("[data-pill-head]").evaluateAll((heads) => Promise.all(
+    heads.flatMap((head) => head.getAnimations()).map((animation) => animation.finished.catch(() => {})),
+  ));
   if ((await page.locator("[data-depth-rail]").count()) > 0) await expect.poll(async () => (await page.locator("[data-depth-rail] > div").first().boundingBox())!.y).toBe(0);
   const box = async (locator: Locator) => ((await locator.count()) > 0 && (await locator.first().isVisible()) ? round(await locator.first().boundingBox()) : null);
   const items = (nav: string) => root.locator(`nav[aria-label="${nav}"] a`);
@@ -316,7 +320,7 @@ for (const [label, viewport] of [
       ];
       for (const { go, panel } of steps) {
         await go();
-        await expect(page.locator(`[id$="-panel-${panel}"]`)).toBeVisible();
+        await expect(page.locator(panel === "clippings" ? "[data-quote-exhibit-deck]" : `[id$="-panel-${panel}"]`)).toBeVisible();
         const now = await measureBar(page);
         expect(now.gear, `the gear on ${panel}`).toEqual(before.gear);
         expect(now.switcher, `the control on ${panel}`).toEqual(before.switcher);
@@ -366,10 +370,13 @@ for (const [label, viewport] of [
         await expect(page.locator("h1")).toHaveCount(1);
         await expect(page.getByText(HEADLINE, { exact: true }), view).toHaveCount(1);
         // The page's content is clear of the bar (the headline used to be what stood between them). The Timeline is the whole screen: its track has a top padding for that.
-        if (view !== "focus" && view !== "timeline") {
+        if (view === "table") {
           const barBox = (await bar(page).boundingBox())!;
           const panel = (await page.locator(`[id$="-panel-${view}"]`).boundingBox())!;
           expect(panel.y, view).toBeGreaterThanOrEqual(barBox.y + barBox.height);
+        } else if (view === "clippings") {
+          await expect(page.locator("[data-quote-exhibit-deck]")).toBeVisible();
+          expect((await page.locator('[data-quote-slide][aria-current="true"] .quote-exhibit-plate').boundingBox())!.y).toBeGreaterThanOrEqual((await bar(page).boundingBox())!.height);
         }
       }
     });

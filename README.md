@@ -188,9 +188,23 @@ Beyond that set, the file was compared with the Academy-style counts in Wikipedi
 
 The Wikidata Query Service is moving from Blazegraph to QLever (new endpoints are expected around 16 November 2026; the old ones may degrade from February 2027). The queries are plain SPARQL 1.1 plus the Wikibase RDF vocabulary, with no label service and no Blazegraph-only syntax, and the endpoint is configurable: set `WDQS_ENDPOINT` (default `https://query.wikidata.org/sparql`). After a switch, run `npm run awards:refresh -- --validate` first: it is the regression test for the migration, and a dry run (`--dry-run`) shows whether the totals changed. The queries have only been run against the Blazegraph backend.
 
-## Ideas and TODOs
+## Quotes
 
-Nothing open right now.
+Quotes uses a full-screen, vertically scroll-snapped layout by default on every pairing with curated quotes or criticism. No opt-in flag is needed:
+
+- `/p/1032-martin-scorsese+3661-thelma-schoonmaker?view=clippings`
+- `/p/5655-wes-anderson+1532-bill-murray?view=clippings&quote=when-i-read-rushmore-i-figured`
+- `/p/488-steven-spielberg+491-john-williams?view=clippings`
+
+Desktop places stationary portraits beside the quote, using the site canvas and a subtly lighter quote pane. Mobile puts a broad 3:2 portrait panel below the compact navigation, meeting a top-aligned quote panel with its own inset. Short screens cap the picture height; long quotes scroll internally. The speaker remains in color and the other portrait is grayscale; critics treat both equally. Missing portraits fall back to initials, and the embedded TMDB credit stays fixed.
+
+Scroll or swipe to snap between quotes. Space advances, Shift+Space goes back, and the arrow buttons do the same. Tab into a long quote to scroll its text with Space / Shift+Space; navigation resumes at the text's edge. Keyboard/button navigation wraps at the ends, visibly scrolling back up when returning to quote one (immediate with reduced motion); held Space does not skip quotes, and fields, controls and dialogs retain their own key behavior. There is no autoplay. The quote counter opens an index for skimming and jumping directly to a quote, and the More reading shortcut opens the related source list. Both reuse the shared film/person `SidePanel`: a right-hand slide-out on desktop and a bottom sheet on mobile, with the standard dismissal, focus restoration and reduced-motion behavior. There is no separate centered modal. Reading-only pairs show their source list in the split layout.
+
+The share button stays visible above each quote. Attribution lives in the explainer, with a short speaker lead-in only when their name is missing—never a separate “name on name” row. Unambiguous full, first and family names are real links: a plain click opens the person's details, while modified clicks follow the person's page. Sources, years, reprint credits and secondhand disclosures remain intact; screen readers retain an explicit speaker credit. The compact home, pairing, view and settings controls remain available; the expanded masthead does not.
+
+Existing `?view=clippings&quote=...` and bare `?quote=...` links open the correct quote without reordering the sequence. Scrolling replaces the current URL rather than adding history entries. Legacy `exhibit` flags are ignored and removed when the deck publishes its current quote. Only the active Quotes view mounts portraits and keyboard listeners; inactive source-linked quote text remains in server HTML.
+
+Photography is deferred. A future image should belong to the quoted source article and that specific quote, with provenance and usage rights checked—not be an arbitrary collaboration backdrop. This implementation only loads portraits from TMDB; it includes no archival photograph assets.
 
 ## Attribution
 

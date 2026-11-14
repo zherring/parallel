@@ -1,0 +1,399 @@
+/* Namespaced because Next retains global styles when switching views. */
+html:has([data-quote-exhibit-deck]) {
+  overflow: hidden;
+}
+
+/* The full-screen deck replaces the document footer; the masthead uses its existing collapsed state. */
+body:has([data-quote-exhibit-deck]) > footer {
+  display: none;
+}
+
+.quote-exhibit-deck {
+  --quote-pane-bg: color-mix(in srgb, var(--bg) 55%, var(--surface));
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  height: 100dvh;
+  isolation: isolate;
+  background: var(--quote-pane-bg);
+}
+
+.quote-exhibit,
+.quote-exhibit-stage {
+  width: 100%;
+  height: 100%;
+}
+
+.quote-exhibit {
+  position: relative;
+}
+
+.quote-exhibit-scroller {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  outline: none;
+}
+
+.quote-exhibit-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.quote-exhibit-slides {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.quote-exhibit-slides > li {
+  height: 100dvh;
+  overflow: hidden;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.quote-exhibit-stage {
+  display: grid;
+  align-items: center;
+  width: 50%;
+  margin-left: 50%;
+  padding: 6rem clamp(2rem, 4vw, 5rem);
+}
+
+.quote-exhibit-media {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 50%;
+  padding: 3rem;
+  border-right: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  background: var(--bg);
+  /* Wheel/swipe over imagery still reaches the deck; the credit remains a real link. */
+  pointer-events: none;
+}
+
+.quote-exhibit-visual {
+  position: relative;
+  width: min(100%, 38rem);
+  aspect-ratio: 3 / 2;
+  max-height: calc(100dvh - 12rem);
+}
+
+.quote-exhibit-diptych {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.quote-exhibit-portrait {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--voice-color) 8%, var(--surface));
+}
+
+.quote-exhibit-portrait img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 32%;
+}
+
+.quote-exhibit-quiet img {
+  filter: grayscale(1) brightness(0.72);
+}
+
+.quote-exhibit-quiet {
+  background: var(--surface);
+}
+
+.quote-exhibit-initials {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-serif);
+  font-size: clamp(3rem, 8vw, 7rem);
+  color: var(--text-muted);
+}
+
+.quote-exhibit-credit {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.4rem;
+  max-width: calc(100% - 1rem);
+  padding: 0.2rem 0.35rem;
+  background: rgb(0 0 0 / 0.7);
+  color: white;
+  font-size: 0.5625rem;
+  line-height: 1.5;
+  text-align: right;
+  text-decoration: underline;
+  text-decoration-color: rgb(255 255 255 / 0.5);
+  text-underline-offset: 2px;
+  pointer-events: auto;
+}
+
+.quote-exhibit-credit:hover,
+.quote-exhibit-credit:focus-visible {
+  text-decoration-color: white;
+}
+
+.quote-exhibit-plate {
+  width: min(100%, 32rem);
+  max-height: calc(100dvh - 12rem);
+  margin-inline: auto;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  /* Long quotes scroll within their slide rather than being clipped. */
+  overscroll-behavior-y: auto;
+}
+
+.quote-exhibit-plate:focus-visible {
+  outline: 1px solid var(--text-muted);
+  outline-offset: 4px;
+}
+
+.quote-exhibit-quote {
+  position: relative;
+  background: transparent;
+}
+
+.quote-exhibit-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.quote-exhibit-words {
+  color: var(--text-quote);
+  font-size: clamp(1.375rem, 2.1vw, 2rem);
+  line-height: 1.35;
+}
+
+.quote-exhibit-context {
+  margin-top: 1.75rem;
+  color: var(--text);
+  font-size: 0.8125rem;
+  line-height: 1.8;
+}
+
+.quote-exhibit-person-link {
+  color: var(--text-strong);
+  border-radius: 2px;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 3px;
+}
+
+.quote-exhibit-person-link:hover {
+  text-decoration-color: var(--text-muted);
+}
+
+.quote-exhibit-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin-top: 0.65rem;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.7;
+}
+
+.quote-exhibit-toolbar {
+  position: absolute;
+  right: 1.5rem;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem 0.75rem;
+  width: calc(50% - 3rem);
+  padding: 0;
+  background: var(--quote-pane-bg);
+  color: var(--text-muted);
+  font-size: 0.625rem;
+}
+
+.quote-exhibit-progress,
+.quote-exhibit-key-hint {
+  white-space: nowrap;
+}
+
+.quote-exhibit-key-hint kbd {
+  font: inherit;
+  color: var(--text-strong);
+}
+
+.quote-exhibit-navigation {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.quote-exhibit-navigation button {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 4px;
+  color: var(--text-strong);
+  cursor: pointer;
+}
+
+.quote-exhibit-navigation button:hover {
+  background: var(--surface);
+}
+
+.quote-exhibit-progress button,
+.quote-exhibit-reading-link {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  text-underline-offset: 3px;
+}
+
+.quote-exhibit-progress button:hover,
+.quote-exhibit-reading-link:hover {
+  color: var(--text-strong);
+  text-decoration: underline;
+}
+
+.quote-exhibit-index-list {
+  list-style: none;
+}
+
+.quote-exhibit-index-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.quote-exhibit-index-list a {
+  display: block;
+  padding: 1rem 0.5rem;
+  border-radius: 4px;
+}
+
+.quote-exhibit-index-list a:hover,
+.quote-exhibit-index-list a[aria-current="true"] {
+  background: var(--surface);
+}
+
+.quote-exhibit-index-meta {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.6;
+}
+
+.quote-exhibit-index-words {
+  font-family: var(--font-newsreader), ui-serif, Georgia, serif;
+  font-size: 1.125rem;
+  line-height: 1.5;
+}
+
+@media (width < 48rem) {
+  .quote-exhibit-deck {
+    --image-top: calc(var(--bar-h) + 1.75rem);
+    /* A broad 3:2 image panel, capped only to leave the quote usable on short screens. */
+    --image-height: min(calc((100vw - 3rem) * 2 / 3), max(6rem, calc(100dvh - var(--image-top) - 15rem)));
+    --image-pane-height: calc(var(--image-top) + var(--image-height));
+  }
+
+  .quote-exhibit-media {
+    inset: 0 0 auto;
+    grid-template-rows: minmax(0, 1fr);
+    width: 100%;
+    height: var(--image-pane-height);
+    padding: var(--image-top) 1.5rem 0;
+    border-right: 0;
+  }
+
+  .quote-exhibit-visual {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    aspect-ratio: auto;
+    max-width: 100%;
+    max-height: none;
+  }
+
+  .quote-exhibit-key-hint {
+    display: none;
+  }
+
+  .quote-exhibit-stage {
+    align-items: start;
+    width: 100%;
+    margin-left: 0;
+    padding: calc(var(--image-pane-height) + 1rem) clamp(1.5rem, 8vw, 3rem) 4rem;
+  }
+
+  .quote-exhibit-plate {
+    max-height: calc(100dvh - var(--image-pane-height) - 5rem);
+  }
+
+  .quote-exhibit-words {
+    font-size: clamp(1.125rem, 4.5vw, 1.375rem);
+    line-height: 1.4;
+  }
+
+  .quote-exhibit-actions {
+    margin-bottom: 0.25rem;
+  }
+
+  .quote-exhibit-context {
+    margin-top: 1.25rem;
+    font-size: 0.75rem;
+    line-height: 1.7;
+  }
+
+  .quote-exhibit-toolbar {
+    right: 0.75rem;
+    width: calc(100% - 1.5rem);
+  }
+
+}
+
+@media (width < 22.5rem) {
+  /* Leave room if the quote index and further-reading controls wrap. */
+  .quote-exhibit-stage {
+    padding-bottom: 6rem;
+  }
+
+  .quote-exhibit-plate {
+    max-height: calc(100dvh - var(--image-pane-height) - 7rem);
+  }
+}
+
+@media (width < 48rem) and (height < 40rem) {
+  .quote-exhibit-words {
+    font-size: 1rem;
+  }
+
+  .quote-exhibit-context {
+    margin-top: 0.875rem;
+    font-size: 0.6875rem;
+    line-height: 1.6;
+  }
+
+  .quote-exhibit-source {
+    margin-top: 0.5rem;
+    font-size: 0.625rem;
+  }
+}

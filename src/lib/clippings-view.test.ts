@@ -4,14 +4,9 @@ import type { Clipping, ClippingsData, ClippingsPerson } from "@/lib/clippings";
 import {
   clippingById,
   clippingVoices,
-  clippingsCountMessage,
   clippingYear,
   dateYear,
-  filterClippings,
-  filterCritics,
-  filterOptions,
   isCriticId,
-  pagePersonFor,
   parseQuoteId,
   personIndex,
   quoteCardSearch,
@@ -72,111 +67,6 @@ describe("personIndex", () => {
   it("is null for anyone else, and for a family name alone", () => {
     expect(personIndex("Somebody Else", people)).toBeNull();
     expect(personIndex("Spielberg", people)).toBeNull();
-  });
-});
-
-describe("pagePersonFor", () => {
-  const entry = (id: number) => ({ person: { id }, roles: "Director" });
-  const page = [entry(491), entry(488)];
-
-  it("finds the page's entry of the person by TMDB id, whatever the order of the page", () => {
-    expect(pagePersonFor("Steven Spielberg", people, page)).toBe(page[1]);
-    expect(pagePersonFor("John Williams", people, page)).toBe(page[0]);
-  });
-
-  it("is null for a name that is not the pair's, or a person the page does not have", () => {
-    expect(pagePersonFor("Somebody Else", people, page)).toBeNull();
-    expect(pagePersonFor("Steven Spielberg", people, [entry(491)])).toBeNull();
-  });
-});
-
-describe("filterClippings", () => {
-  const all = [aOnB, bOnA, aOnB2, clipping("Somebody Else", "John Williams", "x")];
-
-  it("shows everything for all, in order", () => {
-    expect(filterClippings(all, people, "all").map((c) => c.quote)).toEqual(["a1", "b1", "a2", "x"]);
-  });
-
-  it("shows what the first, or the second, person said", () => {
-    expect(filterClippings(all, people, "first").map((c) => c.quote)).toEqual(["a1", "a2"]);
-    expect(filterClippings(all, people, "second").map((c) => c.quote)).toEqual(["b1"]);
-  });
-
-  it("shows none of the artists' quotes for the critics", () => {
-    expect(filterClippings(all, people, "critics")).toEqual([]);
-  });
-});
-
-describe("filterCritics", () => {
-  const critics = [{ id: "critic-1" }, { id: "critic-2" }];
-
-  it("shows every critic under all and under critics, in order", () => {
-    expect(filterCritics(critics, "all")).toEqual(critics);
-    expect(filterCritics(critics, "critics")).toEqual(critics);
-  });
-
-  it("shows none under either direction of the artists", () => {
-    expect(filterCritics(critics, "first")).toEqual([]);
-    expect(filterCritics(critics, "second")).toEqual([]);
-  });
-
-  it("returns a copy", () => {
-    expect(filterCritics(critics, "all")).not.toBe(critics);
-  });
-});
-
-describe("filterOptions", () => {
-  it("offers All and both directions, with family names for the buttons and full names for the tooltips", () => {
-    expect(filterOptions([aOnB, aOnB2, bOnA], people)).toEqual([
-      { id: "all", label: "All", title: "All quotes", count: 3 },
-      { id: "first", label: "Spielberg on Williams", title: "Steven Spielberg on John Williams", count: 2 },
-      { id: "second", label: "Williams on Spielberg", title: "John Williams on Steven Spielberg", count: 1 },
-    ]);
-  });
-
-  it("has no filter when only one direction has clippings", () => {
-    expect(filterOptions([aOnB, aOnB2], people)).toEqual([]);
-    expect(filterOptions([bOnA], people)).toEqual([]);
-    expect(filterOptions([], people)).toEqual([]);
-  });
-
-  it("adds Critics, with a count, when the pair has critics' quotes too", () => {
-    expect(filterOptions([aOnB, aOnB2, bOnA], people, 4)).toEqual([
-      { id: "all", label: "All", title: "All quotes", count: 7 },
-      { id: "first", label: "Spielberg on Williams", title: "Steven Spielberg on John Williams", count: 2 },
-      { id: "second", label: "Williams on Spielberg", title: "John Williams on Steven Spielberg", count: 1 },
-      { id: "critics", label: "Critics", title: "Critics and scholars on the collaboration", count: 4 },
-    ]);
-  });
-
-  it("offers only the directions that have clippings next to Critics", () => {
-    expect(filterOptions([aOnB, aOnB2], people, 3).map((o) => o.id)).toEqual(["all", "first", "critics"]);
-    expect(filterOptions([bOnA], people, 3).map((o) => o.id)).toEqual(["all", "second", "critics"]);
-  });
-
-  it("has no filter for critics alone, since there is nothing to filter between", () => {
-    expect(filterOptions([], people, 5)).toEqual([]);
-  });
-
-  it("does not offer Critics when there are none", () => {
-    expect(filterOptions([aOnB, bOnA], people, 0).map((o) => o.id)).toEqual(["all", "first", "second"]);
-  });
-
-  it("uses full names when the two share a family name", () => {
-    const coens = [
-      { id: 1, name: "Joel Coen" },
-      { id: 2, name: "Ethan Coen" },
-    ] as const;
-    const options = filterOptions([clipping("Joel Coen", "Ethan Coen"), clipping("Ethan Coen", "Joel Coen")], coens);
-    expect(options.map((o) => o.label)).toEqual(["All", "Joel Coen on Ethan Coen", "Ethan Coen on Joel Coen"]);
-  });
-});
-
-describe("clippingsCountMessage", () => {
-  it("counts the quotes shown", () => {
-    expect(clippingsCountMessage(3)).toBe("Showing 3 quotes");
-    expect(clippingsCountMessage(1)).toBe("Showing 1 quote");
-    expect(clippingsCountMessage(0)).toBe("Showing 0 quotes");
   });
 });
 
@@ -372,15 +262,10 @@ describe("clippingVoices", () => {
     }
   });
 
-  it("keeps the data's order, so that speakerIndex and the filter mean what they did", () => {
+  it("keeps the data's order, so that speakerIndex still identifies the same person", () => {
     const voices = clippingVoices(people, [williams, spielberg]);
     expect(voices.map((voice) => voice.id)).toEqual([488, 491]);
     expect(speakerIndex(aOnB, voices)).toBe(0);
-    expect(filterOptions([aOnB, bOnA], voices).map((option) => option.label)).toEqual([
-      "All",
-      "Spielberg on Williams",
-      "Williams on Spielberg",
-    ]);
   });
 
   it("takes each headshot from the page's own person, matched by id", () => {

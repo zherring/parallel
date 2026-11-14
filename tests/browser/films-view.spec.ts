@@ -83,8 +83,13 @@ for (const start of STARTS) {
       await expect(switcher(page).locator('[aria-current="page"]')).toHaveCount(1);
       if (target === "depth") await expect(scene(page)).toBeVisible();
       else await expect(scene(page)).toHaveCount(0);
-      // The period goes along, and the view is written out (the Timeline's too); nothing of the one that was left (a sort, a quote) stays.
-      expect(params(page)).toEqual({ from: "2001", to: "2005", view: target });
+      // The deck publishes its current quote; every other view drops that quote while keeping the period.
+      const query = params(page);
+      if (target === "clippings") {
+        expect(query.quote).toBe(await page.locator("[data-quote-exhibit-deck]").getAttribute("data-active-quote"));
+        delete query.quote;
+      }
+      expect(query).toEqual({ from: "2001", to: "2005", view: target });
       expect(new URL(page.url()).pathname).toBe(PAIR);
     });
   }
@@ -134,7 +139,7 @@ test.describe("on a phone", () => {
     await gear.tap();
     await control.getByRole("link", { name: "Quotes", exact: true }).tap();
     await expect(sheet).toBeHidden();
-    expect(params(page)).toEqual({ from: "2001", to: "2005", view: "clippings" });
+    expect(params(page)).toEqual({ from: "2001", to: "2005", view: "clippings", quote: await page.locator("[data-quote-exhibit-deck]").getAttribute("data-active-quote") });
     await gear.tap();
     await expect(control.locator('[aria-current="page"]')).toHaveText("Quotes");
 
