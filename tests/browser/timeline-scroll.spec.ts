@@ -42,6 +42,47 @@ test("manual zoom preserves vertical exploration with Show all films enabled", a
   expect((await scrollState(track)).max).toBeGreaterThan(50);
 });
 
+test("dragging empty track pans, while labels, film targets and custom controls keep their own pointer gestures", async ({ page }) => {
+  await openPeople(page);
+  await collapseHero(page);
+  const track = timeline(page);
+  await expectBaseline(track);
+  // Isolate the target boundary from whichever film happens to sit under this point of the track.
+  for (const markup of [
+    '<div>Empty track</div>',
+    '<label>Label</label>',
+    '<button>Button</button>',
+    '<span role="tab">Tab</span>',
+    '<span role="slider" aria-valuenow="1">Slider</span>',
+    '<span data-film="1">Film</span>',
+  ]) {
+    await track.evaluate((element, html) => {
+      element.scrollTop = element.scrollHeight;
+      const host = document.createElement("div");
+      host.id = "drag-target-test";
+      host.style.cssText = "position:fixed;left:700px;top:200px;width:100px;height:50px;z-index:40";
+      host.innerHTML = html;
+      element.append(host);
+    }, markup);
+    await expectBaseline(track);
+    const before = (await scrollState(track)).top;
+    const target = page.locator("#drag-target-test > *");
+    const box = (await target.boundingBox())!;
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x, y + 70, { steps: 6 });
+    await page.mouse.up();
+    if (markup.startsWith("<div>")) {
+      await expect.poll(async () => (await scrollState(track)).top).toBeLessThan(before - 50);
+    } else {
+      expect((await scrollState(track)).top, markup).toBe(before);
+    }
+    await page.locator("#drag-target-test").evaluate((element) => element.remove());
+  }
+});
+
 test("the Timeline is the whole screen under the bar, edge to edge: no box, no border, and the minimap pinned to the bottom of the viewport", async ({ page }) => {
   await openPeople(page);
   const track = timeline(page);

@@ -126,6 +126,9 @@ interface FilmPopoverProps {
   /**
    * The card in a frame on X (the pair embed): no metrics (a frame makes no request: they are fetched from this site's API), and, in a frame under
    * 440px tall (a phone's panel, a post's inline player), a smaller poster and padding so that the card leaves some of the timeline in sight.
+   *
+   * The card is deliberately not scaled with the timeline: it is portalled to `body` (which is what keeps the track's `overflow-y-hidden` from clipping it), so it draws at 100%
+   * while the track under it may be drawn smaller to fit the frame (`PairEmbed`'s `fit`). In a short frame the card is a little larger than the cards it points at; that is not a bug.
    */
   embed?: boolean;
 }

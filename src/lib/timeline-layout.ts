@@ -60,6 +60,11 @@ export const AXIS_HEIGHT = 44;
 export const TRACK_PAD = CARD_WIDTH / 2 + CARD_GAP;
 /** Rows of poster cards a lane shows before the rest are left as nodes. */
 export const DEFAULT_MAX_ROWS = 2;
+/**
+ * The most rows of poster cards a frame in a post draws (the pair embed). A frame never scrolls up or down (that gesture is the feed's), so the rows are held to
+ * what its height holds (`embedRowsFor`): one in an inline card or a short panel, two where there is room.
+ */
+export const EMBED_MAX_ROWS = 2;
 /** Widest hit area of the invisible button around a node. */
 export const DOT_HIT_SIZE = 24;
 /** Narrowest hit area a node is squeezed to when its neighbours are close. */
@@ -216,6 +221,8 @@ export interface PackOptions {
    * a film that fits none of the first `maxRows` rows is overflow.
    */
   maxRows?: number;
+  /** The priority films count against `maxRows` too (they are still placed first): a frame with room for one row of cards has no row for a second, whoever the film is shared by. */
+  capPriority?: boolean;
   /**
    * Soft obstacles: connector lines that run through every row of this lane. A line crosses
    * all the rows at its x, so no row can avoid it; what can be avoided is a card under a
@@ -283,7 +290,7 @@ export function packFilms<F extends PackableFilm>(films: readonly F[], options: 
   const rows: { x: number; width: number }[][] = [];
   const rowOf = new Map<number, number>();
   for (const { film, x } of order) {
-    const limit = priority(film.id) ? Number.POSITIVE_INFINITY : maxRows;
+    const limit = priority(film.id) && !options.capPriority ? Number.POSITIVE_INFINITY : maxRows;
     const width = widthOf(film.id);
     let row = rows.findIndex(
       (cards, i) => i < limit && cards.every((other) => Math.abs(other.x - x) >= (other.width + width) / 2 + gap),
@@ -320,13 +327,20 @@ export function overflowCount(packed: readonly { overflow?: boolean }[]): number
  * Hit-area width per node, by film id: DOT_HIT_SIZE, narrowed (down to DOT_HIT_MIN) so that
  * neighbouring nodes on the line never overlap. Every film of a lane has a node, so pass
  * them all, in x order.
+ *
+ * `hitScale` is for a track that is drawn smaller than it is laid out (the pair embed, see `PairEmbed`: `1 / fit`): the two sizes are multiplied by it (never under 1), so that a
+ * node's hit area is as wide on the screen as it is on the page. It is the sizes that are scaled, not the result, so that the squeeze is the page's own, on the screen: neighbours
+ * never overlap where their drawn gap is at least DOT_HIT_MIN, and where it is less the floor holds (and they overlap) as it does on the page.
  */
-export function nodeHitWidths(items: readonly { film: { id: number }; x: number }[]): Map<number, number> {
+export function nodeHitWidths(items: readonly { film: { id: number }; x: number }[], hitScale = 1): Map<number, number> {
+  const scale = Number.isFinite(hitScale) && hitScale > 1 ? hitScale : 1;
+  const widest = DOT_HIT_SIZE * scale;
+  const narrowest = DOT_HIT_MIN * scale;
   const widths = new Map<number, number>();
   items.forEach((item, i) => {
     const before = i > 0 ? item.x - items[i - 1].x : Number.POSITIVE_INFINITY;
     const after = i < items.length - 1 ? items[i + 1].x - item.x : Number.POSITIVE_INFINITY;
-    widths.set(item.film.id, Math.max(DOT_HIT_MIN, Math.min(DOT_HIT_SIZE, before, after)));
+    widths.set(item.film.id, Math.max(narrowest, Math.min(widest, before, after)));
   });
   return widths;
 }
@@ -408,7 +422,7 @@ export function laneObstacles(
  * How the lanes of a track are packed, and what the row cap leaves without a poster. `trackLanes` are the lanes the track draws (the
  * people's, or the one lane of the combined track), `lanes` the people's lanes (what decides which films are quiet), `priorityIds` the
  * films every lane that shows them keeps a card for, and `base` the scale. Returns the pack options of a lane (the one place the options
- * are put together, so a repack without the cap uses exactly the capped pack's) and the lanes packed with `DEFAULT_MAX_ROWS` rows,
+ * are put together, so a repack without the cap uses exactly the capped pack's) and the lanes packed with `rowCap.rows` rows (`DEFAULT_MAX_ROWS` unless a frame has less room; `strict`: the films shared by several lanes are held to it too),
  * whose overflow is what "Show all films" gives a poster. The timeline and the Depth view's poster cap both come from here.
  */
 export function packTrackLanes<F extends PackableFilm>(
@@ -417,6 +431,7 @@ export function packTrackLanes<F extends PackableFilm>(
   priorityIds: ReadonlySet<number>,
   base: Pick<PackOptions, "pxPerYear" | "axisStartYear" | "pad">,
   today: string,
+  rowCap: { rows: number; strict: boolean } = { rows: DEFAULT_MAX_ROWS, strict: false },
 ): { quietIds: Set<number>; optionsFor: (index: number) => PackOptions; capped: PackedFilm<F>[][] } {
   // While something is connected, the films that are not get a smaller card (and so pack tighter).
   // Always the people's lanes: the combined track is one lane, and cannot tell what is shared.
@@ -424,7 +439,7 @@ export function packTrackLanes<F extends PackableFilm>(
   // Connector lines run through the poster rows of the lanes below their first node.
   const obstacles = laneObstacles(trackLanes, base, today);
   const optionsFor = (index: number): PackOptions => ({ ...base, priorityIds, quietIds, obstacles: obstacles[index] });
-  const capped = trackLanes.map((lane, index) => packFilms(lane.films, { ...optionsFor(index), maxRows: DEFAULT_MAX_ROWS }));
+  const capped = trackLanes.map((lane, index) => packFilms(lane.films, { ...optionsFor(index), maxRows: rowCap.rows, capPriority: rowCap.strict }));
   return { quietIds, optionsFor, capped };
 }
 
@@ -456,6 +471,17 @@ export function lineYInLane(height: number): number {
 export interface LaneBox {
   top: number;
   height: number;
+}
+
+/** The height of the track of a frame in a post with `rows` rows of cards: its one lane and the year axis, at full size (the frame scales it down when it has less room). */
+export function embedTrackHeight(rows: number): number {
+  return laneHeight(rows) + AXIS_HEIGHT;
+}
+
+/** The rows a frame draws with `room` px for the track (under its bar and over its bottom inset): the most, up to `EMBED_MAX_ROWS`, that fit at full size; one when none does (it is then scaled down to fit). */
+export function embedRowsFor(room: number): number {
+  for (let rows = EMBED_MAX_ROWS; rows > 1; rows--) if (room >= embedTrackHeight(rows)) return rows;
+  return 1;
 }
 
 /** Lanes stacked top to bottom, from y = 0. */

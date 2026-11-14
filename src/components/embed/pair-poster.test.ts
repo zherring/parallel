@@ -57,15 +57,18 @@ describe("the pair embed's first frame (the preview card as HTML)", () => {
     expect(html).toContain("rgba(136, 153, 170, 0.7)");
   });
 
-  it("holds each person's timeline colour in a ring that is not drawn until the animation shows it (the first frame is the PNG's)", async () => {
-    const { html } = await posterOf(PAIR_SLUG);
-    expect(count(html, "ring")).toBe(2);
-    expect(html).toContain("var(--person-1)");
-    expect(html).toContain("var(--person-2)");
-    for (const ring of html.match(/<div data-part="ring"[^>]*>/g) ?? []) expect(ring).toContain("opacity:0");
+  it("draws no ring, tint or second card behind or around the headshots, in the first frame or at any point after it: they are the PNG's, as it is", async () => {
+    const { card, html } = await posterOf(PAIR_SLUG);
+    expect(count(html, "ring")).toBe(0);
+    expect(count(html, "person")).toBe(card.people.length);
+    expect(html).not.toContain("var(--person-1)");
+    // Each headshot is one box of the card's own (its border and shadow) and no other box is placed over the same spot.
+    const fan = headshotFan(card.people.length);
+    const place = composition(fan.height, true, card.chip !== null);
+    expect(html.split(`top:calc(${place.headshotTop} * var(--px))`)).toHaveLength(card.people.length + 1);
   });
 
-  it("has no ring for one person, whose films have no colour to tell apart", async () => {
+  it("is the same for one person: no ring, one headshot", async () => {
     const { card, html } = await posterOf("3151-jack-lemmon");
     expect(card.kind).toBe("solo");
     expect(count(html, "ring")).toBe(0);

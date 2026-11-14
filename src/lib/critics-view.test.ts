@@ -4,13 +4,10 @@ import type { Critic } from "@/lib/critics";
 import {
   criticAbout,
   criticAvatarName,
-  criticBackground,
   criticById,
-  criticInitials,
   criticName,
   criticYear,
   interleaveQuotes,
-  kindLabel,
   readingByline,
 } from "@/lib/critics-view";
 
@@ -45,7 +42,7 @@ describe("criticName", () => {
 });
 
 describe("criticAbout", () => {
-  it("is the two family names, in the order given, as the filter buttons write them", () => {
+  it("is the two family names, in the order given", () => {
     expect(criticAbout(people)).toBe("Spielberg & Williams");
     expect(criticAbout([...people].reverse())).toBe("Williams & Spielberg");
   });
@@ -60,22 +57,21 @@ describe("criticAbout", () => {
   });
 });
 
-describe("the letters of a critic's avatar", () => {
-  it("are the first and last initial of the writer", () => {
-    expect(criticInitials(critic())).toBe("RK");
-    expect(criticInitials(critic({ critic: "Florence Scott-Anderton" }))).toBe("FS");
+describe("criticAvatarName", () => {
+  it("is the writer's name", () => {
+    expect(criticAvatarName(critic())).toBe("Rebecca Keegan");
+    expect(criticAvatarName(critic({ critic: "Florence Scott-Anderton" }))).toBe("Florence Scott-Anderton");
   });
 
-  it("are those of the first writer when there are several", () => {
+  it("is the first writer when there are several", () => {
     const duo = critic({ critic: "K. J. Donnelly and Steven Rawle" });
     expect(criticAvatarName(duo)).toBe("K. J. Donnelly");
-    expect(criticInitials(duo)).toBe("KD");
-    expect(criticInitials(critic({ critic: "Ann Lee & Bo Chan" }))).toBe("AL");
+    expect(criticAvatarName(critic({ critic: "Ann Lee & Bo Chan" }))).toBe("Ann Lee");
   });
 
-  it("are the first letter of the publication when the piece is not signed", () => {
-    expect(criticInitials(critic({ critic: null, publication: "Kirkus Reviews" }))).toBe("K");
-    expect(criticInitials(critic({ critic: null, publication: "indie Outlook" }))).toBe("I");
+  it("is the first letter of the publication when the piece is not signed", () => {
+    expect(criticAvatarName(critic({ critic: null, publication: "Kirkus Reviews" }))).toBe("K");
+    expect(criticAvatarName(critic({ critic: null, publication: "indie Outlook" }))).toBe("i");
   });
 });
 
@@ -89,30 +85,6 @@ describe("criticYear", () => {
   it("is null for a date that is none of those", () => {
     expect(criticYear({ date: "" })).toBeNull();
     expect(criticYear({ date: "January 2017" })).toBeNull();
-  });
-});
-
-describe("kindLabel", () => {
-  it("capitalises the kind as the data writes it", () => {
-    expect(kindLabel("book chapter")).toBe("Book chapter");
-    expect(kindLabel("academic")).toBe("Academic");
-    expect(kindLabel("video essay")).toBe("Video essay");
-  });
-
-  it("copes with a kind it does not know", () => {
-    expect(kindLabel(" podcast ")).toBe("Podcast");
-    expect(kindLabel("")).toBe("");
-  });
-});
-
-describe("criticBackground", () => {
-  it("names the piece the quote is from and its kind in words", () => {
-    expect(criticBackground({ title: "The odd couple", kind: "essay" })).toBe("From “The odd couple” · Essay");
-    expect(criticBackground({ title: "Introduction", kind: "book chapter" })).toBe("From “Introduction” · Book chapter");
-  });
-
-  it("is just the piece when the kind is empty", () => {
-    expect(criticBackground({ title: "The odd couple", kind: "" as Critic["kind"] })).toBe("From “The odd couple”");
   });
 });
 

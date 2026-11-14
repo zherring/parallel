@@ -16,6 +16,7 @@ import { clippingYear, quoteLinkSearch, speakerIndex, translatedFrom } from "@/l
 import type { PairCritics } from "@/lib/critics";
 import { criticAbout, criticAvatarName, criticName, criticYear, interleaveQuotes } from "@/lib/critics-view";
 import { EMBED_PREFIX } from "@/lib/embed-frame";
+import { CHAR_WIDTH } from "@/lib/og-quote";
 import type { PeopleKeyEvent, PeopleKeyTarget } from "@/lib/people-shortcut";
 
 /** A quote with everything the embed shows of it, whether an artist said it about the other or a critic wrote it about the pair. */
@@ -126,6 +127,51 @@ export function findQuoteIndex(quotes: readonly Pick<EmbedQuote, "id">[], id: st
     return -1;
   }
   return wanted ? quotes.findIndex((quote) => quote.id === wanted) : -1;
+}
+
+/** The smallest size (px) the embed sets a quote at to fit its frame: readable in the panel X opens over a phone. A quote still too long at it is cut, with an ellipsis. */
+export const QUOTE_FLOOR_PX = 13;
+
+/** The largest size (px) the embed sets a quote at, however much room it has: past it a short quote is a headline, not something to read. */
+export const QUOTE_MAX_PX = 37;
+
+/**
+ * The fewest characters (about five words) a line of the quote holds in a phone's column: the size is held down in a narrow frame so that a quote is never a wall of short, ragged lines
+ * of three or four words (22 was the rule before: it set a quote at 32px in a 383px panel, and its lines ran 19 to 27 characters). At 30 the ceiling is the column's width over 15, so
+ * 359px (a 383px panel less its sides) is 23.9px, and its lines run 30 to 45 characters (the face's average character is about 0.45 of its size wide, and a line fills about nine tenths
+ * of the column); a longer quote is set smaller by its band (see `QUOTE_BAND`) and its lines are longer. The embed's browser test holds an average line to at least 28.
+ */
+export const QUOTE_MIN_LINE_CHARS = 30;
+
+/**
+ * How much of the room between the bar and the footer the quote may take: the middle 60%, with the rest (20% over it and 20% under it, or a little more under it than over it in a
+ * tall frame) left empty so that the quote is a block to read in, not a wall to the bar and the footer. A short quote is set at its ceiling and takes less than this; a long
+ * one takes the whole band, by being set smaller, and only at the floor is it cut.
+ */
+export const QUOTE_BAND = 0.6;
+
+/**
+ * The largest size (px) a quote may be set at in a column `width` px wide: the one at which a line holds `QUOTE_MIN_LINE_CHARS` characters, up to `QUOTE_MAX_PX` and never under
+ * `QUOTE_FLOOR_PX`. It is a ceiling: the embed sets the quote at the largest size under it at which all of the quote is in its band (see `FittedQuote`).
+ */
+export function quoteSizeCeiling(width: number): number {
+  const byMeasure = Number.isFinite(width) && width > 0 ? width / (QUOTE_MIN_LINE_CHARS * CHAR_WIDTH) : 0;
+  return Math.max(QUOTE_FLOOR_PX, Math.min(QUOTE_MAX_PX, byMeasure));
+}
+
+/** The line counts the no-script clamp steps through (see `noScriptClampCss`): every one up to twelve, then coarser, to a count no real quote runs to in any frame. */
+const CLAMP_STEPS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 20, 24, 32] as const;
+
+/**
+ * The stylesheet that sets `--quote-lines` on every element with `selector`, in a page with no script: the number of lines of the quote's type size that the room it is in
+ * holds in its band (`QUOTE_BAND`), at least 1. The quote's first paint (and a page whose script never runs or fails) is cut at that many lines with an ellipsis, by `-webkit-line-clamp`,
+ * which needs a count and so cannot be told "as many as fit": it is stepped by the room's height in a container query. The room is a size container whose own font size is
+ * the quote's, and `em` in a container query is the container's, so a step is `lines * lineHeight / QUOTE_BAND` ems tall, whatever the frame: the same arithmetic the script's
+ * fit does (`FittedQuote`), without measuring. When the script runs, the fit takes the clamp off and sets the largest size at which the whole quote is in its band.
+ */
+export function noScriptClampCss(selector: string, lineHeight: number): string {
+  const steps = CLAMP_STEPS.map((lines) => `@container (min-height:${Math.ceil((lines * lineHeight * 1000) / QUOTE_BAND) / 1000}em){${selector}{--quote-lines:${lines}}}`);
+  return `${selector}{--quote-lines:1}${steps.join("")}`;
 }
 
 /**

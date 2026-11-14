@@ -1,5 +1,7 @@
 import { test as base, expect, type Locator, type Page } from "next/experimental/testmode/playwright";
+import { pairQuotes } from "../../src/lib/quote-embed-data";
 import type { RawCastCredit, RawPerson } from "../../src/lib/tmdb-types";
+import type { PersonTimeline } from "../../src/lib/types";
 
 export const PEOPLE_PATH = "/p/90000001-scroll-alpha+90000002-scroll-beta";
 
@@ -148,4 +150,132 @@ export async function scrollState(track: Locator) {
       centre: element.scrollLeft + (element.clientWidth - corner.offsetWidth) / 2,
     };
   });
+}
+
+// ---- What the embeds' specs share (`embeds*.spec.ts`, and any spec of a page a post frames) ----------------------------------------------------------------------
+
+/** Where a control is, in the frame's pixels. */
+export async function boxOf(locator: Locator) {
+  const box = await locator.boundingBox();
+  if (!box) throw new Error("the control has no box");
+  return box;
+}
+
+/** What is on top at the middle of the control is the control (or something inside it). */
+export async function isOnTopAtCentre(page: Page, locator: Locator) {
+  const box = await boxOf(locator);
+  return locator.evaluate((node, [x, y]) => {
+    const hit = document.elementFromPoint(x, y);
+    return Boolean(hit) && node.contains(hit);
+  }, [box.x + box.width / 2, box.y + box.height / 2]);
+}
+
+export const intersects = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) =>
+  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+/** The size of a control's invisible hit area (its `::before`, which extends past its box), and of its box: what a finger has to hit, and what is drawn. */
+export async function touchTarget(locator: Locator) {
+  return locator.evaluate((node) => {
+    const area = getComputedStyle(node, "::before");
+    const box = node.getBoundingClientRect();
+    return { width: box.width, height: box.height, areaWidth: Number.parseFloat(area.width), areaHeight: Number.parseFloat(area.height) };
+  });
+}
+
+/** A frame of a phone's width (the controls are touch targets in it): at most 30rem. */
+export const isPhoneWidth = (frame: { width: number }) => frame.width <= 480;
+
+/** Every element of the page that is a vertical scroller (`overflow-y` auto or scroll) or has a vertical overflow that is not clipped, and the document itself. */
+export async function verticalScrollers(page: Page) {
+  return page.evaluate(() => {
+    const found: { what: string; overflowY: string; scrollHeight: number; clientHeight: number }[] = [];
+    for (const el of document.querySelectorAll("*")) {
+      const { overflowY } = getComputedStyle(el);
+      if (overflowY === "auto" || overflowY === "scroll") found.push({ what: `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)}`, overflowY, scrollHeight: el.scrollHeight, clientHeight: el.clientHeight });
+    }
+    const root = document.scrollingElement ?? document.documentElement;
+    found.push({ what: "document", overflowY: "document", scrollHeight: root.scrollHeight, clientHeight: root.clientHeight });
+    return found;
+  });
+}
+
+/** An average line of a quote, the last (which is a rest of it, as long as it is) left out: the characters a reader's eye takes in along a line. */
+export const averageLine = (lines: readonly number[]) => {
+  const body = lines.slice(0, -1);
+  return body.reduce((sum, n) => sum + n, 0) / body.length;
+};
+
+/** The frames a pair's embed and a quote's are checked at: the panel X opens over a phone, an inline card on a desktop timeline, and a narrow desktop column. */
+export const EMBED_FIT_FRAMES = [
+  { width: 600, height: 315, what: "an inline card on a desktop timeline" },
+  { width: 516, height: 271, what: "a narrow desktop column" },
+  { width: 390, height: 253, what: "the panel X opens over a phone" },
+] as const;
+
+/** Frames taller than they are wide: the panel X opens over a phone when it is tall (70% of the screen), and the X preview page's mobile panel. */
+export const EMBED_TALL_FRAMES = [
+  { width: 383, height: 555, what: "a phone's panel (the report of the clipped footer)" },
+  { width: 390, height: 591, what: "a phone's 70% panel" },
+  { width: 435, height: 600, what: "the X preview page's mobile panel" },
+] as const;
+
+export const EMBED_PEOPLE = [
+  { id: 488, name: "Steven Spielberg", slug: "488-steven-spielberg" },
+  { id: 491, name: "John Williams", slug: "491-john-williams" },
+  { id: 287, name: "Brad Pitt", slug: "287-brad-pitt" },
+  { id: 7467, name: "David Fincher", slug: "7467-david-fincher" },
+] as const;
+/** Spielberg and Williams: a pair with quotes (the Clippings and the critics' are real data; only TMDB is stubbed). */
+export const EMBED_PAIR = `${EMBED_PEOPLE[0].slug}+${EMBED_PEOPLE[1].slug}`;
+/** The quote the link opens on, and the one after it in the list, as in the report the embeds' specs came from. */
+export const EMBED_START_ID = "john-is-much-more-of-a";
+
+/** Six films all four made together, and two each of their own. */
+const embedFilm = (id: number, year: number) => ({ id, title: `Embed Film ${id}`, release_date: `${year}-03-17`, poster_path: `/poster-${id}.png`, vote_count: 500, character: "Lead", order: 0 });
+const EMBED_SHARED = Array.from({ length: 6 }, (_, index) => embedFilm(100 + index, 2001 + index));
+
+/**
+ * `test` for the pages of the embeds: the four people above by name, and every other id (the pairs of the Clippings, for the longest quote) as "Person <id>", with the same
+ * films. The server's stub must be in place before the first page: the fixture is only set up for a test that asks for it, so a spec calls `test.beforeEach(({ next }) => void next)`.
+ */
+export const embedTest = base.extend({
+  page: async ({ page }, provide) => {
+    await page.route("https://image.tmdb.org/**", (route) => route.fulfill({ contentType: "image/png", body: PIXEL }));
+    // The universal search's results (the header of the share page has the Search button).
+    await page.route("**/api/search?*", (route) =>
+      route.fulfill({ json: { results: EMBED_PEOPLE.map((person) => ({ id: person.id, name: person.name, profilePath: null, knownFor: "Acting", knownForTitles: ["Embed Film"] })) } }),
+    );
+    await provide(page);
+  },
+  next: async ({ next }, provide) => {
+    next.onFetch((request) => {
+      const url = new URL(request.url);
+      if (url.hostname !== "api.themoviedb.org") return "abort";
+      const match = url.pathname.match(/^\/3\/person\/(\d+)(\/movie_credits)?$/);
+      // Any person: the four above by name, and every other id (the pairs of the Clippings, for the longest quote) as "Person <id>".
+      const person = match && (EMBED_PEOPLE.find((p) => p.id === Number(match[1])) ?? { id: Number(match[1]), name: `Person ${match[1]}` });
+      if (match && person) {
+        if (!match[2]) return Response.json({ id: person.id, name: person.name, profile_path: null, biography: "A biography." });
+        return Response.json({ cast: [...EMBED_SHARED, embedFilm(person.id * 10, 1990), embedFilm(person.id * 10 + 1, 1995)], crew: [] });
+      }
+      if (url.pathname === "/3/discover/movie") return Response.json({ total_pages: 1, results: [] });
+      return "abort";
+    });
+    await provide(next);
+  },
+});
+
+/** The pair's quotes in the order the embed steps through them: the page's own list, read from the same data. */
+export const EMBED_QUOTES = pairQuotes(EMBED_PEOPLE.slice(0, 2).map((person) => ({ person: { id: person.id, name: person.name, profilePath: null }, films: [] })) as unknown as PersonTimeline[]);
+export const EMBED_START = EMBED_QUOTES.findIndex((quote) => quote.id === EMBED_START_ID);
+export const EMBED_COUNT = EMBED_QUOTES.length;
+
+export const pathnameOf = (page: Page) => page.evaluate(() => window.location.pathname);
+
+/** The quote at `index` is what the page shows, in its counter, its text and its address (`path` of its id). */
+export async function expectQuoteAt(page: Page, path: (id: string) => string, index: number) {
+  const quote = EMBED_QUOTES[index];
+  await expect(page.getByRole("navigation", { name: "Browse quotes", exact: true })).toContainText(`${index + 1} / ${EMBED_COUNT}`);
+  await expect(page.locator("blockquote")).toContainText(quote.quote);
+  await expect.poll(() => pathnameOf(page)).toBe(path(quote.id));
 }

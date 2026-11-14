@@ -19,11 +19,20 @@ export const FRAME_STYLE = { containerType: "size", "--u": "min(1cqw, 1.9cqh)" }
 /** What a link out of a frame needs: a new tab, with no `opener`. */
 export const EXTERNAL = { target: "_blank", rel: "noopener" } as const;
 
+/**
+ * What makes a control of the frame a touch target. In a phone-width frame (30rem or less) it is at least 32px tall (and a round button 32px wide), and an invisible
+ * hit area round it (`before`, as the site's own small buttons have, see the search's) reaches 4px to each side beyond its border box, which the gap between neighbours (8px)
+ * holds, and 6px above and under, which the bar has room for (the `before` is placed against the padding box, 1px inside the border, hence the 5px and the 7px of the classes):
+ * about 40 wide by 44 tall round a 32px button. A pill that is taller than 32px for its type has the same added to its own height. The browser tests assert the floor.
+ */
+const HIT_AREA = "relative before:absolute before:-inset-x-[5px] before:-inset-y-[7px]";
+
 /** The classes of the frame's round buttons and pills (a hairline, the text colour of the page, a hover that lights the border). */
-export const EMBED_BUTTON =
-  "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-border text-body transition-colors hover:border-muted hover:text-strong motion-reduce:transition-none";
-export const EMBED_PILL =
-  "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border font-medium text-strong no-underline transition-colors hover:border-muted motion-reduce:transition-none";
+export const EMBED_BUTTON = `${HIT_AREA} inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-border text-body transition-colors hover:border-muted hover:text-strong motion-reduce:transition-none @max-[30rem]:min-h-8 @max-[30rem]:min-w-8`;
+export const EMBED_PILL = `${HIT_AREA} inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border font-medium text-strong no-underline transition-colors hover:border-muted motion-reduce:transition-none @max-[30rem]:min-h-8`;
+
+/** The classes of a person's round picture in the bar that is a link: the same hit area, round it. */
+export const EMBED_AVATAR_LINK = "relative inline-flex rounded-full no-underline before:absolute before:-inset-1.5";
 
 /** The wordmark as a link to `href` (a new tab when `external`): how the frame leads to more of the site. */
 export function EmbedWordmark({ href, title, label, external }: { href: string; title: string; label: string; external: boolean }) {
@@ -34,25 +43,38 @@ export function EmbedWordmark({ href, title, label, external }: { href: string; 
       title={title}
       aria-label={label}
       className="inline-flex shrink-0 items-center gap-2 no-underline"
-      style={{ fontSize: embedSize(18, 2.4) }}
+      style={{ fontSize: embedSize(15, 2.04) }}
     >
       <Wordmark className="leading-none" />
     </a>
   );
 }
 
-/** "Open in Parallel": the same view on the site, as a pill. */
-export function OpenInParallel({ href, external, style }: { href: string; external: boolean; style?: CSSProperties }) {
+/**
+ * "Open in Parallel": the same view on the site, as a pill that is always one line. With `short`, a frame narrower than 26rem (a phone's panel) draws it as "Open" and the
+ * arrow, so that it fits the footer's row beside the attribution instead of wrapping under it (its name stays the whole of it, for a screen reader and for the visitor's tooltip).
+ */
+export function OpenInParallel({ href, external, short = false, style }: { href: string; external: boolean; short?: boolean; style?: CSSProperties }) {
   return (
     <a
       href={href}
       {...(external ? EXTERNAL : {})}
+      aria-label={external ? "Open in Parallel (opens in a new tab)" : "Open in Parallel"}
+      title="Open in Parallel"
       className={EMBED_PILL}
-      style={{ fontSize: embedSize(12, 1.6), padding: `${embedSize(7, 0.9)} ${embedSize(12, 1.5)}`, ...style }}
+      style={{ fontSize: embedSize(10.5, 1.36), padding: `${embedSize(6, 0.76)} ${embedSize(10, 1.28)}`, ...style }}
     >
-      Open in Parallel
-      <ExternalLink aria-hidden="true" className="size-3.5" />
-      {external && <span className="sr-only">(opens in a new tab)</span>}
+      {short ? (
+        <>
+          <span className="@max-[26rem]:hidden">Open in Parallel</span>
+          <span aria-hidden="true" className="hidden @max-[26rem]:inline">
+            Open
+          </span>
+        </>
+      ) : (
+        "Open in Parallel"
+      )}
+      <ExternalLink aria-hidden="true" className="size-3" />
     </a>
   );
 }

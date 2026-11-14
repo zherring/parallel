@@ -18,8 +18,8 @@ export const QUOTE_TEXT_HEIGHT = 340;
 export const QUOTE_FONT_SIZES = [72, 64, 56, 50, 45, 41, 37] as const;
 export const QUOTE_LINE_HEIGHT = 1.24;
 
-/** Width of an average character of Newsreader as a multiple of its size, rounded up so that a line never runs longer than predicted. */
-const CHAR_WIDTH = 0.5;
+/** Width of an average character of Newsreader as a multiple of its size, rounded up so that a line never runs longer than predicted. The quote embed (`quote-embed.ts`) and its tests use the same measure. */
+export const CHAR_WIDTH = 0.5;
 
 /** How many lines `text` takes in a column `width` wide at `fontSize`, breaking only between words. */
 export function quoteLineCount(text: string, fontSize: number, width: number = QUOTE_TEXT_WIDTH): number {

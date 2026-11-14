@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, type RefObject } from "react";
+import { INTERACTIVE_SELECTOR } from "@/lib/interaction-target";
 import {
   canStartPan,
   movedPastThreshold,
@@ -9,25 +10,7 @@ import {
   scrollBounds,
   type PanTarget,
 } from "@/lib/drag-pan";
-
-/**
- * Anything with a job of its own. A film's card and node carry `data-film`; the rest is the usual
- * suspects (the "Show all" and "More" buttons, the legend chips, the remove and person links).
- */
-const INTERACTIVE = [
-  "a[href]",
-  "button",
-  "input",
-  "select",
-  "textarea",
-  "summary",
-  "label",
-  "[role='button']",
-  "[role='link']",
-  "[role='scrollbar']",
-  "[contenteditable]:not([contenteditable='false'])",
-  "[data-film]",
-].join(",");
+import { drawnScale } from "@/lib/drawn-scale";
 
 /** The sticky lane header cells: their text stays selectable and their buttons clickable. */
 const HEADER = "[data-lane-head]";
@@ -41,19 +24,24 @@ interface Press {
   startY: number;
   startLeft: number;
   startTop: number;
+  /** How much smaller than its layout the scroller is drawn when the press began (`drawnScale`): the pointer's travel is in the drawn size, the scroll position in the layout's. It cannot change mid-drag but by a resize, and is read once, not at every move. */
+  factor: number;
   dragging: boolean;
 }
 
 /** What a scroller's pan is told apart from a click by, and along which axes it moves. The flat timeline uses the defaults. */
 export interface DragPanOptions {
   /**
-   * Elements with a job of their own, which a press never pans from (a CSS selector). The default is `INTERACTIVE`: the
+   * Elements with a job of their own, which a press never pans from (a CSS selector). The default is `INTERACTIVE_SELECTOR`: the
    * timeline's cards and nodes, buttons, links and inputs. `null` for none: the Depth scene lets a press on a poster pan too,
    * and a poster only opens its film when the press was a click (the click that ends a drag is swallowed).
    */
   interactive?: string | null;
-  /** "both" (the default) pans sideways and down; "y" leaves a scroller's horizontal position alone (the Depth scene scrolls vertically). */
-  axis?: "both" | "y";
+  /**
+   * "both" (the default) pans sideways and down; "y" leaves a scroller's horizontal position alone (the Depth scene scrolls vertically); "x" leaves its
+   * vertical position alone (a frame in a post pans sideways only).
+   */
+  axis?: "both" | "x" | "y";
 }
 
 function describeTarget(scroller: HTMLElement, event: PointerEvent, interactive: string | null): PanTarget {
@@ -135,8 +123,10 @@ export function useDragPan(scrollerRef: RefObject<HTMLElement | null>, onPanStar
         finish();
         return;
       }
-      const dx = event.clientX - current.startX;
-      const dy = event.clientY - current.startY;
+      // A scroller drawn smaller than its layout (the pair embed scales its timeline down to the frame) scrolls further than the pointer moves.
+      const { factor } = current;
+      const dx = (event.clientX - current.startX) / factor;
+      const dy = (event.clientY - current.startY) / factor;
       if (!current.dragging) {
         if (!movedPastThreshold(dx, dy)) return;
         begin(current);
@@ -144,7 +134,7 @@ export function useDragPan(scrollerRef: RefObject<HTMLElement | null>, onPanStar
       const next = nextPanScroll(
         { left: current.startLeft, top: current.startTop },
         optionsRef.current?.axis === "y" ? 0 : dx,
-        dy,
+        optionsRef.current?.axis === "x" ? 0 : dy,
         scrollBounds(scroller),
       );
       // "instant", so that CSS `scroll-behavior: smooth` can never make the content lag behind the pointer.
@@ -207,7 +197,7 @@ export function useDragPan(scrollerRef: RefObject<HTMLElement | null>, onPanStar
         ctrlKey: event.ctrlKey,
         metaKey: event.metaKey,
         altKey: event.altKey,
-        target: describeTarget(scroller, event, optionsRef.current?.interactive === undefined ? INTERACTIVE : optionsRef.current.interactive),
+        target: describeTarget(scroller, event, optionsRef.current?.interactive === undefined ? INTERACTIVE_SELECTOR : optionsRef.current.interactive),
       });
       if (!allowed) return;
       press = {
@@ -216,6 +206,7 @@ export function useDragPan(scrollerRef: RefObject<HTMLElement | null>, onPanStar
         startY: event.clientY,
         startLeft: scroller.scrollLeft,
         startTop: scroller.scrollTop,
+        factor: drawnScale(scroller),
         dragging: false,
       };
       window.addEventListener("pointermove", onMove, true);

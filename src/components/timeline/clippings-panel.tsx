@@ -1,346 +1,100 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useId } from "react";
 import { newsreader } from "@/components/newsreader";
-import type { Clipping, ClippingsPerson, ClippingsVoice, VoicedClippings } from "@/lib/clippings";
-import {
-  clippingById,
-  clippingYear,
-  clippingsCountMessage,
-  filterClippings,
-  filterCritics,
-  filterOptions,
-  pagePersonFor,
-  parseQuoteId,
-  speakerIndex,
-  translatedFrom,
-  type ClippingsFilter,
-} from "@/lib/clippings-view";
-import type { Critic, PairCritics } from "@/lib/critics";
-import {
-  criticAvatarName,
-  criticBackground,
-  criticById,
-  criticName,
-  criticYear,
-  interleaveQuotes,
-} from "@/lib/critics-view";
+import type { VoicedClippings } from "@/lib/clippings";
+import { clippingYear, parseQuoteId, speakerIndex, translatedFrom } from "@/lib/clippings-view";
+import type { PairCritics } from "@/lib/critics";
+import { criticName, criticYear, interleaveQuotes } from "@/lib/critics-view";
 import { personColor } from "@/lib/person-colors";
-import { QUOTE_PARAM } from "@/lib/films-view";
-import { headingNames } from "@/lib/short-name";
-import { cn } from "./cn";
+import { quoteExhibitAttributedContext, quoteExhibitPeople } from "@/lib/quote-exhibit";
+import type { PersonPanelAccess } from "@/lib/side-panel";
 import { MoreReading } from "./more-reading";
-import type { PersonPanelAccess, PersonPanelEntry } from "@/lib/side-panel";
-import { PersonBio } from "./person-bio";
 import { PullQuote, quoteElementId } from "./pull-quote";
-import { scrollBehavior } from "./scroll-behavior";
-
-/** How long a quote that a link opened on stays highlighted. */
-const HIGHLIGHT_MS = 2800;
-
-/**
- * The colour of anyone who is not one of the pair: a quote whose speaker is neither of them, and every critic (their
- * marks, dot and avatar ring are quiet, so that the artists' voices keep the colours they have on the Timeline).
- */
-const MUTED = "var(--text-muted)";
-
-/** No critics: one array for every render, so that an effect keyed on it does not run again for nothing. */
-const NO_CRITICS: readonly Critic[] = [];
+import { QuoteExhibit, QuoteExhibitSlide } from "./quote-exhibit";
+import { QuoteExhibitContext } from "./quote-exhibit-context";
+import { QuoteExhibitDeck, type ExhibitSlide } from "./quote-exhibit-deck";
 
 interface ClippingsPanelProps {
-  /** The pair's quotes about each other; null for a pair that has none (the panel is then the critics alone). */
   pair: VoicedClippings | null;
-  /** What the critics have written about the pair: their quotes and the reading list; null for a pair with neither. */
   critics: PairCritics | null;
-  /** Whether the Clippings tab is the one showing: the panel is always in the page, hidden when it is not. */
   active: boolean;
-  /**
-   * The page's people and the opener for them: a name in a quote that is one of them becomes a button that
-   * opens their details, matched by TMDB id. Without it, names are plain text.
-   */
   personPanel?: PersonPanelAccess;
 }
 
-/** No one to open details of: one array for every render. */
-const NO_PERSON_ENTRIES: readonly PersonPanelEntry[] = [];
-
-/**
- * The Clippings tab: the pair's quotes about each other and what the critics have written about the collaboration, both
- * as pull quotes in one list (`Quotes`), then "More reading" (`MoreReading`): pieces that are only linked. A pair may
- * have any of the three alone, and the tab then shows only that. The serif is loaded here.
- */
+/** One Quotes experience for artists, critics, and pairs with only further reading. */
 export function ClippingsPanel({ pair, critics, active, personPanel }: ClippingsPanelProps) {
-  const quotes = critics?.critics ?? NO_CRITICS;
+  const searchParams = useSearchParams();
+  const readingTitleId = useId();
+  const people = quoteExhibitPeople(pair, critics, personPanel?.entries.map((entry) => entry.person) ?? []);
   const reading = critics?.reading ?? [];
-  const hasQuotes = (pair?.clippings.length ?? 0) > 0 || quotes.length > 0;
-  return (
-    <div className={newsreader.variable}>
-      {hasQuotes && <Quotes pair={pair} critics={critics} active={active} personPanel={personPanel} />}
-      {reading.length > 0 && <MoreReading reading={reading} afterQuotes={hasQuotes} />}
-    </div>
-  );
-}
+  const entries = interleaveQuotes(pair?.clippings ?? [], critics?.critics ?? []);
 
-/**
- * What one of the pair has said about the other, and what the critics have written about the two of them, set as
- * pull quotes (big serif quote between marks, a round picture in the gutter beside it, small speaker and source
- * under it, space and a hairline between) in ONE list, oldest first (see `interleaveQuotes`). An artist's quote has
- * the speaker's colour and headshot; a critic's the same marks and layout in a neutral grey, with the initials of the
- * writer for a picture. A small filter ("All", "A on B", "B on A", "Critics") shows one group when there is more than
- * one. The quotes are hand-curated (`clippings.json`, `essays.json`), see `clippings.ts` and `critics.ts`.
- *
- * A link to one quote (`?view=clippings&quote=<id>`) opens the tab on it: it is scrolled to the middle
- * of the screen and highlighted for a moment. An id that is not one of the pair's is ignored.
- */
-function Quotes({
-  pair,
-  critics,
-  active,
-  personPanel,
-}: {
-  pair: VoicedClippings | null;
-  critics: PairCritics | null;
-  active: boolean;
-  personPanel: PersonPanelAccess | undefined;
-}) {
-  const people = pair?.people ?? null;
-  // The two names of the page, whichever of the pair's lists has them: what a name in a quote is matched against.
-  const named = pair?.people ?? critics?.people ?? null;
-  const clippings = pair?.clippings ?? [];
-  const criticQuotes = critics?.critics ?? NO_CRITICS;
-  const [filter, setFilter] = useState<ClippingsFilter>("all");
-  const [changed, setChanged] = useState(false);
-  const [highlighted, setHighlighted] = useState<string | null>(null);
-  // A link to another quote while the tab is already showing (the pair hero's, say) changes the address without changing `active`: it is read again.
-  const quoteInAddress = useSearchParams().get(QUOTE_PARAM);
+  const slides: ExhibitSlide[] = entries.map((entry) => {
+    const clipping = entry.kind === "clipping" ? entry.clipping : null;
+    const item = entry.kind === "clipping" ? entry.clipping : entry.critic;
+    const speaker = entry.kind === "clipping" ? entry.clipping.speaker : criticName(entry.critic);
+    const side = clipping && people ? speakerIndex(clipping, people) : null;
+    const year = entry.kind === "clipping" ? clippingYear(entry.clipping) : criticYear(entry.critic);
+    const author = entry.kind === "critic" ? entry.critic.critic?.trim() : null;
+    // A quote that is our translation gives the words as the source prints them, so a touch screen can reach them too.
+    const translated = clipping ? translatedFrom(clipping) : null;
+    const original = clipping?.original;
+    const background = clipping
+      ? [
+          clipping.context,
+          clipping.secondhand ? `Secondhand: ${speaker} is reported by someone else here, not quoted in their own words.` : "",
+          translated && original ? `${translated}. The original: “${original}”` : "",
+        ].filter(Boolean).join(" ")
+      : `From “${item.title.trim()}”, ${author ? `by ${author}` : `published in ${item.publication}`}.`;
+    const context = clipping && side !== null && people
+      ? quoteExhibitAttributedContext(background, people[side], people)
+      : background;
 
-  const colorOf = (side: 0 | 1 | null) => (side === null || !people ? MUTED : personColor(people[side].slot));
-
-  const options = people ? filterOptions(clippings, people, criticQuotes.length) : [];
-  const shown = people ? filterClippings(clippings, people, filter) : [];
-  const shownCritics = filterCritics(criticQuotes, filter);
-  const entries = interleaveQuotes(shown, shownCritics);
-  const pageEntries = personPanel?.entries ?? NO_PERSON_ENTRIES;
-  const entryFor = (name: string) => (named ? pagePersonFor(name, named, pageEntries) : null);
-  // "Spielberg & Williams" (see `criticAbout`), each name opening its person's details; the critic's own name stays plain.
-  const criticsAbout = critics ? <CriticsAbout people={critics.people} personPanel={personPanel} /> : null;
-
-  // The address bar is read once the tab is showing (the server's HTML and the first client render are the Timeline,
-  // see `useViewTab`), so a link that names a quote lands here with the tab already un-hidden and its quote on the page.
-  const clippingList = pair?.clippings;
-  useEffect(() => {
-    if (!active) return;
-    const id = parseQuoteId(window.location.search);
-    const target = clippingById(clippingList ?? [], id) ?? criticById(criticQuotes, id);
-    if (!target) return;
-
-    const reveal = (behavior: ScrollBehavior) =>
-      document.getElementById(quoteElementId(target.id))?.scrollIntoView({ block: "center", behavior });
-    reveal(scrollBehavior());
-    // Newsreader loads on first use, and the quotes above this one reflow when it arrives: centre it again.
-    let cancelled = false;
-    document.fonts?.load(`28px ${newsreader.style.fontFamily}`).then(
-      () => !cancelled && reveal("auto"),
-      () => {},
-    );
-    // Not a render's own work, but the page's reaction to a link it was opened with.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setHighlighted(target.id);
-    const timer = setTimeout(() => setHighlighted(null), HIGHLIGHT_MS);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-      // Leaving the tab ends the highlight, so that coming back to it does not find a quote still lit.
-      setHighlighted(null);
+    return {
+      id: item.id,
+      speakerId: side === null || !people ? null : people[side].id,
+      quote: item.quote,
+      speaker,
+      publication: item.publication,
+      year,
+      content: (
+        <PullQuote
+          id={item.id}
+          quote={item.quote}
+          url={item.url}
+          linkTitle={item.title}
+          speaker={speaker}
+          color={side === null || !people ? "var(--text-muted)" : personColor(people[side].slot)}
+          film={clipping?.film}
+          publication={item.publication}
+          year={year}
+          via={item.via}
+          translation={translated && original ? { label: translated, original } : null}
+          explainer={<QuoteExhibitContext text={context} people={people ?? []} personPanel={personPanel} />}
+        />
+      ),
     };
-  }, [active, clippingList, criticQuotes, quoteInAddress]);
+  });
 
   return (
-    <>
-      {options.length > 0 && (
-        <div role="group" aria-label="Show quotes by speaker" className="flex flex-wrap gap-2">
-          {options.map((option) => {
-            const selected = option.id === filter;
-            // A dot in the colour of the voice the button shows: a person's, a neutral one for the critics, none for "All".
-            const dot = option.id === "first" ? colorOf(0) : option.id === "second" ? colorOf(1) : option.id === "critics" ? MUTED : null;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={selected}
-                title={option.title}
-                onClick={() => {
-                  setFilter(option.id);
-                  setChanged(true);
-                }}
-                className={cn(
-                  "inline-flex h-8 cursor-pointer items-center gap-2 rounded-full border px-3.5 text-sm font-medium transition-colors motion-reduce:transition-none",
-                  selected
-                    ? "border-muted/60 bg-border text-strong"
-                    : "border-border text-muted hover:border-muted hover:text-strong",
-                )}
-              >
-                {dot !== null && <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: dot }} />}
-                {option.label}
-              </button>
-            );
-          })}
+    <div className={newsreader.variable} data-quotes-page={active ? "true" : undefined}>
+      {active && people && slides.length > 0 ? (
+        <QuoteExhibitDeck people={people} slides={slides} quoteId={parseQuoteId(searchParams.toString())} reading={reading} />
+      ) : active && people && reading.length > 0 ? (
+        <div className="quote-exhibit-deck" data-quote-exhibit-deck>
+          <QuoteExhibit people={people} speakerId={null}>
+            <QuoteExhibitSlide label="More reading"><MoreReading reading={reading} afterQuotes={false} titleId={readingTitleId} /></QuoteExhibitSlide>
+          </QuoteExhibit>
         </div>
+      ) : (
+        /* Keep the complete source-linked text in server HTML; only the active view mounts imagery and keyboard listeners. */
+        <>
+          <ol>{slides.map((slide) => <li key={slide.id} id={quoteElementId(slide.id)}>{slide.content}</li>)}</ol>
+          {reading.length > 0 && <MoreReading reading={reading} afterQuotes={slides.length > 0} />}
+        </>
       )}
-      <p role="status" aria-live="polite" className="sr-only">
-        {changed ? clippingsCountMessage(shown.length + shownCritics.length) : ""}
-      </p>
-
-      {entries.length > 0 && (
-        <ul className={cn("divide-y divide-border/70", options.length > 0 && "mt-3")}>
-          {entries.map((entry) => {
-            if (entry.kind === "critic") {
-              const { critic } = entry;
-              return (
-                <li key={critic.id} id={quoteElementId(critic.id)} className="group/quote">
-                  <CriticQuote critic={critic} about={criticsAbout} highlighted={critic.id === highlighted} />
-                </li>
-              );
-            }
-            const { clipping } = entry;
-            const side = people ? speakerIndex(clipping, people) : null;
-            return (
-              <li key={clipping.id} id={quoteElementId(clipping.id)} className="group/quote">
-                <ClippingQuote
-                  clipping={clipping}
-                  voice={side === null || !people ? null : people[side]}
-                  speakerEntry={entryFor(clipping.speaker)}
-                  aboutEntry={entryFor(clipping.about)}
-                  personPanel={personPanel}
-                  color={colorOf(side)}
-                  highlighted={clipping.id === highlighted}
-                />
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      <p className="mt-6 text-xs text-muted">Quotes link to their original sources.</p>
-    </>
-  );
-}
-
-/** An artist's quote: their headshot and colour (neither, when they are not one of the pair), where and why they said it. */
-function ClippingQuote({
-  clipping,
-  voice,
-  speakerEntry,
-  aboutEntry,
-  personPanel,
-  color,
-  highlighted,
-}: {
-  clipping: Clipping;
-  /** The one of the pair who said it; null when it is neither (no headshot, a muted mark). */
-  voice: ClippingsVoice | null;
-  /** The speaker and who it is about, as the page has them (their names open their details); null for someone who is not on the page. */
-  speakerEntry: PersonPanelEntry | null;
-  aboutEntry: PersonPanelEntry | null;
-  personPanel: PersonPanelAccess | undefined;
-  /** A CSS colour: the speaker's on the Timeline. */
-  color: string;
-  highlighted: boolean;
-}) {
-  const { id, speaker, about, quote, film, publication, title, url, via, context, secondhand, original } = clipping;
-  const translated = translatedFrom(clipping);
-
-  // Where and why it was said; a quote that is reported rather than spoken says so here too, not as a tag on the quote,
-  // and one that is our translation gives the words as the source prints them.
-  const background = [
-    context,
-    secondhand ? `Secondhand: ${speaker} is reported by someone else here, not quoted in their own words.` : "",
-    translated && original ? `${translated}. The original: “${original}”` : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  return (
-    <PullQuote
-      id={id}
-      quote={quote}
-      url={url}
-      linkTitle={title}
-      speaker={speaker}
-      speakerLabel={<PersonNameTrigger name={speaker} entry={speakerEntry} personPanel={personPanel} />}
-      about={<PersonNameTrigger name={about} entry={aboutEntry} personPanel={personPanel} />}
-      color={color}
-      avatar={voice ? { name: voice.name, profilePath: voice.profilePath } : null}
-      film={film}
-      publication={publication}
-      year={clippingYear(clipping)}
-      via={via}
-      background={background}
-      translation={translated && original ? { label: translated, original } : null}
-      highlighted={highlighted}
-    />
-  );
-}
-
-/**
- * A critic's quote, in the artists' own format: the same marks and layout, but quiet. The writer (or the publication, for
- * an unsigned piece) is the speaker and "on Spielberg & Williams" is what it is about; the picture is their initials in
- * a neutral ring, since there is no photo; the ⓘ names the piece it is from; and no film, no kind tag.
- */
-function CriticQuote({ critic, about, highlighted }: { critic: Critic; about: ReactNode; highlighted: boolean }) {
-  return (
-    <PullQuote
-      id={critic.id}
-      quote={critic.quote}
-      url={critic.url}
-      linkTitle={critic.title}
-      speaker={criticName(critic)}
-      about={about}
-      color={MUTED}
-      avatar={{ name: criticAvatarName(critic), profilePath: null }}
-      publication={critic.publication}
-      year={criticYear(critic)}
-      via={critic.via}
-      background={criticBackground(critic)}
-      highlighted={highlighted}
-    />
-  );
-}
-
-/**
- * A name in a quote's attribution: the button that opens that person's details in the slide-out panel (the people
- * pill's `PersonBio`), or just the name when the person is not one the page has. Openers are white regardless of
- * the surrounding text.
- */
-function PersonNameTrigger({
-  name,
-  entry,
-  personPanel,
-}: {
-  name: string;
-  entry: PersonPanelEntry | null;
-  personPanel: PersonPanelAccess | undefined;
-}) {
-  if (!entry || !personPanel) return <>{name}</>;
-  return <PersonBio person={entry.person} onOpen={personPanel.open} nameTrigger label={name} />;
-}
-
-/** Who the critics' quotes are about, in the short names `criticAbout` uses ("Spielberg & Williams"), each as a `PersonNameTrigger`. */
-function CriticsAbout({
-  people,
-  personPanel,
-}: {
-  people: readonly [ClippingsPerson, ClippingsPerson];
-  personPanel: PersonPanelAccess | undefined;
-}) {
-  const names = headingNames(people, true);
-  const entryFor = (id: number) => personPanel?.entries.find((entry) => entry.person.id === id) ?? null;
-  return (
-    <>
-      <PersonNameTrigger name={names[0]} entry={entryFor(people[0].id)} personPanel={personPanel} />
-      {" & "}
-      <PersonNameTrigger name={names[1]} entry={entryFor(people[1].id)} personPanel={personPanel} />
-    </>
+    </div>
   );
 }
