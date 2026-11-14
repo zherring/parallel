@@ -43,8 +43,11 @@ pairingKey: the two TMDB ids, sorted, joined with `+` (`488+491`). Queue: `scrip
    (few quotes, one-sided, secondhand, over-long), each agent's single best quote and any source it was unsure about, and
    anything a staged file's `notes` says was skipped (paywalls, unverifiable famous quotes).
 
-6. **Remind the owner to review before committing**: run `npm run dev`, open each pair's page (`/p/<slug>`, from the Clippings
-   tab on the landing page) and read every new quote against its source; research agents can mis-transcribe or pick a weak line.
+6. **Remind the owner to review before committing**: `npm run clippings:review` opens one page with every quote not yet on
+   `origin/main`, with its source link and warning chips; keys j/k, a (OK), x (flag), n (note), and "Export flagged" gives a list
+   to paste back. Apply the flagged cuts and fixes to both `src/lib/clippings.json` and the staged file, so a rebuild doesn't bring
+   them back. Research agents can mis-transcribe or pick a weak line; the owner cuts junket hype, generic praise, several quotes
+   from one exchange, and fragments.
    The new quotes are uncommitted edits to `src/lib/clippings.json` / `src/lib/essays.json` and the staged files; do not commit
    or push unless asked.
 
