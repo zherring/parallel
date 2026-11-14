@@ -204,6 +204,7 @@ export function PullQuote({
             {translation && (
               <span className="whitespace-nowrap" title={translation.original}>
                 <span aria-hidden="true">&middot;</span> {translation.label}
+                <span className="sr-only"> (original: {translation.original})</span>
               </span>
             )}
           </p>

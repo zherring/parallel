@@ -394,6 +394,20 @@ describe("flags", () => {
   it("notes a thin or one-sided set and secondhand quotes", () => {
     expect(quotesFlags(entry)).toEqual(["only 1 quotes", "nothing from John Williams", "1 secondhand"]);
   });
+  it("notes quotes ending in a comma or without terminal punctuation", () => {
+    const ends = [
+      "It was the best of times,",
+      "And then he left",
+      "We never stopped talking.",
+      "Was it worth it?",
+      "He said \u201cno.\u201d",
+      "(as he would)",
+      "ARRIVING TUESDAY STOP",
+    ];
+    const flags = quotesFlags(buildQuotesEntry(quotesFile({}, ends.map((q) => quote({ quote: q }))) as unknown as RawQuotesFile));
+    expect(flags).toContain("1 end with a comma (the reporting clause's?)");
+    expect(flags).toContain("1 end without terminal punctuation");
+  });
   it("notes critic quotes of an odd length", () => {
     const c = buildCriticsEntry({ pair: ["A", "B"], tmdb_ids: [1, 2], critics: [critic({ quote: "Too short." })], reading: [] });
     expect(criticsFlags(c)).toEqual(["1 quotes outside 15-80 words"]);

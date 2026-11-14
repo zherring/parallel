@@ -153,7 +153,12 @@ async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, 
                 <span style={{ color: OG.strong }}>{speaker}</span>
                 <span style={{ color: OG.muted, whiteSpace: "pre" }}>{about}</span>
               </div>
-              <div style={{ display: "flex", marginTop: 5, fontSize: 22, lineHeight: 1.2, fontWeight: 600, color: OG.muted }}>{source}</div>
+              {/* Wraps like the attribution, so "Publication · Year · Translated from Italian" stays inside the column. */}
+              <div style={{ display: "flex", flexWrap: "wrap", marginTop: 5, fontSize: 22, lineHeight: 1.2, fontWeight: 600, color: OG.muted }}>
+                {source.split(" · ").map((part, i) => (
+                  <span key={i}>{i === 0 ? part : ` · ${part}`}</span>
+                ))}
+              </div>
             </div>
           </div>
           {ogWordmark(30)}

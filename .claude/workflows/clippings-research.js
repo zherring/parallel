@@ -8,10 +8,10 @@ export const meta = {
 }
 
 const MAX_PARALLEL = 8
-// Measured 2026-11-13: the lean agent starts at ~8.5k context, so batching no longer pays. With 2 pairs per agent the second
-// pair carries the first pair's leftovers (context reached ~67k) and cost ~0.61M input per pair; 1 per agent is cheaper.
-// Keep at 1 unless the agent's baseline grows again (the old all-tools agent started at ~55k).
-const PAIRS_PER_AGENT = 1
+// One pair per agent. Measured 2026-11-13: the lean agent starts at ~8.5k context, so batching pairs no longer pays. With
+// 2 pairs per agent the second pair carried the first pair's leftovers (context reached ~67k) and cost ~0.61M input per
+// pair, against ~0.48M at 1 per agent, so the batching code was removed. Worth revisiting only if the agent's baseline
+// grows again (the old all-tools agent started at ~55k).
 
 // args: ["488+491", ...] | "488+491, 31+488" | { keys: [...], critics?: boolean, force?: boolean }
 const input = Array.isArray(args) ? { keys: args } : typeof args === 'string' ? { keys: args.split(/[\s,]+/) } : args || {}
@@ -52,30 +52,12 @@ function pairSteps(key) {
   )
 }
 
-function prompt(batch) {
-  const head =
-    batch.length === 1
-      ? `You are researching one pairing for the Clippings feature of this repo (your working directory is the repo root).\n\n`
-      : `You are researching ${batch.length} pairings for the Clippings feature of this repo (your working directory is the repo root). ` +
-        `Do them one at a time, in order, each into its own file; read the brief(s) once and reuse them.\n\n`
-  const body = batch.map((k, i) => (batch.length > 1 ? `=== Pair ${i + 1} of ${batch.length} ===\n` : '') + pairSteps(k)).join('\n')
-  const reply =
-    batch.length === 1
-      ? `Your final reply must be AT MOST 3 lines, as the brief says.`
-      : `Your final reply: for each pair, a line "=== <key>" followed by AT MOST 3 lines, as the brief says.`
-  return head + body + '\n' + reply
-}
-
-// Split a batched reply back into per-key summaries.
-function splitReply(batch, reply) {
-  if (batch.length === 1) return { [batch[0]]: firstLines(reply) }
-  const out = {}
-  const parts = String(reply ?? '').split(/^===\s*/m)
-  for (const key of batch) {
-    const part = parts.find((p) => p.startsWith(key))
-    out[key] = part ? firstLines(part.slice(key.length)) : firstLines(reply)
-  }
-  return out
+function prompt(key) {
+  return (
+    `You are researching one pairing for the Clippings feature of this repo (your working directory is the repo root).\n\n` +
+    pairSteps(key) +
+    `\nYour final reply must be AT MOST 3 lines, as the brief says.`
+  )
 }
 
 const firstLines = (text) =>
@@ -87,22 +69,19 @@ const firstLines = (text) =>
     .join('\n  ')
 
 phase('Research')
-const batches = []
-for (let i = 0; i < keys.length; i += PAIRS_PER_AGENT) batches.push(keys.slice(i, i + PAIRS_PER_AGENT))
-log(`${keys.length} pair(s) in ${batches.length} agent(s), ${kind}, up to ${MAX_PARALLEL} at a time${force ? ', overwriting staged files' : ''}`)
+log(`${keys.length} pair(s), one agent each, ${kind}, up to ${MAX_PARALLEL} at a time${force ? ', overwriting staged files' : ''}`)
 
-// Fixed assignment of batches to workers (not a shared queue) so that a resumed run replays its agents in the same order.
-const workers = Math.min(MAX_PARALLEL, batches.length)
+// Fixed assignment of keys to workers (not a shared queue) so that a resumed run replays its agents in the same order.
+const workers = Math.min(MAX_PARALLEL, keys.length)
 const summaries = {}
 await parallel(
   Array.from({ length: workers }, (_, w) => async () => {
-    for (const batch of batches.filter((_, i) => i % workers === w)) {
+    for (const key of keys.filter((_, i) => i % workers === w)) {
       try {
-        const reply = await agent(prompt(batch), { label: batch.join(' '), phase: 'Research', agentType: 'clippings-researcher' })
-        if (reply === null) for (const key of batch) summaries[key] = 'no result (the agent was skipped or failed)'
-        else Object.assign(summaries, splitReply(batch, reply))
+        const reply = await agent(prompt(key), { label: key, phase: 'Research', agentType: 'clippings-researcher' })
+        summaries[key] = reply === null ? 'no result (the agent was skipped or failed)' : firstLines(reply)
       } catch (err) {
-        for (const key of batch) summaries[key] = `FAILED: ${err && err.message ? err.message : err}`
+        summaries[key] = `FAILED: ${err && err.message ? err.message : err}`
       }
     }
   }),

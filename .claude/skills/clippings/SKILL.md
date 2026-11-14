@@ -53,8 +53,8 @@ pairingKey: the two TMDB ids, sorted, joined with `+` (`488+491`). Queue: `scrip
 - The research agent is `clippings-researcher` (`.claude/agents/clippings-researcher.md`): Read, Write, Bash, WebSearch, WebFetch
   only. Don't switch the workflow back to a plain `model: 'sonnet'` agent: that inherits every MCP server and tool definition
   (~55k tokens on every call before any research, about 75% of the spend). The lean agent starts at ~8.5k.
-- One pair per agent (`PAIRS_PER_AGENT = 1` in the workflow). Batching pairs made each later call carry the earlier pair's
-  context and cost more once the baseline was small.
+- One pair per agent (the workflow no longer batches). Batching pairs made each later call carry the earlier pair's
+  context and cost more once the baseline was small (~0.61M input per pair at 2 per agent vs ~0.48M at 1).
 - Rough cost per pair, measured 2026-11-13: old setup ~1.3M input (mostly cache reads) and ~9k output; lean, 2 per agent
   ~0.6M; lean, 1 per agent estimated ~0.4M input and ~9k output. Output scales with the number of pairs whatever the setup.
 - For big runs, go in chunks (~10-20 pairs) and let the owner check `/usage` between chunks.

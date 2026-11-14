@@ -413,7 +413,20 @@ export function quotesFlags(entry: ClippingsEntry): string[] {
   if (long > 0) flags.push(`${long} over 90 words`);
   const foreign = entry.clippings.filter((c) => !c.original && looksNonEnglish(c.quote)).length;
   if (foreign > 0) flags.push(`${foreign} may not be in English (no "original"; translate it)`);
+  const comma = entry.clippings.filter((c) => c.quote.trimEnd().endsWith(",")).length;
+  if (comma > 0) flags.push(`${comma} end with a comma (the reporting clause's?)`);
+  const open = entry.clippings.filter((c) => !c.quote.trimEnd().endsWith(",") && !endsLikeASentence(c.quote)).length;
+  if (open > 0) flags.push(`${open} end without terminal punctuation`);
   return flags;
+}
+
+/**
+ * A quote ends as a sentence does: with . ! ? or …, a closing quotation mark or parenthesis, or the "STOP" of a
+ * telegram. Anything else (a comma, a bare word) is likely cut short or carries the reporting clause's punctuation.
+ */
+export function endsLikeASentence(quote: string): boolean {
+  const end = quote.trimEnd();
+  return /[.!?…"'\u201d\u2019)]$/u.test(end) || end.endsWith("STOP");
 }
 
 /** Short words nearly every English sentence has and few Italian, Spanish, French or German ones do. */
