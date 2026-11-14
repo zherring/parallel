@@ -23,7 +23,7 @@ interface PullQuoteProps {
 /** Verbatim words, source-linked prose, and sharing. Portraits belong to the stationary pane. */
 export function PullQuote({ id, quote, url, linkTitle, speaker, color, film, publication, year, via, explainer }: PullQuoteProps) {
   return (
-    <figure className="quote-exhibit-pull-quote relative">
+    <figure className="relative">
       <div className="quote-exhibit-actions">
         <QuoteShareButton item={{ id, quote, speaker }} />
       </div>
