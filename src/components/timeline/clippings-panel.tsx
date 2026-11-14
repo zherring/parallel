@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { useId } from "react";
 import { newsreader } from "@/components/newsreader";
 import type { VoicedClippings } from "@/lib/clippings";
 import { clippingYear, parseQuoteId, speakerIndex } from "@/lib/clippings-view";
@@ -25,6 +26,7 @@ interface ClippingsPanelProps {
 /** One Quotes experience for artists, critics, and pairs with only further reading. */
 export function ClippingsPanel({ pair, critics, active, personPanel }: ClippingsPanelProps) {
   const searchParams = useSearchParams();
+  const readingTitleId = useId();
   const people = quoteExhibitPeople(pair, critics, personPanel?.entries.map((entry) => entry.person) ?? []);
   const reading = critics?.reading ?? [];
   const entries = interleaveQuotes(pair?.clippings ?? [], critics?.critics ?? []);
@@ -72,10 +74,10 @@ export function ClippingsPanel({ pair, critics, active, personPanel }: Clippings
     <div className={newsreader.variable} data-quotes-page={active ? "true" : undefined}>
       {active && people && slides.length > 0 ? (
         <QuoteExhibitDeck people={people} slides={slides} quoteId={parseQuoteId(searchParams.toString())} reading={reading} />
-      ) : active && people ? (
+      ) : active && people && reading.length > 0 ? (
         <div className="quote-exhibit-deck" data-quote-exhibit-deck>
           <QuoteExhibit people={people} speakerId={null}>
-            <QuoteExhibitSlide label="More reading"><MoreReading reading={reading} afterQuotes={false} /></QuoteExhibitSlide>
+            <QuoteExhibitSlide label="More reading"><MoreReading reading={reading} afterQuotes={false} titleId={readingTitleId} /></QuoteExhibitSlide>
           </QuoteExhibit>
         </div>
       ) : (

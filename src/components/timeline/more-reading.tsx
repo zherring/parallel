@@ -6,7 +6,7 @@ interface MoreReadingProps {
   reading: readonly ReadingItem[];
   /** Whether quotes come before this section, which then sets itself off from them with a rule. */
   afterQuotes: boolean;
-  /** The shared slide-out shell supplies the heading that names its dialog. */
+  /** A standalone reading page or shared slide-out supplies its main heading's id. */
   titleId?: string;
 }
 

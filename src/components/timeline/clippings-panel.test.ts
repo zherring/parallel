@@ -47,6 +47,13 @@ describe("the default Quotes page", () => {
     expect(html).toContain("paywall");
     expect(html).not.toContain("Browse all quotes");
     expect(html).not.toContain("of 0");
+    expect(html).toMatch(/<h2[^>]*>More reading<\/h2>/);
+  });
+
+  it("does not mount a full-screen deck when there are no quotes or reading", () => {
+    const html = renderToStaticMarkup(createElement(ClippingsPanel, { pair: null, critics: { ...critics, critics: [], reading: [] }, active: true }));
+    expect(html).not.toContain("data-quote-exhibit-deck");
+    expect(html).not.toContain("data-portrait-person");
   });
 
   for (const key of ["1259+4385", "309+955", "880+1892"] as const) {
