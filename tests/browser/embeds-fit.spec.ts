@@ -1,4 +1,5 @@
 import type { Locator } from "@playwright/test";
+import { DOT_HIT_MIN, DOT_HIT_SIZE, NODE_HIT_HEIGHT } from "../../src/lib/timeline-layout";
 import {
   EMBED_FIT_FRAMES as FIT_FRAMES,
   EMBED_PAIR as PAIR,
@@ -147,8 +148,55 @@ test.describe("pair embed: the end state fits the frame", () => {
       const track = page.getByRole("region", { name: /^Film timeline/ });
       expect(await track.evaluate((node) => getComputedStyle(node).overflowY)).toBe("hidden");
       expect(await track.evaluate((node) => ({ fits: node.scrollHeight <= node.clientHeight, scrollbar: (node as HTMLElement).offsetWidth - node.clientWidth }))).toEqual({ fits: true, scrollbar: 0 });
-      // A swipe starting on it is the page's up and down: the touch action allows that pan (never `pan-x` alone, which would refuse it).
-      expect(await track.evaluate((node) => getComputedStyle(node).touchAction)).toContain("pan-y");
+      // A swipe starting on it is the page's up and down, and a pinch on it zooms the page: the touch action allows both. `manipulation` is the two (and no double-tap zoom); a list
+      // has to name `pan-y` and `pinch-zoom` (it is exclusive of whatever it leaves out, so `pan-x pan-y` alone takes the pinch), and `pan-x` alone would refuse the vertical pan.
+      const touchAction = await track.evaluate((node) => getComputedStyle(node).touchAction);
+      expect(touchAction === "manipulation" || (touchAction.includes("pan-y") && touchAction.includes("pinch-zoom")), `touch-action is "${touchAction}": it lets a vertical pan and a pinch through`).toBe(true);
+    });
+  }
+
+  // The track is drawn smaller than its layout in a short frame (its `fit`), and so is everything on it: a node's hit area is made `1 / fit` as large (see `hitScale`) so that
+  // it is as wide on the screen as it is on the site.
+  for (const frame of [{ width: 390, height: 253, what: "the panel X opens over a phone" }, { width: 360, height: 200, what: "a very short frame" }]) {
+    test(`${frame.width} x ${frame.height} (${frame.what}): the track is drawn smaller, and a node's hit area is still about ${DOT_HIT_SIZE}px wide on the screen, with the node on top at its middle`, async ({ page }) => {
+      await page.setViewportSize({ width: frame.width, height: frame.height });
+      await page.goto(`/embed/p/${PAIR}`);
+      await expect(page.getByRole("button", { name: "Replay", exact: true })).toBeVisible();
+
+      const { fit, nodes } = await page.evaluate((maxHeight) => {
+        const layer = document.querySelector<HTMLElement>('[data-part="fit"]');
+        const drawn = layer && layer.offsetWidth > 0 ? layer.getBoundingClientRect().width / layer.offsetWidth : 1;
+        // A node's button is one `NODE_HIT_HEIGHT` of layout tall (a card's is a poster and its caption): drawn, no taller than that.
+        const buttons = [...document.querySelectorAll<HTMLElement>("button[data-film]")].filter((button) => button.getBoundingClientRect().height <= maxHeight);
+        return {
+          fit: drawn,
+          nodes: buttons.map((button) => {
+            const rect = button.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            const onScreen = x >= 0 && x <= window.innerWidth && y >= 0 && y <= window.innerHeight;
+            const top = onScreen ? document.elementFromPoint(x, y) : null;
+            return { film: button.dataset.film ?? "", left: rect.left, right: rect.right, width: rect.width, onScreen, onTop: top !== null && button.contains(top) };
+          }),
+        };
+      }, NODE_HIT_HEIGHT + 0.5);
+
+      expect(fit, `the track is drawn at ${fit.toFixed(2)} of its layout`).toBeLessThan(1);
+      expect(nodes.length, "there are nodes on the track").toBeGreaterThan(0);
+
+      // The widest node's hit area is a finger's (the page's `DOT_HIT_SIZE`, less a pixel of rounding) and the node is what is on top at its middle.
+      const widest = nodes.filter((node) => node.onScreen).sort((a, b) => b.width - a.width)[0];
+      expect(widest, "a node is in the frame").toBeDefined();
+      expect(widest.width, `the widest node's hit area is ${widest.width.toFixed(1)}px wide on the screen`).toBeGreaterThanOrEqual(DOT_HIT_SIZE - 1);
+      expect(widest.onTop, `film ${widest.film} is on top at the middle of its hit area`).toBe(true);
+
+      // The wider hit areas do not take the neighbours' taps beyond what the site allows: two nodes at least `DOT_HIT_MIN` apart on the screen do not overlap.
+      const byX = [...nodes].sort((a, b) => a.left + a.right - (b.left + b.right));
+      for (let i = 0; i + 1 < byX.length; i++) {
+        const [a, b] = [byX[i], byX[i + 1]];
+        const apart = (b.left + b.right) / 2 - (a.left + a.right) / 2;
+        if (apart >= DOT_HIT_MIN) expect(a.right, `films ${a.film} and ${b.film}, ${apart.toFixed(1)}px apart, do not overlap`).toBeLessThanOrEqual(b.left + 0.5);
+      }
     });
   }
 

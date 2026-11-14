@@ -9,6 +9,7 @@ import {
   scrollBounds,
   type PanTarget,
 } from "@/lib/drag-pan";
+import { drawnScale } from "@/lib/drawn-scale";
 
 /**
  * Anything with a job of its own. A film's card and node carry `data-film`; the rest is the usual
@@ -41,6 +42,8 @@ interface Press {
   startY: number;
   startLeft: number;
   startTop: number;
+  /** How much smaller than its layout the scroller is drawn when the press began (`drawnScale`): the pointer's travel is in the drawn size, the scroll position in the layout's. It cannot change mid-drag but by a resize, and is read once, not at every move. */
+  factor: number;
   dragging: boolean;
 }
 
@@ -139,8 +142,7 @@ export function useDragPan(scrollerRef: RefObject<HTMLElement | null>, onPanStar
         return;
       }
       // A scroller drawn smaller than its layout (the pair embed scales its timeline down to the frame) scrolls further than the pointer moves.
-      const drawn = scroller.offsetWidth > 0 ? scroller.getBoundingClientRect().width / scroller.offsetWidth : 1;
-      const factor = drawn > 0 && Math.abs(drawn - 1) > 0.01 ? drawn : 1;
+      const { factor } = current;
       const dx = (event.clientX - current.startX) / factor;
       const dy = (event.clientY - current.startY) / factor;
       if (!current.dragging) {
@@ -222,6 +224,7 @@ export function useDragPan(scrollerRef: RefObject<HTMLElement | null>, onPanStar
         startY: event.clientY,
         startLeft: scroller.scrollLeft,
         startTop: scroller.scrollTop,
+        factor: drawnScale(scroller),
         dragging: false,
       };
       window.addEventListener("pointermove", onMove, true);

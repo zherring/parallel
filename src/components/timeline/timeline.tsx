@@ -159,6 +159,11 @@ interface TimelineProps {
   embed?: boolean;
   /** An `embed`'s rows of poster cards, however many films there are (the films past them are nodes): one, unless the caller has room for more (`embedRowsFor`). */
   embedRows?: number;
+  /**
+   * An `embed`'s node hit areas, as a multiple of the page's (`DOT_HIT_SIZE`, `DOT_HIT_MIN`; see `nodeHitWidths`): the caller draws the whole track smaller to fit its frame, which
+   * shrinks a node's hit area with it, so it passes `1 / fit` and a node keeps its size on the screen. Never under 1; 1 where the track is drawn at its own size. Not used outside an `embed`.
+   */
+  hitScale?: number;
 }
 
 /** How long the lane a top-bar avatar jumped to keeps its highlight ring. */
@@ -227,6 +232,7 @@ export function Timeline({
   onPeriodChange,
   embed = false,
   embedRows = 1,
+  hitScale = 1,
 }: TimelineProps) {
   const [pxPerYear, setPxPerYear] = useState(DEFAULT_ZOOM);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
@@ -346,7 +352,6 @@ export function Timeline({
       quietIds,
       // Per lane, the films that are only a node while the rows are capped: the ones "Show all films" gives a poster.
       uncappedIds: capped.map((laneItems) => new Set(laneItems.filter((item) => item.overflow).map((item) => item.film.id))),
-      hitWidths: items.map(nodeHitWidths),
       boxes: stack,
       height: totalHeight(stack),
       membership,
@@ -360,6 +365,11 @@ export function Timeline({
   }, [embed, embedRows, entries, showAll, isCombined, lanes, pxPerYear, today, trackLanes]);
 
   const { scale, width, boxes } = layout;
+
+  // A node's hit area, per lane: its own size on the page, and in a frame whose track is drawn smaller than it is laid out (`hitScale`) the size it has on the screen. Apart from the
+  // layout, so that a frame that is resized (the fit changes with it) does not pack the cards again.
+  const hit = embed ? Math.max(1, hitScale) : 1;
+  const hitWidths = useMemo(() => layout.items.map((laneItems) => nodeHitWidths(laneItems, hit)), [layout.items, hit]);
 
   // What the combined track tells about each film: the colour of its node, of its card's ring and
   // dots, and what a screen reader hears (who made it, and what each of them did).
@@ -850,10 +860,11 @@ export function Timeline({
           className={cn(
             "min-h-0 flex-1 cursor-grab bg-canvas outline-none [scroll-padding-left:var(--lane-head)] [scroll-padding-bottom:44px] focus-visible:outline-solid! focus-visible:outline-2! focus-visible:-outline-offset-2! focus-visible:outline-focus/60! data-[panning]:select-none [&[data-panning]_*]:cursor-grabbing! [&_[data-lane-head]]:cursor-auto",
             // A frame in a post pans sideways only, and has no scrollbar. An up or down wheel or swipe over it is not the track's (nothing here takes
-            // it, and `overscroll-behavior-y: auto` lets it chain on): it is the feed's. `touch-action` is `pan-x pan-y`, never `pan-x` alone, which
-            // would refuse the page's own vertical pan to a finger that starts on the frame.
+            // it, and `overscroll-behavior-y: auto` lets it chain on): it is the feed's. `touch-action` is `manipulation` (a pan either way, and pinch-zoom; it
+            // only gives up the double-tap zoom, which nothing here needs): never `pan-x` alone, which would refuse the page's own vertical pan to a finger that
+            // starts on the frame, nor `pan-x pan-y`, which names no `pinch-zoom` and so takes the pinch from a visitor who zooms in on a small frame.
             embed
-              ? "overflow-x-auto overflow-y-hidden [overscroll-behavior-x:contain] [overscroll-behavior-y:auto] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [touch-action:pan-x_pan-y]"
+              ? "overflow-x-auto overflow-y-hidden [overscroll-behavior-x:contain] [overscroll-behavior-y:auto] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [touch-action:manipulation]"
               : "overflow-auto overscroll-contain [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin]",
           )}
         >
@@ -979,7 +990,7 @@ export function Timeline({
                   note={combinedInfo?.get(item.film.id)?.note ?? layout.notes.get(item.film.id) ?? ""}
                   x={item.x}
                   lineY={lineYInLane(boxes[laneIndex].height)}
-                  hitWidth={layout.hitWidths[laneIndex].get(item.film.id) ?? DOT_HIT_SIZE}
+                  hitWidth={hitWidths[laneIndex].get(item.film.id) ?? DOT_HIT_SIZE * hit}
                   tone={toneFor(item.film.id)}
                   laneIndex={laneIndex}
                   decorative={decorative}

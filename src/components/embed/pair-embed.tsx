@@ -8,6 +8,7 @@ import { springEasing } from "@/components/landing/hero-motion";
 import { PersonAvatar } from "@/components/person-avatar";
 import { cn } from "@/components/timeline/cn";
 import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
+import { drawnScale } from "@/lib/drawn-scale";
 import { joinNames } from "@/lib/format";
 import { peopleHref } from "@/lib/lanes";
 import { captionText, type OgCard } from "@/lib/og-card";
@@ -82,7 +83,7 @@ function imagesReady(root: HTMLElement, ms: number): Promise<void> {
 function pairScrollLeft(scroller: HTMLElement, filmIds: readonly number[]): number | null {
   const box = scroller.getBoundingClientRect();
   // The timeline is drawn smaller than its layout in a short frame (see `fit`): what is read from the screen is in the drawn size, the track's scrolling in its own.
-  const drawn = scroller.offsetWidth > 0 && box.width > 0 ? box.width / scroller.offsetWidth : 1;
+  const drawn = drawnScale(scroller);
   const spans = filmIds.flatMap((id) => {
     const rect = scroller.querySelector<HTMLElement>(`[data-film="${id}"]`)?.getBoundingClientRect();
     return rect ? [{ left: (rect.left - box.left) / drawn + scroller.scrollLeft, right: (rect.right - box.left) / drawn + scroller.scrollLeft }] : [];
@@ -385,6 +386,7 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
               active
               embed
               embedRows={rows}
+              hitScale={1 / fit}
               lanes={lanes}
               combined={multi}
               showAll={false}

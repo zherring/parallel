@@ -327,13 +327,20 @@ export function overflowCount(packed: readonly { overflow?: boolean }[]): number
  * Hit-area width per node, by film id: DOT_HIT_SIZE, narrowed (down to DOT_HIT_MIN) so that
  * neighbouring nodes on the line never overlap. Every film of a lane has a node, so pass
  * them all, in x order.
+ *
+ * `hitScale` is for a track that is drawn smaller than it is laid out (the pair embed, see `PairEmbed`: `1 / fit`): the two sizes are multiplied by it (never under 1), so that a
+ * node's hit area is as wide on the screen as it is on the page. It is the sizes that are scaled, not the result, so that the squeeze is the page's own, on the screen: neighbours
+ * never overlap where their drawn gap is at least DOT_HIT_MIN, and where it is less the floor holds (and they overlap) as it does on the page.
  */
-export function nodeHitWidths(items: readonly { film: { id: number }; x: number }[]): Map<number, number> {
+export function nodeHitWidths(items: readonly { film: { id: number }; x: number }[], hitScale = 1): Map<number, number> {
+  const scale = Number.isFinite(hitScale) && hitScale > 1 ? hitScale : 1;
+  const widest = DOT_HIT_SIZE * scale;
+  const narrowest = DOT_HIT_MIN * scale;
   const widths = new Map<number, number>();
   items.forEach((item, i) => {
     const before = i > 0 ? item.x - items[i - 1].x : Number.POSITIVE_INFINITY;
     const after = i < items.length - 1 ? items[i + 1].x - item.x : Number.POSITIVE_INFINITY;
-    widths.set(item.film.id, Math.max(DOT_HIT_MIN, Math.min(DOT_HIT_SIZE, before, after)));
+    widths.set(item.film.id, Math.max(narrowest, Math.min(widest, before, after)));
   });
   return widths;
 }
