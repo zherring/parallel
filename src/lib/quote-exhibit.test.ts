@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { exhibitSpaceAction, nextExhibitIndex, quoteExhibitAttributedContext, quoteExhibitContextParts, quoteExhibitPeople, quoteExhibitQuoteSearch } from "./quote-exhibit";
+import { exhibitSpaceAction, nextExhibitIndex, quoteExhibitAttributedContext, quoteExhibitContextParts, quoteExhibitPeople, quoteExhibitQuoteSearch, quotePaneCanScroll } from "./quote-exhibit";
 import type { PairCritics } from "./critics";
 
 describe("the Quotes deck", () => {
@@ -47,6 +47,17 @@ describe("the Quotes deck", () => {
     for (const modifier of ["ctrlKey", "metaKey", "altKey", "isComposing", "defaultPrevented"] as const) {
       expect(exhibitSpaceAction({ key: " ", [modifier]: true }, false), modifier).toBeNull();
     }
+  });
+
+  it("leaves Space to a long text pane until its directional edge, with rounding tolerance", () => {
+    const pane = { scrollTop: 0, scrollHeight: 800, clientHeight: 200 };
+    expect(quotePaneCanScroll(pane, false)).toBe(true);
+    expect(quotePaneCanScroll(pane, true)).toBe(false);
+    expect(quotePaneCanScroll({ ...pane, scrollTop: 300 }, false)).toBe(true);
+    expect(quotePaneCanScroll({ ...pane, scrollTop: 300 }, true)).toBe(true);
+    expect(quotePaneCanScroll({ ...pane, scrollTop: 599.5 }, false)).toBe(false);
+    expect(quotePaneCanScroll({ ...pane, scrollTop: 600 }, true)).toBe(true);
+    expect(quotePaneCanScroll({ ...pane, scrollHeight: 200 }, false)).toBe(false);
   });
 });
 

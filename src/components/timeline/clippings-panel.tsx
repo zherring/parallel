@@ -75,7 +75,7 @@ export function ClippingsPanel({ pair, critics, active, personPanel }: Clippings
       ) : active && people ? (
         <div className="quote-exhibit-deck" data-quote-exhibit-deck>
           <QuoteExhibit people={people} speakerId={null}>
-            <QuoteExhibitSlide><MoreReading reading={reading} afterQuotes={false} /></QuoteExhibitSlide>
+            <QuoteExhibitSlide label="More reading"><MoreReading reading={reading} afterQuotes={false} /></QuoteExhibitSlide>
           </QuoteExhibit>
         </div>
       ) : (

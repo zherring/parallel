@@ -163,6 +163,11 @@ body:has([data-quote-exhibit-deck]) > footer {
   overscroll-behavior-y: auto;
 }
 
+.quote-exhibit-plate:focus-visible {
+  outline: 1px solid var(--text-muted);
+  outline-offset: 4px;
+}
+
 .quote-exhibit-quote {
   position: relative;
   background: transparent;

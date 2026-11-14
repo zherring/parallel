@@ -450,13 +450,30 @@ test("linked quotes keep their original order; history and resizing retain the a
 });
 
 test("long quotes remain scrollable inside a slide, and switching views removes and restores the exhibition cleanly", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 320, height: 568 });
   await openExhibit(page, `${ANDERSON}?view=clippings&quote=when-i-read-rushmore-i-figured`);
   const quote = active(page).locator(".quote-exhibit-plate");
   expect(await quote.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  const quoteId = await deck(page).getAttribute("data-active-quote");
+  // Tab from the deck reaches the named text pane; click focus is not stolen by the outer scroller either.
+  await page.keyboard.press("Tab");
+  await expect(quote).toBeFocused();
+  await expect(quote).toHaveAttribute("aria-label", /Quote \d+ text/);
+  await page.keyboard.press("Space");
+  await expect.poll(() => quote.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect(deck(page)).toHaveAttribute("data-active-quote", quoteId!);
+  await page.keyboard.press("Shift+Space");
+  await expect.poll(() => quote.evaluate((element) => element.scrollTop)).toBe(0);
+  await expect(deck(page)).toHaveAttribute("data-active-quote", quoteId!);
+  await quote.click({ position: { x: 3, y: 3 } });
+  await expect(quote).toBeFocused();
   await quote.evaluate((element) => element.scrollTo({ top: element.scrollHeight, behavior: "instant" }));
   expect(await quote.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
   await expectSnap(page, await active(page).evaluate((element) => Array.from(element.parentElement!.children).indexOf(element)));
+  await page.keyboard.press("Space");
+  await expect(deck(page)).not.toHaveAttribute("data-active-quote", quoteId!);
+  await expect(scroller(page)).toBeFocused();
 
   // The restored top switcher works directly from the exhibit.
   await page.setViewportSize({ width: 1440, height: 900 });

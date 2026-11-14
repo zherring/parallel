@@ -25,6 +25,11 @@ export function nextExhibitIndex(index: number, count: number, direction: 1 | -1
   return count > 0 ? ((index + direction) % count + count) % count : 0;
 }
 
+/** Whether a focused text pane still has room to scroll in the direction of Space / Shift+Space. */
+export function quotePaneCanScroll(pane: { scrollTop: number; scrollHeight: number; clientHeight: number }, backwards: boolean): boolean {
+  return backwards ? pane.scrollTop > 1 : pane.scrollHeight - pane.clientHeight - pane.scrollTop > 1;
+}
+
 interface ExhibitKey {
   key: string;
   shiftKey?: boolean;

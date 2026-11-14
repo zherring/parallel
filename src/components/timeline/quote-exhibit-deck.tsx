@@ -6,7 +6,7 @@ import { rememberOpener } from "@/components/side-panel/side-panel";
 import type { ClippingsVoice } from "@/lib/clippings";
 import type { ReadingItem } from "@/lib/critics";
 import { INTERACTIVE_SELECTOR, OVERLAY_SELECTOR } from "@/lib/interaction-target";
-import { exhibitSpaceAction, nextExhibitIndex, quoteExhibitQuoteSearch } from "@/lib/quote-exhibit";
+import { exhibitSpaceAction, nextExhibitIndex, quoteExhibitQuoteSearch, quotePaneCanScroll } from "@/lib/quote-exhibit";
 import { QuoteLibraryPanel, type QuoteLibraryView } from "./quote-library-panel";
 import { quoteElementId } from "./pull-quote";
 import { QuoteExhibit, QuoteExhibitSlide } from "./quote-exhibit";
@@ -86,8 +86,12 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
     const target = event.target instanceof Element ? event.target : null;
     const action = exhibitSpaceAction(event, Boolean(target?.closest(`${INTERACTIVE_SELECTOR},${OVERLAY_SELECTOR}`)));
     if (!action) return;
+    const pane = target?.closest<HTMLElement>(".quote-exhibit-plate");
+    // A focused long quote keeps native scrolling until it reaches the relevant edge.
+    if (pane && quotePaneCanScroll(pane, event.shiftKey)) return;
     event.preventDefault();
     if (action === "swallow") return;
+    if (pane) scrollerRef.current?.focus({ preventScroll: true });
     goTo(nextExhibitIndex(currentRef.current, slides.length, action === "next" ? 1 : -1));
   });
   useEffect(() => {
@@ -119,7 +123,7 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
           onWheel={() => { motionTarget.current = null; }}
           onTouchStart={() => { motionTarget.current = null; }}
           onPointerDown={(event) => {
-            if (!(event.target as Element).closest(INTERACTIVE_SELECTOR)) event.currentTarget.focus({ preventScroll: true });
+            if (!(event.target as Element).closest(`${INTERACTIVE_SELECTOR},.quote-exhibit-plate`)) event.currentTarget.focus({ preventScroll: true });
           }}
         >
           <ol className="quote-exhibit-slides">
@@ -132,7 +136,7 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
                 aria-current={current === index ? "true" : undefined}
                 inert={current !== index}
               >
-                <QuoteExhibitSlide>{slide.content}</QuoteExhibitSlide>
+                <QuoteExhibitSlide label={`Quote ${index + 1} text`}>{slide.content}</QuoteExhibitSlide>
               </li>
             ))}
           </ol>

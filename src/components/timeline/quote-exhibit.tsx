@@ -43,10 +43,10 @@ export function QuoteExhibit({ people, speakerId, children }: Props) {
 }
 
 /** Only quote content moves. Imagery and image attribution belong to the stationary pane. */
-export function QuoteExhibitSlide({ children }: { children: ReactNode }) {
+export function QuoteExhibitSlide({ children, label }: { children: ReactNode; label: string }) {
   return (
     <div className="quote-exhibit-stage">
-      <div className="quote-exhibit-plate">
+      <div className="quote-exhibit-plate" tabIndex={0} role="group" aria-label={label}>
         <div className="quote-exhibit-quote">{children}</div>
       </div>
     </div>
