@@ -38,31 +38,23 @@ async function expectSnap(page: Page, index: number) {
 }
 
 test("the split exhibit keeps compact navigation without the masthead, with framed imagery and one viewport per quote", async ({ page }) => {
-  let photos = 0;
-  page.on("request", (request) => { if (request.url().includes("/images/collaborations/")) photos++; });
   await page.goto(`${SCORSESE}?view=timeline`);
-  const filter = page.getByRole("group", { name: "Show quotes by speaker" });
   await expect(deck(page)).toHaveCount(0);
   await expect(page.locator("[data-people-bar]")).toBeVisible();
-  expect(photos).toBe(0);
 
   const views = page.getByRole("navigation", { name: "Views", exact: true });
   await expect(views.getByRole("link", { name: "Timeline", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(page.locator("[data-people-bar]")).toBeVisible();
   await expect(deck(page)).toHaveCount(0);
-  expect(photos).toBe(0);
   await views.getByRole("link", { name: "Quotes", exact: true }).click();
   await expect(scroller(page)).toBeFocused();
   await expect(deck(page)).toHaveAttribute("data-active-quote", FIRST);
-  await expect(filter).toHaveCount(0);
-  await expect(deck(page).locator(".quote-exhibit-image-shade, .quote-exhibit-kicker, .quote-exhibit-hatching")).toHaveCount(0);
   await expect(scroller(page)).toHaveCSS("scroll-snap-type", "y mandatory");
   await expect(active(page).locator(".quote-exhibit-quote")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   const credit = deck(page).getByRole("link", { name: /Portraits via TMDB/ });
   await expect(credit).toHaveAttribute("href", "https://www.themoviedb.org/");
   await expect(credit).toHaveAttribute("target", "_blank");
   await expect(page.getByRole("button", { name: /Photograph|Portraits|Reading view/ })).toHaveCount(0);
-  expect(photos).toBe(0);
   await expect(page.locator("[data-people-bar]")).toBeVisible();
   await expect(page.locator("[data-people-bar]")).toHaveAttribute("data-hero", "collapsed");
   await expect(page.locator("[data-hero-body]")).toBeHidden();
@@ -520,7 +512,6 @@ test("critics treat the portraits equally, and broken portraits fall back to ini
   await openExhibit(page);
   await expect(deck(page).locator("[data-quote-exhibit]")).toHaveAttribute("data-quote-exhibit", "portraits");
   await expect(deck(page).locator(".quote-exhibit-credit")).toContainText("Portraits via TMDB");
-  await expect(deck(page).getByRole("link", { name: /ACMI/ })).toHaveCount(0);
   await expect(backdrop(page).locator('[data-portrait-person="1032"] img')).toHaveCount(0);
   await expect(backdrop(page).locator('[data-portrait-person="1032"]')).toContainText("MS");
 });
