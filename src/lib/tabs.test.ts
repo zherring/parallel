@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { FEATURED_TAB, GENRES } from "@/lib/examples";
 import {
   DEFAULT_FILM_TAB,
   FILM_TABS,
@@ -89,6 +90,11 @@ describe("tabFromHash", () => {
     expect(tabFromHash("#nope", ids, "featured")).toBe("featured");
     expect(tabFromHash("#%E0%A4%A", ids, "featured")).toBe("featured");
     expect(tabFromHash("#horror-2", ids, "featured")).toBe("featured");
+  });
+
+  it("sends the removed landing Clippings tab's old link (/#clippings) to the default tab", () => {
+    const landing = [FEATURED_TAB.id, ...GENRES.map((genre) => genre.id)];
+    expect(tabFromHash("#clippings", landing, FEATURED_TAB.id)).toBe(FEATURED_TAB.id);
   });
 });
 

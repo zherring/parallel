@@ -1,11 +1,9 @@
-import { ClippingsList } from "@/components/landing/clippings-list";
 import { FeaturedPairings } from "@/components/landing/featured-pairings";
 import { GENRE_ICONS } from "@/components/landing/genre-icons";
 import { GenreTabs, type GenreTab } from "@/components/landing/genre-tabs";
 import { PairingCard } from "@/components/landing/pairing-card";
-import type { ClippingCardData } from "@/lib/clipping-cards";
 import type { GenreSection } from "@/lib/example-cards";
-import { CLIPPINGS_TAB, FEATURED_COUNT, FEATURED_TAB, type TabId } from "@/lib/examples";
+import { FEATURED_COUNT, FEATURED_TAB, type TabId } from "@/lib/examples";
 
 function tabIcon(id: TabId) {
   const Icon = GENRE_ICONS[id];
@@ -14,30 +12,15 @@ function tabIcon(id: TabId) {
 
 interface Props {
   sections: GenreSection[];
-  /** Every pair with clippings, in display order; no Clippings tab when empty. */
-  clippings: ClippingCardData[];
 }
 
-export function Pairings({ sections, clippings }: Props) {
+export function Pairings({ sections }: Props) {
   const featuredTab: GenreTab = {
     id: FEATURED_TAB.id,
     label: FEATURED_TAB.label,
     icon: tabIcon(FEATURED_TAB.id),
     panel: <FeaturedPairings cards={sections.flatMap((section) => section.cards)} count={FEATURED_COUNT} />,
   };
-
-  // Right after Featured, ahead of the genres.
-  const clippingsTabs: GenreTab[] =
-    clippings.length > 0
-      ? [
-          {
-            id: CLIPPINGS_TAB.id,
-            label: CLIPPINGS_TAB.label,
-            icon: tabIcon(CLIPPINGS_TAB.id),
-            panel: <ClippingsList cards={clippings} />,
-          },
-        ]
-      : [];
 
   const genreTabs: GenreTab[] = sections.map(({ genre, cards }) => ({
     id: genre.id,
@@ -60,7 +43,7 @@ export function Pairings({ sections, clippings }: Props) {
       <h2 id="pairings-heading" className="sr-only">
         Try a pairing
       </h2>
-      <GenreTabs idBase="pairings" label="Genres" tabs={[featuredTab, ...clippingsTabs, ...genreTabs]} />
+      <GenreTabs idBase="pairings" label="Genres" tabs={[featuredTab, ...genreTabs]} />
     </section>
   );
 }

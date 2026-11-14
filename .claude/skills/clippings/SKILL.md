@@ -1,6 +1,6 @@
 ---
 name: clippings
-description: Research more duos for the Clippings tab. Use when the user runs /clippings with pairing keys (e.g. "488+491 31+488"), "critics <keys>", or "next N from queue", or asks to research quotes for more collaborations. Runs the clippings-research workflow, merges the staged JSON, runs the tests and reports per-pair counts and flags.
+description: Research more duos for the Quotes on the pair pages (`/p/<slug>?view=clippings`). Use when the user runs /clippings with pairing keys (e.g. "488+491 31+488"), "critics <keys>", or "next N from queue", or asks to research quotes for more collaborations. Runs the clippings-research workflow, merges the staged JSON, runs the tests and reports per-pair counts and flags.
 ---
 
 # Clippings research

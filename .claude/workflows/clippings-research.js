@@ -1,7 +1,7 @@
 export const meta = {
   name: 'clippings-research',
   description: 'Research sourced Clippings quotes (artists on each other, or critics on the collaboration) for pairing keys, one lean Sonnet agent per pair',
-  whenToUse: 'To research more duos for the Clippings tab. args: an array of pairingKeys (the two TMDB ids, sorted, joined with "+"), or {keys: [...], critics: true} for critics and reading links instead of artist quotes; add force: true to overwrite files already staged. Then run `npm run clippings:merge`.',
+  whenToUse: 'To research more duos for the Quotes on the pair pages. args: an array of pairingKeys (the two TMDB ids, sorted, joined with "+"), or {keys: [...], critics: true} for critics and reading links instead of artist quotes; add force: true to overwrite files already staged. Then run `npm run clippings:merge`.',
   phases: [
     { title: 'Research', detail: 'one clippings-researcher agent (no MCP) per pair, at most 8 at a time; writes scripts/clippings/research/{quotes|critics}/<key>.json' },
   ],
