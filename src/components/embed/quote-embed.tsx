@@ -7,6 +7,7 @@ import { newsreader } from "@/components/newsreader";
 import { PersonAvatar } from "@/components/person-avatar";
 import { cn } from "@/components/timeline/cn";
 import type { ElementLike } from "@/lib/hero-keys";
+import { QUOTE_FOOTER_BOTTOM_PX } from "@/lib/embed-insets";
 import { quoteCardType } from "@/lib/og-quote";
 import { describeShortcutTarget } from "@/lib/people-shortcut";
 import { personColor, personColorCss } from "@/lib/person-colors";
@@ -216,7 +217,7 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
         </p>
 
         {/* One row that never wraps: the attribution takes what the pill leaves (it wraps inside its own column), so the footer is as tall as its tallest part and its bottom inset is whole at any width. */}
-        <footer className="flex shrink-0 items-center justify-between gap-x-3" style={{ padding: `${size(5, 1.3)} ${size(12, 5.67)} ${size(12, 3.6)}` }}>
+        <footer className="flex shrink-0 items-center justify-between gap-x-3" style={{ padding: `${size(5, 1.3)} ${size(12, 5.67)} ${size(QUOTE_FOOTER_BOTTOM_PX, 3.6)}` }}>
           <div className="flex min-w-0 items-center" style={{ gap: size(8.5, 1.2) }}>
             {current.avatar && (
               <>

@@ -9,6 +9,7 @@ import { PersonAvatar } from "@/components/person-avatar";
 import { cn } from "@/components/timeline/cn";
 import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
 import { drawnScale } from "@/lib/drawn-scale";
+import { EMBED_AVATAR_PX, EMBED_INSET_PX } from "@/lib/embed-insets";
 import { joinNames } from "@/lib/format";
 import { peopleHref } from "@/lib/lanes";
 import { captionText, type OgCard } from "@/lib/og-card";
@@ -53,8 +54,8 @@ const REDUCED_REPLAY_HOLD = 700;
  * (`--bar-row`: 29px, and 32px in a phone-width frame, where a button is at least 32px tall, see `EMBED_BUTTON`).
  * The track ends the sides' inset above the frame's bottom edge, so that the year axis's labels are clear of the edge and of the frame's rounded corners.
  */
-const INSET_TOP = size(10, 1.5);
-const INSET_X = size(14, 2.2);
+const INSET_TOP = size(EMBED_INSET_PX.top, 1.5);
+const INSET_X = size(EMBED_INSET_PX.x, 2.2);
 const BAR_ROW = "[--bar-row:29px] @max-[30rem]:[--bar-row:32px]";
 
 /** `?motion=reduce` plays the reduced-motion sequence in a development build (the X preview page's toggle): production reads only the visitor's own setting. */
@@ -321,7 +322,7 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
               // Tucked under each other (the gap is 8px, the pitch 22px, so that the pictures touch and their rings overlap) in the smallest frames: the one on the right is over the one on the left, and the one pressed or focused comes up.
               <li key={person.id} className={cn("relative", crowded && i > 0 && "@max-[22rem]:-ml-2", "hover:z-10 focus-within:z-10")}>
                 <a href={peopleHref([person])} {...EXTERNAL} title={`${person.name} on Parallel`} className={EMBED_AVATAR_LINK}>
-                  <PersonAvatar name={person.name} profilePath={person.profilePath} size={22} imageSize="w185" ringColor={multi ? personColor(i) : undefined} />
+                  <PersonAvatar name={person.name} profilePath={person.profilePath} size={EMBED_AVATAR_PX} imageSize="w185" ringColor={multi ? personColor(i) : undefined} />
                   <span className="sr-only">
                     {person.name} (opens in a new tab)
                   </span>

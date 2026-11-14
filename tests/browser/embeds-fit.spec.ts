@@ -1,5 +1,6 @@
 import type { Locator } from "@playwright/test";
-import { DOT_HIT_MIN, DOT_HIT_SIZE, NODE_HIT_HEIGHT } from "../../src/lib/timeline-layout";
+import { EMBED_AVATAR_PX, EMBED_INSET_PX } from "../../src/lib/embed-insets";
+import { CARD_HEIGHT, DOT_HIT_MIN, DOT_HIT_SIZE, NODE_HIT_HEIGHT } from "../../src/lib/timeline-layout";
 import {
   EMBED_FIT_FRAMES as FIT_FRAMES,
   EMBED_PAIR as PAIR,
@@ -68,6 +69,7 @@ test.describe("pair embed: the bar's controls are separate targets", () => {
         // Every control is apart from every other; but in the smallest frame the people are tucked under each other a little (the one on the right is on top, the
         // same as on the site's lane avatars), and each is a target of at least 22px.
         const peopleCount = personLinks.length;
+        // Tucked under each other below 22rem (352px): `@max-[22rem]:-ml-2` in the pair embed's bar.
         const tucked = frame.width < 352;
         for (let a = 0; a < controls.length; a++) {
           for (let b = a + 1; b < controls.length; b++) {
@@ -76,7 +78,7 @@ test.describe("pair embed: the bar's controls are separate targets", () => {
           }
         }
         for (let i = 0; i + 1 < peopleCount; i++) {
-          expect(boxes[i + 1].x - boxes[i].x, `${controls[i].name} is a target of at least 22px`).toBeGreaterThanOrEqual(22);
+          expect(boxes[i + 1].x - boxes[i].x, `${controls[i].name} is a target of at least ${EMBED_AVATAR_PX}px`).toBeGreaterThanOrEqual(EMBED_AVATAR_PX);
         }
 
         // In a phone's width the buttons are at least 32px tall (Replay 32 wide too), with an invisible hit area round each that takes it to about 44px by 40px.
@@ -96,8 +98,8 @@ test.describe("pair embed: the bar's controls are separate targets", () => {
 
 // ---- Nothing in either embed scrolls up or down, or draws a scrollbar --------------------------------------------------------------------------------------------
 
-/** The room the track leaves under the year axis, at the frames below: the bar's side inset (14px, the least it is at any frame), so that the axis's labels are clear of the frame's bottom edge and its rounded corners. */
-const BOTTOM_INSET = 14;
+/** The room the track leaves under the year axis, at the frames below: the bar's side inset (the least it is at any frame), so that the axis's labels are clear of the frame's bottom edge and its rounded corners. */
+const BOTTOM_INSET = EMBED_INSET_PX.x;
 
 test.describe("pair embed: the end state fits the frame", () => {
   test.use({ reducedMotion: "reduce" });
@@ -109,16 +111,16 @@ test.describe("pair embed: the end state fits the frame", () => {
       const replay = page.getByRole("button", { name: "Replay", exact: true });
       await expect(replay).toBeVisible();
 
-      // The bar: every control is inset from the top and the sides by at least the bar's padding (10px at the top, 14px at the sides).
+      // The bar: every control is inset from the top and the sides by at least the bar's padding (`EMBED_INSET_PX`, the floors the component sizes it by).
       const controls = [
         ...(await page.getByRole("list", { name: "The people", exact: true }).getByRole("link").all()),
         replay,
         page.getByRole("link", { name: /^Open in Parallel/ }),
       ];
       const boxes = await Promise.all(controls.map(boxOf));
-      expect(Math.min(...boxes.map((box) => box.y)), "the bar's controls start at least 10px under the frame's top edge").toBeGreaterThanOrEqual(10 - 0.5);
-      expect(Math.min(...boxes.map((box) => box.x)), "the bar's controls start at least 14px in from the left edge").toBeGreaterThanOrEqual(14 - 0.5);
-      expect(frame.width - Math.max(...boxes.map((box) => box.x + box.width)), "and end at least 14px in from the right edge").toBeGreaterThanOrEqual(14 - 0.5);
+      expect(Math.min(...boxes.map((box) => box.y)), `the bar's controls start at least ${EMBED_INSET_PX.top}px under the frame's top edge`).toBeGreaterThanOrEqual(EMBED_INSET_PX.top - 0.5);
+      expect(Math.min(...boxes.map((box) => box.x)), `the bar's controls start at least ${EMBED_INSET_PX.x}px in from the left edge`).toBeGreaterThanOrEqual(EMBED_INSET_PX.x - 0.5);
+      expect(frame.width - Math.max(...boxes.map((box) => box.x + box.width)), `and end at least ${EMBED_INSET_PX.x}px in from the right edge`).toBeGreaterThanOrEqual(EMBED_INSET_PX.x - 0.5);
 
       // No minimap in the frame: it is the site's, and a frame only has the track (dragged, swiped or sent sideways by a sideways wheel).
       await expect(page.locator("[data-minimap-bar]"), "the embed has no minimap bar").toHaveCount(0);
@@ -206,8 +208,8 @@ test.describe("pair embed: the end state fits the frame", () => {
       await page.goto(`/embed/p/${PAIR}`);
       await expect(page.getByRole("button", { name: "Replay", exact: true })).toBeVisible();
       const tops = await page.locator("[data-film]:not([data-film-node])").evaluateAll((nodes) => [...new Set(nodes.map((node) => Math.round(node.getBoundingClientRect().top)))]);
-      // Two rows are a card and a gap apart (150px at full size); a quiet card's top is a little lower in its row, so the rows are told apart by the spread, not the count.
-      expect(Math.max(...tops) - Math.min(...tops), `${frame.width} x ${frame.height} draws two rows of cards`).toBeGreaterThanOrEqual(140);
+      // Two rows are a card and a gap apart (`CARD_HEIGHT` and `ROW_GAP`, at full size); a quiet card's top is a little lower in its row, so the rows are told apart by the spread (at least a card), not the count.
+      expect(Math.max(...tops) - Math.min(...tops), `${frame.width} x ${frame.height} draws two rows of cards`).toBeGreaterThanOrEqual(CARD_HEIGHT);
       const axis = await boxOf(page.locator("[data-axis]"));
       expect(axis.y + axis.height).toBeLessThanOrEqual(frame.height - BOTTOM_INSET + 0.5);
       for (const scroller of await verticalScrollers(page)) expect(scroller.scrollHeight).toBeLessThanOrEqual(scroller.clientHeight);

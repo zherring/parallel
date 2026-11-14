@@ -16,6 +16,7 @@ import { clippingYear, quoteLinkSearch, speakerIndex } from "@/lib/clippings-vie
 import type { PairCritics } from "@/lib/critics";
 import { criticAbout, criticAvatarName, criticName, criticYear, interleaveQuotes } from "@/lib/critics-view";
 import { EMBED_PREFIX } from "@/lib/embed-frame";
+import { CHAR_WIDTH } from "@/lib/og-quote";
 import type { PeopleKeyEvent, PeopleKeyTarget } from "@/lib/people-shortcut";
 
 /** A quote with everything the embed shows of it, whether an artist said it about the other or a critic wrote it about the pair. */
@@ -145,15 +146,12 @@ export const QUOTE_MIN_LINE_CHARS = 30;
  */
 export const QUOTE_BAND = 0.6;
 
-/** The width of an average character of the quote's face (Newsreader) as a multiple of its size, rounded up as the card image's is (`og-quote.ts`), so that a line holds at least `QUOTE_MIN_LINE_CHARS`. */
-const QUOTE_CHAR_EM = 0.5;
-
 /**
  * The largest size (px) a quote may be set at in a column `width` px wide: the one at which a line holds `QUOTE_MIN_LINE_CHARS` characters, up to `QUOTE_MAX_PX` and never under
  * `QUOTE_FLOOR_PX`. It is a ceiling: the embed sets the quote at the largest size under it at which all of the quote is in its band (see `FittedQuote`).
  */
 export function quoteSizeCeiling(width: number): number {
-  const byMeasure = Number.isFinite(width) && width > 0 ? width / (QUOTE_MIN_LINE_CHARS * QUOTE_CHAR_EM) : 0;
+  const byMeasure = Number.isFinite(width) && width > 0 ? width / (QUOTE_MIN_LINE_CHARS * CHAR_WIDTH) : 0;
   return Math.max(QUOTE_FLOOR_PX, Math.min(QUOTE_MAX_PX, byMeasure));
 }
 

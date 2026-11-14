@@ -1,6 +1,8 @@
 import type { Page } from "@playwright/test";
 import clippings from "../../src/lib/clippings.json";
 import essays from "../../src/lib/essays.json";
+import { QUOTE_FOOTER_BOTTOM_PX } from "../../src/lib/embed-insets";
+import { CHAR_WIDTH } from "../../src/lib/og-quote";
 import { QUOTE_BAND, QUOTE_FLOOR_PX, QUOTE_MAX_PX, QUOTE_MIN_LINE_CHARS, embedPath } from "../../src/lib/quote-embed";
 import { pairQuotes } from "../../src/lib/quote-embed-data";
 import type { PersonTimeline } from "../../src/lib/types";
@@ -33,9 +35,6 @@ test.beforeEach(async ({ next }) => {
 });
 
 // ---- The quote embed: the quote is set to fit, never scrolls ------------------------------------------------------------------------------------------------------
-
-/** The room the footer leaves under its last part (the avatar, the attribution, the pill): the footer's bottom padding, 12px at every frame size. */
-const QUOTE_BOTTOM_INSET = 12;
 
 /**
  * Where the quote's last character, the frame's edges, the bar, the footer and each part of it, and the lines the quote is set in are, in the frame's pixels. `lines` is the
@@ -105,8 +104,8 @@ async function expectQuoteFits(page: Page, label: string) {
   // The footer is whole in the frame, with its bottom inset: every part of it (the picture, the attribution, the link out) and the footer itself, cut quote or not.
   expect(fit.open, `${label}: Open in Parallel is there`).not.toBeNull();
   expect(fit.footerBottom, `${label}: the footer ends inside the frame`).toBeLessThanOrEqual(fit.frame.height + 0.5);
-  expect(fit.partsBottom, `${label}: every part of the footer ends at least ${QUOTE_BOTTOM_INSET}px inside the frame`).toBeLessThanOrEqual(fit.frame.height - QUOTE_BOTTOM_INSET + 0.5);
-  expect(fit.open?.bottom ?? 0, `${label}: Open in Parallel ends at least ${QUOTE_BOTTOM_INSET}px inside the frame`).toBeLessThanOrEqual(fit.frame.height - QUOTE_BOTTOM_INSET + 0.5);
+  expect(fit.partsBottom, `${label}: every part of the footer ends at least ${QUOTE_FOOTER_BOTTOM_PX}px inside the frame`).toBeLessThanOrEqual(fit.frame.height - QUOTE_FOOTER_BOTTOM_PX + 0.5);
+  expect(fit.open?.bottom ?? 0, `${label}: Open in Parallel ends at least ${QUOTE_FOOTER_BOTTOM_PX}px inside the frame`).toBeLessThanOrEqual(fit.frame.height - QUOTE_FOOTER_BOTTOM_PX + 0.5);
   expect(fit.open?.right ?? 0, `${label}: and inside it at the side`).toBeLessThanOrEqual(fit.frame.width + 0.5);
   expect(fit.open?.left ?? 0).toBeGreaterThanOrEqual(0);
   // On the one row with the attribution (it never wraps under it): its middle is in the attribution's height.
@@ -127,9 +126,9 @@ async function expectQuoteFits(page: Page, label: string) {
   const room = fit.footerTop - fit.headerBottom;
   expect(fit.blockHeight / room, `${label}: the quote takes ${Math.round((fit.blockHeight / room) * 100)}% of the room between the bar and the footer`).toBeLessThanOrEqual(QUOTE_BAND + 0.02);
 
-  // And in a phone's width its lines are about 30 to 45 characters, never fewer than 28 on average (a quote cut at the floor has a longer line still).
+  // And in a phone's width its lines are about 30 to 45 characters, never fewer than two under `QUOTE_MIN_LINE_CHARS` on average (a quote cut at the floor has a longer line still).
   if (fit.frame.width <= 480 && !fit.clamped && fit.lines.length >= 3) {
-    expect(averageLine(fit.lines), `${label}: a line of the quote holds ${averageLine(fit.lines).toFixed(1)} characters on average (${fit.lines.join(", ")})`).toBeGreaterThanOrEqual(28);
+    expect(averageLine(fit.lines), `${label}: a line of the quote holds ${averageLine(fit.lines).toFixed(1)} characters on average (${fit.lines.join(", ")})`).toBeGreaterThanOrEqual(QUOTE_MIN_LINE_CHARS - 2);
   }
 
   const scrollers = await verticalScrollers(page);
@@ -293,14 +292,17 @@ test.describe("quote embed: the quote is set to the room it has, whatever the fr
       await page.goto(`/embed/q/${shortest.key}/${shortest.id}`);
       const layout = await settledQuote(page);
       expect(layout.fontSize, `${frame.width} x ${frame.height}: not over the cap`).toBeLessThanOrEqual(QUOTE_MAX_PX + 0.01);
-      // An average character of the face is at most half its size wide: a line of `width` px holds at least `QUOTE_MIN_LINE_CHARS` of them at this size or smaller.
-      expect(layout.fontSize, `${frame.width} x ${frame.height}: a line holds at least about ${QUOTE_MIN_LINE_CHARS} characters`).toBeLessThanOrEqual(Math.max(QUOTE_FLOOR_PX, layout.width / (QUOTE_MIN_LINE_CHARS * 0.5)) + 0.3);
+      // An average character of the face is at most `CHAR_WIDTH` of its size wide: a line of `width` px holds at least `QUOTE_MIN_LINE_CHARS` of them at this size or smaller.
+      expect(layout.fontSize, `${frame.width} x ${frame.height}: a line holds at least about ${QUOTE_MIN_LINE_CHARS} characters`).toBeLessThanOrEqual(Math.max(QUOTE_FLOOR_PX, layout.width / (QUOTE_MIN_LINE_CHARS * CHAR_WIDTH)) + 0.3);
       await expectQuoteFits(page, `the shortest quote (${shortest.length} characters) at ${frame.width} x ${frame.height}`);
     }
   });
 });
 
 // ---- The quote embed: the bar's arrows and the footer's link are touch targets -----------------------------------------------------------------------------------
+
+/** The pill reads "Open" in a frame narrower than 26rem (416px): `@max-[26rem]` in `OpenInParallel`, a Tailwind class, which is a literal and so not a number this spec can import. */
+const SHORT_PILL_BELOW = 416;
 
 test.describe("quote embed: the arrows and Open in Parallel are separate targets, 32px tall in a phone's width, and the footer is on one row", () => {
   test.use({ reducedMotion: "reduce" });
@@ -324,7 +326,7 @@ test.describe("quote embed: the arrows and Open in Parallel are separate targets
       for (const [index, { name, locator }] of controls.entries()) {
         expect(boxes[index].x, `${name} starts inside the frame`).toBeGreaterThanOrEqual(0);
         expect(boxes[index].x + boxes[index].width, `${name} ends inside the frame`).toBeLessThanOrEqual(frame.width);
-        expect(boxes[index].y + boxes[index].height, `${name} ends inside the frame`).toBeLessThanOrEqual(frame.height - (name === "Open in Parallel" ? QUOTE_BOTTOM_INSET : 0) + 0.5);
+        expect(boxes[index].y + boxes[index].height, `${name} ends inside the frame`).toBeLessThanOrEqual(frame.height - (name === "Open in Parallel" ? QUOTE_FOOTER_BOTTOM_PX : 0) + 0.5);
         expect(await isOnTopAtCentre(page, locator), `${name} is on top at its middle`).toBe(true);
       }
       for (let a = 0; a < controls.length; a++) {
@@ -333,7 +335,7 @@ test.describe("quote embed: the arrows and Open in Parallel are separate targets
 
       // The label is the whole of the name in a wide frame and "Open" in a narrow one (under 26rem), and the name is the same.
       await expect(open).toHaveAttribute("aria-label", /^Open in Parallel \(opens in a new tab\)$/);
-      expect(await open.evaluate((node) => (node as HTMLElement).innerText.trim()), `${frame.width}px wide: the pill's label`).toBe(frame.width < 416 ? "Open" : "Open in Parallel");
+      expect(await open.evaluate((node) => (node as HTMLElement).innerText.trim()), `${frame.width}px wide: the pill's label`).toBe(frame.width < SHORT_PILL_BELOW ? "Open" : "Open in Parallel");
 
       if (isPhoneWidth(frame)) {
         for (const [name, locator, round] of [["Previous quote", previous, true], ["Next quote", next, true], ["Open in Parallel", open, false]] as const) {
