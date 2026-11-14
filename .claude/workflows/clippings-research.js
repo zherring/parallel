@@ -1,13 +1,17 @@
 export const meta = {
   name: 'clippings-research',
-  description: 'Research sourced Clippings quotes (artists on each other, or critics on the collaboration) for pairing keys, one Sonnet agent per pair',
+  description: 'Research sourced Clippings quotes (artists on each other, or critics on the collaboration) for pairing keys, one lean Sonnet agent per pair',
   whenToUse: 'To research more duos for the Clippings tab. args: an array of pairingKeys (the two TMDB ids, sorted, joined with "+"), or {keys: [...], critics: true} for critics and reading links instead of artist quotes; add force: true to overwrite files already staged. Then run `npm run clippings:merge`.',
   phases: [
-    { title: 'Research', detail: 'one Sonnet agent per pair, at most 8 at a time; writes scripts/clippings/research/{quotes|critics}/<key>.json' },
+    { title: 'Research', detail: 'one clippings-researcher agent (no MCP) per pair, at most 8 at a time; writes scripts/clippings/research/{quotes|critics}/<key>.json' },
   ],
 }
 
 const MAX_PARALLEL = 8
+// One pair per agent. Measured 2026-11-13: the lean agent starts at ~8.5k context, so batching pairs no longer pays. With
+// 2 pairs per agent the second pair carried the first pair's leftovers (context reached ~67k) and cost ~0.61M input per
+// pair, against ~0.48M at 1 per agent, so the batching code was removed. Worth revisiting only if the agent's baseline
+// grows again (the old all-tools agent started at ~55k).
 
 // args: ["488+491", ...] | "488+491, 31+488" | { keys: [...], critics?: boolean, force?: boolean }
 const input = Array.isArray(args) ? { keys: args } : typeof args === 'string' ? { keys: args.split(/[\s,]+/) } : args || {}
@@ -29,10 +33,9 @@ const briefs = critics
   : ['scripts/clippings/briefs/BRIEF.md', 'scripts/clippings/briefs/LEAN.md']
 
 // The script has no file access, so each agent resolves its own pair from the key.
-function prompt(key) {
+function pairSteps(key) {
   const out = `scripts/clippings/research/${kind}/${key}.json`
   return (
-    `You are researching one pairing for the Clippings feature of this repo (your working directory is the repo root).\n\n` +
     `Pairing key: ${key} (the two TMDB ids, sorted, joined with "+").\n\n` +
     `1. Resolve the pair. Open src/lib/examples.generated.json and read the entry "${key}": its "people" array is [{id, name, ...}, {id, name, ...}]. ` +
     `In your output JSON, "pair" must be exactly [people[0].name, people[1].name] and "tmdb_ids" exactly [people[0].id, people[1].id], in that order; ` +
@@ -45,8 +48,15 @@ function prompt(key) {
     `4. Read ${briefs.join(', then ')}` +
     (critics ? '' : ' (its overrides win where they conflict with BRIEF.md)') +
     ` and follow ${briefs.length > 1 ? 'them' : 'it'} exactly.\n` +
-    `5. Write the JSON to ${out} and validate that it parses. Do not touch any other file in the repo.\n\n` +
-    `Your final reply must be AT MOST 3 lines, as the brief says.`
+    `5. Write the JSON to ${out} and validate that it parses. Do not touch any other file in the repo.\n`
+  )
+}
+
+function prompt(key) {
+  return (
+    `You are researching one pairing for the Clippings feature of this repo (your working directory is the repo root).\n\n` +
+    pairSteps(key) +
+    `\nYour final reply must be AT MOST 3 lines, as the brief says.`
   )
 }
 
@@ -59,7 +69,7 @@ const firstLines = (text) =>
     .join('\n  ')
 
 phase('Research')
-log(`${keys.length} pair(s), ${kind}, up to ${MAX_PARALLEL} at a time${force ? ', overwriting staged files' : ''}`)
+log(`${keys.length} pair(s), one agent each, ${kind}, up to ${MAX_PARALLEL} at a time${force ? ', overwriting staged files' : ''}`)
 
 // Fixed assignment of keys to workers (not a shared queue) so that a resumed run replays its agents in the same order.
 const workers = Math.min(MAX_PARALLEL, keys.length)
@@ -68,7 +78,7 @@ await parallel(
   Array.from({ length: workers }, (_, w) => async () => {
     for (const key of keys.filter((_, i) => i % workers === w)) {
       try {
-        const reply = await agent(prompt(key), { label: key, phase: 'Research', model: 'sonnet' })
+        const reply = await agent(prompt(key), { label: key, phase: 'Research', agentType: 'clippings-researcher' })
         summaries[key] = reply === null ? 'no result (the agent was skipped or failed)' : firstLines(reply)
       } catch (err) {
         summaries[key] = `FAILED: ${err && err.message ? err.message : err}`

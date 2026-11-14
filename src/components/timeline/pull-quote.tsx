@@ -18,10 +18,15 @@ interface PullQuoteProps {
   year: number | null;
   via: string | null;
   explainer: ReactNode;
+  /**
+   * For a quote that is our translation: the quiet note at the end of the source line ("Translated from Italian"), and the
+   * words as the source prints them, its tooltip (the caller puts them in the explainer too, for a touch screen).
+   */
+  translation?: { label: string; original: string } | null;
 }
 
 /** Verbatim words, source-linked prose, and sharing. Portraits belong to the stationary pane. */
-export function PullQuote({ id, quote, url, linkTitle, speaker, color, film, publication, year, via, explainer }: PullQuoteProps) {
+export function PullQuote({ id, quote, url, linkTitle, speaker, color, film, publication, year, via, explainer, translation }: PullQuoteProps) {
   return (
     <figure className="relative">
       <div className="quote-exhibit-actions">
@@ -54,6 +59,12 @@ export function PullQuote({ id, quote, url, linkTitle, speaker, color, film, pub
             </span>
           </a>
           {via && <span className="whitespace-nowrap"><span aria-hidden="true">&middot;</span> via {via}</span>}
+          {translation && (
+            <span className="whitespace-nowrap" title={translation.original}>
+              <span aria-hidden="true">&middot;</span> {translation.label}
+              <span className="sr-only"> (original: {translation.original})</span>
+            </span>
+          )}
         </p>
       </figcaption>
     </figure>

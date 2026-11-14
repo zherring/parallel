@@ -80,6 +80,24 @@ export function clippingYear(clipping: Pick<Clipping, "said_year" | "date">): nu
   return years.length > 0 ? Math.min(...years) : null;
 }
 
+/** The English name of a language code ("it" is "Italian"); the code itself when the runtime does not know it. */
+export function languageName(code: string): string {
+  try {
+    return new Intl.DisplayNames(["en"], { type: "language" }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
+/**
+ * "Translated from Italian" for a quote that is our translation of words printed in another language (it has an
+ * `original`); null for one that is in English as said.
+ */
+export function translatedFrom(clipping: Pick<Clipping, "original" | "original_lang">): string | null {
+  if (!clipping.original || !clipping.original_lang) return null;
+  return `Translated from ${languageName(clipping.original_lang)}`;
+}
+
 type ParamValue = string | string[] | undefined;
 
 /**

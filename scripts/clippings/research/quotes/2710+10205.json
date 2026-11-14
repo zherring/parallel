@@ -1,0 +1,91 @@
+{
+  "pair": ["James Cameron", "Sigourney Weaver"],
+  "tmdb_ids": [2710, 10205],
+  "clippings": [
+    {
+      "speaker": "James Cameron",
+      "about": "Sigourney Weaver",
+      "quote": "I was petrified of you. I had been writing for months with your picture up on the wall right in front of my little writing station. I was desperately trying to channel what you and Ridley had created for Ripley, and extrapolate forward with my own post-traumatic-stress-syndrome motif.",
+      "film": "Aliens",
+      "said_year": 2026,
+      "publication": "Empire",
+      "via": null,
+      "title": "Aliens 40th Cast Reunion: ‘We’re Still The Same Punks We Were Then,’ Says James Cameron",
+      "date": "2026-05",
+      "url": "https://www.empireonline.com/movies/news/aliens-40th-reunion-interview-still-the-same-punks-james-cameron/",
+      "context": "Cameron to Weaver in Empire's 40th-anniversary Aliens reunion interview, recalling their first meeting.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Sigourney Weaver",
+      "about": "James Cameron",
+      "quote": "Because I read this script that came out of nowhere by this person James Cameron, and it was one of the most extraordinarily structured, thematic, loaded scripts I’d ever read. I felt like it was this beautiful aria between Ripley and the Alien Queen.",
+      "film": "Aliens",
+      "said_year": 2026,
+      "publication": "Empire",
+      "via": null,
+      "title": "Aliens 40th Cast Reunion: ‘We’re Still The Same Punks We Were Then,’ Says James Cameron",
+      "date": "2026-05",
+      "url": "https://www.empireonline.com/movies/news/aliens-40th-reunion-interview-still-the-same-punks-james-cameron/",
+      "context": "Weaver in Empire's Aliens reunion interview, recalling first reading Cameron's script.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Sigourney Weaver",
+      "about": "James Cameron",
+      "quote": "And I was thrilled that Jim would entrust me with such a character. I felt an immediate connection to her. I knew it would be probably the biggest challenge I’ve ever taken on, but I thought, with his help, with his amazing writing, with our wonderful cast, I would definitely give it my best shot.",
+      "film": "Avatar: The Way of Water",
+      "said_year": 2022,
+      "publication": "D23",
+      "via": null,
+      "title": "Sigourney Weaver on Playing Kiri in Avatar: The Way of Water",
+      "date": "2022-12-05",
+      "url": "https://d23.com/sigourney-weaver-on-playing-kiri-in-avatar-the-way-of-water/",
+      "context": "Weaver on how Cameron pitched her the teenage Na'vi role of Kiri over lunch in 2010.",
+      "secondhand": false
+    },
+    {
+      "speaker": "James Cameron",
+      "about": "Sigourney Weaver",
+      "quote": "I thought, 'Wow, if we could do that, what if Sigourney played her own daughter, or at least the daughter of her avatar self?' … I said, 'Sigourney, are you up for this? You want to try playing a 15-year-old?' And we'd joke about it. I'd say, 'Well, emotionally you're 15.' And so am I, by the way, I think we all are to some extent.",
+      "film": "Avatar: The Way of Water",
+      "said_year": 2025,
+      "publication": "People",
+      "via": "Yahoo",
+      "title": "James Cameron Marvels at How Sigourney Weaver Played a Teen in “Avatar: Fire and Ash”: She Was 'a Different Person' (Exclusive)",
+      "date": "2025-12-18",
+      "url": "https://www.yahoo.com/entertainment/movies/articles/james-cameron-marvels-sigourney-weaver-154121298.html",
+      "context": "Cameron to People, explaining his decision to cast Weaver as the teenage Kiri after she played Grace in Avatar.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Sigourney Weaver",
+      "about": "James Cameron",
+      "quote": "In fact, I don't really think he tells us where we're going. He wants to find out through us where the character is going, and that's why he's not in video village or anything … He is right there with us. … He does everything possible to make sure you get to try everything you want to try. So, it's kind of like the perfect job for an actor.",
+      "film": "Avatar: Fire and Ash",
+      "said_year": 2025,
+      "publication": "GamesRadar+",
+      "via": null,
+      "title": "Sigourney Weaver says working with James Cameron on the Avatar series is \"like the perfect job for an actor\": \"He does everything possible to make sure you get to try everything you want to try\"",
+      "date": "2025-12-16",
+      "url": "https://www.gamesradar.com/entertainment/sci-fi-movies/sigourney-weaver-says-working-with-james-cameron-on-the-avatar-series-is-like-the-perfect-job-for-an-actor-he-does-everything-possible-to-make-sure-you-get-to-try-everything-you-want-to-try/",
+      "context": "Weaver to GamesRadar+ in London on how Cameron directs performance-capture scenes in the Volume.",
+      "secondhand": false
+    },
+    {
+      "speaker": "James Cameron",
+      "about": "Sigourney Weaver",
+      "quote": "We kind of meet in that sort of quest for perfection … She's amazing. She always brings it every time.",
+      "film": null,
+      "said_year": 2026,
+      "publication": "People",
+      "via": "AOL",
+      "title": "James Cameron Reflects on Decades-Long Friendship, Working Relationship with Sigourney Weaver (Exclusive)",
+      "date": "2026-03-14",
+      "url": "https://www.aol.com/lifestyle/james-cameron-reflects-decades-long-230000499.html",
+      "context": "Cameron to People at the Saturn Awards in March 2026, on his decades-long working relationship with Weaver.",
+      "secondhand": false
+    }
+  ],
+  "notes": "IndieWire joint interview and Hollywood Reporter were bot-blocked (tollbit) and skipped. People pieces read via Yahoo/AOL syndication."
+}

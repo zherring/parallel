@@ -1,0 +1,91 @@
+{
+  "pair": ["Denis Villeneuve", "Hans Zimmer"],
+  "tmdb_ids": [137427, 947],
+  "clippings": [
+    {
+      "speaker": "Denis Villeneuve",
+      "about": "Hans Zimmer",
+      "quote": "I remember having dinner alone with Hans, it was his birthday and we were alone in a Montreal restaurant. And I said Hans,  'I would love you to do the dual scoring' and he said, 'Denis this is my oldest dream. And I will say yes.' But he said, 'I'm just afraid that maybe it's a very dangerous idea to tackle your oldest dream. But let's try it.'",
+      "film": "Dune",
+      "said_year": 2021,
+      "publication": "Geeks of Color",
+      "via": null,
+      "title": "Interview: Denis Villeneuve Talks 'Dune', Assembling The Cast, Hans Zimmer's Score, Hopes For Part Two & More",
+      "date": "2021-09-03",
+      "url": "https://geeksofcolor.co/2021/09/03/interview-denis-villeneuve-dune",
+      "context": "Roundtable interview ahead of Dune's release, recalling how he asked Zimmer to score it.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Denis Villeneuve",
+      "about": "Hans Zimmer",
+      "quote": "You know, when you put Hans Zimmer on the score, it always takes a lot of space. So there was a way to try and find a balance with sound design, and it was a beautiful artistic dance between the sound and music.",
+      "film": "Dune",
+      "said_year": 2021,
+      "publication": "Geeks of Color",
+      "via": null,
+      "title": "Interview: Denis Villeneuve Talks 'Dune', Assembling The Cast, Hans Zimmer's Score, Hopes For Part Two & More",
+      "date": "2021-09-03",
+      "url": "https://geeksofcolor.co/2021/09/03/interview-denis-villeneuve-dune",
+      "context": "Same roundtable, on blending Zimmer's music with the film's sound design.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Denis Villeneuve",
+      "about": "Hans Zimmer",
+      "quote": "didn't hear from Hans for a long time. He took a long time to experiment.\" Then, during editing, \"we started receiving tons of music for weeks. It was like a big creative rush. It became a storm. When the movie was totally finished, Hans was still sending me music.",
+      "film": "Dune",
+      "said_year": 2021,
+      "publication": "Variety",
+      "via": null,
+      "title": "Hans Zimmer on 'Dune' Score's Electronic Textures and Made-Up Language",
+      "date": "2021-10-21",
+      "url": "https://variety.com/2021/artisans/awards/hans-zimmer-dune-score-1235094486/",
+      "context": "Villeneuve speaking to Variety about how Zimmer's Dune score arrived during editing.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Hans Zimmer",
+      "about": "Denis Villeneuve",
+      "quote": "But when Denis very quietly asked me, there was something in the way he said had I ever read the book, that I knew he had made the same movie in his head that I was making in my head. And correct me if I'm wrong, but I think part of our process was that whenever we discussed things somehow, it was a full on conclusion that we felt the same way about certain things.",
+      "film": "Dune",
+      "said_year": 2021,
+      "publication": "The Knockturnal",
+      "via": null,
+      "title": "On The Scene: Denis Villeneuve & Hans Zimmer Talk 'Dune' at NYFF Q&A",
+      "date": "2021-10-15",
+      "url": "https://theknockturnal.com/on-the-scene-denis-villeneuve-and-hans-zimmer-talk-dune-at-nyff-qa/amp/",
+      "context": "Joint Q&A with Villeneuve at the New York Film Festival premiere of Dune.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Hans Zimmer",
+      "about": "Denis Villeneuve",
+      "quote": "And I think that it's pretty provocative, let's be honest, it's a pretty provocative score. Thank you Denis for letting me do this.",
+      "film": "Dune",
+      "said_year": 2021,
+      "publication": "The Knockturnal",
+      "via": null,
+      "title": "On The Scene: Denis Villeneuve & Hans Zimmer Talk 'Dune' at NYFF Q&A",
+      "date": "2021-10-15",
+      "url": "https://theknockturnal.com/on-the-scene-denis-villeneuve-and-hans-zimmer-talk-dune-at-nyff-qa/amp/",
+      "context": "Same NYFF Q&A, said to Villeneuve on stage.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Hans Zimmer",
+      "about": "Denis Villeneuve",
+      "quote": "You know those sort of dogs that get really excited? … I became one of those. He [Denis] never let me read the script because he wanted me to stay pure. He wanted one person who was like, I know the book, I know what this is all about, I know what the complications are as well of telling this story.",
+      "film": "Dune: Part Two",
+      "said_year": 2024,
+      "publication": "The Credits",
+      "via": null,
+      "title": "Hans Zimmer on Unearthing New Sounds for \"Dune: Part Two\"",
+      "date": "2024-03-04",
+      "url": "https://www.motionpictures.org/2024/03/hans-zimmer-on-unearthing-new-sounds-for-dune-part-two/",
+      "context": "MPA's The Credits interview on scoring Dune: Part Two; the article splits the quote with \"Zimmer joked.\"",
+      "secondhand": false
+    }
+  ],
+  "notes": "The Playlist interview returned 403 and was skipped. No Blade Runner 2049-era quotes found within budget."
+}

@@ -1,0 +1,91 @@
+{
+  "pair": ["John Carpenter", "Dean Cundey"],
+  "tmdb_ids": [11770, 1060],
+  "clippings": [
+    {
+      "speaker": "John Carpenter",
+      "about": "Dean Cundey",
+      "quote": "Debra introduced me to Dean, who is a tremendously talented cameraman. Kind of a strange guy to deal with, and can be sarcastic on the set, but wow, what a cameraman.",
+      "film": null,
+      "said_year": 2012,
+      "publication": "Fangoria",
+      "via": "JustinBeahm.com",
+      "title": "On John Carpenter + Career Retrospective Interview",
+      "date": "2012",
+      "url": "https://www.justinbeahm.com/on-john-carpenter-career-retrospective-interview/",
+      "context": "Word-association career interview by Justin Beahm for Fangoria's John Carpenter Legends issue, reposted in full on Beahm's site in 2016.",
+      "secondhand": false
+    },
+    {
+      "speaker": "John Carpenter",
+      "about": "Dean Cundey",
+      "quote": "He and I discovered the Panavision anamorphic fast lenses together on ESCAPE FROM NEW YORK. It was a moment of pure joy when we discovered we could open the lenses to 2.2 or 1.8, and could shoot a scene in the middle of Ventura Boulevard. at midnight. You couldn’t do that before. … It changed how we made film.",
+      "film": "Escape from New York",
+      "said_year": 2012,
+      "publication": "Fangoria",
+      "via": "JustinBeahm.com",
+      "title": "On John Carpenter + Career Retrospective Interview",
+      "date": "2012",
+      "url": "https://www.justinbeahm.com/on-john-carpenter-career-retrospective-interview/",
+      "context": "Same Fangoria Legends interview, continuing his answer to the prompt 'Dean Cundey'.",
+      "secondhand": false
+    },
+    {
+      "speaker": "John Carpenter",
+      "about": "Dean Cundey",
+      "quote": "[Dean Cundey] doesn't know. He has no idea. He puts the lights up. He puts the lights up and we were in the snow. He has no clue. … You tell him that. Tell him he's full of shit.",
+      "film": "The Thing",
+      "said_year": 2023,
+      "publication": "Variety",
+      "via": "Yahoo Entertainment",
+      "title": "John Carpenter Says ‘The Thing’ Cinematographer Is ‘Full of S—‘ Over His Ending Theory: He ‘Has No Clue,’ Only I Do and ‘I Cannot Tell You’",
+      "date": "2023-10-12",
+      "url": "https://www.yahoo.com/entertainment/john-carpenter-says-thing-cinematographer-230429774.html",
+      "context": "Carpenter teasingly dismissing Cundey's 'eye gleam' theory of The Thing's ending; originally said to ComicBook.com and reported by Variety.",
+      "secondhand": true
+    },
+    {
+      "speaker": "Dean Cundey",
+      "about": "John Carpenter",
+      "quote": "Working with John was a revelation because suddenly here was a guy who was interested in using the camera in a creative way, drawing the audience in. … I thought, Boy, this is just my cup of tea, where the camera is contributing and you’re telling the story with visuals.",
+      "film": "Halloween",
+      "said_year": null,
+      "publication": "Consequence",
+      "via": null,
+      "title": "The Making of John Carpenter's Halloween",
+      "date": "2016-10",
+      "url": "https://consequence.net/2018/10/the-making-of-john-carpenters-halloween/",
+      "context": "David Konow's oral history of Halloween built from interviews from years past; first published October 2016, republished 2018.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Dean Cundey",
+      "about": "John Carpenter",
+      "quote": "in the case of John, he was not afraid of having dark areas in the frame because he understood the importance. Compared to other directors, who would say, “Well, it’s dark, I can’t see the wall in the corner back there”, and so it was a case of being allowed the flexibility to experiment.",
+      "film": "The Thing",
+      "said_year": 2008,
+      "publication": "Den of Geek",
+      "via": null,
+      "title": "The Den Of Geek interview: Dean Cundey",
+      "date": "2008-08-07",
+      "url": "https://www.denofgeek.com/movies/the-den-of-geek-interview-dean-cundey/",
+      "context": "Cundey on shooting in the dark on Halloween and The Thing, in a career interview with Simon Brew.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Dean Cundey",
+      "about": "John Carpenter",
+      "quote": "When I first started with him on Halloween, I had worked on a lot of low budget movies, but he was the first director (I worked with) who I think really realized what visual storytelling was, how to use the camera to engage the audience and to tell the story. So I really appreciated that immediately. And you know, I think that continued, because we did five movies where that followed through.",
+      "film": "Halloween",
+      "said_year": 2018,
+      "publication": "Halloween Daily News",
+      "via": null,
+      "title": "[Interview] Cinematographer Dean Cundey on the Art of Illusion in Film",
+      "date": "2019-02-19",
+      "url": "https://halloweendailynews.com/2019/02/dean-cundey-interview/",
+      "context": "Interview by Matt Artz at the H40: Forty Years of Terror Halloween 40th anniversary convention.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Carpenter's side is thin online; the 1998 American Cinematographer 'common language' quote appears only on a wiki and was not used."
+}

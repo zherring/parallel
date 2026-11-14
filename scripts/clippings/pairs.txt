@@ -22,3 +22,92 @@
 4110+7570  # Humphrey Bogart & Lauren Bacall
 3460+9309  # Gene Wilder & Richard Pryor
 525+74401  # Christopher Nolan & Hoyte van Hoytema
+
+# Remaining pairs without quotes (added 2026-11-13, examples order)
+6598+12147  # Spencer Tracy & Katharine Hepburn
+3146+3147  # Billy Wilder & I. A. L. Diamond
+2746+3084  # Elia Kazan & Marlon Brando
+1158+1776  # Francis Ford Coppola & Al Pacino
+380+1158  # Robert De Niro & Al Pacino
+854+2636  # Alfred Hitchcock & James Stewart
+2636+2638  # Alfred Hitchcock & Cary Grant
+4110+6593  # John Huston & Humphrey Bogart
+1776+3084  # Francis Ford Coppola & Marlon Brando
+1060+11770  # John Carpenter & Dean Cundey
+138781+1135102  # Robert Eggers & Jarin Blaschke
+1145520+1650351  # Ari Aster & Pawel Pogorzelski
+6856+11770  # John Carpenter & Kurt Russell
+2372+10828  # Guillermo del Toro & Ron Perlman
+5140+9206  # Wes Craven & Neve Campbell
+5140+26458  # Wes Craven & Kevin Williamson
+5293+138781  # Robert Eggers & Willem Dafoe
+2710+10205  # James Cameron & Sigourney Weaver
+6384+9340  # Lana Wachowski & Keanu Reeves
+947+137427  # Denis Villeneuve & Hans Zimmer
+2036+1162217  # Alex Garland & Rob Hardy
+1+3  # Harrison Ford & George Lucas
+578+947  # Ridley Scott & Hans Zimmer
+1100+2710  # James Cameron & Arnold Schwarzenegger
+9339+9340  # Lana Wachowski & Lilly Wachowski
+287+7467  # David Fincher & Brad Pitt
+151+1223  # Joel Coen & Roger Deakins
+638+11099  # Michael Mann & Dante Spinotti
+10099+10107  # Park Chan-wook & Chung Chung-hoon
+1150+14138  # Brian De Palma & Pino Donaggio
+1461+1884  # Steven Soderbergh & George Clooney
+956+976  # Guy Ritchie & Jason Statham
+138+139  # Quentin Tarantino & Uma Thurman
+138+287  # Quentin Tarantino & Brad Pitt
+134+638  # Michael Mann & Jamie Foxx
+1884+1892  # Steven Soderbergh & Matt Damon
+62+2231  # Bruce Willis & Samuel L. Jackson
+3460+14639  # Mel Brooks & Gene Wilder
+13524+26510  # Christopher Guest & Eugene Levy
+3151+6837  # Jack Lemmon & Walter Matthau
+31+5344  # Tom Hanks & Meg Ryan
+19274+41039  # Judd Apatow & Seth Rogen
+19274+54734  # Seth Rogen & Evan Goldberg
+1524+1532  # Bill Murray & Harold Ramis
+887+5655  # Wes Anderson & Owen Wilson
+5344+9248  # Nora Ephron & Meg Ryan
+383+8930  # John Cleese & Michael Palin
+280+383  # Terry Gilliam & Michael Palin
+7467+7479  # David Fincher & Jeff Cronenweth
+4185+30715  # Terrence Malick & Emmanuel Lubezki
+15488+15490  # Ken Loach & Paul Laverty
+1231+16863  # Todd Haynes & Julianne Moore
+92784+960350  # Barry Jenkins & James Laxton
+24+31  # Robert Zemeckis & Tom Hanks
+380+6193  # Robert De Niro & Leonardo DiCaprio
+1233+4762  # Paul Thomas Anderson & Philip Seymour Hoffman
+569+1146  # Ethan Hawke & Julie Delpy
+3186+142391  # Trent Reznor & Atticus Ross
+4165+8500  # John Ford & John Wayne
+1619+11401  # John Woo & Chow Yun-Fat
+2461+20629  # George Miller & Mel Gibson
+893+5292  # Tony Scott & Denzel Washington
+3+488  # Harrison Ford & Steven Spielberg
+525+3894  # Christopher Nolan & Christian Bale
+138+2294  # Quentin Tarantino & Robert Rodriguez
+190+4385  # Sergio Leone & Clint Eastwood
+4165+11435  # Howard Hawks & John Wayne
+2461+7187  # Richard Donner & Mel Gibson
+6384+40644  # Chad Stahelski & Keanu Reeves
+500+11108  # Tom Cruise & Simon Pegg
+2219+7623  # Sam Raimi & Tobey Maguire
+1337+12453  # Wong Kar-wai & Tony Leung Chiu-wai
+607+643  # Zhang Yimou & Gong Li
+5026+7453  # Akira Kurosawa & Takashi Shimura
+2201+6648  # Ingmar Bergman & Max von Sydow
+4415+5676  # Federico Fellini & Marcello Mastroianni
+5676+16757  # Marcello Mastroianni & Sophia Loren
+309+3131  # Pedro Almodóvar & Antonio Banderas
+10099+20738  # Park Chan-wook & Song Kang-ho
+85+510  # Tim Burton & Johnny Depp
+7879+7885  # John Lasseter & Randy Newman
+15810+15813  # Ron Clements & Alan Menken
+17276+69797  # Dean DeBlois & Gerard Butler
+7087+15347  # Brad Bird & Michael Giacchino
+15810+15811  # Ron Clements & John Musker
+66193+69797  # Dean DeBlois & Chris Sanders
+1+488  # George Lucas & Steven Spielberg

@@ -1,0 +1,91 @@
+{
+  "pair": ["James Cameron", "Arnold Schwarzenegger"],
+  "tmdb_ids": [2710, 1100],
+  "clippings": [
+    {
+      "speaker": "James Cameron",
+      "about": "Arnold Schwarzenegger",
+      "quote": "Arnold was the one true believer … He was the only one who really thought it was going to be a hit.",
+      "film": "The Terminator",
+      "said_year": 1991,
+      "publication": "Premiere",
+      "via": "The Terminator Files",
+      "title": "A Kinder, Gentler Cyborg",
+      "date": "1991-07",
+      "url": "https://www.terminatorfiles.com/media/articles/t2_006.htm",
+      "context": "On the set of Terminator 2, Cameron looks back on the low-budget first film; fan-site reprint of Rachel Abramovitz's Premiere story.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Arnold Schwarzenegger",
+      "about": "James Cameron",
+      "quote": "I think that with a director like this, I don't have to go home and say, 'I better work up this scene for tomorrow,' because you don't need to with him. He has worked it already ten times over.",
+      "film": "Terminator 2: Judgment Day",
+      "said_year": 1991,
+      "publication": "Premiere",
+      "via": "The Terminator Files",
+      "title": "A Kinder, Gentler Cyborg",
+      "date": "1991-07",
+      "url": "https://www.terminatorfiles.com/media/articles/t2_006.htm",
+      "context": "Schwarzenegger, in his trailer during the T2 shoot, on why he feels no pressure working with Cameron.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Arnold Schwarzenegger",
+      "about": "James Cameron",
+      "quote": "He has still the two personalities when he shoots … When he shoots, he doesn't care for anything. It's not that he's mean-spirited; he just likes to have everyone at that point of being scared. So he will scream and go crazy, and then, as soon as the shot is over, he will be casual with everyone and very sweet and nice.",
+      "film": "Terminator 2: Judgment Day",
+      "said_year": 1991,
+      "publication": "Premiere",
+      "via": "The Terminator Files",
+      "title": "A Kinder, Gentler Cyborg",
+      "date": "1991-07",
+      "url": "https://www.terminatorfiles.com/media/articles/t2_006.htm",
+      "context": "Schwarzenegger describes Cameron's on-set temperament during the T2 production.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Arnold Schwarzenegger",
+      "about": "James Cameron",
+      "quote": "He became a mentor in many ways. And to have him as my friend? I need any help, I need anything from him, he's there.",
+      "film": null,
+      "said_year": 2022,
+      "publication": "The Ringer",
+      "via": null,
+      "title": "“It’s Going to Be Epic”: The Oral History of James Cameron",
+      "date": "2022-12-13",
+      "url": "https://www.theringer.com/2022/12/13/oral-history/james-cameron-oral-history-titanic-avatar",
+      "context": "Schwarzenegger in The Ringer's oral history of Cameron's career, released alongside Avatar: The Way of Water.",
+      "secondhand": false
+    },
+    {
+      "speaker": "James Cameron",
+      "about": "Arnold Schwarzenegger",
+      "quote": "No, he and I are still besties, and I like to wind him up a little bit, and he likes to wind me up. But he was great, and he came with a will to make it everything that it could be.",
+      "film": "The Terminator",
+      "said_year": 2024,
+      "publication": "Empire",
+      "via": null,
+      "title": "James Cameron: The Ultimate Terminator Interview",
+      "date": "2024-11-05",
+      "url": "https://www.empireonline.com/movies/features/james-cameron-ultimate-terminator-interview-directors-cut/",
+      "context": "For The Terminator's 40th anniversary, Cameron recalls his apprehension before first directing Schwarzenegger.",
+      "secondhand": false
+    },
+    {
+      "speaker": "James Cameron",
+      "about": "Arnold Schwarzenegger",
+      "quote": "Well, first of all, this character is as much your character as it is mine. I may have created it, but it's you now. You own it more than I do in the zeitgeist, in the public imagination. I'm not going to hold you back as a friend.",
+      "film": "Terminator 3: Rise of the Machines",
+      "said_year": 2024,
+      "publication": "Empire",
+      "via": null,
+      "title": "James Cameron: The Ultimate Terminator Interview",
+      "date": "2024-11-05",
+      "url": "https://www.empireonline.com/movies/features/james-cameron-ultimate-terminator-interview-directors-cut/",
+      "context": "Cameron recounts what he told Schwarzenegger when Arnold asked his blessing to make Terminator 3 without him.",
+      "secondhand": false
+    }
+  ],
+  "notes": "IndieWire (tollbit) and The Playlist (403) skipped; Deadline 2022 'refused to do it without Arnold' and TheWrap 2019 'control freak' quotes found only secondhand, so omitted. Premiere 1991 read via fan-site reprint."
+}

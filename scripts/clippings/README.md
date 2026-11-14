@@ -12,9 +12,10 @@ pairs.txt ──▶ research agents ──▶ research/{quotes|critics}/<key>.js
 | Step | What | How |
 | --- | --- | --- |
 | 1. Queue | Pairs waiting to be researched, one key per line with a `# Name & Name` label | `pairs.txt` |
-| 2. Research | One Sonnet agent per pair, up to 8 in parallel, each following `briefs/` and writing its JSON to `research/` | `/clippings <keys or "next N">` in Claude Code (skill `.claude/skills/clippings`, workflow `.claude/workflows/clippings-research.js`) |
+| 2. Research | One lean `clippings-researcher` agent per pair (Sonnet, web + file tools only, `.claude/agents/`), up to 8 in parallel, each following `briefs/` and writing its JSON to `research/` | `/clippings <keys or "next N">` in Claude Code (skill `.claude/skills/clippings`, workflow `.claude/workflows/clippings-research.js`) |
 | 3. Merge | Validate every staged file whose key is not in the app JSON yet, and add it | `npm run clippings:merge` |
 | 4. Review | Read every new quote against its source on the dev server (`npm run dev`, the pair's page, Clippings tab) | by hand |
+| 4b. Review | One page with every quote not yet on `origin/main`: source links, warning chips, keyboard marking, export of flagged quotes | `npm run clippings:review` |
 | 5. Test, commit | `npm test`, then commit the app JSON and the staged files together | by hand |
 | Later | Check every link is alive and every quote is still on its page | `npm run clippings:check` |
 

@@ -290,6 +290,12 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
                     <span className="sr-only">(opens in a new tab)</span>
                   </span>
                 </a>
+                {current.translation && (
+                  <span className="whitespace-nowrap" title={current.translation.original}>
+                    <span aria-hidden="true">&middot;</span> {current.translation.label}
+                    <span className="sr-only"> (original: {current.translation.original})</span>
+                  </span>
+                )}
               </p>
             </div>
           </div>

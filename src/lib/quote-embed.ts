@@ -12,7 +12,7 @@
  */
 
 import type { VoicedClippings } from "@/lib/clippings";
-import { clippingYear, quoteLinkSearch, speakerIndex } from "@/lib/clippings-view";
+import { clippingYear, quoteLinkSearch, speakerIndex, translatedFrom } from "@/lib/clippings-view";
 import type { PairCritics } from "@/lib/critics";
 import { criticAbout, criticAvatarName, criticName, criticYear, interleaveQuotes } from "@/lib/critics-view";
 import { EMBED_PREFIX } from "@/lib/embed-frame";
@@ -38,6 +38,8 @@ export interface EmbedQuote {
   publication: string;
   year: number | null;
   url: string;
+  /** "Translated from Italian", and the words as the source prints them, for a quote that is our translation; absent otherwise. */
+  translation?: { label: string; original: string };
 }
 
 /** The size X is told to give the player: the shape of the poster, so that the frame and the card image agree. */
@@ -95,6 +97,7 @@ export function embedQuotes(clippings: VoicedClippings | null, critics: PairCrit
     const { clipping } = entry;
     const side = people ? speakerIndex(clipping, people) : null;
     const voice = people && side !== null ? people[side] : null;
+    const translated = translatedFrom(clipping);
     return {
       id: clipping.id,
       quote: clipping.quote,
@@ -106,6 +109,7 @@ export function embedQuotes(clippings: VoicedClippings | null, critics: PairCrit
       publication: clipping.publication,
       year: clippingYear(clipping),
       url: clipping.url,
+      ...(translated && clipping.original ? { translation: { label: translated, original: clipping.original } } : {}),
     };
   });
 }
