@@ -353,6 +353,21 @@ test("the counter opens a keyboard-accessible index that jumps to a quote withou
   expect(await page.evaluate(() => history.length)).toBe(historyLength);
 });
 
+test("index links keep the period and settings when opened in another tab", async ({ page }) => {
+  await openExhibit(page, `${SCORSESE}?view=clippings&from=1980&to=2000&utm_source=zine`);
+  await deck(page).getByRole("button", { name: "Browse all quotes", exact: true }).click();
+  const index = page.getByRole("dialog", { name: "All quotes", exact: true });
+  const link = index.locator("ol a").nth(1);
+  const params = new URLSearchParams((await link.getAttribute("href"))!);
+  expect(Object.fromEntries(params)).toEqual({ view: "clippings", from: "1980", to: "2000", utm_source: "zine", quote: SECOND });
+  const [popup] = await Promise.all([page.context().waitForEvent("page"), link.click({ modifiers: ["ControlOrMeta"] })]);
+  await popup.waitForLoadState("domcontentloaded");
+  expect(Object.fromEntries(new URL(popup.url()).searchParams)).toEqual(Object.fromEntries(params));
+  await expect(deck(page)).toHaveAttribute("data-active-quote", FIRST);
+  await expect(index).toBeVisible();
+  await popup.close();
+});
+
 test("further reading stays reachable and legacy exhibit links become ordinary quote links", async ({ page }) => {
   await openExhibit(page, "/p/488-steven-spielberg+491-john-williams?view=clippings");
   await deck(page).getByRole("button", { name: "More reading", exact: true }).click();
