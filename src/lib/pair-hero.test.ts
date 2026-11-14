@@ -213,7 +213,8 @@ describe("pickHeroNote: the fallback chain", () => {
     );
     expect(withQuotes).toBeDefined();
     expect(withDescription).toBeDefined();
-    expect(withoutQuotes).toBeDefined();
+    // Once every pair has quotes or a description there is no real pair left that falls back to its blurb; that path is
+    // covered by pickHeroNote above, so it is only checked here while such a pair exists.
     // A curated pair with a description and no quote shows the description (not the blurb it also has).
     expect(getHeroNote(ids(withDescription!))).toMatchObject({ kind: "description", text: getPairDescription(ids(withDescription!))!.text });
     const quoted = getHeroNote(withQuotes!.people.map((p) => p.id));
@@ -221,9 +222,11 @@ describe("pickHeroNote: the fallback chain", () => {
     // The id is the first artist quote of the pair as the Quotes view lists it.
     const set = getPairClippingSet(withQuotes!.people.map((p) => p.id));
     expect(quoted).toMatchObject({ id: featuredClipping(set)!.id });
-    expect(getHeroNote(withoutQuotes!.people.map((p) => p.id))).toEqual({ kind: "blurb", text: withoutQuotes!.blurb });
+    if (withoutQuotes) {
+      expect(getHeroNote(ids(withoutQuotes))).toEqual({ kind: "blurb", text: withoutQuotes.blurb });
+    }
     // The order the ids come in does not matter.
-    expect(getHeroNote(withoutQuotes!.people.map((p) => p.id).reverse())).toEqual({ kind: "blurb", text: withoutQuotes!.blurb });
+    expect(getHeroNote(ids(withDescription!).reverse())).toEqual(getHeroNote(ids(withDescription!)));
     expect(getHeroNote([1, 2])).toBeNull();
     expect(getHeroNote([])).toBeNull();
   });
