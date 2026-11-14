@@ -23,6 +23,26 @@ export const DESKTOP_WIDTHS = [516, 600, 1200] as const;
 export const PHONE_SCREEN = { width: 390, height: 844 } as const;
 export const PANEL_HEIGHTS = [591, 253] as const;
 
+/** What a `Host` header of this machine looks like: 127.0.0.1, localhost or `[::1]` (or a bare `::1`), with a port or none. Anything else, `127.0.0.1.evil.example` included, is not. */
+const LOOPBACK_HOST = /^(?:(?:127\.0\.0\.1|localhost|\[::1\])(?::\d{1,5})?|::1)$/i;
+
+/** Whether `host` (a request's `Host` header) names this machine, on any port. */
+export function isLoopbackHost(host: string | null | undefined): boolean {
+  return LOOPBACK_HOST.test((host ?? "").trim());
+}
+
+/**
+ * The origin the preview page reads the target page from, on the server: the request's own when its `Host` is this machine (the dev server, however it was reached: any port), and
+ * otherwise this machine's own `127.0.0.1` on `fallbackPort` (the server's `PORT`, 3000 by default). The page's fetch must never go where a request's headers say, or a crafted `Host`
+ * would turn it into a request to any host and reflect the reply in the tags panel. The scheme is `https` only when the request says so and the host is loopback, else `http`.
+ */
+export function previewFetchOrigin(host: string | null | undefined, forwardedProto: string | null | undefined, fallbackPort: string | undefined): string {
+  const trimmed = (host ?? "").trim();
+  if (!isLoopbackHost(trimmed)) return `http://127.0.0.1:${/^\d{1,5}$/.test(fallbackPort ?? "") ? fallbackPort : 3000}`;
+  const scheme = forwardedProto?.trim().toLowerCase() === "https" ? "https" : "http";
+  return `${scheme}://${trimmed === "::1" ? "[::1]" : trimmed}`;
+}
+
 const PAIR_PATH = /^\/p\/[^/?#\s]+(?:\/q\/[^/?#\s]+)?(?:\?[^#\s]*)?$/;
 const PEOPLE_TEXT = /^[A-Za-z0-9+\-_%.\s]+$/;
 
@@ -63,7 +83,8 @@ function decode(text: string): string {
   return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, entity: string) => {
     if (entity[0] === "#") {
       const code = entity[1].toLowerCase() === "x" ? Number.parseInt(entity.slice(2), 16) : Number.parseInt(entity.slice(1), 10);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : whole;
+      // `String.fromCodePoint` throws outside the Unicode range (`&#x110000;`, `&#999999999;`): an entity that names no character is left as it was written.
+      return Number.isFinite(code) && code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
     }
     return ENTITIES[entity.toLowerCase()] ?? whole;
   });
