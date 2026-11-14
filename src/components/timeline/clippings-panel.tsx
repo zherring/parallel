@@ -7,7 +7,7 @@ import { clippingYear, parseQuoteId, speakerIndex } from "@/lib/clippings-view";
 import type { PairCritics } from "@/lib/critics";
 import { criticName, criticYear, interleaveQuotes } from "@/lib/critics-view";
 import { personColor } from "@/lib/person-colors";
-import { quoteExhibitPeople } from "@/lib/quote-exhibit";
+import { quoteExhibitAttributedContext, quoteExhibitPeople } from "@/lib/quote-exhibit";
 import type { PersonPanelAccess } from "@/lib/side-panel";
 import { MoreReading } from "./more-reading";
 import { PullQuote, quoteElementId } from "./pull-quote";
@@ -39,6 +39,9 @@ export function ClippingsPanel({ pair, critics, active, personPanel }: Clippings
     const background = clipping
       ? [clipping.context, clipping.secondhand ? `Secondhand: ${speaker} is reported by someone else here, not quoted in their own words.` : ""].filter(Boolean).join(" ")
       : `From “${item.title.trim()}”, ${author ? `by ${author}` : `published in ${item.publication}`}.`;
+    const context = clipping && side !== null && people
+      ? quoteExhibitAttributedContext(background, people[side], people)
+      : background;
 
     return {
       id: item.id,
@@ -59,7 +62,7 @@ export function ClippingsPanel({ pair, critics, active, personPanel }: Clippings
           publication={item.publication}
           year={year}
           via={item.via}
-          explainer={<QuoteExhibitContext text={background} people={people ?? []} personPanel={personPanel} />}
+          explainer={<QuoteExhibitContext text={context} people={people ?? []} personPanel={personPanel} />}
         />
       ),
     };

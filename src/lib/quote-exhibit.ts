@@ -48,6 +48,12 @@ export interface QuoteContextPart {
   person: ClippingsPerson | null;
 }
 
+/** Keep attribution in the prose, adding a quiet lead-in only when the speaker is not already named. */
+export function quoteExhibitAttributedContext(text: string, speaker: ClippingsPerson, people: readonly ClippingsPerson[]): string {
+  const named = quoteExhibitContextParts(text, people).some((part) => part.person?.id === speaker.id);
+  return named ? text : text.trim() ? `${speaker.name} — ${text}` : speaker.name;
+}
+
 /** Link names already in the prose, preserving its wording and possessives. Never guess an ambiguous short name. */
 export function quoteExhibitContextParts(text: string, people: readonly ClippingsPerson[]): QuoteContextPart[] {
   const aliases = new Map<string, ClippingsPerson | null>();

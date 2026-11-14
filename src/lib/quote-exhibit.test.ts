@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { exhibitSpaceAction, nextExhibitIndex, quoteExhibitContextParts, quoteExhibitPeople, quoteExhibitQuoteSearch } from "./quote-exhibit";
+import { exhibitSpaceAction, nextExhibitIndex, quoteExhibitAttributedContext, quoteExhibitContextParts, quoteExhibitPeople, quoteExhibitQuoteSearch } from "./quote-exhibit";
 import type { PairCritics } from "./critics";
 
 describe("the Quotes deck", () => {
@@ -52,6 +52,21 @@ describe("the Quotes deck", () => {
 
 describe("people links in exhibition prose", () => {
   const people = [{ id: 1032, name: "Martin Scorsese" }, { id: 3661, name: "Thelma Schoonmaker" }];
+
+  it("adds an inline speaker lead-in only when that person's name is missing", () => {
+    const text = "Official transcript of her first Oscar acceptance speech.";
+    expect(quoteExhibitAttributedContext(text, people[1], people)).toBe(`Thelma Schoonmaker — ${text}`);
+    const named = "From Scorsese's tribute played before Thelma accepted the BAFTA Fellowship.";
+    expect(quoteExhibitAttributedContext(named, people[0], people)).toBe(named);
+    expect(quoteExhibitAttributedContext(named, people[1], people)).toBe(named);
+    expect(quoteExhibitAttributedContext("Scorsese was in the room.", people[1], people)).toBe("Thelma Schoonmaker — Scorsese was in the room.");
+    expect(quoteExhibitAttributedContext("", people[1], people)).toBe("Thelma Schoonmaker");
+  });
+
+  it("does not mistake a shared surname for a speaker's attribution", () => {
+    const coens = [{ id: 1, name: "Joel Coen" }, { id: 2, name: "Ethan Coen" }];
+    expect(quoteExhibitAttributedContext("Coen in an interview.", coens[0], coens)).toBe("Joel Coen — Coen in an interview.");
+  });
 
   it("links full, first and family names without changing the prose or possessives", () => {
     const text = "From Scorsese's video tribute played before Thelma accepted the BAFTA Fellowship. Martin Scorsese spoke.";

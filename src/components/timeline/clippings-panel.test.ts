@@ -2,6 +2,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { PairCritics } from "@/lib/critics";
+import raw from "@/lib/clippings.json";
+import { voiceClippings } from "@/lib/clippings-view";
 import { ClippingsPanel } from "./clippings-panel";
 
 vi.mock("next/navigation", () => ({
@@ -46,6 +48,18 @@ describe("the default Quotes page", () => {
     expect(html).not.toContain("Browse all quotes");
     expect(html).not.toContain("of 0");
   });
+
+  for (const key of ["1259+4385", "309+955", "880+1892"] as const) {
+    it(`keeps attribution inside the explainer for ${key}, without a separate byline`, () => {
+      const entry = raw[key];
+      const [first, second] = entry.tmdb_ids;
+      const pair = voiceClippings({ people: [{ id: first, name: entry.pair[0] }, { id: second, name: entry.pair[1] }], clippings: entry.clippings }, []);
+      const html = renderToStaticMarkup(createElement(ClippingsPanel, { pair, critics: null, active: true }));
+      const contexts = [...html.matchAll(/<p class="quote-exhibit-context">(.*?)<\/p>/g)].map((match) => match[1].replace(/<[^>]*>/g, ""));
+      expect(contexts.some((text) => text.startsWith(`${pair.clippings[0].speaker} — `))).toBe(true);
+      expect(html).not.toContain("quote-exhibit-byline");
+    });
+  }
 
   it("keeps complete quoted text and reading sources in inactive server HTML, but no portraits or deck", () => {
     const html = renderToStaticMarkup(createElement(ClippingsPanel, { pair: null, critics, active: false }));
