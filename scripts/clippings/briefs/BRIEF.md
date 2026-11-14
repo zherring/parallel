@@ -12,6 +12,13 @@ Tools: WebSearch and WebFetch (load them via ToolSearch with query "select:WebSe
 - Not in English? If a quote is only available in another language, put the source's text verbatim in `original`, its two-letter language code in `original_lang` ("it", "es", "fr"), and a faithful, plain English translation of it in `quote` (literal, same cuts and "…"). The site shows the English and marks it as translated. Never put non-English text in `quote` alone, and only translate a quote you can't find in English.
 - If the article quotes something said elsewhere (e.g. "as he told Rolling Stone in 1982"), set `secondhand: true` and explain in `context`.
 - Prefer quotes that reveal the relationship (how they work together, what one gives the other, a specific story about a specific film, affection, friction, a falling-out) over generic praise.
+- Skip these; the site owner cuts them in review:
+  - press-junket hype and logistics ("as long as he can make it, I'm up for it", news about a project that may or may not happen);
+  - warmth with no insight into the work ("one of my favourite people in the world", "the most sensitive person I've met");
+  - several lines from one exchange (back-and-forth answers in the same interview): take the single best one;
+  - fragments, and set-ups that promise an anecdote or an insight but cut off before it ("he said something brilliant…" without the brilliant thing);
+  - a quote about both members of some other duo (e.g. a star on both Wachowskis belongs to neither pair).
+  Fewer quotes with substance beat a padded list.
 - Target 6–10 quotes, both directions if at all possible, spread across years/films. If one direction is thin, say so honestly; don't pad.
 
 ## Output
