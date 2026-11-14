@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import { GROUP_SLOT, connectionLegend, pairIndex } from "@/lib/connections";
 import { sharedFilms } from "@/lib/shared";
 import {
+  AXIS_HEIGHT,
   CARD_GAP,
   CARD_FROM_BOTTOM,
   CARD_HEIGHT,
   CARD_WIDTH,
   DEFAULT_MAX_ROWS,
   DEFAULT_ZOOM,
+  EMBED_MAX_ROWS,
   DOT_HIT_MIN,
   DOT_HIT_SIZE,
   LANE_PAD_TOP,
@@ -33,6 +35,8 @@ import {
   filmMembership,
   isCrossed,
   labelStep,
+  embedRowsFor,
+  embedTrackHeight,
   laneHeight,
   laneObstacles,
   makeScale,
@@ -490,6 +494,47 @@ describe("nodeHitWidths", () => {
   it("sizes every film of a lane, whether it has a card or not", () => {
     const lane = packFilms([f(1, "2000-01-01", 9), f(2, "2000-01-02", 1), f(3, "2005-01-01", 5)], { ...base, maxRows: 1 });
     expect([...nodeHitWidths(lane).keys()]).toEqual([1, 2, 3]);
+  });
+
+  describe("on a track that is drawn smaller than it is laid out (hitScale = 1 / fit)", () => {
+    const fit = 0.5;
+    const scale = 1 / fit;
+    /** The same nodes as they are on the screen: x and gap in the drawn size. */
+    const drawn = (widths: Map<number, number>, id: number) => widths.get(id)! * fit;
+
+    it("keeps an isolated node as wide on the screen as on the page", () => {
+      const widths = nodeHitWidths([node(1, 100), node(2, 900)], scale);
+      expect(widths.get(1)).toBe(DOT_HIT_SIZE * scale);
+      expect(drawn(widths, 1)).toBeCloseTo(DOT_HIT_SIZE, 10);
+    });
+
+    it("squeezes where the drawn gap is under a full hit area, to the gap, as the page does", () => {
+      // 30 layout px apart is 15 on the screen: the page, at a 15px gap, gives each of the two 15px.
+      const widths = nodeHitWidths([node(1, 100), node(2, 130), node(3, 600)], scale);
+      expect(drawn(widths, 1)).toBeCloseTo(15, 10);
+      expect(drawn(widths, 2)).toBeCloseTo(15, 10);
+      expect(drawn(widths, 3)).toBeCloseTo(DOT_HIT_SIZE, 10);
+    });
+
+    it("has the floor on the screen too, not under it", () => {
+      const widths = nodeHitWidths([node(1, 100), node(2, 100)], scale);
+      expect(drawn(widths, 1)).toBeCloseTo(DOT_HIT_MIN, 10);
+    });
+
+    it("never overlaps a neighbour where the drawn gap allows, the same as at full size", () => {
+      const xs = [0, 12, 20, 60, 61, 90, 400, 430];
+      const widths = nodeHitWidths(xs.map((x, i) => node(i, x)), scale);
+      for (let i = 0; i < xs.length - 1; i++) {
+        const gap = (xs[i + 1] - xs[i]) * fit;
+        if (gap >= DOT_HIT_MIN) expect((widths.get(i)! / 2 + widths.get(i + 1)! / 2) * fit).toBeLessThanOrEqual(gap + 1e-9);
+      }
+    });
+
+    it("is the page's own widths for a scale of 1, and never smaller for one under it, or one that is not a number", () => {
+      const xs = [100, 110, 300];
+      const page = nodeHitWidths(xs.map((x, i) => node(i, x)));
+      for (const bad of [1, 0.5, 0, -2, Number.NaN, Number.POSITIVE_INFINITY]) expect(nodeHitWidths(xs.map((x, i) => node(i, x)), bad)).toEqual(page);
+    });
   });
 });
 
@@ -1367,5 +1412,26 @@ describe("films that are not out yet", () => {
     const layout = layOut([a, b].map((t) => t.films.map((x) => released(x.id, x.releaseDate))));
     expect(shared.map((x) => x.id)).toEqual([10]);
     expect(layout.connectors.filter((c) => c.kind === "all").map((c) => c.filmId)).toEqual(shared.map((x) => x.id));
+  });
+});
+
+describe("the track of a frame in a post", () => {
+  it("is a lane of the rows and the year axis, and a frame draws the most rows its room holds at full size: one in a short frame, never under one", () => {
+    expect(embedTrackHeight(1)).toBe(laneHeight(1) + AXIS_HEIGHT);
+    expect(embedTrackHeight(2)).toBe(laneHeight(2) + AXIS_HEIGHT);
+    expect(embedRowsFor(embedTrackHeight(2))).toBe(EMBED_MAX_ROWS);
+    expect(embedRowsFor(embedTrackHeight(2) - 1)).toBe(1);
+    expect(embedRowsFor(embedTrackHeight(1))).toBe(1);
+    expect(embedRowsFor(0)).toBe(1);
+    expect(embedRowsFor(10_000)).toBe(EMBED_MAX_ROWS);
+  });
+
+  it("holds the priority films to the row cap when asked: nothing is drawn in a row the frame has no room for", () => {
+    const films = Array.from({ length: 12 }, (_, index) => ({ id: index + 1, releaseDate: `${2000 + (index % 2)}-06-01`, voteCount: 100 - index }));
+    const options = { pxPerYear: 80, axisStartYear: 1999, priorityIds: new Set(films.map((film) => film.id)) };
+    expect(rowCount(packFilms(films, { ...options, maxRows: 1 }))).toBeGreaterThan(1);
+    const held = packFilms(films, { ...options, maxRows: 1, capPriority: true });
+    expect(rowCount(held)).toBe(1);
+    expect(held.some((item) => item.overflow)).toBe(true);
   });
 });

@@ -151,8 +151,19 @@ interface TimelineProps {
    * frame has no room or use for: no lane headers (the frame's bar names the people), no connection legend, no minimap bar with the zoom, and no film
    * panel to open. A pressed film shows its hover card (a touch screen has no hover) instead of opening the panel, and that card asks for no metrics: a
    * frame is sandboxed and makes no request. The caller sets `--bar-h` (the room above the track, 0 under a bar of its own).
+   *
+   * A frame never scrolls up or down (that gesture belongs to the feed that holds it): the track is `embedRows` rows of cards over the year axis, `embedTrackHeight(embedRows)`
+   * tall, and the caller scales the whole of it to the room it has; the scroller pans sideways only (drag, a sideways wheel or a swipe;
+   * an up or down wheel or swipe is left for the page), and has no scrollbar.
    */
   embed?: boolean;
+  /** An `embed`'s rows of poster cards, however many films there are (the films past them are nodes): one, unless the caller has room for more (`embedRowsFor`). */
+  embedRows?: number;
+  /**
+   * An `embed`'s node hit areas, as a multiple of the page's (`DOT_HIT_SIZE`, `DOT_HIT_MIN`; see `nodeHitWidths`): the caller draws the whole track smaller to fit its frame, which
+   * shrinks a node's hit area with it, so it passes `1 / fit` and a node keeps its size on the screen. Never under 1; 1 where the track is drawn at its own size. Not used outside an `embed`.
+   */
+  hitScale?: number;
 }
 
 /** How long the lane a top-bar avatar jumped to keeps its highlight ring. */
@@ -220,6 +231,8 @@ export function Timeline({
   periodYears = [],
   onPeriodChange,
   embed = false,
+  embedRows = 1,
+  hitScale = 1,
 }: TimelineProps) {
   const [pxPerYear, setPxPerYear] = useState(DEFAULT_ZOOM);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
@@ -241,7 +254,7 @@ export function Timeline({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const cornerRef = useRef<HTMLDivElement>(null);
   // Click-and-drag on the empty surface pans the scroller; starting one closes the hover card.
-  const { isPanning } = useDragPan(scrollerRef, hidePopover);
+  const { isPanning } = useDragPan(scrollerRef, hidePopover, embed ? { axis: "x" } : undefined);
   const pendingCenter = useRef<number | null>(null);
   /** A period link's first year and the zoom it needs: scrolled to once that zoom is the one on screen. */
   const pendingStart = useRef<{ from: number; zoom: number } | null>(null);
@@ -307,7 +320,7 @@ export function Timeline({
       ? new Set(entries.filter((entry) => entry.shared).map((entry) => entry.film.id))
       : sharedAcrossLanes(trackLanes, today);
     // The row cap's packing (the Depth view's poster cap is the same function, at this default zoom), and the options to repack without it.
-    const { quietIds, optionsFor, capped } = packTrackLanes(trackLanes, lanes, priorityIds, base, today);
+    const { quietIds, optionsFor, capped } = packTrackLanes(trackLanes, lanes, priorityIds, base, today, embed ? { rows: embedRows, strict: true } : undefined);
     const overflow = capped.map(overflowCount);
     const items = trackLanes.map((lane, index) =>
       showAll && overflow[index] > 0 ? packFilms(lane.films, optionsFor(index)) : capped[index],
@@ -339,7 +352,6 @@ export function Timeline({
       quietIds,
       // Per lane, the films that are only a node while the rows are capped: the ones "Show all films" gives a poster.
       uncappedIds: capped.map((laneItems) => new Set(laneItems.filter((item) => item.overflow).map((item) => item.film.id))),
-      hitWidths: items.map(nodeHitWidths),
       boxes: stack,
       height: totalHeight(stack),
       membership,
@@ -350,9 +362,14 @@ export function Timeline({
       accents,
       notes,
     };
-  }, [entries, showAll, isCombined, lanes, pxPerYear, today, trackLanes]);
+  }, [embed, embedRows, entries, showAll, isCombined, lanes, pxPerYear, today, trackLanes]);
 
   const { scale, width, boxes } = layout;
+
+  // A node's hit area, per lane: its own size on the page, and in a frame whose track is drawn smaller than it is laid out (`hitScale`) the size it has on the screen. Apart from the
+  // layout, so that a frame that is resized (the fit changes with it) does not pack the cards again.
+  const hit = embed ? Math.max(1, hitScale) : 1;
+  const hitWidths = useMemo(() => layout.items.map((laneItems) => nodeHitWidths(laneItems, hit)), [layout.items, hit]);
 
   // What the combined track tells about each film: the colour of its node, of its card's ring and
   // dots, and what a screen reader hears (who made it, and what each of them did).
@@ -841,13 +858,20 @@ export function Timeline({
           // The screen's, edge to edge: no box, no border. The scroller is focusable (arrow keys scroll it): its ring is for the keyboard only
           // (`focus-visible`), drawn inside its edge (the `!`s: the page's own `:focus-visible` rule is unlayered CSS and would win), not the page's usual ring round the outside.
           className={cn(
-            "min-h-0 flex-1 cursor-grab overflow-auto overscroll-contain bg-canvas outline-none [scroll-padding-left:var(--lane-head)] [scroll-padding-bottom:44px] [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin] focus-visible:outline-solid! focus-visible:outline-2! focus-visible:-outline-offset-2! focus-visible:outline-focus/60! data-[panning]:select-none [&[data-panning]_*]:cursor-grabbing! [&_[data-lane-head]]:cursor-auto",
+            "min-h-0 flex-1 cursor-grab bg-canvas outline-none [scroll-padding-left:var(--lane-head)] [scroll-padding-bottom:44px] focus-visible:outline-solid! focus-visible:outline-2! focus-visible:-outline-offset-2! focus-visible:outline-focus/60! data-[panning]:select-none [&[data-panning]_*]:cursor-grabbing! [&_[data-lane-head]]:cursor-auto",
+            // A frame in a post pans sideways only, and has no scrollbar. An up or down wheel or swipe over it is not the track's (nothing here takes
+            // it, and `overscroll-behavior-y: auto` lets it chain on): it is the feed's. `touch-action` is `manipulation` (a pan either way, and pinch-zoom; it
+            // only gives up the double-tap zoom, which nothing here needs): never `pan-x` alone, which would refuse the page's own vertical pan to a finger that
+            // starts on the frame, nor `pan-x pan-y`, which names no `pinch-zoom` and so takes the pinch from a visitor who zooms in on a small frame.
+            embed
+              ? "overflow-x-auto overflow-y-hidden [overscroll-behavior-x:contain] [overscroll-behavior-y:auto] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [touch-action:manipulation]"
+              : "overflow-auto overscroll-contain [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin]",
           )}
         >
           {/* Row 1 starts clear of the page bar, with a little room: the top padding is the bar's bottom edge and 10px, less the lane's own 18px. */}
           <div
             className="relative flex min-h-full min-w-full flex-col"
-            style={{ width: `calc(var(--lane-head) + ${width}px)`, paddingTop: TRACK_TOP }}
+            style={{ width: `calc(var(--lane-head) + ${width}px)`, paddingTop: embed ? 0 : TRACK_TOP }}
           >
             {/* Keep the films and their SVG together above the bottom-aligned year axis when the box is taller than they are. */}
             <div className="relative mt-auto shrink-0">
@@ -966,7 +990,7 @@ export function Timeline({
                   note={combinedInfo?.get(item.film.id)?.note ?? layout.notes.get(item.film.id) ?? ""}
                   x={item.x}
                   lineY={lineYInLane(boxes[laneIndex].height)}
-                  hitWidth={layout.hitWidths[laneIndex].get(item.film.id) ?? DOT_HIT_SIZE}
+                  hitWidth={hitWidths[laneIndex].get(item.film.id) ?? DOT_HIT_SIZE * hit}
                   tone={toneFor(item.film.id)}
                   laneIndex={laneIndex}
                   decorative={decorative}
@@ -1048,6 +1072,7 @@ export function Timeline({
 
             {/* The year axis closes the lanes and stays at the bottom edge of the scroller while the lanes scroll. */}
             <div
+              data-axis
               className="sticky bottom-0 z-40 flex shrink-0 border-t border-border bg-canvas"
               style={{ height: AXIS_HEIGHT }}
             >

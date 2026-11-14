@@ -6,14 +6,20 @@ import { voiceClippings } from "@/lib/clippings-view";
 import type { PairCritics } from "@/lib/critics";
 import {
   MORE_PAIRS_PATH,
+  QUOTE_FLOOR_PX,
+  QUOTE_BAND,
+  QUOTE_MAX_PX,
+  QUOTE_MIN_LINE_CHARS,
   PLAYER_SIZE,
   embedPath,
   embedQuotes,
   findQuoteIndex,
+  noScriptClampCss,
   quoteInPairPath,
   quoteKeyStep,
   quotePath,
   quoteSharePath,
+  quoteSizeCeiling,
   quoteUnits,
 } from "@/lib/quote-embed";
 import { pairQuotes } from "@/lib/quote-embed-data";
@@ -218,5 +224,67 @@ describe("quoteKeyStep", () => {
     expect(quoteKeyStep({ key: "ArrowRight" }, { ...page, inPeopleDialog: true }, 5)).toBeNull();
     expect(quoteKeyStep({ key: "ArrowRight" }, { ...page, inOtherModal: true }, 5)).toBeNull();
     expect(quoteKeyStep({ key: "ArrowRight" }, { typing: true, inPeopleDialog: true, inOtherModal: false }, 5)).toBeNull();
+  });
+});
+
+describe("noScriptClampCss", () => {
+  const css = noScriptClampCss("[data-quote-text]", 1.28);
+
+  it("starts at one line for any room, and steps up by the room's height in the quote's own ems", () => {
+    expect(css.startsWith("[data-quote-text]{--quote-lines:1}")).toBe(true);
+    // Two lines of a 1.28 line height, in a band of 0.6 of the room: 2 * 1.28 / 0.6 ems.
+    expect(css).toContain("@container (min-height:4.267em){[data-quote-text]{--quote-lines:2}}");
+    expect(css).toContain("@container (min-height:6.4em){[data-quote-text]{--quote-lines:3}}");
+  });
+
+  it("has every step taller than the one before it and a count more than it, so that the last that matches is the most that fit", () => {
+    const steps = [...css.matchAll(/min-height:([\d.]+)em\)\{[^{]+\{--quote-lines:(\d+)\}/g)].map((m) => ({ em: Number(m[1]), lines: Number(m[2]) }));
+    expect(steps.length).toBeGreaterThan(10);
+    for (let i = 1; i < steps.length; i++) {
+      expect(steps[i].em).toBeGreaterThan(steps[i - 1].em);
+      expect(steps[i].lines).toBeGreaterThan(steps[i - 1].lines);
+    }
+    // A step is never taller than its lines need, in the band: `lines` lines of the line height fit its band exactly or with the rounding up of a thousandth of an em.
+    for (const { em, lines } of steps) {
+      expect(em * QUOTE_BAND).toBeGreaterThanOrEqual(lines * 1.28 - 1e-9);
+      expect(em * QUOTE_BAND).toBeLessThan(lines * 1.28 + 0.001);
+    }
+  });
+
+  it("is plain CSS for the selector it is given: nothing else is in it", () => {
+    expect(css).not.toMatch(/[<>;]/);
+    expect(noScriptClampCss(".q", 1.5).startsWith(".q{--quote-lines:1}")).toBe(true);
+  });
+});
+
+describe("quoteSizeCeiling", () => {
+  it("is the size at which a line of the column holds about 30 characters, so a narrow frame never sets a quote at a wall of two or three words to a line", () => {
+    // An average character is at most half the size wide: 30 of them are 15 sizes wide.
+    expect(QUOTE_MIN_LINE_CHARS).toBe(30);
+    expect(quoteSizeCeiling(359)).toBeCloseTo(359 / (QUOTE_MIN_LINE_CHARS * 0.5), 5);
+    expect(quoteSizeCeiling(338)).toBeCloseTo(338 / 15, 5);
+  });
+
+  it("sets a phone's column (a 383px panel less its 12px sides) at under 24px, and a 435px one at under 27px", () => {
+    expect(quoteSizeCeiling(383 - 24)).toBeLessThan(24);
+    expect(quoteSizeCeiling(435 - 24)).toBeLessThan(27.5);
+  });
+
+  it("is never over the cap, however wide the column", () => {
+    expect(QUOTE_MAX_PX).toBe(37);
+    expect(quoteSizeCeiling(600)).toBe(QUOTE_MAX_PX);
+    expect(quoteSizeCeiling(1040)).toBe(QUOTE_MAX_PX);
+  });
+
+  it("is never under the floor: a column too narrow for 30 characters at it, or with no width yet, is set at the floor", () => {
+    expect(quoteSizeCeiling(100)).toBe(QUOTE_FLOOR_PX);
+    expect(quoteSizeCeiling(0)).toBe(QUOTE_FLOOR_PX);
+    expect(quoteSizeCeiling(Number.NaN)).toBe(QUOTE_FLOOR_PX);
+  });
+});
+
+describe("QUOTE_BAND", () => {
+  it("is the middle 60% of the room between the bar and the footer: the rest is empty", () => {
+    expect(QUOTE_BAND).toBe(0.6);
   });
 });
