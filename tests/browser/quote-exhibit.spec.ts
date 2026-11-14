@@ -514,6 +514,7 @@ test("critics treat the portraits equally, and broken portraits fall back to ini
   await openExhibit(page, "/p/488-steven-spielberg+491-john-williams?view=clippings&quote=critic-knowing-the-family-issues-of-spielbergs");
   await expect(active(page).locator("blockquote")).toContainText("Knowing the family issues");
   await expect(backdrop(page).locator('[data-speaking="true"], [data-quiet="true"]')).toHaveCount(0);
+  await expect(backdrop(page).getByRole("img", { name: "Steven Spielberg", exact: true })).toBeVisible();
 
   await page.route("https://image.tmdb.org/**", (route) => route.abort());
   await openExhibit(page);

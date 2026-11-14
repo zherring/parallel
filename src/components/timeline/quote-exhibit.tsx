@@ -60,7 +60,7 @@ function Portrait({ person, speaking, quiet }: { person: ClippingsVoice; speakin
     <div
       className={cn("quote-exhibit-portrait", quiet && "quote-exhibit-quiet")}
       role="img"
-      aria-label={`${person.name}${speaking ? ", speaking" : quiet ? ", grayscale portrait" : ""}`}
+      aria-label={`${person.name}${speaking ? ", speaking" : ""}`}
       data-portrait-person={person.id}
       data-speaking={speaking}
       data-quiet={quiet}
