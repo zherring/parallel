@@ -220,6 +220,36 @@ test("Space advances, Shift+Space goes back, held Space advances once, and the e
   expect(await page.evaluate(() => Object.fromEntries(new URLSearchParams(location.search)))).toEqual({ view: "clippings", from: "1980", to: "2000", quote: FIRST });
 });
 
+for (const reducedMotion of ["no-preference", "reduce"] as const) {
+  test(`wrapping to quote one visibly rewinds, unless reduced motion is requested: ${reducedMotion}`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion });
+    await openExhibit(page);
+    const slides = deck(page).locator("[data-quote-slide]");
+    const count = await slides.count();
+    const lastId = (await slides.last().getAttribute("data-quote-slide"))!;
+    await scroller(page).evaluate((element) => element.scrollTo({ top: element.scrollHeight, behavior: "instant" }));
+    await expect(deck(page)).toHaveAttribute("data-active-quote", lastId);
+    await expectSnap(page, count - 1);
+    const movement = await scroller(page).evaluate(async (element) => {
+      const start = element.scrollTop;
+      element.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+      const frames: number[] = [];
+      for (let i = 0; i < 10; i++) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        frames.push(element.scrollTop);
+      }
+      return { start, frames };
+    });
+    if (reducedMotion === "reduce") {
+      expect(movement.frames.every((position) => position === 0)).toBe(true);
+    } else {
+      expect(movement.frames.some((position) => position > 0 && position < movement.start)).toBe(true);
+    }
+    await expect(deck(page)).toHaveAttribute("data-active-quote", FIRST);
+    await expectSnap(page, 0);
+  });
+}
+
 test("Space leaves typing, native button activation and a person's dialog alone; exiting cleans up the shortcut", async ({ page }) => {
   await openExhibit(page);
   await page.evaluate(() => {

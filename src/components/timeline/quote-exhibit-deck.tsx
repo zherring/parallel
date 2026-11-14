@@ -56,11 +56,10 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
     if (!scroller || !slides[index]) return;
     // Cancel a previous smooth movement before a rapid reversal, even if we are still at its starting point.
     scroller.scrollTo({ top: scroller.scrollTop, behavior: "instant" });
-    // Wrapping at the end should not fly backwards through every intermediate quote.
-    const motion = Math.abs(index - currentRef.current) > 1 ? "instant" : behavior;
     motionTarget.current = Math.abs(scroller.scrollTop - index * scroller.clientHeight) > 1 ? index : null;
     publish(index);
-    scroller.scrollTo({ top: index * scroller.clientHeight, behavior: motionTarget.current === null ? "instant" : motion });
+    // Travel visibly back through the deck when wrapping to the start; reduced motion still jumps immediately.
+    scroller.scrollTo({ top: index * scroller.clientHeight, behavior: motionTarget.current === null ? "instant" : behavior });
   }, [publish, slides]);
 
   useLayoutEffect(() => {
