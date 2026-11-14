@@ -21,8 +21,15 @@ export interface Clipping {
   speaker: string;
   /** Who it is about, the other one of the pair. */
   about: string;
-  /** Verbatim. */
+  /** Verbatim, in English: our translation of `original` when the quote has one. */
   quote: string;
+  /**
+   * The words as the source prints them, when that is not English (verbatim): `quote` is then our translation, and the
+   * quote says so where it is shown. Absent for a quote that was said or printed in English. Always with `original_lang`.
+   */
+  original?: string;
+  /** The language `original` is in, as an ISO 639-1 code ("it", "es"); only with `original`. */
+  original_lang?: string;
   /** The film the remark is about or came out of, when it is about one. */
   film: string | null;
   /** The year it was said, when the article says. */

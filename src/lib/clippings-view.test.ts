@@ -7,11 +7,13 @@ import {
   clippingYear,
   dateYear,
   isCriticId,
+  languageName,
   parseQuoteId,
   personIndex,
   quoteCardSearch,
   quoteLinkSearch,
   speakerIndex,
+  translatedFrom,
   truncateQuote,
   voiceClippings,
 } from "@/lib/clippings-view";
@@ -306,5 +308,23 @@ describe("clippingVoices", () => {
         }
       }
     }
+  });
+});
+
+describe("translatedFrom", () => {
+  it("names the language of a translated quote", () => {
+    expect(translatedFrom({ original: "Eravamo…", original_lang: "it" })).toBe("Translated from Italian");
+  });
+
+  it("is null unless both the original and its language are there", () => {
+    expect(translatedFrom({ original: "Eravamo…" })).toBeNull();
+    expect(translatedFrom({ original_lang: "it" })).toBeNull();
+    expect(translatedFrom({})).toBeNull();
+  });
+});
+
+describe("languageName", () => {
+  it("falls back to the code for a language it cannot name", () => {
+    expect(languageName("zz")).toBe("zz");
   });
 });

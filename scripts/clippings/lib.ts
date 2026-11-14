@@ -61,6 +61,8 @@ const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const DATE_RE = /^\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?$/;
 const KEY_RE = /^\d+\+\d+$/;
+/** An ISO 639-1 language code, the language of a quote's `original`. */
+const LANG_RE = /^[a-z]{2}$/;
 
 /** The key of the pair with these TMDB ids, same as the app's `pairingKey` (ids sorted, joined with "+"). */
 export function keyFromIds(ids: readonly number[]): string {
@@ -191,7 +193,13 @@ export function idLosses(where: string, before: readonly Identified[], after: re
  * Sites already cited that only serve plain http, so their links cannot be https. Anything else must be https:
  * a new source on plain http is almost always a sign the agent typed the URL instead of copying the page's.
  */
-export const HTTP_ONLY_HOSTS: readonly string[] = ["bernardherrmann.org", "shadows.wall.net"];
+export const HTTP_ONLY_HOSTS: readonly string[] = [
+  "bernardherrmann.org",
+  "shadows.wall.net",
+  "celluloiddiaries.com", // no https (checked 2026-11-13)
+  "mustardweb.org", // no https (checked 2026-11-13)
+  "tech.mit.edu", // https has an expired certificate (checked 2026-11-13), so http is the link that opens
+];
 
 const str = (v: unknown): v is string => typeof v === "string" && v.trim() !== "";
 /** An https URL, or an http one on a host in `HTTP_ONLY_HOSTS`. */
@@ -255,6 +263,15 @@ export function validateQuotesFile(src: unknown, key: string, known: KnownPairin
       if (!str(c[f])) errors.push(`${where}: "${f}" is missing or empty`);
     }
     if (str(c.quote) && hasUnbalancedStraightQuotes(c.quote)) errors.push(`${where}: quote has an odd number of straight double quotes`);
+    // A quote only printed in another language: the source's words in `original`, their language in `original_lang`,
+    // and our English translation in `quote`. The two come together or not at all.
+    if (c.original != null && !str(c.original)) errors.push(`${where}: "original" must be the source's words or absent`);
+    if (c.original_lang != null && !(typeof c.original_lang === "string" && LANG_RE.test(c.original_lang))) {
+      errors.push(`${where}: "original_lang" must be a two-letter language code ("it", "es") or absent`);
+    }
+    if (c.original != null && c.original_lang == null) errors.push(`${where}: "original" needs "original_lang"`);
+    if (c.original_lang != null && c.original == null) errors.push(`${where}: "original_lang" needs "original"`);
+    if (str(c.original) && hasUnbalancedStraightQuotes(c.original)) errors.push(`${where}: original has an odd number of straight double quotes`);
     if (c.film != null && !str(c.film)) errors.push(`${where}: "film" must be a title or null`);
     if (c.said_year != null && !(Number.isInteger(c.said_year) && (c.said_year as number) > 1800 && (c.said_year as number) < 2200)) {
       errors.push(`${where}: "said_year" must be a year or null`);
@@ -317,8 +334,16 @@ export function validateCriticsFile(src: unknown, key: string, known: KnownPairi
 export function buildQuotesEntry(src: RawQuotesFile, existing: readonly Identified[] = []): ClippingsEntry {
   const built = src.clippings.map((raw) => {
     const quote = nestQuotes(raw.quote as string);
-    const fields = Object.fromEntries(CLIPPING_FIELDS.map((k) => [k, raw[k] ?? null]));
-    return { ...fields, quote, secondhand: Boolean(raw.secondhand) } as unknown as Omit<Identified, "id">;
+    const fields: Record<string, unknown> = Object.fromEntries(CLIPPING_FIELDS.map((k) => [k, raw[k] ?? null]));
+    // A translated quote carries the source's words and their language right after `quote`; any other quote has neither key.
+    const ordered = Object.fromEntries(
+      Object.entries({ ...fields, quote }).flatMap(([k, v]) =>
+        k === "quote" && raw.original != null
+          ? [[k, v], ["original", nestQuotes(raw.original as string)], ["original_lang", raw.original_lang]]
+          : [[k, v]],
+      ),
+    );
+    return { ...ordered, secondhand: Boolean(raw.secondhand) } as unknown as Omit<Identified, "id">;
   });
   const ids = assignIds(
     built.map((c) => ({ base: idBase(c.quote), url: c.url, quote: c.quote })),
@@ -386,7 +411,37 @@ export function quotesFlags(entry: ClippingsEntry): string[] {
   if (second > 0) flags.push(`${second} secondhand`);
   const long = entry.clippings.filter((c) => c.quote.split(/\s+/).length > 90).length;
   if (long > 0) flags.push(`${long} over 90 words`);
+  const foreign = entry.clippings.filter((c) => !c.original && looksNonEnglish(c.quote)).length;
+  if (foreign > 0) flags.push(`${foreign} may not be in English (no "original"; translate it)`);
+  const comma = entry.clippings.filter((c) => c.quote.trimEnd().endsWith(",")).length;
+  if (comma > 0) flags.push(`${comma} end with a comma (the reporting clause's?)`);
+  const open = entry.clippings.filter((c) => !c.quote.trimEnd().endsWith(",") && !endsLikeASentence(c.quote)).length;
+  if (open > 0) flags.push(`${open} end without terminal punctuation`);
   return flags;
+}
+
+/**
+ * A quote ends as a sentence does: with . ! ? or …, a closing quotation mark or parenthesis, or the "STOP" of a
+ * telegram. Anything else (a comma, a bare word) is likely cut short or carries the reporting clause's punctuation.
+ */
+export function endsLikeASentence(quote: string): boolean {
+  const end = quote.trimEnd();
+  return /[.!?…"'\u201d\u2019)]$/u.test(end) || end.endsWith("STOP");
+}
+
+/** Short words nearly every English sentence has and few Italian, Spanish, French or German ones do. */
+const ENGLISH_WORDS = new Set(
+  "the and of to is it that was you he she with for on my his her him me we they be but not this have had what are so at as".split(" "),
+);
+
+/**
+ * A cheap guess that `quote` is not English: eight words or more, and under one in ten of them a common English word.
+ * Good enough to flag an untranslated quote for a human; never an error.
+ */
+export function looksNonEnglish(quote: string): boolean {
+  const ws = quote.toLowerCase().match(/[\p{L}']+/gu) ?? [];
+  if (ws.length < 8) return false;
+  return ws.filter((w) => ENGLISH_WORDS.has(w)).length / ws.length < 0.1;
 }
 
 export function criticsFlags(entry: CriticsEntry): string[] {

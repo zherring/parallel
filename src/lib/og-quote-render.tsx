@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import type { Clipping, PairClippings } from "@/lib/clippings";
-import { clippingVoices, clippingYear, speakerIndex, truncateQuote } from "@/lib/clippings-view";
+import { clippingVoices, clippingYear, speakerIndex, translatedFrom, truncateQuote } from "@/lib/clippings-view";
 import type { Critic, PairCritics } from "@/lib/critics";
 import { criticAbout, criticName, criticYear } from "@/lib/critics-view";
 import { OG_CACHE_CONTROL, loadImage } from "@/lib/og-render";
@@ -153,7 +153,12 @@ async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, 
                 <span style={{ color: OG.strong }}>{speaker}</span>
                 <span style={{ color: OG.muted, whiteSpace: "pre" }}>{about}</span>
               </div>
-              <div style={{ display: "flex", marginTop: 5, fontSize: 22, lineHeight: 1.2, fontWeight: 600, color: OG.muted }}>{source}</div>
+              {/* Wraps like the attribution, so "Publication · Year · Translated from Italian" stays inside the column. */}
+              <div style={{ display: "flex", flexWrap: "wrap", marginTop: 5, fontSize: 22, lineHeight: 1.2, fontWeight: 600, color: OG.muted }}>
+                {source.split(" · ").map((part, i) => (
+                  <span key={i}>{i === 0 ? part : ` · ${part}`}</span>
+                ))}
+              </div>
             </div>
           </div>
           {ogWordmark(30)}
@@ -197,7 +202,7 @@ export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgIm
     people: ordered.map((p, i) => ({ name: p.person.name, profilePath: p.person.profilePath, ring: i === 0 ? accent : OG.border })),
     speaker: clipping.speaker,
     about: ` on ${clipping.about}`,
-    source: sourceLine(clipping.publication, clippingYear(clipping)),
+    source: [sourceLine(clipping.publication, clippingYear(clipping)), translatedFrom(clipping)].filter(Boolean).join(" · "),
   });
 }
 

@@ -1,0 +1,91 @@
+{
+  "pair": ["Bill Murray", "Harold Ramis"],
+  "tmdb_ids": [1532, 1524],
+  "clippings": [
+    {
+      "speaker": "Bill Murray",
+      "about": "Harold Ramis",
+      "quote": "Harold Ramis and I together did the 'National Lampoon Show' off Broadway, 'Meatballs,' 'Stripes,' 'Caddyshack,' 'Ghostbusters' and 'Groundhog Day.' … He earned his keep on this planet. God bless him.",
+      "film": null,
+      "said_year": 2014,
+      "publication": "ABC News",
+      "via": null,
+      "title": "Bill Murray Opens Up About Death of Harold Ramis",
+      "date": "2014-02-25",
+      "url": "https://abcnews.com/Entertainment/bill-murray-opens-death-harold-ramis/story?id=22666184",
+      "context": "Murray's statement on Ramis's death, first obtained by Time magazine and reported by ABC News.",
+      "secondhand": true
+    },
+    {
+      "speaker": "Bill Murray",
+      "about": "Harold Ramis",
+      "quote": "In the editing, I think we had a difference of opinion. We had a difference about the script too. That gets a little personal and that's not for sharing with everyone. But I just felt like a lot of what was in there was unnecessary. I thought there was a lot of overwriting in it. And I held Harold responsible for that.",
+      "film": "Groundhog Day",
+      "said_year": 2014,
+      "publication": "Chicago Sun-Times",
+      "via": null,
+      "title": "Bill Murray talks about mending fences with Harold Ramis on Grantland podcast",
+      "date": "2014-11-14",
+      "url": "https://chicago.suntimes.com/2014/11/14/18431167/bill-murray-talks-about-mending-fences-with-harold-ramis-on-grantland-podcast",
+      "context": "Murray on the rift that began on the Groundhog Day set, speaking on a Grantland podcast with John Walsh, as reported by the Sun-Times.",
+      "secondhand": true
+    },
+    {
+      "speaker": "Bill Murray",
+      "about": "Harold Ramis",
+      "quote": "And it was great. It was a beautiful day, obviously….There was sadness. I got to his beautiful home in the suburbs of Chicago. I went there. I sort of just showed up. I wasn't expected.",
+      "film": null,
+      "said_year": 2014,
+      "publication": "Chicago Sun-Times",
+      "via": null,
+      "title": "Bill Murray talks about mending fences with Harold Ramis on Grantland podcast",
+      "date": "2014-11-14",
+      "url": "https://chicago.suntimes.com/2014/11/14/18431167/bill-murray-talks-about-mending-fences-with-harold-ramis-on-grantland-podcast",
+      "context": "Murray on visiting the ailing Ramis in Glencoe to make peace before his death, from a Grantland podcast reported by the Sun-Times.",
+      "secondhand": true
+    },
+    {
+      "speaker": "Harold Ramis",
+      "about": "Bill Murray",
+      "quote": "He redefines quirky! [ Laughs ] He is the most fascinating and talented pain in the ass we know. … Hey, he couldn't be the actor he is if he didn't have that explosive potential. We watch him with such fascination because we genuinely don't know what he's going to do.",
+      "film": null,
+      "said_year": 2005,
+      "publication": "TV Guide",
+      "via": null,
+      "title": "Harold Ramis 'Busts Bill Murray",
+      "date": "2005-08-03",
+      "url": "https://www.tvguide.com/news/harold-ramis-groundhog-38782/",
+      "context": "Ramis, asked whether Murray is as quirky as people say, in an interview pegged to the Ghostbusters DVD set.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Harold Ramis",
+      "about": "Bill Murray",
+      "quote": "In Danny's original script the characters weren't well defined; part of the fun was tailoring them for Bill, Danny and me. What we came up with was that Danny was the heart, I was the brain and Bill was the mouth of the Ghostbusters.",
+      "film": "Ghostbusters",
+      "said_year": 2005,
+      "publication": "TV Guide",
+      "via": null,
+      "title": "Harold Ramis 'Busts Bill Murray",
+      "date": "2005-08-03",
+      "url": "https://www.tvguide.com/news/harold-ramis-groundhog-38782/",
+      "context": "Ramis on shaping the Ghostbusters roles around himself, Aykroyd and Murray.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Harold Ramis",
+      "about": "Bill Murray",
+      "quote": "Bill has kind of moved on in his life since Groundhog Day. I've had no contact with him. I did ask him to appear in my new film, The Ice Harvest, [but] I didn't hear back from him. Too bad, he would have been great in it.",
+      "film": "Groundhog Day",
+      "said_year": 2005,
+      "publication": "TV Guide",
+      "via": null,
+      "title": "Harold Ramis 'Busts Bill Murray",
+      "date": "2005-08-03",
+      "url": "https://www.tvguide.com/news/harold-ramis-groundhog-38782/",
+      "context": "Ramis, asked if they would work together again, during the long estrangement after Groundhog Day.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Ramis's 2004 New Yorker profile quotes (\"irrationally mean\") and 2009 A.V. Club interview not fetched/verified; Fresh Air 2014 transcript had only passing Groundhog Day mention."
+}

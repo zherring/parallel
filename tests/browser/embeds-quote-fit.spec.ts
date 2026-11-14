@@ -179,6 +179,33 @@ test.describe("quote embed: every quote fits its frame without scrolling", () =>
   });
 });
 
+test.describe("quote embed: a translated quote's footer, with its \"Translated from …\" note, is on one row and whole from the smallest phone up", () => {
+  test.use({ reducedMotion: "reduce" });
+
+  test("every translated quote of the Clippings, at a phone's widths and the panel X opens over one", async ({ page }) => {
+    test.setTimeout(120_000);
+    const translated = translatedQuotes();
+    expect(translated.length, "there are translated quotes").toBeGreaterThan(0);
+    for (const frame of [{ width: 320, height: 568 }, { width: 390, height: 253 }, { width: 435, height: 400 }, { width: 600, height: 315 }]) {
+      await page.setViewportSize(frame);
+      for (const { key, id } of translated) {
+        await page.goto(`/embed/q/${key}/${id}`);
+        await expect(page.locator("footer")).toContainText("Translated from");
+        await expectQuoteFits(page, `translated quote ${id} at ${frame.width} x ${frame.height}`);
+      }
+    }
+  });
+});
+
+/** Every quote of the Clippings that is our translation (it has `original_lang`), and the pair it is of. */
+function translatedQuotes() {
+  const found: { key: string; id: string }[] = [];
+  for (const [key, entry] of Object.entries(clippings as Record<string, { clippings: { id: string; original_lang?: string }[] }>)) {
+    for (const quote of entry.clippings ?? []) if (quote.original_lang) found.push({ key, id: quote.id });
+  }
+  return found;
+}
+
 /** The quote of the Clippings and the critics, over every pair, that has the most characters (and the pair it is of). */
 function longestQuote() {
   let longest: { key: string; id: string; length: number } | null = null;

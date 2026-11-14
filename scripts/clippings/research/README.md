@@ -8,6 +8,11 @@ the agents found and what they said about sources they skipped (`notes`).
 The 26 quote files and 2 critics files here are the batches that produced the data currently in the app (the superseded first
 critics pass is not kept).
 
+A quote only available in another language carries the source's text in `original` and its ISO 639-1 code in
+`original_lang` ("it", "es"); `quote` is then our English translation, and the site shows it marked "Translated from
+Italian" with the original a tooltip and ⓘ away. The merge requires the two fields together, and flags a quote that looks
+non-English but has no `original`.
+
 ## The app JSON is the source of truth, not these files
 
 Once a pair is merged, `src/lib/clippings.json` and `src/lib/essays.json` are what the owner edits and what ships. The staged

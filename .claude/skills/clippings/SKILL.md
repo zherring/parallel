@@ -28,7 +28,7 @@ pairingKey: the two TMDB ids, sorted, joined with `+` (`488+491`). Queue: `scrip
    - critics: `args: {"keys": ["3098+4415"], "critics": true}`
    - add `"force": true` (object form) only if the user wants to redo a pair whose file is already staged.
 
-   It runs one Sonnet agent per pair (at most 8 at once) and writes `scripts/clippings/research/{quotes|critics}/<key>.json`. Each
+   It runs one lean `clippings-researcher` agent per pair (Sonnet, no MCP servers; defined in `.claude/agents/clippings-researcher.md`), at most 8 at once, and writes `scripts/clippings/research/{quotes|critics}/<key>.json`. Each
    agent replies in at most 3 lines; collect those.
 
 3. **Merge.** `npm run clippings:merge` (no arguments: merges every staged file whose key is not in the app JSON yet). It
@@ -43,10 +43,25 @@ pairingKey: the two TMDB ids, sorted, joined with `+` (`488+491`). Queue: `scrip
    (few quotes, one-sided, secondhand, over-long), each agent's single best quote and any source it was unsure about, and
    anything a staged file's `notes` says was skipped (paywalls, unverifiable famous quotes).
 
-6. **Remind the owner to review before committing**: run `npm run dev`, open each pair's page (`/p/<slug>`, from the Clippings
-   tab on the landing page) and read every new quote against its source; research agents can mis-transcribe or pick a weak line.
+6. **Remind the owner to review before committing**: `npm run clippings:review` opens one page with every quote not yet on
+   `origin/main`, with its source link and warning chips; keys j/k, a (OK), x (flag), n (note), and "Export flagged" gives a list
+   to paste back. Apply the flagged cuts and fixes to both `src/lib/clippings.json` and the staged file, so a rebuild doesn't bring
+   them back. Research agents can mis-transcribe or pick a weak line; the owner cuts junket hype, generic praise, several quotes
+   from one exchange, and fragments.
    The new quotes are uncommitted edits to `src/lib/clippings.json` / `src/lib/essays.json` and the staged files; do not commit
    or push unless asked.
+
+## Cost (keep it lean)
+
+- The research agent is `clippings-researcher` (`.claude/agents/clippings-researcher.md`): Read, Write, Bash, WebSearch, WebFetch
+  only. Don't switch the workflow back to a plain `model: 'sonnet'` agent: that inherits every MCP server and tool definition
+  (~55k tokens on every call before any research, about 75% of the spend). The lean agent starts at ~8.5k.
+- One pair per agent (the workflow no longer batches). Batching pairs made each later call carry the earlier pair's
+  context and cost more once the baseline was small (~0.61M input per pair at 2 per agent vs ~0.48M at 1).
+- Rough cost per pair, measured 2026-11-13: old setup ~1.3M input (mostly cache reads) and ~9k output; lean, 2 per agent
+  ~0.6M; lean, 1 per agent estimated ~0.4M input and ~9k output. Output scales with the number of pairs whatever the setup.
+- For big runs, go in chunks (~10-20 pairs) and let the owner check `/usage` between chunks.
+- The agent file lives under `.claude/`, which this checkout's `.git/info/exclude` ignores: commit it with `git add -f`.
 
 ## Don't
 
