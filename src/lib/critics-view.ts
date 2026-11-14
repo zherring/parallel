@@ -1,6 +1,6 @@
 /**
  * What the Clippings tab does with a pair's critics (see `critics.ts`): the name a critic's quote is attributed to,
- * who it is "on", the letters in the avatar, the year and kind in the ⓘ, the quote's lookup by id, where their quotes
+ * who it is "on", the avatar name and year, the quote's lookup by id, where their quotes
  * go among the artists' own, and the byline of a piece in "More reading". Pure, and free of the JSON itself, so that
  * client components can import it.
  */
@@ -8,7 +8,6 @@
 import type { Clipping } from "@/lib/clippings";
 import type { Critic, ReadingItem } from "@/lib/critics";
 import { clippingYear, dateYear, isCriticId } from "@/lib/clippings-view";
-import { initials } from "@/lib/person-labels";
 import { headingNames, type HeadingPerson } from "@/lib/short-name";
 
 /**
@@ -20,7 +19,7 @@ export function criticName(critic: Pick<Critic, "critic" | "publication">): stri
 }
 
 /**
- * "Spielberg & Williams": who a critic's quote is about, in the family names the filter buttons use (the full
+ * "Spielberg & Williams": who a critic's quote is about, in family names (the full
  * names when the two share one), in the order `people` has them.
  */
 export function criticAbout(people: readonly HeadingPerson[]): string {
@@ -38,26 +37,9 @@ export function criticAvatarName(critic: Pick<Critic, "critic" | "publication">)
   return writer.split(/\s+(?:and|&)\s+|\s*,\s*/i)[0] || writer;
 }
 
-/** The letters that avatar shows (`PersonAvatar` sets `initials` of `criticAvatarName`). */
-export function criticInitials(critic: Pick<Critic, "critic" | "publication">): string {
-  return initials(criticAvatarName(critic));
-}
-
 /** The year a critic's piece was published, from its "YYYY", "YYYY-MM" or "YYYY-MM-DD" date; null for anything else. */
 export function criticYear(item: Pick<Critic | ReadingItem, "date">): number | null {
   return dateYear(item.date);
-}
-
-/** The small label a piece's kind gets ("Book chapter"); a kind this does not know is capitalised as it is written. */
-export function kindLabel(kind: string): string {
-  const text = kind.trim();
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-/** What the ⓘ of a critic's quote says: the piece it comes from and what kind of piece it is ("From “The odd couple” · Essay"). */
-export function criticBackground(critic: Pick<Critic, "title" | "kind">): string {
-  const kind = kindLabel(critic.kind);
-  return `From “${critic.title.trim()}”${kind ? ` · ${kind}` : ""}`;
 }
 
 /** The critic with this id among a pair's critics, or null: no id, one the pair does not have, or an artist's (an id that does not start with "critic-"). */
