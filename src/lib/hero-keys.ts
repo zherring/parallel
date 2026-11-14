@@ -1,4 +1,5 @@
 import type { NavDirection } from "@/lib/hero-history";
+import { isOverlayElement } from "@/lib/interaction-target";
 
 /**
  * ArrowLeft and ArrowRight drive the landing hero (Previous and Next), from anywhere on the page
@@ -155,16 +156,7 @@ export function describeKeyTarget(element: ElementLike | null): HeroKeyTarget | 
     const role = node.getAttribute("role")?.trim().toLowerCase().split(/\s+/)[0];
     if (role) roles.push(role);
     if (role === "combobox" && node.getAttribute("aria-expanded") === "true") inOpenCombobox = true;
-    const nodeTag = node.tagName.toLowerCase();
-    if (
-      nodeTag === "dialog" ||
-      role === "dialog" ||
-      role === "alertdialog" ||
-      node.getAttribute("aria-modal") === "true" ||
-      node.hasAttribute("popover")
-    ) {
-      inOverlay = true;
-    }
+    if (isOverlayElement(node)) inOverlay = true;
     if (node.isContentEditable === true || node.getAttribute("contenteditable") === "" || node.getAttribute("contenteditable") === "true") {
       editable = true;
     }

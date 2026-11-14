@@ -3,9 +3,10 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { rememberOpener } from "@/components/side-panel/side-panel";
-import { exhibitSpaceAction, nextExhibitIndex, quoteExhibitQuoteSearch } from "@/lib/quote-exhibit";
 import type { ClippingsVoice } from "@/lib/clippings";
 import type { ReadingItem } from "@/lib/critics";
+import { INTERACTIVE_SELECTOR, OVERLAY_SELECTOR } from "@/lib/interaction-target";
+import { exhibitSpaceAction, nextExhibitIndex, quoteExhibitQuoteSearch } from "@/lib/quote-exhibit";
 import { QuoteLibraryPanel, type QuoteLibraryView } from "./quote-library-panel";
 import { quoteElementId } from "./pull-quote";
 import { QuoteExhibit, QuoteExhibitSlide } from "./quote-exhibit";
@@ -27,8 +28,6 @@ interface Props {
   people: readonly [ClippingsVoice, ClippingsVoice];
   reading: readonly ReadingItem[];
 }
-
-const INTERACTIVE = "input, textarea, select, button, a[href], summary, [contenteditable], [role='button'], [role='tab'], [role='slider'], [role='dialog'], [aria-modal='true']";
 
 /** A native vertical snap scroller: one viewport per quote, with a single Space shortcut and stable quote order. */
 export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
@@ -85,7 +84,7 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
 
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
     const target = event.target instanceof Element ? event.target : null;
-    const action = exhibitSpaceAction(event, Boolean(target?.closest(INTERACTIVE)));
+    const action = exhibitSpaceAction(event, Boolean(target?.closest(`${INTERACTIVE_SELECTOR},${OVERLAY_SELECTOR}`)));
     if (!action) return;
     event.preventDefault();
     if (action === "swallow") return;
@@ -120,7 +119,7 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
           onWheel={() => { motionTarget.current = null; }}
           onTouchStart={() => { motionTarget.current = null; }}
           onPointerDown={(event) => {
-            if (!(event.target as Element).closest(INTERACTIVE)) event.currentTarget.focus({ preventScroll: true });
+            if (!(event.target as Element).closest(INTERACTIVE_SELECTOR)) event.currentTarget.focus({ preventScroll: true });
           }}
         >
           <ol className="quote-exhibit-slides">

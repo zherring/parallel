@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, type RefObject } from "react";
+import { INTERACTIVE_SELECTOR } from "@/lib/interaction-target";
 import {
   canStartPan,
   movedPastThreshold,
@@ -9,25 +10,6 @@ import {
   scrollBounds,
   type PanTarget,
 } from "@/lib/drag-pan";
-
-/**
- * Anything with a job of its own. A film's card and node carry `data-film`; the rest is the usual
- * suspects (the "Show all" and "More" buttons, the legend chips, the remove and person links).
- */
-const INTERACTIVE = [
-  "a[href]",
-  "button",
-  "input",
-  "select",
-  "textarea",
-  "summary",
-  "label",
-  "[role='button']",
-  "[role='link']",
-  "[role='scrollbar']",
-  "[contenteditable]:not([contenteditable='false'])",
-  "[data-film]",
-].join(",");
 
 /** The sticky lane header cells: their text stays selectable and their buttons clickable. */
 const HEADER = "[data-lane-head]";
@@ -47,7 +29,7 @@ interface Press {
 /** What a scroller's pan is told apart from a click by, and along which axes it moves. The flat timeline uses the defaults. */
 export interface DragPanOptions {
   /**
-   * Elements with a job of their own, which a press never pans from (a CSS selector). The default is `INTERACTIVE`: the
+   * Elements with a job of their own, which a press never pans from (a CSS selector). The default is `INTERACTIVE_SELECTOR`: the
    * timeline's cards and nodes, buttons, links and inputs. `null` for none: the Depth scene lets a press on a poster pan too,
    * and a poster only opens its film when the press was a click (the click that ends a drag is swallowed).
    */
@@ -207,7 +189,7 @@ export function useDragPan(scrollerRef: RefObject<HTMLElement | null>, onPanStar
         ctrlKey: event.ctrlKey,
         metaKey: event.metaKey,
         altKey: event.altKey,
-        target: describeTarget(scroller, event, optionsRef.current?.interactive === undefined ? INTERACTIVE : optionsRef.current.interactive),
+        target: describeTarget(scroller, event, optionsRef.current?.interactive === undefined ? INTERACTIVE_SELECTOR : optionsRef.current.interactive),
       });
       if (!allowed) return;
       press = {

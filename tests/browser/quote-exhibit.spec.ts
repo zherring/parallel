@@ -271,6 +271,32 @@ test("Space leaves typing, native button activation and a person's dialog alone;
   await expect(page.locator('[data-quotes-page="true"]')).toHaveCount(0);
 });
 
+test("labels, custom controls and overlays retain Space instead of navigating the deck", async ({ page }) => {
+  await openExhibit(page);
+  for (const html of [
+    '<label tabindex="0">Label</label>',
+    '<span role="link" tabindex="0">Custom link</span>',
+    '<span role="tab" tabindex="0">Tab</span>',
+    '<span role="slider" tabindex="0" aria-valuenow="1">Slider</span>',
+    '<span data-film="1" tabindex="0">Film</span>',
+    '<div role="alertdialog"><div tabindex="0">Alert content</div></div>',
+    '<div aria-modal="true"><div tabindex="0">Modal content</div></div>',
+    '<div popover="manual"><div tabindex="0">Popover content</div></div>',
+  ]) {
+    await page.evaluate((markup) => {
+      const host = document.createElement("div");
+      host.id = "shortcut-test";
+      host.innerHTML = markup;
+      document.querySelector(".quote-exhibit-toolbar")!.append(host);
+      host.querySelector<HTMLElement>("[popover]")?.showPopover();
+      host.querySelector<HTMLElement>("[tabindex]")!.focus();
+    }, html);
+    await page.keyboard.press("Space");
+    await expect(deck(page)).toHaveAttribute("data-active-quote", FIRST);
+    await page.locator("#shortcut-test").evaluate((element) => element.remove());
+  }
+});
+
 test("the explainer carries person links without a separate name-on-name byline", async ({ page }) => {
   await openExhibit(page, `${SCORSESE}?quote=for-me-the-editing-process-of`);
   const explainer = active(page).locator(".quote-exhibit-context");
