@@ -1,6 +1,12 @@
 {
-  "pair": ["Harrison Ford", "George Lucas"],
-  "tmdb_ids": [3, 1],
+  "pair": [
+    "Harrison Ford",
+    "George Lucas"
+  ],
+  "tmdb_ids": [
+    3,
+    1
+  ],
   "clippings": [
     {
       "speaker": "Harrison Ford",
@@ -19,34 +25,6 @@
     {
       "speaker": "Harrison Ford",
       "about": "George Lucas",
-      "quote": "Jesus, I didn’t know he liked me that much. Well, I like him that much, too.",
-      "film": "Star Wars",
-      "said_year": 2015,
-      "publication": "Rolling Stone",
-      "via": "Rolling Stone Australia",
-      "title": "Harrison Ford on 'The Force Awakens' and the Return of Han Solo",
-      "date": "2015-12-16",
-      "url": "https://au.rollingstone.com/movies/movie-reviews/harrison-ford-on-the-force-awakens-and-the-return-of-han-solo-939",
-      "context": "Ford's reaction on hearing Lucas's 1977 explanation of why he cast him: \"Harrison is handsome, dashing, and sullen, with an underlying current of sensual hostility.\"",
-      "secondhand": false
-    },
-    {
-      "speaker": "Harrison Ford",
-      "about": "George Lucas",
-      "quote": "I wouldn’t sit out front and wait for you, George. I love you, but I don’t wait out front.",
-      "film": "Star Wars",
-      "said_year": 2017,
-      "publication": "ComicBook.com",
-      "via": null,
-      "title": "Harrison Ford Building A Door For Francis Ford Coppola Landed Him Han Solo",
-      "date": "2017-09-05",
-      "url": "https://comicbook.com/starwars/news/harrison-ford-star-wars-celebration-carpenter-francis-ford-coppola/",
-      "context": "Onstage with Lucas at Star Wars Celebration 2017, disputing Lucas's claim that he loitered outside the casting office pretending to work.",
-      "secondhand": false
-    },
-    {
-      "speaker": "Harrison Ford",
-      "about": "George Lucas",
       "quote": "I was not an overnight success. I struggled for about 15 years, going from acting job to carpentry and back to acting. Until I finally got a part in a wildly successful film. None of this happened on my own. Thank you, George Lucas. Thank you, Steven Spielberg.",
       "film": null,
       "said_year": 2026,
@@ -56,20 +34,6 @@
       "date": "2026-03-02",
       "url": "https://www.yahoo.com/entertainment/movies/articles/harrison-ford-thanks-star-wars-154442992.html",
       "context": "From Ford's acceptance speech for the Screen Actors Guild Life Achievement Award on March 1, 2026.",
-      "secondhand": false
-    },
-    {
-      "speaker": "George Lucas",
-      "about": "Harrison Ford",
-      "quote": "In American Graffiti, I could see he was a real talent, but he didn’t have a big part.",
-      "film": "American Graffiti",
-      "said_year": 2017,
-      "publication": "Deadline",
-      "via": null,
-      "title": "'40 Years Of Star Wars' Panel: George Lucas Says \"There Aren't That Many People Like\" Carrie Fisher",
-      "date": "2017-04-13",
-      "url": "https://deadline.com/2017/04/star-wars-celebration-watch-mark-hamill-kathleen-kennedy-hayden-christensen-1202069276/",
-      "context": "Lucas onstage with Ford at the 40 Years of Star Wars panel, Star Wars Celebration Orlando.",
       "secondhand": false
     },
     {

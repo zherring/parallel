@@ -1,6 +1,12 @@
 {
-  "pair": ["Christopher Guest", "Eugene Levy"],
-  "tmdb_ids": [13524, 26510],
+  "pair": [
+    "Christopher Guest",
+    "Eugene Levy"
+  ],
+  "tmdb_ids": [
+    13524,
+    26510
+  ],
   "clippings": [
     {
       "speaker": "Christopher Guest",
@@ -70,20 +76,6 @@
       "date": "2006-11-17",
       "url": "https://thecomicscomic.com/2006/11/17/christopher-gue/",
       "context": "Joint interview; asked how the two work as a writing team.",
-      "secondhand": false
-    },
-    {
-      "speaker": "Eugene Levy",
-      "about": "Christopher Guest",
-      "quote": "same sensibility that Chris and I write in our movies",
-      "film": null,
-      "said_year": 2020,
-      "publication": "Variety",
-      "via": null,
-      "title": "Eugene Levy Reflects on 'SCTV,' 'A Mighty Wind,' 'Schitt's Creek'",
-      "date": "2020-08-06",
-      "url": "https://variety.com/2020/tv/features/eugene-levy-schitts-creek-mighty-wind-lifetime-achievement-award-interview-1234719791/",
-      "context": "Levy describing the concept for Schitt's Creek that his son Dan brought him, likening it to his films with Guest.",
       "secondhand": false
     }
   ],

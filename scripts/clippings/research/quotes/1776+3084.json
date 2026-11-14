@@ -1,6 +1,12 @@
 {
-  "pair": ["Francis Ford Coppola", "Marlon Brando"],
-  "tmdb_ids": [1776, 3084],
+  "pair": [
+    "Francis Ford Coppola",
+    "Marlon Brando"
+  ],
+  "tmdb_ids": [
+    1776,
+    3084
+  ],
   "clippings": [
     {
       "speaker": "Francis Ford Coppola",
@@ -42,20 +48,6 @@
       "date": "2022-12-25",
       "url": "https://transcripts.cnn.com/show/fzgps/date/2022-12-25/segment/01",
       "context": "Coppola to Fareed Zakaria, asked whether Brando had gotten weirder by the time of Apocalypse Now.",
-      "secondhand": false
-    },
-    {
-      "speaker": "Marlon Brando",
-      "about": "Francis Ford Coppola",
-      "quote": "No, I liked the -- and I wasn't sure that I could do it, and Francis, fortunately, asked me if I would do a...",
-      "film": "The Godfather",
-      "said_year": 1994,
-      "publication": "Larry King Live",
-      "via": null,
-      "title": "Encore Presentation: Interview with Marlon Brando",
-      "date": "2004-07-04",
-      "url": "https://transcripts.cnn.com/show/lkl/date/2004-07-04/segment/00",
-      "context": "Brando to Larry King in October 1994 (re-aired 2004), on whether he liked The Godfather; King finishes the sentence: \"Test?\"",
       "secondhand": false
     },
     {

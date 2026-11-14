@@ -1,6 +1,12 @@
 {
-  "pair": ["Bruce Willis", "Samuel L. Jackson"],
-  "tmdb_ids": [62, 2231],
+  "pair": [
+    "Bruce Willis",
+    "Samuel L. Jackson"
+  ],
+  "tmdb_ids": [
+    62,
+    2231
+  ],
   "clippings": [
     {
       "speaker": "Samuel L. Jackson",
@@ -56,34 +62,6 @@
       "date": "2015-07",
       "url": "https://www.slashfilm.com/990629/a-chance-meeting-between-bruce-willis-and-samuel-l-jackson-set-the-stage-for-unbreakable/",
       "context": "Willis's side of the chance casino meeting that put Jackson in Unbreakable; from EW's oral history, quoted by SlashFilm.",
-      "secondhand": true
-    },
-    {
-      "speaker": "Bruce Willis",
-      "about": "Samuel L. Jackson",
-      "quote": "I talked to [Shyamalan] over the holidays, and he is still thinking about doing the fight movie between me and Sam that we were going to do.",
-      "film": "Unbreakable",
-      "said_year": 2010,
-      "publication": "MTV News",
-      "via": "M. Night Fans",
-      "title": "Bruce Willis says M. Night Shyamalan ‘Still Thinking’ About ‘Unbreakable 2’",
-      "date": "2010-02-22",
-      "url": "https://www.mnightfans.com/bruce-willis-says-m-night-shyamalan-still-thinking-about-unbreakable-2/",
-      "context": "Willis to MTV News on a possible Unbreakable sequel pitting his hero against Jackson's villain; reposted by a fan site.",
-      "secondhand": true
-    },
-    {
-      "speaker": "Bruce Willis",
-      "about": "Samuel L. Jackson",
-      "quote": "As long as Sam can make it, I’m up for it.",
-      "film": "Unbreakable",
-      "said_year": 2010,
-      "publication": "MTV News",
-      "via": "M. Night Fans",
-      "title": "Bruce Willis says M. Night Shyamalan ‘Still Thinking’ About ‘Unbreakable 2’",
-      "date": "2010-02-22",
-      "url": "https://www.mnightfans.com/bruce-willis-says-m-night-shyamalan-still-thinking-about-unbreakable-2/",
-      "context": "Willis to MTV News, conditioning an Unbreakable sequel on Jackson's availability; reposted by a fan site.",
       "secondhand": true
     }
   ],

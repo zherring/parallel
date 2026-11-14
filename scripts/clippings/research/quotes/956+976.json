@@ -1,6 +1,12 @@
 {
-  "pair": ["Guy Ritchie", "Jason Statham"],
-  "tmdb_ids": [956, 976],
+  "pair": [
+    "Guy Ritchie",
+    "Jason Statham"
+  ],
+  "tmdb_ids": [
+    956,
+    976
+  ],
   "clippings": [
     {
       "speaker": "Jason Statham",
@@ -70,20 +76,6 @@
       "date": "2021-04-29",
       "url": "https://www.dailysabah.com/arts/cinema/guy-ritchie-back-working-with-jason-statham-for-wrath-of-man",
       "context": "Reuters interview on why he brought Statham back for Wrath of Man.",
-      "secondhand": false
-    },
-    {
-      "speaker": "Guy Ritchie",
-      "about": "Jason Statham",
-      "quote": "Jason is one of my most favorite people in the entire world.",
-      "film": null,
-      "said_year": 2017,
-      "publication": "Yahoo Movies",
-      "via": null,
-      "title": "Guy Ritchie on Why He Loves 'Grumpy' Jason Statham",
-      "date": "2017-05-22",
-      "url": "https://www.yahoo.com/entertainment/guy-ritchie-loves-grumpy-jason-statham-155650817.html",
-      "context": "Yahoo Movies interview during the King Arthur: Legend of the Sword press tour.",
       "secondhand": false
     },
     {

@@ -1,21 +1,13 @@
 {
-  "pair": ["Ridley Scott", "Hans Zimmer"],
-  "tmdb_ids": [578, 947],
+  "pair": [
+    "Ridley Scott",
+    "Hans Zimmer"
+  ],
+  "tmdb_ids": [
+    578,
+    947
+  ],
   "clippings": [
-    {
-      "speaker": "Ridley Scott",
-      "about": "Hans Zimmer",
-      "quote": "And coming in, I had a very good run with Hans. We had done some good stuff. So with Hans I said, “There’s this guy called Baaba Maal…”",
-      "film": "Black Hawk Down",
-      "said_year": 2019,
-      "publication": "Deadline",
-      "via": null,
-      "title": "'Black Hawk Down': When Ridley Scott Went To War",
-      "date": "2019-05-15",
-      "url": "https://deadline.com/2019/05/ridley-scott-revisits-black-hawk-down-its-one-of-the-films-im-most-proud-of-somali-bana-tom-hardy-ewan-mcgregor-1202611972/",
-      "context": "Scott, revisiting Black Hawk Down, on what he asked of Zimmer for the score.",
-      "secondhand": false
-    },
     {
       "speaker": "Ridley Scott",
       "about": "Hans Zimmer",

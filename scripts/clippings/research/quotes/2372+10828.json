@@ -1,11 +1,17 @@
 {
-  "pair": ["Guillermo del Toro", "Ron Perlman"],
-  "tmdb_ids": [10828, 2372],
+  "pair": [
+    "Guillermo del Toro",
+    "Ron Perlman"
+  ],
+  "tmdb_ids": [
+    10828,
+    2372
+  ],
   "clippings": [
     {
       "speaker": "Ron Perlman",
       "about": "Guillermo del Toro",
-      "quote": "What I didn't realize was the campaign he mounted over the course of 6  years. He really could have made the film on 20 different occasions if he had used this actor or that actor or this actor. … It's the most generous gesture I have ever witnessed and certainly been the recipient of.",
+      "quote": "What I didn't realize was the campaign he mounted over the course of 6 years. He really could have made the film on 20 different occasions if he had used this actor or that actor or this actor. … It's the most generous gesture I have ever witnessed and certainly been the recipient of.",
       "film": "Hellboy",
       "said_year": 2004,
       "publication": "BlackFilm",

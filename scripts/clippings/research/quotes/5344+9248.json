@@ -1,21 +1,13 @@
 {
-  "pair": ["Nora Ephron", "Meg Ryan"],
-  "tmdb_ids": [9248, 5344],
+  "pair": [
+    "Nora Ephron",
+    "Meg Ryan"
+  ],
+  "tmdb_ids": [
+    9248,
+    5344
+  ],
   "clippings": [
-    {
-      "speaker": "Nora Ephron",
-      "about": "Meg Ryan",
-      "quote": "Well, Meg can do everything. Meg is both funny and smart, and you rarely get that in one person. She's a brilliantly gifted actress. She really is.",
-      "film": null,
-      "said_year": 2007,
-      "publication": "Academy of Achievement",
-      "via": null,
-      "title": "Nora Ephron | Academy of Achievement",
-      "date": "2007-06-21",
-      "url": "https://achievement.org/achiever/nora-ephron/",
-      "context": "Ephron, asked in her Academy of Achievement interview in Washington, D.C., why she kept casting Ryan.",
-      "secondhand": false
-    },
     {
       "speaker": "Nora Ephron",
       "about": "Meg Ryan",

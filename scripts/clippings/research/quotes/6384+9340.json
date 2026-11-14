@@ -1,6 +1,12 @@
 {
-  "pair": ["Lana Wachowski", "Keanu Reeves"],
-  "tmdb_ids": [9340, 6384],
+  "pair": [
+    "Lana Wachowski",
+    "Keanu Reeves"
+  ],
+  "tmdb_ids": [
+    9340,
+    6384
+  ],
   "clippings": [
     {
       "speaker": "Keanu Reeves",
@@ -28,48 +34,6 @@
       "date": "2021-12-10",
       "url": "https://reel360.com/article/interview-keanu-reeves-the-matrix/",
       "context": "Same Q&A, asked how Lana had evolved as a filmmaker since the original trilogy.",
-      "secondhand": false
-    },
-    {
-      "speaker": "Keanu Reeves",
-      "about": "Lana Wachowski",
-      "quote": "You can go to either of them and ask a question and much more often than not they’ll agree and tell you the same thing. They are independent and together.",
-      "film": "The Matrix Reloaded",
-      "said_year": 2003,
-      "publication": "The Daily Record",
-      "via": null,
-      "title": "Filmmaking Wachowski brothers hide in the shadows of ‘The Matrix’",
-      "date": "2003-05-15",
-      "url": "https://thedailyrecord.com/2003/05/15/filmmaking-wachowski-brothers-hide-in-the-shadows-of-8216the-matrix8217/",
-      "context": "Profile of the then-press-shy Wachowskis at the release of The Matrix Reloaded; Reeves speaks of the two siblings together.",
-      "secondhand": false
-    },
-    {
-      "speaker": "Keanu Reeves",
-      "about": "Lana Wachowski",
-      "quote": "They’re one of the most sensitive people I’ve ever met.",
-      "film": "The Matrix Reloaded",
-      "said_year": 2003,
-      "publication": "The Daily Record",
-      "via": null,
-      "title": "Filmmaking Wachowski brothers hide in the shadows of ‘The Matrix’",
-      "date": "2003-05-15",
-      "url": "https://thedailyrecord.com/2003/05/15/filmmaking-wachowski-brothers-hide-in-the-shadows-of-8216the-matrix8217/",
-      "context": "Same 2003 profile; Reeves describing the Wachowski siblings as almost a single person.",
-      "secondhand": false
-    },
-    {
-      "speaker": "Lana Wachowski",
-      "about": "Keanu Reeves",
-      "quote": "We showed the film to Keanu, and he really was blown away by it, and he said something that was typically Keanu, where it’s incredibly insightful. He’s just sort of sitting there, and you don’t expect some incredible revelation to come out of him at that moment, like casual brilliance just kind of rolls off of Keanu.",
-      "film": "The Matrix Resurrections",
-      "said_year": 2021,
-      "publication": "Den of Geek",
-      "via": null,
-      "title": "The Matrix 4 “Describes the Next 20 Years of Digital Life”",
-      "date": "2021-09-17",
-      "url": "https://www.denofgeek.com/movies/the-matrix-4-digital-life-keanu-reeves-spoilers/",
-      "context": "Said on a panel at the Berlin International Literature Festival with co-writers Aleksandar Hemon and David Mitchell, reported by Den of Geek.",
       "secondhand": false
     },
     {

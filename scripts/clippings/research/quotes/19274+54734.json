@@ -1,49 +1,13 @@
 {
-  "pair": ["Seth Rogen", "Evan Goldberg"],
-  "tmdb_ids": [19274, 54734],
+  "pair": [
+    "Seth Rogen",
+    "Evan Goldberg"
+  ],
+  "tmdb_ids": [
+    19274,
+    54734
+  ],
   "clippings": [
-    {
-      "speaker": "Seth Rogen",
-      "about": "Evan Goldberg",
-      "quote": "A little, not really, we’ve never had those problems in our friendship. I think that’s why we’re so comfortable exploring it.",
-      "film": "This Is the End",
-      "said_year": 2013,
-      "publication": "VICE",
-      "via": null,
-      "title": "Day Four: Seth Rogen and Evan Goldberg Are Friends So They Made a Film About It",
-      "date": "2013-06-27",
-      "url": "https://www.vice.com/en/article/xd38xn/day-four-seth-rogen-and-evan-goldberg-are-friends-so-they-made-a-film-about-it",
-      "context": "Joint interview before the UK premiere, asked whether the film's strained friendship mirrors their own.",
-      "secondhand": false
-    },
-    {
-      "speaker": "Evan Goldberg",
-      "about": "Seth Rogen",
-      "quote": "Yeah, a good partnership is super boring.",
-      "film": "This Is the End",
-      "said_year": 2013,
-      "publication": "VICE",
-      "via": null,
-      "title": "Day Four: Seth Rogen and Evan Goldberg Are Friends So They Made a Film About It",
-      "date": "2013-06-27",
-      "url": "https://www.vice.com/en/article/xd38xn/day-four-seth-rogen-and-evan-goldberg-are-friends-so-they-made-a-film-about-it",
-      "context": "Same joint interview, responding to Rogen saying the film's friendship drama was invented for the movie.",
-      "secondhand": false
-    },
-    {
-      "speaker": "Seth Rogen",
-      "about": "Evan Goldberg",
-      "quote": "But it’s not at all like that actually. I’ll tell you it’s completely equal. And if anything, he touched more so he probably gets the lead.",
-      "film": "The Green Hornet",
-      "said_year": 2010,
-      "publication": "Collider",
-      "via": null,
-      "title": "THE GREEN HORNET On Set Interview Seth Rogen Evan Goldberg",
-      "date": "2010-07-13",
-      "url": "https://collider.com/the-green-hornet-interview-seth-rogen-evan-goldberg-on-set/",
-      "context": "On-set interview, asked which of the two writers is the Green Hornet and which is the sidekick.",
-      "secondhand": false
-    },
     {
       "speaker": "Evan Goldberg",
       "about": "Seth Rogen",

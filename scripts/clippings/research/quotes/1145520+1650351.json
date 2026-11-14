@@ -1,6 +1,12 @@
 {
-  "pair": ["Ari Aster", "Pawel Pogorzelski"],
-  "tmdb_ids": [1145520, 1650351],
+  "pair": [
+    "Ari Aster",
+    "Pawel Pogorzelski"
+  ],
+  "tmdb_ids": [
+    1145520,
+    1650351
+  ],
   "clippings": [
     {
       "speaker": "Ari Aster",
@@ -61,7 +67,7 @@
     {
       "speaker": "Pawel Pogorzelski",
       "about": "Ari Aster",
-      "quote": "We would jog together and he would pitch me this idea he had for Hereditary , and I thought it was so cool. So, I've been there since the infancy of Hereditary . From the ideas while we were jogging, all the way to the first script, and then on set.",
+      "quote": "We would jog together and he would pitch me this idea he had for Hereditary, and I thought it was so cool. So, I've been there since the infancy of Hereditary . From the ideas while we were jogging, all the way to the first script, and then on set.",
       "film": "Hereditary",
       "said_year": 2018,
       "publication": "Daily Dead",
