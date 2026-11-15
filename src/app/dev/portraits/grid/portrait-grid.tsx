@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { tmdbImage } from "@/lib/images";
 import { CutPortraitImage } from "@/components/cut-portrait-image";
-import { CUT_STROKE_WHITE, EDGE_POSITIONS, parseEdgePosition, polygonPoints, type EdgePosition, type PortraitCut } from "@/lib/portrait-cuts";
+import { CUT_STROKE_WHITE, EDGE_POSITIONS, parseEdgePosition, polygonPoints, type CutPoint, type EdgePosition, type PortraitCut } from "@/lib/portrait-cuts";
+import { TEAR_SIZE, tearFor, type PortraitTestArtist } from "@/lib/portrait-tears";
 import { ControlsPanel, createSettingsStore, EDGE_LABELS, Group, PANEL_W, PanelNote, pick, Segment } from "../controls-panel";
 
 /** Eight saturated, screen-print-poster colors that sit well together on a near-black page. */
@@ -15,20 +16,29 @@ type Mode = (typeof MODES)[number];
 const OUTLINES = ["white", "color"] as const;
 type Outline = (typeof OUTLINES)[number];
 const OUTLINE_LABELS: Record<Outline, string> = { white: "White", color: "Colour" };
+/** Tear draws every card with its tear (`tearFor`), the cut artists too, to compare the two on the same faces. */
+const SHAPES = ["cut", "tear"] as const;
+type Shape = (typeof SHAPES)[number];
+const SHAPE_LABELS: Record<Shape, string> = { cut: "Cut", tear: "Tear" };
 
 interface Settings {
   edge: EdgePosition;
   outline: Outline;
   mode: Mode;
+  shape: Shape;
   flaggedOnly: boolean;
   open: boolean;
 }
 
-const DEFAULTS: Settings = { edge: "center", outline: "white", mode: "Mix", flaggedOnly: false, open: true };
+/** Inside and colour are the owner's picks; the others stay for comparison. */
+const DEFAULTS: Settings = { edge: "inside", outline: "color", mode: "Mix", shape: "cut", flaggedOnly: false, open: true };
 
-/** The panel's settings (`?edge=`, `?outline=`, `?bg=`, `?flagged=1`, then localStorage, then the defaults; see `createSettingsStore`). */
+/**
+ * The panel's settings (`?edge=`, `?outline=`, `?bg=`, `?shape=tear`, `?flagged=1`, then localStorage, then the defaults; see
+ * `createSettingsStore`). The key is versioned: v2 came with the new defaults, so choices saved under the old ones don't hide them.
+ */
 const { useSettings, setSettings } = createSettingsStore<Settings>({
-  storageKey: "spike-portrait-grid",
+  storageKey: "spike-portrait-grid-v2",
   defaults: DEFAULTS,
   read: (params, saved) => {
     const modeOf = (value: unknown) => MODES.find((m) => m.toLowerCase() === String(value).toLowerCase()) ?? null;
@@ -37,13 +47,15 @@ const { useSettings, setSettings } = createSettingsStore<Settings>({
       edge: parseEdgePosition(params.get("edge")) ?? parseEdgePosition(saved.edge) ?? DEFAULTS.edge,
       outline: pick(OUTLINES, params.get("outline")) ?? pick(OUTLINES, saved.outline) ?? DEFAULTS.outline,
       mode: modeOf(params.get("bg")) ?? modeOf(saved.mode) ?? DEFAULTS.mode,
+      shape: pick(SHAPES, params.get("shape")) ?? pick(SHAPES, saved.shape) ?? DEFAULTS.shape,
       flaggedOnly: flagged !== null ? flagged === "1" : typeof saved.flaggedOnly === "boolean" ? saved.flaggedOnly : DEFAULTS.flaggedOnly,
     };
   },
-  toParams: ({ edge, outline, mode, flaggedOnly }) => ({
+  toParams: ({ edge, outline, mode, shape, flaggedOnly }) => ({
     edge: edge === DEFAULTS.edge ? null : edge,
     outline: outline === DEFAULTS.outline ? null : outline,
     bg: mode === DEFAULTS.mode ? null : mode.toLowerCase(),
+    shape: shape === DEFAULTS.shape ? null : shape,
     flagged: flaggedOnly ? "1" : null,
   }),
 });
@@ -53,9 +65,30 @@ function colorAt(index: number, columns: number): string {
   return PALETTE[((index % columns) * 3 + Math.floor(index / columns) * 2) % PALETTE.length];
 }
 
-export function PortraitGrid({ cards }: { cards: { id: number; cut: PortraitCut }[] }) {
+/** A card's photo and polygon: the cut's own, or the person's tear (viewBox `TEAR_SIZE`). */
+interface CardShape {
+  kind: Shape;
+  id: number;
+  name: string;
+  profilePath: string;
+  points: readonly CutPoint[];
+  size: readonly [number, number];
+  posters: string[];
+}
+
+const tearShape = ({ id, name, profilePath, posters }: Omit<CardShape, "kind" | "points" | "size">): CardShape => ({
+  kind: "tear",
+  id,
+  name,
+  profilePath,
+  posters,
+  points: tearFor(id),
+  size: TEAR_SIZE,
+});
+
+export function PortraitGrid({ cards, testArtists }: { cards: { id: number; cut: PortraitCut }[]; testArtists: PortraitTestArtist[] }) {
   const settings = useSettings();
-  const { edge, outline, mode, flaggedOnly } = settings;
+  const { edge, outline, mode, shape, flaggedOnly } = settings;
   const [columns, setColumns] = useState(1);
   const flaggedCount = cards.filter(({ cut }) => cut.flagged).length;
   const shown = flaggedOnly ? cards.filter(({ cut }) => cut.flagged) : cards;
@@ -72,13 +105,17 @@ export function PortraitGrid({ cards }: { cards: { id: number; cut: PortraitCut 
     return () => observer.disconnect();
   }, []);
 
+  const cardShape = ({ id, cut }: { id: number; cut: PortraitCut }): CardShape =>
+    shape === "tear" ? tearShape({ id, ...cut }) : { kind: "cut", id, name: cut.name, profilePath: cut.profilePath, posters: cut.posters, points: cut.variants["20"], size: cut.size };
   const montageAt = (i: number) => mode === "Montage" || (mode === "Mix" && (Math.floor(i / columns) + (i % columns)) % 2 === 1);
 
   return (
     <main style={{ background: "#0d0d0f", color: "#f4f1ea", minHeight: "100vh", padding: `20px ${settings.open ? PANEL_W + 44 : 16}px 40px 16px`, fontFamily: "system-ui, sans-serif" }}>
       <header style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 16, marginBottom: 16 }}>
         <h1 style={{ fontSize: 15, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", margin: 0 }}>Portrait grid</h1>
-        <span style={{ fontSize: 12, color: "#8a8780" }}>{cards.length} artists · {flaggedCount} flagged · 20-vertex cut</span>
+        <span style={{ fontSize: 12, color: "#8a8780" }}>
+          {cards.length + testArtists.length} artists · {cards.length} cut · {testArtists.length} with no cut (tear) · {flaggedCount} flagged · {shape === "tear" ? "tears on all" : "20-vertex cut"}
+        </span>
         <Link href="/dev/portraits/stroke" style={{ fontSize: 12, color: "#8a8780", marginLeft: "auto" }}>
           stroke tuning
         </Link>
@@ -87,22 +124,52 @@ export function PortraitGrid({ cards }: { cards: { id: number; cut: PortraitCut 
         </Link>
       </header>
       <div ref={grid} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 6 }}>
-        {shown.map(({ id, cut }, i) => (
-          <figure key={id} style={{ margin: 0 }}>
-            <Card id={id} cut={cut} color={colorAt(i, columns)} montage={montageAt(i)} edge={edge} outline={outline} />
-            <figcaption style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", padding: "5px 1px 8px" }}>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cut.name}</span>
-              {cut.flagged && (
-                <span title={cut.flagReason} style={{ fontSize: 9, letterSpacing: "0.06em", color: "#8a8780", border: "1px solid #3a3936", borderRadius: 3, padding: "0 4px" }}>
+        {shown.map((card, i) => (
+          <figure key={card.id} style={{ margin: 0 }}>
+            <Card shape={cardShape(card)} color={colorAt(i, columns)} montage={montageAt(i)} edge={edge} outline={outline} />
+            <Caption name={card.cut.name}>
+              {card.cut.flagged && (
+                <span title={card.cut.flagReason} style={tagStyle}>
                   fallback
                 </span>
               )}
-            </figcaption>
+            </Caption>
           </figure>
         ))}
       </div>
+      {!flaggedOnly && testArtists.length > 0 && (
+        <section data-tear-section>
+          <h2 style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", margin: "28px 0 4px" }}>No cut yet: tear fallback</h2>
+          <p style={{ fontSize: 12, color: "#8a8780", margin: "0 0 12px" }}>
+            {testArtists.length} artists not in the cut list (<code>npm run portraits:testset</code>), each with tear <code>id % 16</code>, as the app draws anyone without a cut.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 6 }}>
+            {testArtists.map((artist, i) => (
+              <figure key={artist.id} style={{ margin: 0 }}>
+                <Card shape={tearShape(artist)} color={colorAt(i, columns)} montage={montageAt(i)} edge={edge} outline={outline} />
+                <Caption name={artist.name}>
+                  <span title={`tear ${artist.id % 16}`} style={tagStyle}>
+                    tear {artist.id % 16}
+                  </span>
+                </Caption>
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
       <Panel settings={settings} />
     </main>
+  );
+}
+
+const tagStyle = { flexShrink: 0, whiteSpace: "nowrap", fontSize: 9, letterSpacing: "0.06em", color: "#8a8780", border: "1px solid #3a3936", borderRadius: 3, padding: "0 4px" } as const;
+
+function Caption({ name, children }: { name: string; children?: ReactNode }) {
+  return (
+    <figcaption style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", padding: "5px 1px 8px" }}>
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+      {children}
+    </figcaption>
   );
 }
 
@@ -130,6 +197,13 @@ function Panel({ settings }: { settings: Settings }) {
           </Segment>
         ))}
       </Group>
+      <Group label="Shape">
+        {SHAPES.map((value) => (
+          <Segment key={value} on={settings.shape === value} onClick={() => setSettings({ shape: value })}>
+            {SHAPE_LABELS[value]}
+          </Segment>
+        ))}
+      </Group>
       <Group label="Show">
         <Segment on={!settings.flaggedOnly} onClick={() => setSettings({ flaggedOnly: false })}>
           All
@@ -138,7 +212,7 @@ function Panel({ settings }: { settings: Settings }) {
           Flagged only
         </Segment>
       </Group>
-      <PanelNote>Colour outlines take the card&rsquo;s own colour (the flat fill, or the montage&rsquo;s tint).</PanelNote>
+      <PanelNote>Colour outlines take the card&rsquo;s own colour (the flat fill, or the montage&rsquo;s tint). Tear puts the no-cut fallback on every card.</PanelNote>
     </ControlsPanel>
   );
 }
@@ -160,23 +234,24 @@ function useNearViewport<T extends Element>() {
   return [ref, near] as const;
 }
 
-function Card({ id, cut, color, montage, edge, outline }: { id: number; cut: PortraitCut; color: string; montage: boolean; edge: EdgePosition; outline: Outline }) {
+function Card({ shape, color, montage, edge, outline }: { shape: CardShape; color: string; montage: boolean; edge: EdgePosition; outline: Outline }) {
   const [ref, near] = useNearViewport<SVGSVGElement>();
-  const [w, h] = cut.size;
-  const points = cut.variants["20"];
-  const key = `g${id}`;
+  const { kind, id, name, profilePath, points, posters } = shape;
+  const [w, h] = shape.size;
+  // The shape is in the key: the polygon changes with Shape, and the clip path's id must follow it.
+  const key = `g${id}-${kind}`;
   // The span is the size container the edge's width (`cutEdgeStroke`) is measured against.
   return (
     <span style={{ display: "block", containerType: "inline-size" }}>
-      <svg ref={ref} viewBox={`0 0 ${w} ${h}`} style={{ display: "block", width: "100%", height: "auto", aspectRatio: `${w} / ${h}` }} role="img" aria-label={cut.name}>
+      <svg ref={ref} viewBox={`0 0 ${w} ${h}`} style={{ display: "block", width: "100%", height: "auto", aspectRatio: `${w} / ${h}` }} role="img" aria-label={name}>
         <defs>
           <clipPath id={`clip-${key}`}>
             <polygon points={polygonPoints(points, w, h)} />
           </clipPath>
           {montage && <Duotone id={`duo-${key}`} tint={color} />}
         </defs>
-        {montage ? <Montage id={key} posters={near ? cut.posters : []} w={w} h={h} /> : <rect width={w} height={h} fill={color} />}
-        <CutPortraitImage src={near ? tmdbImage(cut.profilePath, "w500") : null} points={points} w={w} h={h} clipId={`clip-${key}`} strokeColor={outline === "color" ? color : CUT_STROKE_WHITE} edgePosition={edge} />
+        {montage ? <Montage id={key} posters={near ? posters : []} w={w} h={h} /> : <rect width={w} height={h} fill={color} />}
+        <CutPortraitImage src={near ? tmdbImage(profilePath, "w500") : null} points={points} w={w} h={h} clipId={`clip-${key}`} strokeColor={outline === "color" ? color : CUT_STROKE_WHITE} edgePosition={edge} />
       </svg>
     </span>
   );

@@ -4,7 +4,8 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 
 /**
- * Spike (zherring/spike-portraits): the cut-paper portrait treatment in the real pages, behind `?portrait=montage` or `?portrait=color`.
+ * Spike (zherring/spike-portraits): the cut-paper portrait treatment in the real pages, behind `?portrait=on` (or `=1`, `=montage`: the montage
+ * background, the owner's pick) or `?portrait=color`.
  * The flag is remembered for the tab (sessionStorage), so it stays on while the visitor clicks from pair to pair, whose links do not carry it;
  * `?portrait=off` forgets it. Without the flag in the address or the tab's memory, nothing changes.
  */
@@ -14,6 +15,7 @@ export type PortraitMode = (typeof PORTRAIT_MODES)[number];
 const STORAGE_KEY = "spike-portrait";
 
 function parseMode(value: string | null | undefined): PortraitMode | null {
+  if (value === "on" || value === "1") return "montage";
   return PORTRAIT_MODES.find((mode) => mode === value) ?? null;
 }
 

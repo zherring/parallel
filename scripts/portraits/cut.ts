@@ -13,43 +13,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PORTRAIT_IDS, type PortraitCut, type PortraitCuts } from "../../src/lib/portrait-cuts";
+import { fetchPerson, requireTmdbToken, topPosters, type Person } from "./tmdb";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "../..");
 const outFile = join(root, "src/lib/portrait-cuts.json");
 const cacheDir = join(here, ".cache");
 const python = join(here, ".venv/bin/python");
-
-const token = process.env.TMDB_READ_ACCESS_TOKEN;
-if (!token) throw new Error("TMDB_READ_ACCESS_TOKEN is not set (put it in .env)");
-
-interface Credit {
-  id: number;
-  poster_path: string | null;
-  vote_count?: number;
-}
-interface Person {
-  name: string;
-  profile_path: string | null;
-  movie_credits: { cast: Credit[]; crew: Credit[] };
-}
-
-async function tmdb<T>(path: string): Promise<T> {
-  const response = await fetch(`https://api.themoviedb.org/3${path}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-  });
-  if (!response.ok) throw new Error(`TMDB ${path} answered ${response.status}`);
-  return (await response.json()) as T;
-}
-
-function topPosters(person: Person, count: number): string[] {
-  const seen = new Set<number>();
-  return [...person.movie_credits.crew, ...person.movie_credits.cast]
-    .filter((c) => c.poster_path && !seen.has(c.id) && seen.add(c.id))
-    .sort((a, b) => (b.vote_count ?? 0) - (a.vote_count ?? 0))
-    .slice(0, count)
-    .map((c) => c.poster_path!);
-}
 
 /** Photos per cut.py process: the JSON is written after each, so a run that dies partway resumes from the last finished batch. */
 const BATCH = 8;
@@ -75,6 +45,7 @@ function save(existing: PortraitCuts): PortraitCuts {
 }
 
 async function main() {
+  requireTmdbToken();
   const started = Date.now();
   const existing: PortraitCuts = existsSync(outFile) ? JSON.parse(readFileSync(outFile, "utf8")) : {};
   mkdirSync(cacheDir, { recursive: true });
@@ -84,7 +55,7 @@ async function main() {
   const pending: { id: number; person: Person; file: string }[] = [];
   for (const id of PORTRAIT_IDS) {
     try {
-      const person = await tmdb<Person>(`/person/${id}?append_to_response=movie_credits`);
+      const person = await fetchPerson(id);
       if (!person.profile_path) {
         console.log(`${id} ${person.name}: no TMDB photo, skipped`);
         noPhoto.push(`${id} ${person.name}`);

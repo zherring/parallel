@@ -111,7 +111,8 @@ function Tuner({ artists }: { artists: TunerArtist[] }) {
   const [selected, setSelected] = useState<SizeKey | "all">("hero");
   const [artistId, setArtistId] = useState(artists.some((a) => a.id === 5026) ? 5026 : (artists[0]?.id ?? 0));
   const [mode, setMode] = useState<PortraitMode>("montage");
-  const [outline, setOutline] = useState<"white" | "color">("white");
+  // Colour, and (TreatedPortrait's default) inside: the owner's picks.
+  const [outline, setOutline] = useState<"white" | "color">("color");
   const [slot, setSlot] = useState(0);
   const [preview, setPreview] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);

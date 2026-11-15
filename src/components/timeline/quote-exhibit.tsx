@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { hasPortraitCut, TreatedPortrait } from "@/components/treated-portrait";
+import { TreatedPortrait } from "@/components/treated-portrait";
 import { usePortraitMode } from "@/components/use-portrait-mode";
 import type { ClippingsVoice } from "@/lib/clippings";
 import { tmdbImage } from "@/lib/images";
@@ -58,10 +58,10 @@ export function QuoteExhibitSlide({ children, label }: { children: ReactNode; la
 function Portrait({ person, speaking, quiet }: { person: ClippingsVoice; speaking: boolean; quiet: boolean }) {
   const src = tmdbImage(person.profilePath, "w780");
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  // Spike: `?portrait=montage|color` cuts the portrait out (see `TreatedPortrait`) at full panel size; without it, or for a person with no cut,
-  // the panel is as it was.
+  // Spike: `?portrait=on|color` cuts the portrait out (see `TreatedPortrait`) at full panel size, or tears it for a person with no cut; without
+  // the flag, or for a person with no photo, the panel is as it was.
   const portraitMode = usePortraitMode();
-  const treated = portraitMode !== null && hasPortraitCut(person.id, person.profilePath);
+  const treated = portraitMode !== null && Boolean(person.profilePath);
   return (
     <div
       className={cn("quote-exhibit-portrait", quiet && "quote-exhibit-quiet")}

@@ -24,11 +24,15 @@ interface Settings {
   open: boolean;
 }
 
-const DEFAULTS: Settings = { edge: "center", outline: "both", open: true };
+/** Inside and colour are the owner's picks; the others stay for comparison. */
+const DEFAULTS: Settings = { edge: "inside", outline: "color", open: true };
 
-/** The panel's settings (`?edge=`, `?outline=`, then localStorage, then the defaults; see `createSettingsStore`). */
+/**
+ * The panel's settings (`?edge=`, `?outline=`, then localStorage, then the defaults; see `createSettingsStore`). The key is versioned: v2 came
+ * with the new defaults, so choices saved under the old ones don't hide them.
+ */
 const { useSettings, setSettings } = createSettingsStore<Settings>({
-  storageKey: "spike-portrait-sheet",
+  storageKey: "spike-portrait-sheet-v2",
   defaults: DEFAULTS,
   read: (params, saved) => ({
     edge: parseEdgePosition(params.get("edge")) ?? parseEdgePosition(saved.edge) ?? DEFAULTS.edge,

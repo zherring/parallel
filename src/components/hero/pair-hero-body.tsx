@@ -45,7 +45,7 @@ interface PairHeroBodyProps {
 export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, together, onChip, onOpenPerson, className }: PairHeroBodyProps) {
   // How many chips were on the line when "+N more" was pressed (null: it has not been): the focus goes to the next one, the first it added.
   const [opened, setOpened] = useState<number | null>(null);
-  // Spike: `?portrait=montage|color` cuts the portraits out (see `TreatedPortrait`); without it they are as they were.
+  // Spike: `?portrait=on|color` cuts the portraits out (see `TreatedPortrait`); without it they are as they were.
   const portraitMode = usePortraitMode();
   const expanded = opened !== null;
   // How many chips fit the line, measured in the browser before the first paint it is seen in, and again whenever the line or the chips change size. Until then (the server's markup, and

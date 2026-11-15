@@ -8,10 +8,14 @@ import type { PortraitMode } from "@/components/use-portrait-mode";
 import { tmdbImage, type ImageSize } from "@/lib/images";
 import { PERSON_COLORS } from "@/lib/person-colors";
 import cuts from "@/lib/portrait-cuts.json";
+import testset from "@/lib/portrait-testset.json";
 import { CutPortraitImage } from "@/components/cut-portrait-image";
-import { CARD_RADIUS_RATIO, STROKE_CSS, parseEdgePosition, polygonPoints, type EdgePosition, type PortraitCuts } from "@/lib/portrait-cuts";
+import { CARD_RADIUS_RATIO, STROKE_CSS, parseEdgePosition, polygonPoints, type CutPoint, type EdgePosition, type PortraitCuts } from "@/lib/portrait-cuts";
+import { TEAR_SIZE, tearFor, type PortraitTestArtist } from "@/lib/portrait-tears";
 
 const CUTS = cuts as unknown as PortraitCuts;
+/** The test set's posters (`npm run portraits:testset`), so a test artist's tear sits on their own montage. */
+const TEST_POSTERS = new Map((testset as PortraitTestArtist[]).map((artist) => [artist.id, artist.posters]));
 
 interface Props {
   /** TMDB person id, the key of `portrait-cuts.json`. */
@@ -35,42 +39,41 @@ interface Props {
   strokePx?: number;
   /** Tuning override: the ring's band (and the gap inside it) in screen px, instead of the rule (`STROKE_CSS`) each. */
   ringPx?: number;
-  /** Tuning override: the edge's colour, instead of the `?outline=color` flag. */
+  /** Tuning override: the edge's colour, instead of the `?outline=white` flag (the person's colour by default). */
   outline?: "white" | "color";
-  /** Tuning override: where the edge sits against the polygon, instead of the `?edge=` flag (center by default). */
+  /** Tuning override: where the edge sits against the polygon, instead of the `?edge=` flag (inside by default). */
   edgePosition?: EdgePosition;
 }
 
-/** Whether `TreatedPortrait` would cut this person out (a cut exists, made from this very photo), so a caller can keep its own fallback. */
-export function hasPortraitCut(personId: number, profilePath: string | null): boolean {
+/** The polygon, its viewBox and the montage's posters: the person's cut when it was made from this photo, else their tear (`tearFor`). */
+function shapeFor(personId: number, profilePath: string): { points: readonly CutPoint[]; size: readonly [number, number]; posters: string[] } {
   const cut = CUTS[String(personId)];
-  return Boolean(cut && profilePath && cut.profilePath === profilePath);
+  if (cut && cut.profilePath === profilePath) return { points: cut.variants["20"], size: cut.size, posters: cut.posters };
+  return { points: tearFor(personId), size: TEAR_SIZE, posters: cut?.posters ?? TEST_POSTERS.get(personId) ?? [] };
 }
 
 /**
- * Spike (zherring/spike-portraits): a portrait cut out along the 20-vertex polygon of `portrait-cuts.json` with a white edge (the frame's edges
- * left open), over a flat colour or a montage of the artist's posters, duotoned dark so the face reads. A person with no cut, or whose TMDB photo
- * has changed since it was cut, gets the plain `PersonPortrait`. The edge and the ring follow the capped rule (`STROKE_CSS`: proportional on a
- * small card, 3.3px from about 100px up) and the corners scale with the card (`CARD_RADIUS_RATIO`), all through container units, so nothing is
- * measured. `?outline=color` draws the edge in the person's colour;
- * `?edge=inside|outside` puts the line inside or outside the cut (`center` straddles it, the default).
+ * Spike (zherring/spike-portraits): a portrait cut out along the 20-vertex polygon of `portrait-cuts.json` (the frame's edges left open), over
+ * a flat colour or a montage of the artist's posters, duotoned dark so the face reads. A person with no cut, or whose TMDB photo has changed
+ * since it was cut, gets a tear instead (`portrait-tears.ts`), a torn strip across the face drawn the same way; a person with no photo gets the
+ * plain `PersonPortrait`. The edge and the ring follow the capped rule (`STROKE_CSS`: proportional on a small card, 3.3px from about 100px up)
+ * and the corners scale with the card (`CARD_RADIUS_RATIO`), all through container units, so nothing is measured. The edge sits inside the
+ * cut in the person's colour (the owner's picks); `?outline=white` and `?edge=center|outside` override them, for comparison.
  */
 export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, ringColor, mode, posterSize = "w92", rounded = true, strokePx, ringPx, outline, edgePosition }: Props) {
   const rawId = useId();
   const searchParams = useSearchParams();
-  const outlineFlag = searchParams?.get("outline") === "color";
-  const edge = edgePosition ?? parseEdgePosition(searchParams?.get("edge")) ?? "center";
-  const outlineColor = outline ? outline === "color" : outlineFlag;
-  const cut = CUTS[String(personId)];
+  const edge = edgePosition ?? parseEdgePosition(searchParams?.get("edge")) ?? "inside";
+  const outlineColor = (outline ?? (searchParams?.get("outline") === "white" ? "white" : "color")) === "color";
   const src = tmdbImage(profilePath, imageSize);
-  if (!mode || !cut || !src || cut.profilePath !== profilePath) {
+  if (!mode || !src || !profilePath) {
     return <PersonPortrait name={name} profilePath={profilePath} imageSize={imageSize} className={className} ringColor={ringColor} />;
   }
 
   const id = `portrait-${personId}-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const hex = PERSON_COLORS[((Math.trunc(slot) % PERSON_COLORS.length) + PERSON_COLORS.length) % PERSON_COLORS.length].hex;
-  const [w, h] = cut.size;
-  const points = cut.variants["20"];
+  const { points, size, posters } = shapeFor(personId, profilePath);
+  const [w, h] = size;
   const montage = mode === "montage";
 
   // Container units: the outer span is the container, the inner one draws the ring and clips the picture.
@@ -90,7 +93,7 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
       >
         {montage && (
           <span className="absolute inset-0 grid grid-cols-3 grid-rows-3" style={{ filter: `url(#duo-${id})` }}>
-            {cut.posters.slice(0, 9).map((path) => (
+            {posters.slice(0, 9).map((path) => (
               <img key={path} src={tmdbImage(path, posterSize)!} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
             ))}
           </span>
