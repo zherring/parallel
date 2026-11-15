@@ -45,3 +45,7 @@ next-env.d.ts
 
 # clippings link-check reports (npm run clippings:check)
 /scripts/clippings/reports/
+
+# portraits spike (npm run portraits:cut): the Python venv and downloaded TMDB photos
+/scripts/portraits/.venv/
+/scripts/portraits/.cache/
