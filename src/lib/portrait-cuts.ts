@@ -17,6 +17,27 @@ export const PORTRAIT_IDS: readonly number[] = [
   12453, // Wong Kar-wai: sunglasses, angled, light background
   2636, // Alfred Hitchcock: profile, black-and-white
   7450, // Toshirō Mifune: tight face-only crop, black-and-white, light background
+  // The grid page's 20 more, all from pairs in pair-descriptions.ts, picked for a spread of roles, eras, genders and photo styles.
+  6598, // Katharine Hepburn: classic-era actress
+  16757, // Sophia Loren: Italian actress, big hair
+  10205, // Sigourney Weaver: actress, 1980s-on
+  7570, // Lauren Bacall: classic-era actress
+  139, // Uma Thurman: actress, 1990s-on
+  9340, // Lana Wachowski: director
+  9248, // Nora Ephron: writer-director
+  6648, // Ingmar Bergman: Swedish director, mid-century
+  4415, // Federico Fellini: Italian director, mid-century
+  92784, // Barry Jenkins: director, contemporary
+  10099, // Park Chan-wook: Korean director
+  309, // Pedro Almodóvar: Spanish director, white hair
+  5292, // Denzel Washington: actor
+  20738, // Song Kang-ho: Korean actor
+  5676, // Marcello Mastroianni: Italian actor, mid-century
+  4110, // Humphrey Bogart: classic-era actor
+  9309, // Richard Pryor: comedian-actor, 1970s-80s
+  1337, // Tony Leung Chiu-wai: Hong Kong actor
+  8500, // John Ford: silent-era-onward director, eyepatch and hat
+  10828, // Guillermo del Toro: Mexican director, beard and glasses
 ];
 
 export const VERTEX_COUNTS = ["12", "20", "32"] as const;
@@ -35,6 +56,9 @@ export interface PortraitCut {
   size: [w: number, h: number];
   /** Share of the frame the raw mask covers, a rough failure signal. */
   coverage: number;
+  /** Set when birefnet-portrait's mask fell under 5% and the isnet-general-use fallback's result was kept as is (the owner likes the look). */
+  flagged?: true;
+  flagReason?: string;
   variants: Record<VertexCount, CutPoint[]>;
   /** Poster paths of the artist's most-voted films, for the montage background. */
   posters: string[];

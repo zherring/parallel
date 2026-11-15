@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import data from "@/lib/portrait-cuts.json";
 import { tmdbImage } from "@/lib/images";
@@ -33,7 +34,7 @@ export default function PortraitsPage() {
     <main style={{ background: "#f4f1ea", color: "#111", minHeight: "100vh", padding: 16, fontFamily: "system-ui, sans-serif", fontSize: 12 }}>
       <h1 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 4px" }}>Portrait cuts (spike)</h1>
       <p style={{ margin: "0 0 12px", color: "#555" }}>
-        {rows.length} artists · {rows[0]?.[1].model ?? "no data"} · regenerate with <code>npm run portraits:cut</code>
+        {rows.length} artists · {rows[0]?.[1].model ?? "no data"} · regenerate with <code>npm run portraits:cut</code> · <Link href="/dev/portraits/grid">grid view →</Link>
       </p>
       <div style={{ display: "grid", gridTemplateColumns: `140px repeat(${headers.length}, ${CELL}px)`, gap: 8, alignItems: "center" }}>
         <div />

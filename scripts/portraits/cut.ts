@@ -96,11 +96,25 @@ async function main() {
     }
   }
 
+  // A fallback cut is kept as is but flagged; this also backfills the flag on entries cut before it existed (model is stored).
+  for (const cut of Object.values(existing)) {
+    if (cut.model === "birefnet-portrait") {
+      delete cut.flagged;
+      delete cut.flagReason;
+    } else {
+      cut.flagged = true;
+      cut.flagReason = `birefnet-portrait mask under 5%; kept the ${cut.model} fallback`;
+    }
+  }
+
   // Keep the file in PORTRAIT_IDS order so diffs stay readable.
   const ordered: PortraitCuts = {};
   for (const id of PORTRAIT_IDS) if (existing[id]) ordered[id] = existing[id];
   writeFileSync(outFile, `${JSON.stringify(ordered)}\n`);
   console.log(`${Object.keys(ordered).length} entries in ${outFile}; ${pending.length} recomputed`);
+  const flagged = Object.entries(ordered).filter(([, cut]) => cut.flagged);
+  console.log(`${flagged.length} flagged${flagged.length ? ":" : ""}`);
+  for (const [id, cut] of flagged) console.log(`  ${id} ${cut.name}: ${cut.flagReason}`);
 }
 
 await main();
