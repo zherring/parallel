@@ -5,7 +5,8 @@ import { PairPoster } from "@/components/embed/pair-poster";
 import { composition, headshotFan, posterRow, buildOgCard, captionText } from "@/lib/og-card";
 import { PAIR_SLUG, stubLoadPeople } from "@/lib/test-people";
 
-vi.mock("next/navigation", () => ({ notFound: () => { throw new Error("NEXT_NOT_FOUND"); } }));
+// `useSearchParams`: the spike's portrait flag (`usePortraitMode`), off here.
+vi.mock("next/navigation", () => ({ notFound: () => { throw new Error("NEXT_NOT_FOUND"); }, useSearchParams: () => null }));
 
 const TODAY = "2026-11-13";
 

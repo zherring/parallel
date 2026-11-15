@@ -2,12 +2,15 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
+import { PORTRAIT_COOKIE } from "@/lib/portrait-treatment";
 
 /**
  * Spike (zherring/spike-portraits): the cut-paper portrait treatment in the real pages, behind `?portrait=on` (or `=1`, `=montage`: the montage
  * background, the owner's pick) or `?portrait=color`.
  * The flag is remembered for the tab (sessionStorage), so it stays on while the visitor clicks from pair to pair, whose links do not carry it;
  * `?portrait=off` forgets it. Without the flag in the address or the tab's memory, nothing changes.
+ * The flag also sets (and `off` clears) a session cookie, which the preview cards read outside production (`og-portrait.ts`), as they are drawn on
+ * the server and cannot see the address's flag.
  */
 export const PORTRAIT_MODES = ["montage", "color"] as const;
 export type PortraitMode = (typeof PORTRAIT_MODES)[number];
@@ -38,8 +41,13 @@ export function usePortraitMode(): PortraitMode | null {
 
   useEffect(() => {
     try {
-      if (value === "off") sessionStorage.removeItem(STORAGE_KEY);
-      else if (fromUrl) sessionStorage.setItem(STORAGE_KEY, fromUrl);
+      if (value === "off") {
+        sessionStorage.removeItem(STORAGE_KEY);
+        document.cookie = `${PORTRAIT_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+      } else if (fromUrl) {
+        sessionStorage.setItem(STORAGE_KEY, fromUrl);
+        document.cookie = `${PORTRAIT_COOKIE}=${fromUrl}; path=/; SameSite=Lax`;
+      }
     } catch {
       // No storage (a private window): the flag works on the page that names it.
     }

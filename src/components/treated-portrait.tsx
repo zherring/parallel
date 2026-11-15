@@ -7,15 +7,9 @@ import { cn } from "@/components/timeline/cn";
 import type { PortraitMode } from "@/components/use-portrait-mode";
 import { tmdbImage, type ImageSize } from "@/lib/images";
 import { PERSON_COLORS } from "@/lib/person-colors";
-import cuts from "@/lib/portrait-cuts.json";
-import testset from "@/lib/portrait-testset.json";
 import { CutPortraitImage } from "@/components/cut-portrait-image";
-import { CARD_RADIUS_RATIO, STROKE_CSS, parseEdgePosition, polygonPoints, type CutPoint, type EdgePosition, type PortraitCuts } from "@/lib/portrait-cuts";
-import { TEAR_SIZE, tearFor, type PortraitTestArtist } from "@/lib/portrait-tears";
-
-const CUTS = cuts as unknown as PortraitCuts;
-/** The test set's posters (`npm run portraits:testset`), so a test artist's tear sits on their own montage. */
-const TEST_POSTERS = new Map((testset as PortraitTestArtist[]).map((artist) => [artist.id, artist.posters]));
+import { CARD_RADIUS_RATIO, STROKE_CSS, parseEdgePosition, polygonPoints, type EdgePosition } from "@/lib/portrait-cuts";
+import { duotoneMatrix, treatmentShape } from "@/lib/portrait-treatment";
 
 interface Props {
   /** TMDB person id, the key of `portrait-cuts.json`. */
@@ -45,13 +39,6 @@ interface Props {
   edgePosition?: EdgePosition;
 }
 
-/** The polygon, its viewBox and the montage's posters: the person's cut when it was made from this photo, else their tear (`tearFor`). */
-function shapeFor(personId: number, profilePath: string): { points: readonly CutPoint[]; size: readonly [number, number]; posters: string[] } {
-  const cut = CUTS[String(personId)];
-  if (cut && cut.profilePath === profilePath) return { points: cut.variants["20"], size: cut.size, posters: cut.posters };
-  return { points: tearFor(personId), size: TEAR_SIZE, posters: cut?.posters ?? TEST_POSTERS.get(personId) ?? [] };
-}
-
 /**
  * Spike (zherring/spike-portraits): a portrait cut out along the 20-vertex polygon of `portrait-cuts.json` (the frame's edges left open), over
  * a flat colour or a montage of the artist's posters, duotoned dark so the face reads. A person with no cut, or whose TMDB photo has changed
@@ -72,7 +59,7 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
 
   const id = `portrait-${personId}-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const hex = PERSON_COLORS[((Math.trunc(slot) % PERSON_COLORS.length) + PERSON_COLORS.length) % PERSON_COLORS.length].hex;
-  const { points, size, posters } = shapeFor(personId, profilePath);
+  const { points, size, posters } = treatmentShape(personId, profilePath);
   const [w, h] = size;
   const montage = mode === "montage";
 
@@ -114,15 +101,9 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
 
 /** Near-black to a dark version of the person's colour, by luminance (as the dev grid's montage). */
 function Duotone({ id, tint }: { id: string; tint: string }) {
-  const dark = [0.05, 0.05, 0.06];
-  const light = [1, 3, 5].map((at) => (parseInt(tint.slice(at, at + 2), 16) / 255) * 0.7);
-  const row = (c: number) => {
-    const span = light[c] - dark[c];
-    return `${0.2126 * span} ${0.7152 * span} ${0.0722 * span} 0 ${dark[c]}`;
-  };
   return (
     <filter id={id} colorInterpolationFilters="sRGB">
-      <feColorMatrix type="matrix" values={`${row(0)} ${row(1)} ${row(2)} 0 0 0 1 0`} />
+      <feColorMatrix type="matrix" values={duotoneMatrix(tint)} />
     </filter>
   );
 }

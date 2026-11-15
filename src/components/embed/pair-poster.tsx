@@ -1,4 +1,6 @@
 import type { CSSProperties } from "react";
+import { TreatedPortrait } from "@/components/treated-portrait";
+import { usePortraitMode } from "@/components/use-portrait-mode";
 import { tmdbImage } from "@/lib/images";
 import {
   CHIP,
@@ -99,6 +101,8 @@ function Headshot({
   fontSize: number;
 }) {
   const src = tmdbImage(person.profilePath, "w342");
+  // Spike: the cut-paper treatment, as the PNG draws it when its flag is on (`og-portrait.ts`); this frame reads the tab's flag (`usePortraitMode`).
+  const portraitMode = usePortraitMode();
   return (
     <div
       data-part="person"
@@ -113,7 +117,19 @@ function Headshot({
         boxShadow: `0 ${px(14)} ${px(30)} rgba(0, 0, 0, 0.6)`,
       })}
     >
-      {src ? (
+      {src && portraitMode ? (
+        <TreatedPortrait
+          mode={portraitMode}
+          personId={person.id}
+          slot={index}
+          name={person.name}
+          profilePath={person.profilePath}
+          imageSize="w342"
+          posterSize="w154"
+          rounded={false}
+          className="h-full w-full"
+        />
+      ) : src ? (
         <img src={src} alt="" decoding="async" draggable={false} style={{ ...cover, objectPosition: "50% 18%" }} />
       ) : (
         <div

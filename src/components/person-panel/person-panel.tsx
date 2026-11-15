@@ -5,6 +5,8 @@ import { useMemo } from "react";
 import { Portrait } from "@/components/portrait";
 import { SidePanel, useSlideOut } from "@/components/side-panel/side-panel";
 import { Spinner } from "@/components/spinner";
+import { TreatedPortrait } from "@/components/treated-portrait";
+import { usePortraitMode } from "@/components/use-portrait-mode";
 import { lifeLine, splitParagraphs } from "@/lib/biography";
 import { tmdbPersonUrl } from "@/lib/film-people";
 import { tmdbImage } from "@/lib/images";
@@ -60,11 +62,28 @@ export function PersonContent({
   // Their own timeline; nowhere new to go from the page that is already theirs alone.
   const onOwnPage = peopleInView.length === 1 && peopleInView[0].id === person.id;
   const soloHref = onOwnPage ? null : peopleHref([person]);
+  // Spike: `?portrait=on|color` cuts the photo out (see `TreatedPortrait`), in the person's colour: their slot on the page, the first one's for a
+  // person who is not on it (a film's cast). Without the flag, or with no photo, the panel's picture is as it was.
+  const portraitMode = usePortraitMode();
+  const slot = Math.max(0, peopleInView.findIndex((p) => p.id === person.id));
 
   return (
     <>
       <div className="flex gap-4">
-        <Portrait src={photo} alt={`Photo of ${person.name}`} fallback={initials(person.name)} />
+        {portraitMode && person.profilePath ? (
+          <TreatedPortrait
+            mode={portraitMode}
+            personId={person.id}
+            slot={slot}
+            name={person.name}
+            profilePath={person.profilePath}
+            imageSize="w342"
+            posterSize="w154"
+            className="aspect-[2/3] w-28 sm:w-32"
+          />
+        ) : (
+          <Portrait src={photo} alt={`Photo of ${person.name}`} fallback={initials(person.name)} />
+        )}
         <div className="min-w-0 flex-1">
           <h2 id={titleId} className="break-words text-xl font-semibold leading-tight text-strong">
             <a

@@ -40,6 +40,8 @@ export interface OgCaption {
 }
 
 export interface OgPerson {
+  /** TMDB person id (spike: the key of the cut-paper treatment, see `PairPoster`). */
+  id: number;
   /** Full name, for alt text. */
   name: string;
   /** The name as it is laid over the bottom of the headshot, one string per line (see `fitOverlayNames`). */
@@ -704,6 +706,7 @@ export function buildOgCard(
     fan.cards.map((card) => card.visible),
   );
   const ogPeople: OgPerson[] = timelines.map(({ person }, i) => ({
+    id: person.id,
     name: person.name,
     overlay: overlay.lines[i],
     initials: initials(person.name),

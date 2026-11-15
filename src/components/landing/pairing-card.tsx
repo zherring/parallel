@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { PersonAvatar } from "@/components/person-avatar";
+import { PairingFace } from "@/components/landing/pairing-face";
 import type { ExampleCardData } from "@/lib/example-cards";
 import { joinNames } from "@/lib/format";
 
@@ -23,15 +23,9 @@ export function PairingCardFrame({ href, people, photos = true, children }: Fram
       className="group flex h-full flex-col gap-4 rounded-lg border border-border bg-surface p-5 no-underline transition-colors hover:border-accent-green/70"
     >
       <div className="flex -space-x-4" aria-hidden="true">
-        {people.map((person) => (
-          <PersonAvatar
-            key={person.id}
-            name={person.name}
-            profilePath={photos ? person.profilePath : null}
-            size={64}
-            imageSize="w185"
-            className="ring-4 ring-surface"
-          />
+        {/* Spike: `?portrait=on` cuts the faces out (`PairingFace`); without it they are the round avatars they were. */}
+        {people.map((person, slot) => (
+          <PairingFace key={person.id} person={person} slot={slot} photos={photos} />
         ))}
       </div>
       {children}
