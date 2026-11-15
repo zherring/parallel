@@ -1,10 +1,12 @@
 /**
- * Spike (zherring/spike-portraits): "cut-paper" polygons around TMDB portraits, for the /dev/portraits contact sheet only.
+ * Spike (zherring/spike-portraits): "cut-paper" polygons around TMDB portraits, for the /dev/portraits contact sheet and /dev/portraits/grid only.
  * portrait-cuts.json is written by `npm run portraits:cut` (scripts/portraits/cut.ts); nothing in the real pages reads it.
  */
 
-/** The artists on the contact sheet, each picked to stress the cut (see the spike's report). */
-export const PORTRAIT_IDS: readonly number[] = [
+import { EXAMPLE_PAIRINGS } from "@/lib/examples";
+
+/** The contact sheet's artists, each picked to stress the cut (see the spike's report). */
+export const CONTACT_SHEET_IDS: readonly number[] = [
   1032, // Martin Scorsese: glasses, dark background (required)
   5026, // Akira Kurosawa: hat and dark glasses, black-and-white, busy striped shirt
   4385, // Sergio Leone: big beard, glasses, black-and-white, light background
@@ -17,27 +19,14 @@ export const PORTRAIT_IDS: readonly number[] = [
   12453, // Wong Kar-wai: sunglasses, angled, light background
   2636, // Alfred Hitchcock: profile, black-and-white
   7450, // Toshirō Mifune: tight face-only crop, black-and-white, light background
-  // The grid page's 20 more, all from pairs in pair-descriptions.ts, picked for a spread of roles, eras, genders and photo styles.
-  6598, // Katharine Hepburn: classic-era actress
-  16757, // Sophia Loren: Italian actress, big hair
-  10205, // Sigourney Weaver: actress, 1980s-on
-  7570, // Lauren Bacall: classic-era actress
-  139, // Uma Thurman: actress, 1990s-on
-  9340, // Lana Wachowski: director
-  9248, // Nora Ephron: writer-director
-  6648, // Ingmar Bergman: Swedish director, mid-century
-  4415, // Federico Fellini: Italian director, mid-century
-  92784, // Barry Jenkins: director, contemporary
-  10099, // Park Chan-wook: Korean director
-  309, // Pedro Almodóvar: Spanish director, white hair
-  5292, // Denzel Washington: actor
-  20738, // Song Kang-ho: Korean actor
-  5676, // Marcello Mastroianni: Italian actor, mid-century
-  4110, // Humphrey Bogart: classic-era actor
-  9309, // Richard Pryor: comedian-actor, 1970s-80s
-  1337, // Tony Leung Chiu-wai: Hong Kong actor
-  8500, // John Ford: silent-era-onward director, eyepatch and hat
-  10828, // Guillermo del Toro: Mexican director, beard and glasses
+];
+
+/**
+ * Every artist `npm run portraits:cut` cuts and the grid shows: Scorsese first (required), then every person in the curated pairs
+ * (`EXAMPLE_PAIRINGS`, the superset of the pairs with a description), in the order they appear there, so a new pair is picked up on the next run.
+ */
+export const PORTRAIT_IDS: readonly number[] = [
+  ...new Set([1032, ...CONTACT_SHEET_IDS, ...EXAMPLE_PAIRINGS.flatMap((pairing) => pairing.people.map((person) => person.id))]),
 ];
 
 export const VERTEX_COUNTS = ["12", "20", "32"] as const;

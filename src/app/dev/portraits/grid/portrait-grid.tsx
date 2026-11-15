@@ -18,6 +18,9 @@ function colorAt(index: number, columns: number): string {
 export function PortraitGrid({ cards }: { cards: { id: number; cut: PortraitCut }[] }) {
   const [mode, setMode] = useState<Mode>("Mix");
   const [columns, setColumns] = useState(1);
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const flaggedCount = cards.filter(({ cut }) => cut.flagged).length;
+  const shown = flaggedOnly ? cards.filter(({ cut }) => cut.flagged) : cards;
   const grid = useRef<HTMLDivElement>(null);
 
   // Mix is a true checkerboard, so it needs the grid's live column count.
@@ -37,7 +40,7 @@ export function PortraitGrid({ cards }: { cards: { id: number; cut: PortraitCut 
     <main style={{ background: "#0d0d0f", color: "#f4f1ea", minHeight: "100vh", padding: "20px 16px 40px", fontFamily: "system-ui, sans-serif" }}>
       <header style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 16, marginBottom: 16 }}>
         <h1 style={{ fontSize: 15, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", margin: 0 }}>Portrait grid</h1>
-        <span style={{ fontSize: 12, color: "#8a8780" }}>{cards.length} artists · 20-vertex cut</span>
+        <span style={{ fontSize: 12, color: "#8a8780" }}>{cards.length} artists · {flaggedCount} flagged · 20-vertex cut</span>
         <div role="group" aria-label="Background" style={{ display: "flex", border: "1px solid #3a3936", borderRadius: 999, overflow: "hidden" }}>
           {MODES.map((m) => (
             <button
@@ -60,12 +63,30 @@ export function PortraitGrid({ cards }: { cards: { id: number; cut: PortraitCut 
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          aria-pressed={flaggedOnly}
+          onClick={() => setFlaggedOnly((on) => !on)}
+          style={{
+            font: "inherit",
+            fontSize: 12,
+            fontWeight: 600,
+            padding: "5px 14px",
+            border: "1px solid #3a3936",
+            borderRadius: 999,
+            cursor: "pointer",
+            background: flaggedOnly ? "#f4f1ea" : "transparent",
+            color: flaggedOnly ? "#0d0d0f" : "#cfccc4",
+          }}
+        >
+          Flagged only
+        </button>
         <Link href="/dev/portraits" style={{ fontSize: 12, color: "#8a8780", marginLeft: "auto" }}>
           ← contact sheet
         </Link>
       </header>
       <div ref={grid} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 6 }}>
-        {cards.map(({ id, cut }, i) => (
+        {shown.map(({ id, cut }, i) => (
           <figure key={id} style={{ margin: 0 }}>
             <Card id={id} cut={cut} color={colorAt(i, columns)} montage={montageAt(i)} />
             <figcaption style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", padding: "5px 1px 8px" }}>
@@ -83,20 +104,38 @@ export function PortraitGrid({ cards }: { cards: { id: number; cut: PortraitCut 
   );
 }
 
+/**
+ * True once the element is within a screen or so of the viewport, and then for good. SVG `<image>` has no `loading="lazy"`, so the cards
+ * hold back their portrait and the montage's 9 posters until then, instead of fetching ~10 images × every artist on load.
+ */
+function useNearViewport<T extends Element>() {
+  const ref = useRef<T>(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || near) return;
+    const observer = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && setNear(true), { rootMargin: "600px 0px" });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [near]);
+  return [ref, near] as const;
+}
+
 function Card({ id, cut, color, montage }: { id: number; cut: PortraitCut; color: string; montage: boolean }) {
+  const [ref, near] = useNearViewport<SVGSVGElement>();
   const [w, h] = cut.size;
   const points = cut.variants["20"];
   const key = `g${id}`;
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ display: "block", width: "100%", height: "auto", aspectRatio: `${w} / ${h}` }} role="img" aria-label={cut.name}>
+    <svg ref={ref} viewBox={`0 0 ${w} ${h}`} style={{ display: "block", width: "100%", height: "auto", aspectRatio: `${w} / ${h}` }} role="img" aria-label={cut.name}>
       <defs>
         <clipPath id={`clip-${key}`}>
           <polygon points={polygonPoints(points, w, h)} />
         </clipPath>
         {montage && <Duotone id={`duo-${key}`} tint={color} />}
       </defs>
-      {montage ? <Montage id={key} posters={cut.posters} w={w} h={h} /> : <rect width={w} height={h} fill={color} />}
-      <image href={tmdbImage(cut.profilePath, "w500")!} width={w} height={h} preserveAspectRatio="none" clipPath={`url(#clip-${key})`} />
+      {montage ? <Montage id={key} posters={near ? cut.posters : []} w={w} h={h} /> : <rect width={w} height={h} fill={color} />}
+      {near && <image href={tmdbImage(cut.profilePath, "w500")!} width={w} height={h} preserveAspectRatio="none" clipPath={`url(#clip-${key})`} />}
       <path d={cutEdgePath(points, w, h)} fill="none" stroke="#fff" strokeWidth={3} strokeLinejoin="miter" strokeLinecap="square" vectorEffect="non-scaling-stroke" />
     </svg>
   );

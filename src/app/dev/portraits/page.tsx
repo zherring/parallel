@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import data from "@/lib/portrait-cuts.json";
 import { tmdbImage } from "@/lib/images";
-import { cutEdgePath, polygonPoints, PORTRAIT_IDS, VERTEX_COUNTS, type PortraitCut, type PortraitCuts, type VertexCount } from "@/lib/portrait-cuts";
+import { cutEdgePath, polygonPoints, CONTACT_SHEET_IDS, VERTEX_COUNTS, type PortraitCut, type PortraitCuts, type VertexCount } from "@/lib/portrait-cuts";
 
 export const metadata: Metadata = { title: "Portrait cuts (development)", robots: { index: false, follow: false } };
 
@@ -27,7 +27,7 @@ type Background = { kind: "flat"; color: string } | { kind: "montage"; posters: 
 export default function PortraitsPage() {
   if (process.env.NODE_ENV === "production") notFound();
 
-  const rows = PORTRAIT_IDS.map((id) => [id, CUTS[id]] as const).filter((row): row is readonly [number, PortraitCut] => Boolean(row[1]));
+  const rows = CONTACT_SHEET_IDS.map((id) => [id, CUTS[id]] as const).filter((row): row is readonly [number, PortraitCut] => Boolean(row[1]));
   const headers = ["Original", "12 vertices", "20 vertices", "32 vertices", "20 · flat color", "20 · poster montage"];
 
   return (
@@ -63,7 +63,7 @@ function Row({ id, cut }: { id: number; cut: PortraitCut }) {
         </div>
         {cut.model !== "birefnet-portrait" && <div style={{ color: "#b42318" }}>{cut.model} (fallback)</div>}
       </div>
-      <img src={src} alt={cut.name} width={CELL} height={(CELL * h) / w} style={{ display: "block" }} />
+      <img src={src} alt={cut.name} loading="lazy" width={CELL} height={(CELL * h) / w} style={{ display: "block" }} />
       {VERTEX_COUNTS.map((count) => (
         <Cut key={count} id={`${id}-${count}-y`} cut={cut} count={count} background={{ kind: "flat", color: YELLOW }} />
       ))}

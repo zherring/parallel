@@ -104,7 +104,11 @@ def main():
     results = {}
     for person_id, path in jobs:
         print(f"cutting {person_id}", file=sys.stderr)
-        results[person_id] = cut(model, session, path)
+        try:
+            results[person_id] = cut(model, session, path)
+        except Exception as error:  # noqa: BLE001 - spike: one bad photo must not lose the batch
+            print(f"  {person_id} failed: {error!r}", file=sys.stderr)
+            results[person_id] = {"error": repr(error)}
     json.dump({"model": model, "results": results}, sys.stdout)
 
 

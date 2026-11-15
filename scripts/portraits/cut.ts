@@ -51,51 +51,13 @@ function topPosters(person: Person, count: number): string[] {
     .map((c) => c.poster_path!);
 }
 
-async function main() {
-  const existing: PortraitCuts = existsSync(outFile) ? JSON.parse(readFileSync(outFile, "utf8")) : {};
-  mkdirSync(cacheDir, { recursive: true });
+/** Photos per cut.py process: the JSON is written after each, so a run that dies partway resumes from the last finished batch. */
+const BATCH = 8;
 
-  const pending: { id: number; person: Person; file: string }[] = [];
-  for (const id of PORTRAIT_IDS) {
-    const person = await tmdb<Person>(`/person/${id}?append_to_response=movie_credits`);
-    if (!person.profile_path) {
-      console.log(`${id} ${person.name}: no TMDB photo, skipped`);
-      continue;
-    }
-    if (existing[id]?.profilePath === person.profile_path) {
-      console.log(`${id} ${person.name}: unchanged, skipped`);
-      continue;
-    }
-    const file = join(cacheDir, `${id}${person.profile_path.replace(/\//g, "_")}`);
-    if (!existsSync(file)) {
-      const image = await fetch(`https://image.tmdb.org/t/p/w500${person.profile_path}`);
-      if (!image.ok) throw new Error(`portrait for ${id} answered ${image.status}`);
-      writeFileSync(file, Buffer.from(await image.arrayBuffer()));
-    }
-    pending.push({ id, person, file });
-  }
+type CutResult = Omit<PortraitCut, "name" | "profilePath" | "posters"> | { error: string } | null;
 
-  if (pending.length > 0) {
-    // Python's own CA bundle can be missing (python.org installs); point it at certifi's for the one-time model download.
-    const certs = execFileSync(python, ["-I", "-c", "import certifi; print(certifi.where())"], { encoding: "utf8" }).trim();
-    const stdout = execFileSync(python, ["-I", join(here, "cut.py"), ...pending.map((p) => `${p.id}=${p.file}`)], {
-      encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
-      stdio: ["ignore", "pipe", "inherit"],
-      env: { ...process.env, SSL_CERT_FILE: process.env.SSL_CERT_FILE ?? certs },
-    });
-    const { results } = JSON.parse(stdout) as { results: Record<string, Omit<PortraitCut, "name" | "profilePath" | "posters"> | null> };
-    for (const { id, person } of pending) {
-      const result = results[id];
-      if (!result) {
-        console.log(`${id} ${person.name}: no person found in the photo`);
-        continue;
-      }
-      existing[id] = { name: person.name, profilePath: person.profile_path!, ...result, posters: topPosters(person, 9) };
-      console.log(`${id} ${person.name}: cut with ${result.model} (mask covers ${Math.round(result.coverage * 100)}% of the frame)`);
-    }
-  }
-
+/** Flags fallback cuts and writes the file in PORTRAIT_IDS order (so diffs stay readable). */
+function save(existing: PortraitCuts): PortraitCuts {
   // A fallback cut is kept as is but flagged; this also backfills the flag on entries cut before it existed (model is stored).
   for (const cut of Object.values(existing)) {
     if (cut.model === "birefnet-portrait") {
@@ -106,15 +68,94 @@ async function main() {
       cut.flagReason = `birefnet-portrait mask under 5%; kept the ${cut.model} fallback`;
     }
   }
-
-  // Keep the file in PORTRAIT_IDS order so diffs stay readable.
   const ordered: PortraitCuts = {};
   for (const id of PORTRAIT_IDS) if (existing[id]) ordered[id] = existing[id];
   writeFileSync(outFile, `${JSON.stringify(ordered)}\n`);
-  console.log(`${Object.keys(ordered).length} entries in ${outFile}; ${pending.length} recomputed`);
+  return ordered;
+}
+
+async function main() {
+  const started = Date.now();
+  const existing: PortraitCuts = existsSync(outFile) ? JSON.parse(readFileSync(outFile, "utf8")) : {};
+  mkdirSync(cacheDir, { recursive: true });
+  const noPhoto: string[] = [];
+  const failed: string[] = [];
+
+  const pending: { id: number; person: Person; file: string }[] = [];
+  for (const id of PORTRAIT_IDS) {
+    try {
+      const person = await tmdb<Person>(`/person/${id}?append_to_response=movie_credits`);
+      if (!person.profile_path) {
+        console.log(`${id} ${person.name}: no TMDB photo, skipped`);
+        noPhoto.push(`${id} ${person.name}`);
+        continue;
+      }
+      if (existing[id]?.profilePath === person.profile_path) {
+        console.log(`${id} ${person.name}: unchanged, skipped`);
+        continue;
+      }
+      const file = join(cacheDir, `${id}${person.profile_path.replace(/\//g, "_")}`);
+      if (!existsSync(file)) {
+        const image = await fetch(`https://image.tmdb.org/t/p/w500${person.profile_path}`);
+        if (!image.ok) throw new Error(`portrait answered ${image.status}`);
+        writeFileSync(file, Buffer.from(await image.arrayBuffer()));
+      }
+      pending.push({ id, person, file });
+    } catch (error) {
+      console.log(`${id}: ${(error as Error).message}, skipped`);
+      failed.push(`${id}: ${(error as Error).message}`);
+    }
+  }
+  console.log(`${pending.length} to cut of ${PORTRAIT_IDS.length}`);
+
+  if (pending.length > 0) {
+    // Python's own CA bundle can be missing (python.org installs); point it at certifi's for the one-time model download.
+    const certs = execFileSync(python, ["-I", "-c", "import certifi; print(certifi.where())"], { encoding: "utf8" }).trim();
+    for (let at = 0; at < pending.length; at += BATCH) {
+      const batch = pending.slice(at, at + BATCH);
+      let results: Record<string, CutResult>;
+      try {
+        const stdout = execFileSync(python, ["-I", join(here, "cut.py"), ...batch.map((p) => `${p.id}=${p.file}`)], {
+          encoding: "utf8",
+          maxBuffer: 64 * 1024 * 1024,
+          stdio: ["ignore", "pipe", "inherit"],
+          env: { ...process.env, SSL_CERT_FILE: process.env.SSL_CERT_FILE ?? certs },
+        });
+        results = (JSON.parse(stdout) as { results: Record<string, CutResult> }).results;
+      } catch (error) {
+        console.log(`cut.py failed on ${batch.map((p) => p.id).join(", ")}: ${(error as Error).message}`);
+        for (const { id, person } of batch) failed.push(`${id} ${person.name}: cut.py process failed`);
+        continue;
+      }
+      for (const { id, person } of batch) {
+        const result = results[id];
+        if (!result) {
+          console.log(`${id} ${person.name}: no person found in the photo`);
+          failed.push(`${id} ${person.name}: no person found in the photo`);
+          continue;
+        }
+        if ("error" in result) {
+          console.log(`${id} ${person.name}: ${result.error}`);
+          failed.push(`${id} ${person.name}: ${result.error}`);
+          continue;
+        }
+        existing[id] = { name: person.name, profilePath: person.profile_path!, ...result, posters: topPosters(person, 9) };
+        console.log(`${id} ${person.name}: cut with ${result.model} (mask covers ${Math.round(result.coverage * 100)}% of the frame)`);
+      }
+      save(existing);
+      console.log(`[${Math.min(at + BATCH, pending.length)}/${pending.length}] saved`);
+    }
+  }
+
+  const ordered = save(existing);
+  console.log(`${Object.keys(ordered).length} entries in ${outFile}; ${pending.length} attempted; ${Math.round((Date.now() - started) / 1000)}s`);
   const flagged = Object.entries(ordered).filter(([, cut]) => cut.flagged);
   console.log(`${flagged.length} flagged${flagged.length ? ":" : ""}`);
   for (const [id, cut] of flagged) console.log(`  ${id} ${cut.name}: ${cut.flagReason}`);
+  console.log(`${noPhoto.length} with no TMDB photo${noPhoto.length ? ":" : ""}`);
+  for (const line of noPhoto) console.log(`  ${line}`);
+  console.log(`${failed.length} failed${failed.length ? ":" : ""}`);
+  for (const line of failed) console.log(`  ${line}`);
 }
 
 await main();
