@@ -11,6 +11,8 @@ const CUTS = data as unknown as PortraitCuts;
 const YELLOW = "#F7CB15";
 const PALETTE = ["#E4572E", "#17BEBB", "#76B041", "#2E86AB", "#A23B72", "#F18F01", "#6A4C93", "#C73E1D", "#3BB273", "#1B998B", "#EF476F"];
 const CELL = 120;
+/** The app's global link colour is light, unreadable on this cream sheet. */
+const contactLink = { color: "#1d4ed8", textDecoration: "underline" } as const;
 
 /** A simple deterministic color per artist. */
 function artistColor(id: number): string {
@@ -43,7 +45,13 @@ export default function PortraitsPage() {
     <main style={{ background: "#f4f1ea", color: "#111", minHeight: "100vh", padding: 16, fontFamily: "system-ui, sans-serif", fontSize: 12 }}>
       <h1 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 4px" }}>Portrait cuts (spike)</h1>
       <p style={{ margin: "0 0 12px", color: "#555" }}>
-        {rows.length} artists · {rows[0]?.[1].model ?? "no data"} · regenerate with <code>npm run portraits:cut</code> · <Link href="/dev/portraits/grid">grid view →</Link>
+        {rows.length} artists · {rows[0]?.[1].model ?? "no data"} · regenerate with <code>npm run portraits:cut</code> · <Link href="/dev/portraits/grid" style={contactLink}>
+          grid view →
+        </Link>{" "}
+        ·{" "}
+        <Link href="/dev/portraits/stroke" style={contactLink}>
+          stroke tuning →
+        </Link>
       </p>
       <div style={{ display: "grid", gridTemplateColumns: `140px repeat(${headers.length}, ${CELL}px)`, gap: 8, alignItems: "center" }}>
         <div />

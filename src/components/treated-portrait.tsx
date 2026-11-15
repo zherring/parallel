@@ -30,6 +30,12 @@ interface Props {
   posterSize?: ImageSize;
   /** Round the corners (`CARD_RADIUS_RATIO`); false for a portrait that fills a square-cornered panel. */
   rounded?: boolean;
+  /** Tuning override (/dev/portraits/stroke): the cut edge's width in screen px, instead of `CUT_STROKE_RATIO` of the card's width. */
+  strokePx?: number;
+  /** Tuning override: the ring's band (and the gap inside it) in screen px, instead of `CUT_STROKE_RATIO` of the card's width each. */
+  ringPx?: number;
+  /** Tuning override: the edge's colour, instead of the `?outline=color` flag. */
+  outline?: "white" | "color";
 }
 
 /** Whether `TreatedPortrait` would cut this person out (a cut exists, made from this very photo), so a caller can keep its own fallback. */
@@ -44,9 +50,10 @@ export function hasPortraitCut(personId: number, profilePath: string | null): bo
  * has changed since it was cut, gets the plain `PersonPortrait`. The edge, the ring and the corners scale with the card's width (`CUT_STROKE_RATIO`,
  * `CARD_RADIUS_RATIO`), through container units, so a small card gets a thin line. `?outline=color` draws the edge in the person's colour.
  */
-export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, ringColor, mode, posterSize = "w92", rounded = true }: Props) {
+export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, ringColor, mode, posterSize = "w92", rounded = true, strokePx, ringPx, outline }: Props) {
   const rawId = useId();
-  const outlineColor = useSearchParams()?.get("outline") === "color";
+  const outlineFlag = useSearchParams()?.get("outline") === "color";
+  const outlineColor = outline ? outline === "color" : outlineFlag;
   const cut = CUTS[String(personId)];
   const src = tmdbImage(profilePath, imageSize);
   if (!mode || !cut || !src || cut.profilePath !== profilePath) {
@@ -62,6 +69,9 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
   // Shares of the card's width, as container units: the outer span is the container, the inner one draws the ring and clips the picture.
   const unit = (ratio: number) => `calc(100cqw * ${ratio})`;
   const radius = rounded ? unit(CARD_RADIUS_RATIO) : undefined;
+  const ringGap = ringPx === undefined ? unit(CUT_STROKE_RATIO) : `${ringPx}px`;
+  const ringOuter = ringPx === undefined ? unit(2 * CUT_STROKE_RATIO) : `${2 * ringPx}px`;
+  const edge = cutEdgeStroke(w, outlineColor ? hex : undefined);
 
   return (
     <span aria-hidden="true" data-treated-portrait className={cn("relative inline-flex shrink-0 select-none", className)} style={{ containerType: "inline-size", borderRadius: radius }}>
@@ -70,7 +80,7 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
         style={{
           borderRadius: radius,
           background: montage ? "#111" : hex,
-          boxShadow: ringColor ? `0 0 0 ${unit(CUT_STROKE_RATIO)} var(--bg), 0 0 0 ${unit(2 * CUT_STROKE_RATIO)} ${ringColor}` : undefined,
+          boxShadow: ringColor ? `0 0 0 ${ringGap} var(--bg), 0 0 0 ${ringOuter} ${ringColor}` : undefined,
         }}
       >
         {montage && (
@@ -88,7 +98,11 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
             {montage && <Duotone id={`duo-${id}`} tint={hex} />}
           </defs>
           <image href={src} width={w} height={h} preserveAspectRatio="none" clipPath={`url(#clip-${id})`} />
-          <path d={cutEdgePath(points, w, h)} {...cutEdgeStroke(w, outlineColor ? hex : undefined)} />
+          <path
+            d={cutEdgePath(points, w, h)}
+            {...edge}
+            {...(strokePx === undefined ? {} : { strokeWidth: strokePx, vectorEffect: "non-scaling-stroke" as const })}
+          />
         </svg>
       </span>
     </span>

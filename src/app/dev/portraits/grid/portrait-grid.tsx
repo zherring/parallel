@@ -81,7 +81,10 @@ export function PortraitGrid({ cards }: { cards: { id: number; cut: PortraitCut 
         >
           Flagged only
         </button>
-        <Link href="/dev/portraits" style={{ fontSize: 12, color: "#8a8780", marginLeft: "auto" }}>
+        <Link href="/dev/portraits/stroke" style={{ fontSize: 12, color: "#8a8780", marginLeft: "auto" }}>
+          stroke tuning
+        </Link>
+        <Link href="/dev/portraits" style={{ fontSize: 12, color: "#8a8780" }}>
           ← contact sheet
         </Link>
       </header>
