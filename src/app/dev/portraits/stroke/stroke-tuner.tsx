@@ -5,7 +5,7 @@ import { useState, useSyncExternalStore, type CSSProperties, type ReactNode } fr
 import { TreatedPortrait } from "@/components/treated-portrait";
 import type { PortraitMode } from "@/components/use-portrait-mode";
 import { PERSON_COLORS, personHex } from "@/lib/person-colors";
-import { CUT_STROKE_RATIO } from "@/lib/portrait-cuts";
+import { STROKE_MAX_PX, STROKE_PER_WIDTH, strokeForWidth as rule } from "@/lib/portrait-cuts";
 
 export interface TunerArtist {
   id: number;
@@ -47,10 +47,9 @@ type Fit = { a: number; p: number } | null;
 
 const STORAGE_KEY = "spike-portrait-stroke";
 const MAX_PX = 8;
-const linear = (w: number) => round2(w * CUT_STROKE_RATIO);
 
 function defaultPicks(): Picks {
-  return Object.fromEntries(SIZES.map((s) => [s.key, { stroke: linear(s.w), ring: linear(s.w) }])) as Picks;
+  return Object.fromEntries(SIZES.map((s) => [s.key, { stroke: rule(s.w), ring: rule(s.w) }])) as Picks;
 }
 
 function readPicks(): Picks {
@@ -63,7 +62,7 @@ function readPicks(): Picks {
       if (typeof entry?.ring === "number") picks[s.key].ring = entry.ring;
     }
   } catch {
-    // No storage, or junk in it: start from the linear rule.
+    // No storage, or junk in it: start from the rule.
   }
   return picks;
 }
@@ -301,10 +300,10 @@ function Tuner({ artists }: { artists: TunerArtist[] }) {
           <h2 style={h2Style}>
             {editSize.label} · {editSize.w}px{preview && <span style={{ color: "#d0a845", fontWeight: 400 }}> (previewing the fitted rule; the sliders edit the picks)</span>}
           </h2>
-          <Control label="Cut edge" value={picks[editing].stroke} reference={linear(editSize.w)} onChange={(v) => setPick(editing, "stroke", v)} />
-          <Control label="Ring" value={picks[editing].ring} reference={linear(editSize.w)} onChange={(v) => setPick(editing, "ring", v)} />
+          <Control label="Cut edge" value={picks[editing].stroke} reference={rule(editSize.w)} onChange={(v) => setPick(editing, "stroke", v)} />
+          <Control label="Ring" value={picks[editing].ring} reference={rule(editSize.w)} onChange={(v) => setPick(editing, "ring", v)} />
           <p style={{ margin: "8px 0 0", color: "#9aa3ad", fontSize: 11 }}>
-            Linear rule: {round2(CUT_STROKE_RATIO * 1000) / 1000} × width (1.2px at 76). The ring is a gap and a band of this width each; only the hero draws it.
+            Rule: min({STROKE_MAX_PX}px, {STROKE_PER_WIDTH} × width), so 1.85px at 56, 2.5px at 76 and {STROKE_MAX_PX}px from 100 up. The ring is a gap and a band of this width each; only the hero draws it.
           </p>
         </section>
 
@@ -316,10 +315,10 @@ function Tuner({ artists }: { artists: TunerArtist[] }) {
                 <th style={{ textAlign: "left", ...cell }}>Size</th>
                 <th style={cell}>Edge</th>
                 <th style={cell}>fit</th>
-                <th style={cell}>linear</th>
+                <th style={cell}>rule</th>
                 <th style={cell}>Ring</th>
                 <th style={cell}>fit</th>
-                <th style={cell}>linear</th>
+                <th style={cell}>rule</th>
               </tr>
             </thead>
             <tbody>
@@ -330,10 +329,10 @@ function Tuner({ artists }: { artists: TunerArtist[] }) {
                   </td>
                   <td style={cell}>{picks[s.key].stroke}</td>
                   <td style={{ ...cell, color: "#9aa3ad" }}>{atFit(strokeFit, s.w) ?? "–"}</td>
-                  <td style={{ ...cell, color: "#6b7280" }}>{linear(s.w)}</td>
+                  <td style={{ ...cell, color: "#6b7280" }}>{rule(s.w)}</td>
                   <td style={cell}>{picks[s.key].ring}</td>
                   <td style={{ ...cell, color: "#9aa3ad" }}>{atFit(ringFit, s.w) ?? "–"}</td>
-                  <td style={{ ...cell, color: "#6b7280" }}>{linear(s.w)}</td>
+                  <td style={{ ...cell, color: "#6b7280" }}>{rule(s.w)}</td>
                 </tr>
               ))}
             </tbody>
@@ -352,7 +351,7 @@ function Tuner({ artists }: { artists: TunerArtist[] }) {
               Copy values
             </Pill>
             <Pill on={false} onClick={() => setPicks(defaultPicks())}>
-              Reset all to linear
+              Reset all to rule
             </Pill>
             {copied && <span style={{ color: "#9aa3ad", fontSize: 11 }}>{copied}</span>}
           </div>
@@ -376,9 +375,9 @@ function Control({ label, value, reference, onChange }: { label: string; value: 
         onChange={(e) => onChange(Number(e.target.value))}
         style={{ width: 64, font: "inherit", background: "#0d0f12", color: "#e5e7eb", border: "1px solid #3a3f45", borderRadius: 4, padding: "2px 4px" }}
       />
-      <span style={{ color: "#9aa3ad", fontSize: 11 }}>px · linear {reference}</span>
+      <span style={{ color: "#9aa3ad", fontSize: 11 }}>px · rule {reference}</span>
       <button type="button" onClick={() => onChange(reference)} disabled={value === reference} style={{ ...pillBase, padding: "2px 8px", opacity: value === reference ? 0.4 : 1 }}>
-        reset to linear
+        reset to rule
       </button>
     </div>
   );

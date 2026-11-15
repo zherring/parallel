@@ -8,7 +8,7 @@ import type { PortraitMode } from "@/components/use-portrait-mode";
 import { tmdbImage, type ImageSize } from "@/lib/images";
 import { PERSON_COLORS } from "@/lib/person-colors";
 import cuts from "@/lib/portrait-cuts.json";
-import { CARD_RADIUS_RATIO, CUT_STROKE_RATIO, cutEdgePath, cutEdgeStroke, polygonPoints, type PortraitCuts } from "@/lib/portrait-cuts";
+import { CARD_RADIUS_RATIO, STROKE_CSS, cutEdgePath, cutEdgeStroke, polygonPoints, type PortraitCuts } from "@/lib/portrait-cuts";
 
 const CUTS = cuts as unknown as PortraitCuts;
 
@@ -30,9 +30,9 @@ interface Props {
   posterSize?: ImageSize;
   /** Round the corners (`CARD_RADIUS_RATIO`); false for a portrait that fills a square-cornered panel. */
   rounded?: boolean;
-  /** Tuning override (/dev/portraits/stroke): the cut edge's width in screen px, instead of `CUT_STROKE_RATIO` of the card's width. */
+  /** Tuning override (/dev/portraits/stroke): the cut edge's width in screen px, instead of the rule (`STROKE_CSS`). */
   strokePx?: number;
-  /** Tuning override: the ring's band (and the gap inside it) in screen px, instead of `CUT_STROKE_RATIO` of the card's width each. */
+  /** Tuning override: the ring's band (and the gap inside it) in screen px, instead of the rule (`STROKE_CSS`) each. */
   ringPx?: number;
   /** Tuning override: the edge's colour, instead of the `?outline=color` flag. */
   outline?: "white" | "color";
@@ -47,8 +47,9 @@ export function hasPortraitCut(personId: number, profilePath: string | null): bo
 /**
  * Spike (zherring/spike-portraits): a portrait cut out along the 20-vertex polygon of `portrait-cuts.json` with a white edge (the frame's edges
  * left open), over a flat colour or a montage of the artist's posters, duotoned dark so the face reads. A person with no cut, or whose TMDB photo
- * has changed since it was cut, gets the plain `PersonPortrait`. The edge, the ring and the corners scale with the card's width (`CUT_STROKE_RATIO`,
- * `CARD_RADIUS_RATIO`), through container units, so a small card gets a thin line. `?outline=color` draws the edge in the person's colour.
+ * has changed since it was cut, gets the plain `PersonPortrait`. The edge and the ring follow the capped rule (`STROKE_CSS`: proportional on a
+ * small card, 3.3px from about 100px up) and the corners scale with the card (`CARD_RADIUS_RATIO`), all through container units, so nothing is
+ * measured. `?outline=color` draws the edge in the person's colour.
  */
 export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, ringColor, mode, posterSize = "w92", rounded = true, strokePx, ringPx, outline }: Props) {
   const rawId = useId();
@@ -66,12 +67,10 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
   const points = cut.variants["20"];
   const montage = mode === "montage";
 
-  // Shares of the card's width, as container units: the outer span is the container, the inner one draws the ring and clips the picture.
-  const unit = (ratio: number) => `calc(100cqw * ${ratio})`;
-  const radius = rounded ? unit(CARD_RADIUS_RATIO) : undefined;
-  const ringGap = ringPx === undefined ? unit(CUT_STROKE_RATIO) : `${ringPx}px`;
-  const ringOuter = ringPx === undefined ? unit(2 * CUT_STROKE_RATIO) : `${2 * ringPx}px`;
-  const edge = cutEdgeStroke(w, outlineColor ? hex : undefined);
+  // Container units: the outer span is the container, the inner one draws the ring and clips the picture.
+  const radius = rounded ? `calc(100cqw * ${CARD_RADIUS_RATIO})` : undefined;
+  const ringGap = ringPx === undefined ? STROKE_CSS : `${ringPx}px`;
+  const ringOuter = ringPx === undefined ? `calc(2 * ${STROKE_CSS})` : `${2 * ringPx}px`;
 
   return (
     <span aria-hidden="true" data-treated-portrait className={cn("relative inline-flex shrink-0 select-none", className)} style={{ containerType: "inline-size", borderRadius: radius }}>
@@ -98,11 +97,7 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
             {montage && <Duotone id={`duo-${id}`} tint={hex} />}
           </defs>
           <image href={src} width={w} height={h} preserveAspectRatio="none" clipPath={`url(#clip-${id})`} />
-          <path
-            d={cutEdgePath(points, w, h)}
-            {...edge}
-            {...(strokePx === undefined ? {} : { strokeWidth: strokePx, vectorEffect: "non-scaling-stroke" as const })}
-          />
+          <path d={cutEdgePath(points, w, h)} {...cutEdgeStroke(outlineColor ? hex : undefined, strokePx)} />
         </svg>
       </span>
     </span>

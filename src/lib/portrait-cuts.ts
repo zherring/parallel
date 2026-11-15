@@ -56,25 +56,44 @@ export interface PortraitCut {
 export type PortraitCuts = Record<string, PortraitCut>;
 
 /**
- * The cut edge's width as a share of the portrait's rendered width: 1.2px on the pair hero's 76px-wide portrait (the owner's call), about 2.4px
- * on a 150px grid card and 6px on a ~380px Quotes portrait, so the line keeps its weight relative to the picture at every size. Drawn in the SVG's
- * own units (no `vector-effect: non-scaling-stroke`), it scales with the image; the hero's ring (gap and band) is a multiple of it.
+ * The cut edge's width: proportional on small portraits, capped on large ones, i.e. min(`STROKE_MAX_PX`, `STROKE_PER_WIDTH` × the portrait's
+ * rendered width). The owner's picks in /dev/portraits/stroke: 1.8px at 56, 2.5px at 76 (the pair hero), 3.3px from about 100px up. The hero's
+ * ring (gap and band) uses the same width.
  */
-export const CUT_STROKE_RATIO = 1.2 / 76;
+export const STROKE_MAX_PX = 3.3;
+export const STROKE_PER_WIDTH = 0.033;
 
-/** The pair hero card's corner radius as a share of its width: the app's 6px (`--bar-radius`) at 150px, scaling as the stroke does. */
+/** The rule as a number, for a portrait `width` px wide (the tuner's reference column). */
+export function strokeForWidth(width: number): number {
+  return Math.round(Math.min(STROKE_MAX_PX, STROKE_PER_WIDTH * width) * 100) / 100;
+}
+
+/**
+ * The rule as CSS, measured nowhere: `cqw` resolves against the nearest size container (`container-type: inline-size`), which must be the
+ * portrait's own box, so 1cqw is 1% of its rendered width.
+ */
+export const STROKE_CSS = `min(${STROKE_MAX_PX}px, ${Math.round(STROKE_PER_WIDTH * 1e5) / 1e3}cqw)`;
+
+/** The pair hero card's corner radius as a share of its width: the app's 6px (`--bar-radius`) at 150px, scaling with the card. */
 export const CARD_RADIUS_RATIO = 6 / 150;
 
 export const CUT_STROKE_WHITE = "#fff";
 
-/** The cut edge path's presentation props for a viewBox `w` units wide: the stroke scales with the drawing (see `CUT_STROKE_RATIO`). */
-export function cutEdgeStroke(w: number, strokeColor: string = CUT_STROKE_WHITE) {
+/**
+ * The cut edge path's presentation props. The width is set through `style` (an attribute can't hold `min()` or `cqw`) with
+ * `vector-effect: non-scaling-stroke`, so it is in screen px whatever the viewBox; `widthPx` overrides the rule (the tuner). The path must sit
+ * inside a size container that is the portrait's box (see `STROKE_CSS`).
+ */
+export function cutEdgeStroke(strokeColor: string = CUT_STROKE_WHITE, widthPx?: number) {
   return {
     fill: "none",
     stroke: strokeColor,
-    strokeWidth: round(w * CUT_STROKE_RATIO * 100) / 100,
     strokeLinejoin: "miter",
     strokeLinecap: "square",
+    style: {
+      strokeWidth: widthPx === undefined ? STROKE_CSS : `${widthPx}px`,
+      vectorEffect: "non-scaling-stroke",
+    },
   } as const;
 }
 

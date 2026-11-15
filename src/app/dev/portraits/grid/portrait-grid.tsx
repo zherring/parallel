@@ -129,18 +129,21 @@ function Card({ id, cut, color, montage }: { id: number; cut: PortraitCut; color
   const [w, h] = cut.size;
   const points = cut.variants["20"];
   const key = `g${id}`;
+  // The span is the size container the edge's width (`cutEdgeStroke`) is measured against.
   return (
-    <svg ref={ref} viewBox={`0 0 ${w} ${h}`} style={{ display: "block", width: "100%", height: "auto", aspectRatio: `${w} / ${h}` }} role="img" aria-label={cut.name}>
-      <defs>
-        <clipPath id={`clip-${key}`}>
-          <polygon points={polygonPoints(points, w, h)} />
-        </clipPath>
-        {montage && <Duotone id={`duo-${key}`} tint={color} />}
-      </defs>
-      {montage ? <Montage id={key} posters={near ? cut.posters : []} w={w} h={h} /> : <rect width={w} height={h} fill={color} />}
-      {near && <image href={tmdbImage(cut.profilePath, "w500")!} width={w} height={h} preserveAspectRatio="none" clipPath={`url(#clip-${key})`} />}
-      <path d={cutEdgePath(points, w, h)} {...cutEdgeStroke(w)} />
-    </svg>
+    <span style={{ display: "block", containerType: "inline-size" }}>
+      <svg ref={ref} viewBox={`0 0 ${w} ${h}`} style={{ display: "block", width: "100%", height: "auto", aspectRatio: `${w} / ${h}` }} role="img" aria-label={cut.name}>
+        <defs>
+          <clipPath id={`clip-${key}`}>
+            <polygon points={polygonPoints(points, w, h)} />
+          </clipPath>
+          {montage && <Duotone id={`duo-${key}`} tint={color} />}
+        </defs>
+        {montage ? <Montage id={key} posters={near ? cut.posters : []} w={w} h={h} /> : <rect width={w} height={h} fill={color} />}
+        {near && <image href={tmdbImage(cut.profilePath, "w500")!} width={w} height={h} preserveAspectRatio="none" clipPath={`url(#clip-${key})`} />}
+        <path d={cutEdgePath(points, w, h)} {...cutEdgeStroke()} />
+      </svg>
+    </span>
   );
 }
 

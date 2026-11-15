@@ -97,18 +97,21 @@ function Cut({ id, cut, count, background, strokeColor }: { id: string; cut: Por
   const [w, h] = cut.size;
   const points = cut.variants[count];
   const src = tmdbImage(cut.profilePath, "w500")!;
+  // The span is the size container the edge's width (`cutEdgeStroke`) is measured against.
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} width={CELL} height={(CELL * h) / w} style={{ display: "block", overflow: "hidden" }}>
-      <defs>
-        <clipPath id={`clip-${id}`}>
-          <polygon points={polygonPoints(points, w, h)} />
-        </clipPath>
-        {background.kind === "montage" && <Duotone id={`duo-${id}`} tint={background.tint} />}
-      </defs>
-      {background.kind === "flat" ? <rect width={w} height={h} fill={background.color} /> : <Montage id={id} posters={background.posters} w={w} h={h} />}
-      <image href={src} width={w} height={h} preserveAspectRatio="none" clipPath={`url(#clip-${id})`} />
-      <path d={cutEdgePath(points, w, h)} {...cutEdgeStroke(w, strokeColor)} />
-    </svg>
+    <span style={{ display: "block", width: CELL, containerType: "inline-size" }}>
+      <svg viewBox={`0 0 ${w} ${h}`} width={CELL} height={(CELL * h) / w} style={{ display: "block", overflow: "hidden" }}>
+        <defs>
+          <clipPath id={`clip-${id}`}>
+            <polygon points={polygonPoints(points, w, h)} />
+          </clipPath>
+          {background.kind === "montage" && <Duotone id={`duo-${id}`} tint={background.tint} />}
+        </defs>
+        {background.kind === "flat" ? <rect width={w} height={h} fill={background.color} /> : <Montage id={id} posters={background.posters} w={w} h={h} />}
+        <image href={src} width={w} height={h} preserveAspectRatio="none" clipPath={`url(#clip-${id})`} />
+        <path d={cutEdgePath(points, w, h)} {...cutEdgeStroke(strokeColor)} />
+      </svg>
+    </span>
   );
 }
 
