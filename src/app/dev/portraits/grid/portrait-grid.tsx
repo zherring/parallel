@@ -4,12 +4,49 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { tmdbImage } from "@/lib/images";
 import { CutPortraitImage } from "@/components/cut-portrait-image";
-import { polygonPoints, type PortraitCut } from "@/lib/portrait-cuts";
+import { CUT_STROKE_WHITE, EDGE_POSITIONS, parseEdgePosition, polygonPoints, type EdgePosition, type PortraitCut } from "@/lib/portrait-cuts";
+import { ControlsPanel, createSettingsStore, EDGE_LABELS, Group, PANEL_W, PanelNote, pick, Segment } from "../controls-panel";
 
 /** Eight saturated, screen-print-poster colors that sit well together on a near-black page. */
 const PALETTE = ["#E63B2E", "#F2C230", "#2E5EAA", "#F28C28", "#1F9E89", "#E5487D", "#6B4BA1", "#3E9E4F"];
 const MODES = ["Color", "Montage", "Mix"] as const;
 type Mode = (typeof MODES)[number];
+/** One card per artist, so no "Both": "color" strokes the edge in the card's own colour (the flat fill, or the montage's tint). */
+const OUTLINES = ["white", "color"] as const;
+type Outline = (typeof OUTLINES)[number];
+const OUTLINE_LABELS: Record<Outline, string> = { white: "White", color: "Colour" };
+
+interface Settings {
+  edge: EdgePosition;
+  outline: Outline;
+  mode: Mode;
+  flaggedOnly: boolean;
+  open: boolean;
+}
+
+const DEFAULTS: Settings = { edge: "center", outline: "white", mode: "Mix", flaggedOnly: false, open: true };
+
+/** The panel's settings (`?edge=`, `?outline=`, `?bg=`, `?flagged=1`, then localStorage, then the defaults; see `createSettingsStore`). */
+const { useSettings, setSettings } = createSettingsStore<Settings>({
+  storageKey: "spike-portrait-grid",
+  defaults: DEFAULTS,
+  read: (params, saved) => {
+    const modeOf = (value: unknown) => MODES.find((m) => m.toLowerCase() === String(value).toLowerCase()) ?? null;
+    const flagged = params.get("flagged");
+    return {
+      edge: parseEdgePosition(params.get("edge")) ?? parseEdgePosition(saved.edge) ?? DEFAULTS.edge,
+      outline: pick(OUTLINES, params.get("outline")) ?? pick(OUTLINES, saved.outline) ?? DEFAULTS.outline,
+      mode: modeOf(params.get("bg")) ?? modeOf(saved.mode) ?? DEFAULTS.mode,
+      flaggedOnly: flagged !== null ? flagged === "1" : typeof saved.flaggedOnly === "boolean" ? saved.flaggedOnly : DEFAULTS.flaggedOnly,
+    };
+  },
+  toParams: ({ edge, outline, mode, flaggedOnly }) => ({
+    edge: edge === DEFAULTS.edge ? null : edge,
+    outline: outline === DEFAULTS.outline ? null : outline,
+    bg: mode === DEFAULTS.mode ? null : mode.toLowerCase(),
+    flagged: flaggedOnly ? "1" : null,
+  }),
+});
 
 /** By grid position: +3 per column, +2 per row (mod 8), so side-by-side, stacked and diagonal neighbors never share a color at any width. */
 function colorAt(index: number, columns: number): string {
@@ -17,9 +54,9 @@ function colorAt(index: number, columns: number): string {
 }
 
 export function PortraitGrid({ cards }: { cards: { id: number; cut: PortraitCut }[] }) {
-  const [mode, setMode] = useState<Mode>("Mix");
+  const settings = useSettings();
+  const { edge, outline, mode, flaggedOnly } = settings;
   const [columns, setColumns] = useState(1);
-  const [flaggedOnly, setFlaggedOnly] = useState(false);
   const flaggedCount = cards.filter(({ cut }) => cut.flagged).length;
   const shown = flaggedOnly ? cards.filter(({ cut }) => cut.flagged) : cards;
   const grid = useRef<HTMLDivElement>(null);
@@ -38,50 +75,10 @@ export function PortraitGrid({ cards }: { cards: { id: number; cut: PortraitCut 
   const montageAt = (i: number) => mode === "Montage" || (mode === "Mix" && (Math.floor(i / columns) + (i % columns)) % 2 === 1);
 
   return (
-    <main style={{ background: "#0d0d0f", color: "#f4f1ea", minHeight: "100vh", padding: "20px 16px 40px", fontFamily: "system-ui, sans-serif" }}>
+    <main style={{ background: "#0d0d0f", color: "#f4f1ea", minHeight: "100vh", padding: `20px ${settings.open ? PANEL_W + 44 : 16}px 40px 16px`, fontFamily: "system-ui, sans-serif" }}>
       <header style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 16, marginBottom: 16 }}>
         <h1 style={{ fontSize: 15, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", margin: 0 }}>Portrait grid</h1>
         <span style={{ fontSize: 12, color: "#8a8780" }}>{cards.length} artists · {flaggedCount} flagged · 20-vertex cut</span>
-        <div role="group" aria-label="Background" style={{ display: "flex", border: "1px solid #3a3936", borderRadius: 999, overflow: "hidden" }}>
-          {MODES.map((m) => (
-            <button
-              key={m}
-              type="button"
-              aria-pressed={mode === m}
-              onClick={() => setMode(m)}
-              style={{
-                font: "inherit",
-                fontSize: 12,
-                fontWeight: 600,
-                padding: "5px 14px",
-                border: 0,
-                cursor: "pointer",
-                background: mode === m ? "#f4f1ea" : "transparent",
-                color: mode === m ? "#0d0d0f" : "#cfccc4",
-              }}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          aria-pressed={flaggedOnly}
-          onClick={() => setFlaggedOnly((on) => !on)}
-          style={{
-            font: "inherit",
-            fontSize: 12,
-            fontWeight: 600,
-            padding: "5px 14px",
-            border: "1px solid #3a3936",
-            borderRadius: 999,
-            cursor: "pointer",
-            background: flaggedOnly ? "#f4f1ea" : "transparent",
-            color: flaggedOnly ? "#0d0d0f" : "#cfccc4",
-          }}
-        >
-          Flagged only
-        </button>
         <Link href="/dev/portraits/stroke" style={{ fontSize: 12, color: "#8a8780", marginLeft: "auto" }}>
           stroke tuning
         </Link>
@@ -92,7 +89,7 @@ export function PortraitGrid({ cards }: { cards: { id: number; cut: PortraitCut 
       <div ref={grid} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 6 }}>
         {shown.map(({ id, cut }, i) => (
           <figure key={id} style={{ margin: 0 }}>
-            <Card id={id} cut={cut} color={colorAt(i, columns)} montage={montageAt(i)} />
+            <Card id={id} cut={cut} color={colorAt(i, columns)} montage={montageAt(i)} edge={edge} outline={outline} />
             <figcaption style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", padding: "5px 1px 8px" }}>
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cut.name}</span>
               {cut.flagged && (
@@ -104,7 +101,45 @@ export function PortraitGrid({ cards }: { cards: { id: number; cut: PortraitCut 
           </figure>
         ))}
       </div>
+      <Panel settings={settings} />
     </main>
+  );
+}
+
+function Panel({ settings }: { settings: Settings }) {
+  return (
+    <ControlsPanel label="Portrait grid settings" open={settings.open} onToggle={() => setSettings({ open: !settings.open })}>
+      <Group label="Edge">
+        {EDGE_POSITIONS.map((position) => (
+          <Segment key={position} on={settings.edge === position} onClick={() => setSettings({ edge: position })}>
+            {EDGE_LABELS[position]}
+          </Segment>
+        ))}
+      </Group>
+      <Group label="Outline">
+        {OUTLINES.map((o) => (
+          <Segment key={o} on={settings.outline === o} onClick={() => setSettings({ outline: o })}>
+            {OUTLINE_LABELS[o]}
+          </Segment>
+        ))}
+      </Group>
+      <Group label="Background">
+        {MODES.map((m) => (
+          <Segment key={m} on={settings.mode === m} onClick={() => setSettings({ mode: m })}>
+            {m}
+          </Segment>
+        ))}
+      </Group>
+      <Group label="Show">
+        <Segment on={!settings.flaggedOnly} onClick={() => setSettings({ flaggedOnly: false })}>
+          All
+        </Segment>
+        <Segment on={settings.flaggedOnly} onClick={() => setSettings({ flaggedOnly: true })}>
+          Flagged only
+        </Segment>
+      </Group>
+      <PanelNote>Colour outlines take the card&rsquo;s own colour (the flat fill, or the montage&rsquo;s tint).</PanelNote>
+    </ControlsPanel>
   );
 }
 
@@ -125,7 +160,7 @@ function useNearViewport<T extends Element>() {
   return [ref, near] as const;
 }
 
-function Card({ id, cut, color, montage }: { id: number; cut: PortraitCut; color: string; montage: boolean }) {
+function Card({ id, cut, color, montage, edge, outline }: { id: number; cut: PortraitCut; color: string; montage: boolean; edge: EdgePosition; outline: Outline }) {
   const [ref, near] = useNearViewport<SVGSVGElement>();
   const [w, h] = cut.size;
   const points = cut.variants["20"];
@@ -141,7 +176,7 @@ function Card({ id, cut, color, montage }: { id: number; cut: PortraitCut; color
           {montage && <Duotone id={`duo-${key}`} tint={color} />}
         </defs>
         {montage ? <Montage id={key} posters={near ? cut.posters : []} w={w} h={h} /> : <rect width={w} height={h} fill={color} />}
-        <CutPortraitImage src={near ? tmdbImage(cut.profilePath, "w500") : null} points={points} w={w} h={h} clipId={`clip-${key}`} />
+        <CutPortraitImage src={near ? tmdbImage(cut.profilePath, "w500") : null} points={points} w={w} h={h} clipId={`clip-${key}`} strokeColor={outline === "color" ? color : CUT_STROKE_WHITE} edgePosition={edge} />
       </svg>
     </span>
   );

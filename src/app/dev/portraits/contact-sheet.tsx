@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { CutPortraitImage } from "@/components/cut-portrait-image";
 import { tmdbImage } from "@/lib/images";
 import { CUT_STROKE_WHITE, EDGE_POSITIONS, parseEdgePosition, polygonPoints, type EdgePosition, type PortraitCut } from "@/lib/portrait-cuts";
+import { ControlsPanel, createSettingsStore, EDGE_LABELS, Group, PANEL_W, PanelNote, pick, Segment } from "./controls-panel";
 
 const PALETTE = ["#E4572E", "#17BEBB", "#76B041", "#2E86AB", "#A23B72", "#F18F01", "#6A4C93", "#C73E1D", "#3BB273", "#1B998B", "#EF476F"];
 const CELL = 120;
@@ -24,57 +25,20 @@ interface Settings {
 }
 
 const DEFAULTS: Settings = { edge: "center", outline: "both", open: true };
-const STORAGE_KEY = "spike-portrait-sheet";
 
-/**
- * The panel's settings: the address (`?edge=`, `?outline=`) wins, then this browser's last choice (localStorage), then the defaults. Kept in
- * a module store so the server and the hydrating render use the defaults and the saved view shows right after.
- */
-let current: Settings | null = null;
-const listeners = new Set<() => void>();
-
-function readSettings(): Settings {
-  let saved: Partial<Settings> = {};
-  try {
-    saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as Partial<Settings>;
-  } catch {
-    // No storage, or junk in it: the defaults.
-  }
-  const params = new URLSearchParams(window.location.search);
-  const outlineOf = (value: unknown) => OUTLINES.find((o) => o === value) ?? null;
-  return {
+/** The panel's settings (`?edge=`, `?outline=`, then localStorage, then the defaults; see `createSettingsStore`). */
+const { useSettings, setSettings } = createSettingsStore<Settings>({
+  storageKey: "spike-portrait-sheet",
+  defaults: DEFAULTS,
+  read: (params, saved) => ({
     edge: parseEdgePosition(params.get("edge")) ?? parseEdgePosition(saved.edge) ?? DEFAULTS.edge,
-    outline: outlineOf(params.get("outline")) ?? outlineOf(saved.outline) ?? DEFAULTS.outline,
-    open: typeof saved.open === "boolean" ? saved.open : DEFAULTS.open,
-  };
-}
-
-function getSettings(): Settings {
-  current ??= readSettings();
-  return current;
-}
-
-function setSettings(patch: Partial<Settings>) {
-  const next = { ...getSettings(), ...patch };
-  current = next;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  } catch {
-    // Storage off: the choice lasts until reload.
-  }
-  const url = new URL(window.location.href);
-  if (next.edge === DEFAULTS.edge) url.searchParams.delete("edge");
-  else url.searchParams.set("edge", next.edge);
-  if (next.outline === DEFAULTS.outline) url.searchParams.delete("outline");
-  else url.searchParams.set("outline", next.outline);
-  window.history.replaceState(window.history.state, "", url);
-  listeners.forEach((listener) => listener());
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
+    outline: pick(OUTLINES, params.get("outline")) ?? pick(OUTLINES, saved.outline) ?? DEFAULTS.outline,
+  }),
+  toParams: ({ edge, outline }) => ({
+    edge: edge === DEFAULTS.edge ? null : edge,
+    outline: outline === DEFAULTS.outline ? null : outline,
+  }),
+});
 
 /**
  * The contact sheet's grid and its slide-out panel. Columns: the original, then 20 vertices on a flat colour and on the montage, each with a
@@ -82,7 +46,7 @@ function subscribe(listener: () => void) {
  * columns) so it can hold back its images until it is near the viewport.
  */
 export function ContactSheet({ rows }: { rows: { id: number; cut: PortraitCut }[] }) {
-  const settings = useSyncExternalStore(subscribe, getSettings, () => DEFAULTS);
+  const settings = useSettings();
   const { edge, outline } = settings;
   const tones: ("white" | "color")[] = outline === "both" ? ["white", "color"] : [outline];
   const headers = [
@@ -229,57 +193,11 @@ function Duotone({ id, tint }: { id: string; tint: string }) {
   );
 }
 
-const PANEL_W = 236;
-const EDGE_LABELS: Record<EdgePosition, string> = { inside: "Inside", center: "Center", outside: "Outside" };
 const OUTLINE_LABELS: Record<Outline, string> = { white: "White", color: "Colour", both: "Both" };
 
-/** Fixed to the right edge; the tab on its left slides it in and out. Styled as the stroke tuner's controls. */
 function Panel({ settings }: { settings: Settings }) {
-  const { open } = settings;
   return (
-    <aside
-      aria-label="Contact sheet settings"
-      style={{
-        position: "fixed",
-        top: 64,
-        right: 0,
-        width: PANEL_W,
-        zIndex: 10,
-        transform: open ? "none" : `translateX(${PANEL_W}px)`,
-        transition: "transform 180ms ease",
-        background: "#0d0f12",
-        color: "#e5e7eb",
-        border: "1px solid #2a2f35",
-        borderRight: "none",
-        borderRadius: "8px 0 0 8px",
-        padding: 12,
-        fontSize: 12,
-        boxShadow: "0 6px 24px rgba(0,0,0,0.25)",
-      }}
-    >
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setSettings({ open: !open })}
-        title={open ? "Hide the panel" : "Show the panel"}
-        style={{
-          position: "absolute",
-          top: 10,
-          left: -28,
-          width: 28,
-          height: 36,
-          font: "inherit",
-          fontSize: 13,
-          background: "#0d0f12",
-          color: "#cfccc4",
-          border: "1px solid #2a2f35",
-          borderRight: "none",
-          borderRadius: "6px 0 0 6px",
-          cursor: "pointer",
-        }}
-      >
-        {open ? "›" : "‹"}
-      </button>
+    <ControlsPanel label="Contact sheet settings" open={settings.open} onToggle={() => setSettings({ open: !settings.open })}>
       <Group label="Edge">
         {EDGE_POSITIONS.map((position) => (
           <Segment key={position} on={settings.edge === position} onClick={() => setSettings({ edge: position })}>
@@ -294,28 +212,7 @@ function Panel({ settings }: { settings: Settings }) {
           </Segment>
         ))}
       </Group>
-      <p style={{ margin: "4px 0 0", color: "#6b7280", fontSize: 11 }}>Width stays on the rule; inside and outside draw it twice as wide and hide half.</p>
-    </aside>
+      <PanelNote>Width stays on the rule; inside and outside draw it twice as wide and hide half.</PanelNote>
+    </ControlsPanel>
   );
 }
-
-function Group({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ color: "#9aa3ad", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{label}</div>
-      <div role="group" aria-label={label} style={{ display: "flex", border: "1px solid #3a3936", borderRadius: 999, overflow: "hidden" }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function Segment({ on, onClick, children }: { on: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button type="button" aria-pressed={on} onClick={onClick} style={{ ...segmentBase, background: on ? "#f4f1ea" : "transparent", color: on ? "#0d0d0f" : "#cfccc4" }}>
-      {children}
-    </button>
-  );
-}
-
-const segmentBase: CSSProperties = { flex: 1, font: "inherit", fontSize: 12, fontWeight: 600, padding: "5px 8px", border: "none", cursor: "pointer" };

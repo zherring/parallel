@@ -9,8 +9,8 @@ export const metadata: Metadata = { title: "Portrait grid (development)", robots
 const CUTS = data as unknown as PortraitCuts;
 
 /**
- * Spike (zherring/spike-portraits): every artist in portrait-cuts.json as a grid of 20-vertex cut-paper cards, with a Color | Montage | Mix
- * toggle for the background. Development-only (a 404 in production), like /dev/portraits.
+ * Spike (zherring/spike-portraits): every artist in portrait-cuts.json as a grid of 20-vertex cut-paper cards, with the contact sheet's
+ * slide-out panel (edge, outline, background, flagged only). Development-only (a 404 in production), like /dev/portraits.
  */
 export default function PortraitGridPage() {
   if (process.env.NODE_ENV === "production") notFound();
