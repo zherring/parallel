@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import data from "@/lib/portrait-cuts.json";
-import { CONTACT_SHEET_IDS, type PortraitCut, type PortraitCuts } from "@/lib/portrait-cuts";
+import { PORTRAIT_IDS, type PortraitCut, type PortraitCuts } from "@/lib/portrait-cuts";
 import { ContactSheet } from "./contact-sheet";
 
 export const metadata: Metadata = { title: "Portrait cuts (development)", robots: { index: false, follow: false } };
@@ -20,13 +20,15 @@ const contactLink = { color: "#1d4ed8", textDecoration: "underline" } as const;
 export default function PortraitsPage() {
   if (process.env.NODE_ENV === "production") notFound();
 
-  const rows = CONTACT_SHEET_IDS.map((id) => ({ id, cut: CUTS[id] })).filter((row): row is { id: number; cut: PortraitCut } => Boolean(row.cut));
+  // Every artist in portrait-cuts.json, in the grid's order.
+  const rows = PORTRAIT_IDS.flatMap((id) => (CUTS[id] ? [{ id, cut: CUTS[id] as PortraitCut }] : []));
+  const flaggedCount = rows.filter(({ cut }) => cut.flagged).length;
 
   return (
     <main style={{ background: "#f4f1ea", color: "#111", minHeight: "100vh", padding: 16, fontFamily: "system-ui, sans-serif", fontSize: 12 }}>
       <h1 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 4px" }}>Portrait cuts (spike)</h1>
       <p style={{ margin: "0 0 12px", color: "#555" }}>
-        {rows.length} artists · {rows[0]?.cut.model ?? "no data"} · regenerate with <code>npm run portraits:cut</code> · <Link href="/dev/portraits/grid" style={contactLink}>
+        {rows.length} artists · {flaggedCount} flagged · 20-vertex cut · {rows[0]?.cut.model ?? "no data"} · regenerate with <code>npm run portraits:cut</code> · <Link href="/dev/portraits/grid" style={contactLink}>
           grid view →
         </Link>{" "}
         ·{" "}

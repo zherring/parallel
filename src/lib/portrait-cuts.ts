@@ -5,7 +5,10 @@
 
 import { EXAMPLE_PAIRINGS } from "@/lib/examples";
 
-/** The contact sheet's artists, each picked to stress the cut (see the spike's report). */
+/**
+ * The spike's first artists, each picked to stress the cut (see the spike's report). The contact sheet now shows every artist; this list
+ * still sets the head of `PORTRAIT_IDS`, i.e. the order of the cut script's file, the grid and the contact sheet.
+ */
 export const CONTACT_SHEET_IDS: readonly number[] = [
   1032, // Martin Scorsese: glasses, dark background (required)
   5026, // Akira Kurosawa: hat and dark glasses, black-and-white, busy striped shirt

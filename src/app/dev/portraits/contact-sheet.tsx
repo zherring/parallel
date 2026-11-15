@@ -1,11 +1,10 @@
 "use client";
 
-import { useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { CutPortraitImage } from "@/components/cut-portrait-image";
 import { tmdbImage } from "@/lib/images";
-import { CUT_STROKE_WHITE, EDGE_POSITIONS, VERTEX_COUNTS, parseEdgePosition, polygonPoints, type EdgePosition, type PortraitCut, type VertexCount } from "@/lib/portrait-cuts";
+import { CUT_STROKE_WHITE, EDGE_POSITIONS, parseEdgePosition, polygonPoints, type EdgePosition, type PortraitCut } from "@/lib/portrait-cuts";
 
-const YELLOW = "#F7CB15";
 const PALETTE = ["#E4572E", "#17BEBB", "#76B041", "#2E86AB", "#A23B72", "#F18F01", "#6A4C93", "#C73E1D", "#3BB273", "#1B998B", "#EF476F"];
 const CELL = 120;
 
@@ -78,9 +77,9 @@ function subscribe(listener: () => void) {
 }
 
 /**
- * The contact sheet's grid and its slide-out panel. Columns: the original, 12/20/32 vertices on yellow, then 20 vertices on a flat colour and
- * on the montage, each with a white and a colour outline ("Both") or with the one outline chosen. Every column follows the edge position; the
- * yellow ones also take the outline colour when it is White or Colour (the artist's colour, as yellow on yellow would vanish).
+ * The contact sheet's grid and its slide-out panel. Columns: the original, then 20 vertices on a flat colour and on the montage, each with a
+ * white and a colour outline ("Both") or with the one outline chosen. Every column follows the edge position. Each row is its own grid (same
+ * columns) so it can hold back its images until it is near the viewport.
  */
 export function ContactSheet({ rows }: { rows: { id: number; cut: PortraitCut }[] }) {
   const settings = useSyncExternalStore(subscribe, getSettings, () => DEFAULTS);
@@ -88,22 +87,23 @@ export function ContactSheet({ rows }: { rows: { id: number; cut: PortraitCut }[
   const tones: ("white" | "color")[] = outline === "both" ? ["white", "color"] : [outline];
   const headers = [
     "Original",
-    ...VERTEX_COUNTS.map((count) => `${count} vertices`),
     ...tones.map((tone) => `20 · flat color · ${tone} outline`),
     ...tones.map((tone) => `20 · montage · ${tone} outline`),
   ];
 
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: `140px repeat(${headers.length}, ${CELL}px)`, gap: 8, alignItems: "center", paddingRight: settings.open ? PANEL_W : 0 }}>
-        <div />
-        {headers.map((label) => (
-          <div key={label} style={{ fontWeight: 600, color: "#555" }}>
-            {label}
-          </div>
-        ))}
+      <div style={{ display: "grid", gap: 8, paddingRight: settings.open ? PANEL_W : 0 }}>
+        <div style={{ ...rowGrid(headers.length), alignItems: "end" }}>
+          <div />
+          {headers.map((label) => (
+            <div key={label} style={{ fontWeight: 600, color: "#555" }}>
+              {label}
+            </div>
+          ))}
+        </div>
         {rows.map(({ id, cut }) => (
-          <Row key={id} id={id} cut={cut} edge={edge} outline={outline} tones={tones} />
+          <Row key={id} id={id} cut={cut} edge={edge} tones={tones} columns={headers.length} />
         ))}
       </div>
       <Panel settings={settings} />
@@ -111,7 +111,29 @@ export function ContactSheet({ rows }: { rows: { id: number; cut: PortraitCut }[
   );
 }
 
-function Row({ id, cut, edge, outline, tones }: { id: number; cut: PortraitCut; edge: EdgePosition; outline: Outline; tones: ("white" | "color")[] }) {
+function rowGrid(columns: number): CSSProperties {
+  return { display: "grid", gridTemplateColumns: `140px repeat(${columns}, ${CELL}px)`, gap: 8, alignItems: "center" };
+}
+
+/**
+ * True once the element is within a screen or so of the viewport, and then for good (as in the grid). SVG `<image>` has no `loading="lazy"`,
+ * so a row holds back its portraits and the montage's 9 posters until then, instead of fetching every artist's images on load.
+ */
+function useNearViewport<T extends Element>() {
+  const ref = useRef<T>(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || near) return;
+    const observer = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && setNear(true), { rootMargin: "600px 0px" });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [near]);
+  return [ref, near] as const;
+}
+
+function Row({ id, cut, edge, tones, columns }: { id: number; cut: PortraitCut; edge: EdgePosition; tones: ("white" | "color")[]; columns: number }) {
+  const [ref, near] = useNearViewport<HTMLDivElement>();
   const src = tmdbImage(cut.profilePath, "w500")!;
   const [w, h] = cut.size;
   const color = artistColor(id);
@@ -119,32 +141,40 @@ function Row({ id, cut, edge, outline, tones }: { id: number; cut: PortraitCut; 
   const flat: Background = { kind: "flat", color };
   const montage: Background = { kind: "montage", posters: cut.posters, tint: color };
   return (
-    <>
+    <div ref={ref} data-row={id} style={rowGrid(columns)}>
       <div>
-        <div style={{ fontWeight: 600 }}>{cut.name}</div>
+        <div style={{ fontWeight: 600 }}>
+          {cut.name}
+          {cut.flagged && (
+            <span title={cut.flagReason} style={{ marginLeft: 6, fontSize: 9, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#b42318", border: "1px solid #e4a59f", borderRadius: 3, padding: "0 4px" }}>
+              flagged
+            </span>
+          )}
+        </div>
         <div style={{ color: "#777" }}>
           {id} · mask {Math.round(cut.coverage * 100)}%
         </div>
         {cut.model !== "birefnet-portrait" && <div style={{ color: "#b42318" }}>{cut.model} (fallback)</div>}
       </div>
-      <img src={src} alt={cut.name} loading="lazy" width={CELL} height={(CELL * h) / w} style={{ display: "block" }} />
-      {VERTEX_COUNTS.map((count) => (
-        <Cut key={count} id={`${id}-${count}-y`} cut={cut} count={count} background={{ kind: "flat", color: YELLOW }} strokeColor={stroke(outline === "color" ? "color" : "white")} edge={edge} />
+      {near ? (
+        <img src={src} alt={cut.name} loading="lazy" width={CELL} height={(CELL * h) / w} style={{ display: "block" }} />
+      ) : (
+        <div style={{ width: CELL, height: (CELL * h) / w, background: "#e7e2d8" }} />
+      )}
+      {tones.map((tone) => (
+        <Cut key={`flat-${tone}`} id={`${id}-20-flat-${tone}`} cut={cut} near={near} background={flat} strokeColor={stroke(tone)} edge={edge} />
       ))}
       {tones.map((tone) => (
-        <Cut key={`flat-${tone}`} id={`${id}-20-flat-${tone}`} cut={cut} count="20" background={flat} strokeColor={stroke(tone)} edge={edge} />
+        <Cut key={`montage-${tone}`} id={`${id}-20-montage-${tone}`} cut={cut} near={near} background={montage} strokeColor={stroke(tone)} edge={edge} />
       ))}
-      {tones.map((tone) => (
-        <Cut key={`montage-${tone}`} id={`${id}-20-montage-${tone}`} cut={cut} count="20" background={montage} strokeColor={stroke(tone)} edge={edge} />
-      ))}
-    </>
+    </div>
   );
 }
 
 /** `strokeColor` is the cut edge's colour (white, or the bg overlay's colour for the "color outline" columns). */
-function Cut({ id, cut, count, background, strokeColor, edge }: { id: string; cut: PortraitCut; count: VertexCount; background: Background; strokeColor: string; edge: EdgePosition }) {
+function Cut({ id, cut, near, background, strokeColor, edge }: { id: string; cut: PortraitCut; near: boolean; background: Background; strokeColor: string; edge: EdgePosition }) {
   const [w, h] = cut.size;
-  const points = cut.variants[count];
+  const points = cut.variants["20"];
   // The span is the size container the edge's width (`cutEdgeStroke`) is measured against.
   return (
     <span style={{ display: "block", width: CELL, containerType: "inline-size" }}>
@@ -155,8 +185,8 @@ function Cut({ id, cut, count, background, strokeColor, edge }: { id: string; cu
           </clipPath>
           {background.kind === "montage" && <Duotone id={`duo-${id}`} tint={background.tint} />}
         </defs>
-        {background.kind === "flat" ? <rect width={w} height={h} fill={background.color} /> : <Montage id={id} posters={background.posters} w={w} h={h} />}
-        <CutPortraitImage src={tmdbImage(cut.profilePath, "w500")} points={points} w={w} h={h} clipId={`clip-${id}`} strokeColor={strokeColor} edgePosition={edge} />
+        {background.kind === "flat" ? <rect width={w} height={h} fill={background.color} /> : <Montage id={id} posters={near ? background.posters : []} w={w} h={h} />}
+        <CutPortraitImage src={near ? tmdbImage(cut.profilePath, "w500") : null} points={points} w={w} h={h} clipId={`clip-${id}`} strokeColor={strokeColor} edgePosition={edge} />
       </svg>
     </span>
   );
