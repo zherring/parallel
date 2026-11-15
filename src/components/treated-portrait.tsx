@@ -8,7 +8,8 @@ import type { PortraitMode } from "@/components/use-portrait-mode";
 import { tmdbImage, type ImageSize } from "@/lib/images";
 import { PERSON_COLORS } from "@/lib/person-colors";
 import cuts from "@/lib/portrait-cuts.json";
-import { CARD_RADIUS_RATIO, STROKE_CSS, cutEdgePath, cutEdgeStroke, polygonPoints, type PortraitCuts } from "@/lib/portrait-cuts";
+import { CutPortraitImage } from "@/components/cut-portrait-image";
+import { CARD_RADIUS_RATIO, STROKE_CSS, parseEdgePosition, polygonPoints, type EdgePosition, type PortraitCuts } from "@/lib/portrait-cuts";
 
 const CUTS = cuts as unknown as PortraitCuts;
 
@@ -36,6 +37,8 @@ interface Props {
   ringPx?: number;
   /** Tuning override: the edge's colour, instead of the `?outline=color` flag. */
   outline?: "white" | "color";
+  /** Tuning override: where the edge sits against the polygon, instead of the `?edge=` flag (center by default). */
+  edgePosition?: EdgePosition;
 }
 
 /** Whether `TreatedPortrait` would cut this person out (a cut exists, made from this very photo), so a caller can keep its own fallback. */
@@ -49,11 +52,14 @@ export function hasPortraitCut(personId: number, profilePath: string | null): bo
  * left open), over a flat colour or a montage of the artist's posters, duotoned dark so the face reads. A person with no cut, or whose TMDB photo
  * has changed since it was cut, gets the plain `PersonPortrait`. The edge and the ring follow the capped rule (`STROKE_CSS`: proportional on a
  * small card, 3.3px from about 100px up) and the corners scale with the card (`CARD_RADIUS_RATIO`), all through container units, so nothing is
- * measured. `?outline=color` draws the edge in the person's colour.
+ * measured. `?outline=color` draws the edge in the person's colour;
+ * `?edge=inside|outside` puts the line inside or outside the cut (`center` straddles it, the default).
  */
-export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, ringColor, mode, posterSize = "w92", rounded = true, strokePx, ringPx, outline }: Props) {
+export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, ringColor, mode, posterSize = "w92", rounded = true, strokePx, ringPx, outline, edgePosition }: Props) {
   const rawId = useId();
-  const outlineFlag = useSearchParams()?.get("outline") === "color";
+  const searchParams = useSearchParams();
+  const outlineFlag = searchParams?.get("outline") === "color";
+  const edge = edgePosition ?? parseEdgePosition(searchParams?.get("edge")) ?? "center";
   const outlineColor = outline ? outline === "color" : outlineFlag;
   const cut = CUTS[String(personId)];
   const src = tmdbImage(profilePath, imageSize);
@@ -96,8 +102,7 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
             </clipPath>
             {montage && <Duotone id={`duo-${id}`} tint={hex} />}
           </defs>
-          <image href={src} width={w} height={h} preserveAspectRatio="none" clipPath={`url(#clip-${id})`} />
-          <path d={cutEdgePath(points, w, h)} {...cutEdgeStroke(outlineColor ? hex : undefined, strokePx)} />
+          <CutPortraitImage src={src} points={points} w={w} h={h} clipId={`clip-${id}`} strokeColor={outlineColor ? hex : undefined} strokePx={strokePx} edgePosition={edge} />
         </svg>
       </span>
     </span>

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { tmdbImage } from "@/lib/images";
-import { cutEdgePath, cutEdgeStroke, polygonPoints, type PortraitCut } from "@/lib/portrait-cuts";
+import { CutPortraitImage } from "@/components/cut-portrait-image";
+import { polygonPoints, type PortraitCut } from "@/lib/portrait-cuts";
 
 /** Eight saturated, screen-print-poster colors that sit well together on a near-black page. */
 const PALETTE = ["#E63B2E", "#F2C230", "#2E5EAA", "#F28C28", "#1F9E89", "#E5487D", "#6B4BA1", "#3E9E4F"];
@@ -140,8 +141,7 @@ function Card({ id, cut, color, montage }: { id: number; cut: PortraitCut; color
           {montage && <Duotone id={`duo-${key}`} tint={color} />}
         </defs>
         {montage ? <Montage id={key} posters={near ? cut.posters : []} w={w} h={h} /> : <rect width={w} height={h} fill={color} />}
-        {near && <image href={tmdbImage(cut.profilePath, "w500")!} width={w} height={h} preserveAspectRatio="none" clipPath={`url(#clip-${key})`} />}
-        <path d={cutEdgePath(points, w, h)} {...cutEdgeStroke()} />
+        <CutPortraitImage src={near ? tmdbImage(cut.profilePath, "w500") : null} points={points} w={w} h={h} clipId={`clip-${key}`} />
       </svg>
     </span>
   );

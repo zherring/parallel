@@ -80,18 +80,31 @@ export const CARD_RADIUS_RATIO = 6 / 150;
 export const CUT_STROKE_WHITE = "#fff";
 
 /**
+ * Where the cut edge's line sits against the polygon: straddling it (`center`, a plain SVG stroke), all inside the cut-out, or all outside it.
+ * The visible line is the rule's width in every mode: inside and outside draw twice the width and hide half of it, inside by clipping the
+ * stroke to the polygon, outside by drawing it under the clipped photo (see `CutPortraitImage`).
+ */
+export const EDGE_POSITIONS = ["inside", "center", "outside"] as const;
+export type EdgePosition = (typeof EDGE_POSITIONS)[number];
+
+export function parseEdgePosition(value: string | null | undefined): EdgePosition | null {
+  return EDGE_POSITIONS.find((position) => position === value) ?? null;
+}
+
+/**
  * The cut edge path's presentation props. The width is set through `style` (an attribute can't hold `min()` or `cqw`) with
  * `vector-effect: non-scaling-stroke`, so it is in screen px whatever the viewBox; `widthPx` overrides the rule (the tuner). The path must sit
- * inside a size container that is the portrait's box (see `STROKE_CSS`).
+ * inside a size container that is the portrait's box (see `STROKE_CSS`). Inside and outside double the stroke, as half of it is hidden.
  */
-export function cutEdgeStroke(strokeColor: string = CUT_STROKE_WHITE, widthPx?: number) {
+export function cutEdgeStroke(strokeColor: string = CUT_STROKE_WHITE, widthPx?: number, edgePosition: EdgePosition = "center") {
+  const width = widthPx === undefined ? STROKE_CSS : `${widthPx}px`;
   return {
     fill: "none",
     stroke: strokeColor,
     strokeLinejoin: "miter",
     strokeLinecap: "square",
     style: {
-      strokeWidth: widthPx === undefined ? STROKE_CSS : `${widthPx}px`,
+      strokeWidth: edgePosition === "center" ? width : `calc(2 * ${width})`,
       vectorEffect: "non-scaling-stroke",
     },
   } as const;
