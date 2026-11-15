@@ -104,6 +104,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 function redirectSearch(query: Query): string {
   const params = new URLSearchParams(rawPeriodSearch(parsePeriodParams(query)));
   for (const [name, value] of viewParams(query)) params.set(name, value);
+  // Spike (zherring/spike-portraits): the portrait treatment's flag survives the redirect from a shorthand slug.
+  if (typeof query.portrait === "string") params.set("portrait", query.portrait);
   const text = params.toString();
   return text ? `?${text}` : "";
 }
