@@ -100,7 +100,7 @@ body:has([data-quote-exhibit-deck]) > footer {
   background: color-mix(in srgb, var(--voice-color) 8%, var(--surface));
 }
 
-.quote-exhibit-portrait img {
+.quote-exhibit-portrait > img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -109,8 +109,16 @@ body:has([data-quote-exhibit-deck]) > footer {
   object-position: 50% 32%;
 }
 
-.quote-exhibit-quiet img {
+.quote-exhibit-quiet > img,
+.quote-exhibit-quiet > .quote-exhibit-treated {
   filter: grayscale(1) brightness(0.72);
+}
+
+/* Spike (?portrait=): the cut-out portrait fills the panel. */
+.quote-exhibit-treated {
+  position: absolute;
+  inset: 0;
+  display: flex;
 }
 
 .quote-exhibit-quiet {

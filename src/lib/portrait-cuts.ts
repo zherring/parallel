@@ -56,10 +56,11 @@ export interface PortraitCut {
 export type PortraitCuts = Record<string, PortraitCut>;
 
 /**
- * The cut edge's width as a share of the portrait's rendered width: 2px on a 150px-wide portrait, 1px at about 75px (the pair hero), so the
- * line reads the same at every size. Drawn in the SVG's own units (no `vector-effect: non-scaling-stroke`), it scales with the image.
+ * The cut edge's width as a share of the portrait's rendered width: 1.2px on the pair hero's 76px-wide portrait (the owner's call), about 2.4px
+ * on a 150px grid card and 6px on a ~380px Quotes portrait, so the line keeps its weight relative to the picture at every size. Drawn in the SVG's
+ * own units (no `vector-effect: non-scaling-stroke`), it scales with the image; the hero's ring (gap and band) is a multiple of it.
  */
-export const CUT_STROKE_RATIO = 2 / 150;
+export const CUT_STROKE_RATIO = 1.2 / 76;
 
 /** The pair hero card's corner radius as a share of its width: the app's 6px (`--bar-radius`) at 150px, scaling as the stroke does. */
 export const CARD_RADIUS_RATIO = 6 / 150;

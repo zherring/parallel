@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type CSSProperties, type ReactNode } from "react";
+import { hasPortraitCut, TreatedPortrait } from "@/components/treated-portrait";
+import { usePortraitMode } from "@/components/use-portrait-mode";
 import type { ClippingsVoice } from "@/lib/clippings";
 import { tmdbImage } from "@/lib/images";
 import { initials } from "@/lib/person-labels";
@@ -56,6 +58,10 @@ export function QuoteExhibitSlide({ children, label }: { children: ReactNode; la
 function Portrait({ person, speaking, quiet }: { person: ClippingsVoice; speaking: boolean; quiet: boolean }) {
   const src = tmdbImage(person.profilePath, "w780");
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  // Spike: `?portrait=montage|color` cuts the portrait out (see `TreatedPortrait`) at full panel size; without it, or for a person with no cut,
+  // the panel is as it was.
+  const portraitMode = usePortraitMode();
+  const treated = portraitMode !== null && hasPortraitCut(person.id, person.profilePath);
   return (
     <div
       className={cn("quote-exhibit-portrait", quiet && "quote-exhibit-quiet")}
@@ -66,8 +72,24 @@ function Portrait({ person, speaking, quiet }: { person: ClippingsVoice; speakin
       data-quiet={quiet}
       style={{ "--voice-color": personColor(person.slot) } as CSSProperties}
     >
-      <span className="quote-exhibit-initials" aria-hidden="true">{initials(person.name)}</span>
-      {src && src !== failedSrc && (
+      {treated ? (
+        <span className="quote-exhibit-treated">
+          <TreatedPortrait
+            mode={portraitMode}
+            personId={person.id}
+            slot={person.slot}
+            name={person.name}
+            profilePath={person.profilePath}
+            imageSize="w780"
+            posterSize="w185"
+            rounded={false}
+            className="h-full w-full"
+          />
+        </span>
+      ) : (
+        <span className="quote-exhibit-initials" aria-hidden="true">{initials(person.name)}</span>
+      )}
+      {!treated && src && src !== failedSrc && (
         <img
           src={src}
           alt=""

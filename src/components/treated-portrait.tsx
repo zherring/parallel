@@ -26,6 +26,16 @@ interface Props {
   ringColor?: string;
   /** The treatment; null renders `PersonPortrait` exactly as the app does today. */
   mode: PortraitMode | null;
+  /** The montage's poster size: w92 for the small hero card, larger where the portrait is large (the Quotes). */
+  posterSize?: ImageSize;
+  /** Round the corners (`CARD_RADIUS_RATIO`); false for a portrait that fills a square-cornered panel. */
+  rounded?: boolean;
+}
+
+/** Whether `TreatedPortrait` would cut this person out (a cut exists, made from this very photo), so a caller can keep its own fallback. */
+export function hasPortraitCut(personId: number, profilePath: string | null): boolean {
+  const cut = CUTS[String(personId)];
+  return Boolean(cut && profilePath && cut.profilePath === profilePath);
 }
 
 /**
@@ -34,7 +44,7 @@ interface Props {
  * has changed since it was cut, gets the plain `PersonPortrait`. The edge, the ring and the corners scale with the card's width (`CUT_STROKE_RATIO`,
  * `CARD_RADIUS_RATIO`), through container units, so a small card gets a thin line. `?outline=color` draws the edge in the person's colour.
  */
-export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, ringColor, mode }: Props) {
+export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, ringColor, mode, posterSize = "w92", rounded = true }: Props) {
   const rawId = useId();
   const outlineColor = useSearchParams()?.get("outline") === "color";
   const cut = CUTS[String(personId)];
@@ -51,10 +61,10 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
 
   // Shares of the card's width, as container units: the outer span is the container, the inner one draws the ring and clips the picture.
   const unit = (ratio: number) => `calc(100cqw * ${ratio})`;
-  const radius = unit(CARD_RADIUS_RATIO);
+  const radius = rounded ? unit(CARD_RADIUS_RATIO) : undefined;
 
   return (
-    <span aria-hidden="true" className={cn("relative inline-flex shrink-0 select-none", className)} style={{ containerType: "inline-size", borderRadius: radius }}>
+    <span aria-hidden="true" data-treated-portrait className={cn("relative inline-flex shrink-0 select-none", className)} style={{ containerType: "inline-size", borderRadius: radius }}>
       <span
         className="absolute inset-0 overflow-hidden"
         style={{
@@ -66,7 +76,7 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
         {montage && (
           <span className="absolute inset-0 grid grid-cols-3 grid-rows-3" style={{ filter: `url(#duo-${id})` }}>
             {cut.posters.slice(0, 9).map((path) => (
-              <img key={path} src={tmdbImage(path, "w92")!} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+              <img key={path} src={tmdbImage(path, posterSize)!} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
             ))}
           </span>
         )}
