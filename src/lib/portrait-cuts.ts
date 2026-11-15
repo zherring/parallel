@@ -55,6 +55,28 @@ export interface PortraitCut {
 
 export type PortraitCuts = Record<string, PortraitCut>;
 
+/**
+ * The cut edge's width as a share of the portrait's rendered width: 2px on a 150px-wide portrait, 1px at about 75px (the pair hero), so the
+ * line reads the same at every size. Drawn in the SVG's own units (no `vector-effect: non-scaling-stroke`), it scales with the image.
+ */
+export const CUT_STROKE_RATIO = 2 / 150;
+
+/** The pair hero card's corner radius as a share of its width: the app's 6px (`--bar-radius`) at 150px, scaling as the stroke does. */
+export const CARD_RADIUS_RATIO = 6 / 150;
+
+export const CUT_STROKE_WHITE = "#fff";
+
+/** The cut edge path's presentation props for a viewBox `w` units wide: the stroke scales with the drawing (see `CUT_STROKE_RATIO`). */
+export function cutEdgeStroke(w: number, strokeColor: string = CUT_STROKE_WHITE) {
+  return {
+    fill: "none",
+    stroke: strokeColor,
+    strokeWidth: round(w * CUT_STROKE_RATIO * 100) / 100,
+    strokeLinejoin: "miter",
+    strokeLinecap: "square",
+  } as const;
+}
+
 /** The polygon's `points` attribute, scaled to a w × h viewBox. */
 export function polygonPoints(points: readonly CutPoint[], w: number, h: number): string {
   return points.map(([x, y]) => `${round(x * w)},${round(y * h)}`).join(" ");

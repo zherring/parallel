@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import data from "@/lib/portrait-cuts.json";
 import { tmdbImage } from "@/lib/images";
-import { cutEdgePath, polygonPoints, CONTACT_SHEET_IDS, VERTEX_COUNTS, type PortraitCut, type PortraitCuts, type VertexCount } from "@/lib/portrait-cuts";
+import { cutEdgePath, cutEdgeStroke, polygonPoints, CONTACT_SHEET_IDS, VERTEX_COUNTS, type PortraitCut, type PortraitCuts, type VertexCount } from "@/lib/portrait-cuts";
 
 export const metadata: Metadata = { title: "Portrait cuts (development)", robots: { index: false, follow: false } };
 
@@ -28,7 +28,16 @@ export default function PortraitsPage() {
   if (process.env.NODE_ENV === "production") notFound();
 
   const rows = CONTACT_SHEET_IDS.map((id) => [id, CUTS[id]] as const).filter((row): row is readonly [number, PortraitCut] => Boolean(row[1]));
-  const headers = ["Original", "12 vertices", "20 vertices", "32 vertices", "20 · flat color", "20 · poster montage"];
+  const headers = [
+    "Original",
+    "12 vertices",
+    "20 vertices",
+    "32 vertices",
+    "20 · flat color · white outline",
+    "20 · flat color · color outline",
+    "20 · montage · white outline",
+    "20 · montage · color outline",
+  ];
 
   return (
     <main style={{ background: "#f4f1ea", color: "#111", minHeight: "100vh", padding: 16, fontFamily: "system-ui, sans-serif", fontSize: 12 }}>
@@ -68,12 +77,15 @@ function Row({ id, cut }: { id: number; cut: PortraitCut }) {
         <Cut key={count} id={`${id}-${count}-y`} cut={cut} count={count} background={{ kind: "flat", color: YELLOW }} />
       ))}
       <Cut id={`${id}-20-flat`} cut={cut} count="20" background={{ kind: "flat", color: artistColor(id) }} />
+      <Cut id={`${id}-20-flat-c`} cut={cut} count="20" background={{ kind: "flat", color: artistColor(id) }} strokeColor={artistColor(id)} />
       <Cut id={`${id}-20-montage`} cut={cut} count="20" background={{ kind: "montage", posters: cut.posters, tint: artistColor(id) }} />
+      <Cut id={`${id}-20-montage-c`} cut={cut} count="20" background={{ kind: "montage", posters: cut.posters, tint: artistColor(id) }} strokeColor={artistColor(id)} />
     </>
   );
 }
 
-function Cut({ id, cut, count, background }: { id: string; cut: PortraitCut; count: VertexCount; background: Background }) {
+/** `strokeColor` is the cut edge's colour (white by default; the bg overlay's colour for the "color outline" columns). */
+function Cut({ id, cut, count, background, strokeColor }: { id: string; cut: PortraitCut; count: VertexCount; background: Background; strokeColor?: string }) {
   const [w, h] = cut.size;
   const points = cut.variants[count];
   const src = tmdbImage(cut.profilePath, "w500")!;
@@ -87,15 +99,7 @@ function Cut({ id, cut, count, background }: { id: string; cut: PortraitCut; cou
       </defs>
       {background.kind === "flat" ? <rect width={w} height={h} fill={background.color} /> : <Montage id={id} posters={background.posters} w={w} h={h} />}
       <image href={src} width={w} height={h} preserveAspectRatio="none" clipPath={`url(#clip-${id})`} />
-      <path
-        d={cutEdgePath(points, w, h)}
-        fill="none"
-        stroke="#fff"
-        strokeWidth={3}
-        strokeLinejoin="miter"
-        strokeLinecap="square"
-        vectorEffect="non-scaling-stroke"
-      />
+      <path d={cutEdgePath(points, w, h)} {...cutEdgeStroke(w, strokeColor)} />
     </svg>
   );
 }
