@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -14,6 +15,8 @@ import {
   type RefObject,
 } from "react";
 import { TimelineLine } from "@/components/landing/hero-timeline";
+import { TreatedPortrait } from "@/components/treated-portrait";
+import { usePortraitMode } from "@/components/use-portrait-mode";
 import { KeycapButton } from "@/components/landing/keycap-button";
 import { TIMING, arrive, depart, float, nod } from "@/components/landing/hero-motion";
 import { personImageUrl, posterImageUrl, preloadScene, useHeroRotation } from "@/components/landing/use-hero-rotation";
@@ -40,6 +43,7 @@ import {
   moreFilms,
   pickFirstScene,
   type HeroPairing,
+  type HeroPerson,
   type Scene,
   type Transition,
 } from "@/lib/hero-scenes";
@@ -75,6 +79,8 @@ interface Item {
   dir: Dir;
   /** The `seq` of the transition in which this person stays and nods; 0 for none. */
   nod: number;
+  /** Spike (zherring/spike-portraits): a portrait's person, for the cut-out treatment. */
+  person?: HeroPerson;
 }
 
 interface State {
@@ -95,6 +101,7 @@ const personItem = (scene: Scene, slot: 0 | 1, id: string, phase: Phase, delay: 
   delay,
   dir,
   nod: 0,
+  person: scene.people[slot],
 });
 
 const posterItem = (pairing: HeroPairing, slot: number, id: string, phase: Phase, delay: number, dir: Dir = 1): Item => ({
@@ -279,21 +286,52 @@ function Motion({
   );
 }
 
-function PersonCard({ item, tilt, flip }: { item: Item; tilt: number; flip: boolean }) {
+function PersonPhoto({ item }: { item: Item }) {
+  return (
+    <img
+      src={item.src}
+      alt=""
+      width={STAGE.personSize.width}
+      height={STAGE.personSize.height}
+      decoding="async"
+      draggable={false}
+      className="absolute inset-0 size-full select-none object-cover [object-position:50%_20%]"
+    />
+  );
+}
+
+/**
+ * Spike (zherring/spike-portraits): behind `?portrait=on|color` the card's photo is cut out (`TreatedPortrait`, colour by the card's slot, the
+ * pair page's order) over the duotoned montage; the card keeps its own corners, shadow, ring and name. Without the flag it is the photo.
+ */
+function PersonFace({ item, slot }: { item: Item; slot: number }) {
+  const mode = usePortraitMode();
+  const person = item.person;
+  if (!mode || !person?.profilePath) return <PersonPhoto item={item} />;
+  return (
+    <TreatedPortrait
+      mode={mode}
+      personId={person.id}
+      slot={slot}
+      name={person.name}
+      profilePath={person.profilePath}
+      imageSize="w342"
+      posterSize="w154"
+      rounded={false}
+      className="absolute! inset-0 size-full"
+    />
+  );
+}
+
+function PersonCard({ item, slot, tilt, flip }: { item: Item; slot: number; tilt: number; flip: boolean }) {
   return (
     <figure
       className="absolute inset-0 m-0 overflow-hidden rounded-[18px] bg-surface shadow-[0_1px_1px_rgb(0_0_0/0.5),0_10px_20px_-6px_rgb(0_0_0/0.55),0_30px_50px_-14px_rgb(0_0_0/0.7)]"
       style={{ rotate: `${tilt}deg` }}
     >
-      <img
-        src={item.src}
-        alt=""
-        width={STAGE.personSize.width}
-        height={STAGE.personSize.height}
-        decoding="async"
-        draggable={false}
-        className="absolute inset-0 size-full select-none object-cover [object-position:50%_20%]"
-      />
+      <Suspense fallback={<PersonPhoto item={item} />}>
+        <PersonFace item={item} slot={slot} />
+      </Suspense>
       <span aria-hidden="true" className="absolute inset-0 bg-linear-to-t from-black/80 via-black/5 to-transparent" />
       <figcaption
         className={`absolute inset-x-3.5 bottom-3.5 text-[15px] font-semibold leading-tight tracking-[0.015em] text-white [text-shadow:0_1px_10px_rgb(0_0_0/0.6)] max-sm:hidden ${flip ? "text-right" : ""}`}
@@ -403,7 +441,7 @@ function Stage({
           <div data-drift="" data-kind="person" data-depth={slot === 0 ? 5 : -6} className="absolute inset-0">
             {byType("person", slot).map((item) => (
               <Motion key={item.id} item={item} reduced={reduced} onGone={onGone}>
-                <PersonCard item={item} tilt={place.tilt} flip={slot === 1} />
+                <PersonCard item={item} slot={slot} tilt={place.tilt} flip={slot === 1} />
               </Motion>
             ))}
           </div>
