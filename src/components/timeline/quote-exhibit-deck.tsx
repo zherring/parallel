@@ -17,6 +17,8 @@ export interface ExhibitSlide {
   id: string;
   speakerId: number | null;
   quote: string;
+  /** Length of the context line under the quote, which shares the slide's height with it. */
+  contextChars?: number;
   speaker: string;
   publication: string;
   year: number | null;
@@ -140,7 +142,7 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
                 aria-current={current === index ? "true" : undefined}
                 inert={current !== index}
               >
-                <QuoteExhibitSlide label={`Quote ${index + 1} text`}>{slide.content}</QuoteExhibitSlide>
+                <QuoteExhibitSlide label={`Quote ${index + 1} text`} chars={slide.quote.length + (slide.contextChars ?? 0) / 2}>{slide.content}</QuoteExhibitSlide>
               </li>
             ))}
           </ol>

@@ -56,6 +56,7 @@ export function ClippingsPanel({ pair, critics, active, personPanel }: Clippings
       id: item.id,
       speakerId: side === null || !people ? null : people[side].id,
       quote: item.quote,
+      contextChars: context.length,
       speaker,
       publication: item.publication,
       year,

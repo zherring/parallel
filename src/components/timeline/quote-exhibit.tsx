@@ -32,7 +32,8 @@ export function QuoteExhibit({ people, speakerId, children }: Props) {
       <div className="quote-exhibit-media">
         <div className="quote-exhibit-visual">
           <div className="quote-exhibit-diptych" role="group" aria-label="Artist portraits">
-            {people.map((person) => (
+            {/* The URL's order (slot = slug position) whoever speaks, as the share cards (`treatedQuotePortraits`); only colour/grey follows the speaker. */}
+            {[...people].sort((a, b) => a.slot - b.slot).map((person) => (
               <Portrait key={person.id} person={person} speaking={speakerId === person.id} quiet={speakerId !== null && speakerId !== person.id} />
             ))}
           </div>
@@ -54,10 +55,12 @@ export function QuoteExhibit({ people, speakerId, children }: Props) {
 }
 
 /** Only quote content moves. Imagery and image attribution belong to the stationary pane. */
-export function QuoteExhibitSlide({ children, label }: { children: ReactNode; label: string }) {
+export function QuoteExhibitSlide({ children, label, chars }: { children: ReactNode; label: string; chars?: number }) {
+  // A quote's length steps its type down (see `.quote-exhibit-words`), so that every quote fits its slide without a scroller of its own.
+  const fitted = chars !== undefined;
   return (
-    <div className="quote-exhibit-stage">
-      <div className="quote-exhibit-plate" tabIndex={0} role="group" aria-label={label}>
+    <div className="quote-exhibit-stage" style={fitted ? ({ "--quote-chars": Math.max(1, chars) } as CSSProperties) : undefined}>
+      <div className={cn("quote-exhibit-plate", fitted && "quote-exhibit-plate-fitted")} tabIndex={0} role="group" aria-label={label}>
         <div className="quote-exhibit-quote">{children}</div>
       </div>
     </div>

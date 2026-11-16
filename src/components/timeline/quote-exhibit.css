@@ -9,7 +9,7 @@ body:has([data-quote-exhibit-deck]) > footer {
 }
 
 .quote-exhibit-deck {
-  --quote-pane-bg: color-mix(in srgb, var(--bg) 55%, var(--surface));
+  --quote-pane-bg: color-mix(in srgb, var(--bg) 90%, var(--surface));
   position: fixed;
   inset: 0;
   z-index: 20;
@@ -62,7 +62,7 @@ body:has([data-quote-exhibit-deck]) > footer {
   align-items: center;
   width: 50%;
   margin-left: 50%;
-  padding: 6rem clamp(2rem, 4vw, 5rem);
+  padding: 4.5rem clamp(2rem, 4vw, 5rem);
 }
 
 /* Spike (portrait flag only): the quote pane's glow from below in the speaker's colour (`useQuoteGlowStyle`), under the quotes; the toolbar lets it show through. */
@@ -175,8 +175,13 @@ body:has([data-quote-exhibit-deck]) > footer {
   margin-inline: auto;
   overflow-y: auto;
   scrollbar-width: thin;
-  /* Long quotes scroll within their slide rather than being clipped. */
   overscroll-behavior-y: auto;
+}
+
+/* A quote never scrolls inside its slide (the deck is the only scroller): its type steps down with its length instead. */
+.quote-exhibit-plate-fitted {
+  max-height: none;
+  overflow: visible;
 }
 
 .quote-exhibit-plate:focus-visible {
@@ -196,8 +201,12 @@ body:has([data-quote-exhibit-deck]) > footer {
 }
 
 .quote-exhibit-words {
+  /* Up to --quote-fit-chars characters keep the full size; past that, the size falls with the square root of the length, so a long quote
+     covers about the same area as one of --quote-fit-chars. The dvh term holds that area within short viewports. */
+  --quote-fit-chars: 330;
+  --quote-fit: min(1, sqrt(var(--quote-fit-chars) / var(--quote-chars, var(--quote-fit-chars))));
   color: var(--text-quote);
-  font-size: clamp(1.375rem, 2.1vw, 2rem);
+  font-size: calc(min(clamp(1.375rem, 2.1vw, 2rem), 4dvh) * var(--quote-fit));
   line-height: 1.35;
 }
 
@@ -372,8 +381,12 @@ body:has([data-quote-exhibit-deck]) > footer {
     max-height: calc(100dvh - var(--image-pane-height) - 5rem);
   }
 
+  .quote-exhibit-plate-fitted {
+    max-height: none;
+  }
+
   .quote-exhibit-words {
-    font-size: clamp(1.125rem, 4.5vw, 1.375rem);
+    font-size: calc(clamp(1.125rem, 4.5vw, 1.375rem) * var(--quote-fit));
     line-height: 1.4;
   }
 
@@ -403,11 +416,16 @@ body:has([data-quote-exhibit-deck]) > footer {
   .quote-exhibit-plate {
     max-height: calc(100dvh - var(--image-pane-height) - 7rem);
   }
+
+  .quote-exhibit-plate-fitted {
+    max-height: none;
+  }
 }
 
-@media (width < 48rem) and (height < 40rem) {
+@media (width < 48rem) and (height < 48rem) {
   .quote-exhibit-words {
-    font-size: 1rem;
+    --quote-fit-chars: 220;
+    font-size: calc(0.9375rem * var(--quote-fit));
   }
 
   .quote-exhibit-context {
