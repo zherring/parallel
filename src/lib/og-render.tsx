@@ -24,9 +24,13 @@ import {
 } from "@/lib/og-card";
 import { fetchImageDataUri } from "@/lib/og-image";
 import { loadOgTreatment, ogPersonHexes, ogPortraitTreatment, treatedHeadshotSvg } from "@/lib/og-portrait";
+import { TreatedPairCardView } from "@/lib/og-treated-render";
+import { TREATED_COLUMN, buildTreatedPair, treatedTile } from "@/lib/og-treated";
 import { OG, OG_SIZE, ogFonts, ogGlow, ogWordmark } from "@/lib/og-theme";
 import type { Period } from "@/lib/period";
 import { todayIso } from "@/lib/released";
+import { headCrop } from "@/lib/portrait-treatment";
+import { personHex } from "@/lib/person-colors";
 import type { PersonTimeline } from "@/lib/types";
 
 /**
@@ -248,10 +252,14 @@ export interface PairOgImageInput {
  * plain card with the title's first letter.
  */
 export async function renderPairOgImage({ timelines, period = null }: PairOgImageInput): Promise<ImageResponse> {
-  const card = buildOgCard(timelines, todayIso(), period);
+  const today = todayIso();
+  const card = buildOgCard(timelines, today, period);
   // Spike: off unless `PORTRAIT_TREATMENT=1` (or, outside production, the flag's cookie); null leaves the card as it was.
   const treatment = await ogPortraitTreatment();
   const hexes = ogPersonHexes(timelines.map(({ person }) => person.id), treatment);
+  // Spike: with the treatment on, a pair's card is the treated one (`og-treated.ts`); one person or three and more keep the card as it is.
+  const pair = treatment ? buildTreatedPair(card, timelines, today, period) : null;
+  if (treatment && pair && hexes) return renderTreatedPairOgImage({ timelines, card, pair, treatment, hexes });
   const [avatars, posterImages, fonts, treatments] = await Promise.all([
     Promise.all(card.people.map((person) => loadImage(person.profilePath))),
     Promise.all(card.posters.map((poster) => loadImage(poster.posterPath))),
@@ -279,6 +287,49 @@ export async function renderPairOgImage({ timelines, period = null }: PairOgImag
         "Cache-Control": treated ? "no-store" : timelines.some((t) => t.shortsIncomplete) ? OG_PARTIAL_CACHE_CONTROL : OG_CACHE_CONTROL,
       },
     },
+  );
+}
+
+/**
+ * Spike: the pair's card with the treatment on (see `og-treated.ts`): both people's portraits in full colour down the left edge, the posters of the films
+ * they made together, an axis with a dot for every film (white for a shared one, a person's colour for their own), the names and the count. Never cached,
+ * as every treated card: turning the flag off shows the card as it is.
+ */
+async function renderTreatedPairOgImage({
+  timelines,
+  card,
+  pair,
+  treatment,
+  hexes,
+}: {
+  timelines: PersonTimeline[];
+  card: OgCard;
+  pair: NonNullable<ReturnType<typeof buildTreatedPair>>;
+  treatment: NonNullable<Awaited<ReturnType<typeof ogPortraitTreatment>>>;
+  hexes: readonly string[];
+}): Promise<ImageResponse> {
+  const [photos, posterImages, fonts, treatments] = await Promise.all([
+    Promise.all(timelines.map(({ person }) => loadImage(person.profilePath))),
+    Promise.all(pair.posters.map((poster) => loadImage(poster.posterPath))),
+    ogFonts(),
+    Promise.all(timelines.map(({ person }, i) => loadOgTreatment(person.id, person.profilePath, i, treatment, hexes))),
+  ]);
+  const tile = treatedTile(timelines.length);
+  const tiles = treatments.map((t, i) => {
+    const photo = photos[i];
+    return t && photo ? treatedHeadshotSvg(t, photo, TREATED_COLUMN, tile.height, { crop: headCrop(t.shape, TREATED_COLUMN / tile.height) }) : null;
+  });
+  return new ImageResponse(
+    (
+      <TreatedPairCardView
+        pair={pair}
+        tiles={tiles}
+        people={card.people.map(({ name, initials }) => ({ name, initials }))}
+        posterImages={posterImages}
+        hexes={[personHex(0, hexes), personHex(1, hexes)]}
+      />
+    ),
+    { ...OG_SIZE, fonts, headers: { "Cache-Control": "no-store" } },
   );
 }
 
