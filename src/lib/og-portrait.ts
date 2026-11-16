@@ -3,7 +3,7 @@ import { tmdbImage } from "@/lib/images";
 import { fetchImageDataUri } from "@/lib/og-image";
 import { personHex } from "@/lib/person-colors";
 import { cutEdgePath, polygonPoints, portraitPersonHexes, strokeForWidth } from "@/lib/portrait-cuts";
-import { PORTRAIT_COOKIE, duotoneMatrix, treatmentShape, type PhotoCrop, type TreatmentShape } from "@/lib/portrait-treatment";
+import { PORTRAIT_COOKIE, duotoneMatrix, tileView, treatmentShape, type PhotoCrop, type TreatmentShape } from "@/lib/portrait-treatment";
 
 /**
  * Spike (zherring/spike-portraits): the cut-paper treatment on the preview cards (the PNGs of `ImageResponse`). The renderer (Satori, then Resvg)
@@ -46,16 +46,20 @@ export function ogPersonHexes(personIds: readonly number[], mode: OgTreatmentMod
   return mode ? portraitPersonHexes(personIds) : null;
 }
 
-/** The treatment of the person in `slot` (their colour: `hexes`'s, the override of `ogPersonHexes`, else the palette's), or null when they have no photo (initials, as today). */
+/**
+ * The treatment of the person in `slot` (their colour: `hexes`'s, the override of `ogPersonHexes`, else the palette's), or null when they have no photo (initials,
+ * as today). `filmPosters` (`montagePosters` of their films) is the montage behind their tear, when they have no cut.
+ */
 export async function loadOgTreatment(
   personId: number,
   profilePath: string | null,
   slot: number,
   mode: OgTreatmentMode,
   hexes?: readonly string[] | null,
+  filmPosters: readonly string[] = [],
 ): Promise<OgTreatment | null> {
   if (!profilePath) return null;
-  const shape = treatmentShape(personId, profilePath);
+  const shape = treatmentShape(personId, profilePath, filmPosters);
   const posters =
     mode === "montage"
       ? (await Promise.all(shape.posters.slice(0, 9).map((path) => fetchImageDataUri(tmdbImage(path, "w154") ?? "")))).filter((uri): uri is string => uri !== null)
@@ -68,6 +72,15 @@ const r = (n: number) => Math.round(n * 100) / 100;
 /** As the Quotes view dims the one not speaking (`grayscale(1) brightness(0.72)`): luminance, at 0.72. */
 const GREY_ROW = `${0.2126 * 0.72} ${0.7152 * 0.72} ${0.0722 * 0.72} 0 0`;
 const GREY_MATRIX = `${GREY_ROW} ${GREY_ROW} ${GREY_ROW} 0 0 0 1 0`;
+
+/**
+ * A share card's tile (`treatedTile`): the treated headshot as `treatedHeadshotSvg` draws it, of what the tile shows of the person (`tileView`): the head of a
+ * cut, or a tear's strip across the whole tile.
+ */
+export function treatedTileSvg(treatment: OgTreatment, photo: string, width: number, height: number, options: { grey?: boolean } = {}): string {
+  const { shape, crop } = tileView(treatment.shape, width / height);
+  return treatedHeadshotSvg({ ...treatment, shape }, photo, width, height, { crop, grey: options.grey });
+}
 
 /**
  * The treated headshot as an SVG data URI of `width` x `height` px: the photo (`photo`, a data URI) covers the box as the app's `slice` does, cut

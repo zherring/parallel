@@ -23,13 +23,13 @@ import {
   type OgPoster,
 } from "@/lib/og-card";
 import { fetchImageDataUri } from "@/lib/og-image";
-import { loadOgTreatment, ogPersonHexes, ogPortraitTreatment, treatedHeadshotSvg } from "@/lib/og-portrait";
+import { loadOgTreatment, ogPersonHexes, ogPortraitTreatment, treatedHeadshotSvg, treatedTileSvg } from "@/lib/og-portrait";
 import { TreatedPairCardView } from "@/lib/og-treated-render";
 import { TREATED_COLUMN, buildTreatedPair, treatedTile } from "@/lib/og-treated";
 import { OG, OG_SIZE, ogFonts, ogGlow, ogWordmark } from "@/lib/og-theme";
 import type { Period } from "@/lib/period";
 import { todayIso } from "@/lib/released";
-import { headCrop } from "@/lib/portrait-treatment";
+import { montagePosters } from "@/lib/portrait-treatment";
 import type { PersonTimeline } from "@/lib/types";
 
 /**
@@ -264,7 +264,7 @@ export async function renderPairOgImage({ timelines, period = null }: PairOgImag
     Promise.all(card.posters.map((poster) => loadImage(poster.posterPath))),
     ogFonts(),
     // The card's people are the timelines', in the URL's order, which is also their colour's slot.
-    treatment ? Promise.all(timelines.map(({ person }, i) => loadOgTreatment(person.id, person.profilePath, i, treatment, hexes))) : null,
+    treatment ? Promise.all(timelines.map(({ person, films }, i) => loadOgTreatment(person.id, person.profilePath, i, treatment, hexes, montagePosters(films)))) : null,
   ]);
   const hasLane = card.posters.length > 0;
   const fan = headshotFan(card.people.length);
@@ -311,12 +311,12 @@ async function renderTreatedPairOgImage({
     Promise.all(timelines.map(({ person }) => loadImage(person.profilePath))),
     Promise.all(pair.posters.map((poster) => loadImage(poster.posterPath))),
     ogFonts(),
-    Promise.all(timelines.map(({ person }, i) => loadOgTreatment(person.id, person.profilePath, i, treatment, hexes))),
+    Promise.all(timelines.map(({ person, films }, i) => loadOgTreatment(person.id, person.profilePath, i, treatment, hexes, montagePosters(films)))),
   ]);
   const tile = treatedTile(timelines.length);
   const tiles = treatments.map((t, i) => {
     const photo = photos[i];
-    return t && photo ? treatedHeadshotSvg(t, photo, TREATED_COLUMN, tile.height, { crop: headCrop(t.shape, TREATED_COLUMN / tile.height) }) : null;
+    return t && photo ? treatedTileSvg(t, photo, TREATED_COLUMN, tile.height) : null;
   });
   return new ImageResponse(
     (

@@ -10,7 +10,7 @@ import { tmdbImage, type ImageSize } from "@/lib/images";
 import { PERSON_COLORS } from "@/lib/person-colors";
 import { CutPortraitImage } from "@/components/cut-portrait-image";
 import { CARD_RADIUS_RATIO, STROKE_CSS, parseEdgePosition, polygonPoints, type EdgePosition } from "@/lib/portrait-cuts";
-import { duotoneMatrix, headCrop, treatmentShape } from "@/lib/portrait-treatment";
+import { duotoneMatrix, tileView, treatmentShape } from "@/lib/portrait-treatment";
 
 interface Props {
   /** TMDB person id, the key of `portrait-cuts.json`. */
@@ -40,8 +40,10 @@ interface Props {
   outline?: "white" | "color";
   /** Tuning override: where the edge sits against the polygon, instead of the `?edge=` flag (inside by default). */
   edgePosition?: EdgePosition;
-  /** The share cards' portraits: the box's width / height, when it shows the head of the cut (`headCrop`, as the preview card's PNG does) and not the whole photo. */
+  /** The share cards' portraits: the box's width / height, when it shows the head of the cut (`headCrop`, as the preview card's PNG does) or a tear's strip across the whole box (`tileView`), and not the whole photo. */
   headAspect?: number;
+  /** The posters of the person's own best-known films (`montagePosters`): the montage behind their tear, when they have no cut (a cut carries its own). Without any, a tear is on the flat colour. */
+  filmPosters?: readonly string[];
   /** The share cards' dimmed one (the person not speaking): greyed and darkened, as the Quotes view does. */
   grey?: boolean;
 }
@@ -54,7 +56,7 @@ interface Props {
  * and the corners scale with the card (`CARD_RADIUS_RATIO`), all through container units, so nothing is measured. The edge sits inside the
  * cut in the person's colour (the owner's picks); `?outline=white` and `?edge=center|outside` override them, for comparison.
  */
-export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, color, ringColor, mode, posterSize = "w92", rounded = true, strokePx, ringPx, outline, edgePosition, headAspect, grey = false }: Props) {
+export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, color, ringColor, mode, posterSize = "w92", rounded = true, strokePx, ringPx, outline, edgePosition, headAspect, filmPosters, grey = false }: Props) {
   const rawId = useId();
   const palette = usePersonPalette();
   const searchParams = useSearchParams();
@@ -67,11 +69,12 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
 
   const id = `portrait-${personId}-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const hex = color ?? palette?.[slot] ?? PERSON_COLORS[((Math.trunc(slot) % PERSON_COLORS.length) + PERSON_COLORS.length) % PERSON_COLORS.length].hex;
-  const { points, size, posters } = treatmentShape(personId, profilePath);
-  const [w, h] = size;
-  const montage = mode === "montage";
-  // The box of the photo the viewBox shows: all of it, or (`headAspect`) the head, in the photo's own units.
-  const view = headAspect ? headCrop({ points, size, posters }, headAspect) : { x: 0, y: 0, w, h };
+  const whole = treatmentShape(personId, profilePath, filmPosters);
+  const [w, h] = whole.size;
+  // What the box shows: the whole photo, or (`headAspect`) what a share card's tile does (`tileView`): the head of a cut, a tear's strip across the tile.
+  const { shape: { points, posters }, crop: view } = headAspect ? tileView(whole, headAspect) : { shape: whole, crop: { x: 0, y: 0, w, h } };
+  // A person with no posters at all (a tear, and no films with one) is on the flat colour, as the PNG draws it.
+  const montage = mode === "montage" && posters.length > 0;
 
   // Container units: the outer span is the container, the inner one draws the ring and clips the picture.
   const radius = rounded ? `calc(100cqw * ${CARD_RADIUS_RATIO})` : undefined;

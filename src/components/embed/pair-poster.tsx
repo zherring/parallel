@@ -430,6 +430,7 @@ function TreatedPairPoster({ card, treated, mode }: { card: OgCard; treated: Tre
               posterSize="w154"
               rounded={false}
               headAspect={TREATED_COLUMN / tile.height}
+              filmPosters={treated.montages[i]}
               strokePx={TREATED_STROKE_CSS}
               className="h-full w-full"
             />

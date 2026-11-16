@@ -3,7 +3,7 @@ import type { Clipping, PairClippings } from "@/lib/clippings";
 import { clippingVoices, clippingYear, speakerIndex, translatedFrom, truncateQuote } from "@/lib/clippings-view";
 import type { Critic, PairCritics } from "@/lib/critics";
 import { criticAbout, criticName, criticYear } from "@/lib/critics-view";
-import { loadOgTreatment, ogPersonHexes, ogPortraitTreatment, treatedHeadshotSvg, type OgTreatmentMode } from "@/lib/og-portrait";
+import { loadOgTreatment, ogPersonHexes, ogPortraitTreatment, treatedTileSvg, type OgTreatmentMode } from "@/lib/og-portrait";
 import { OG_CACHE_CONTROL, loadImage } from "@/lib/og-render";
 import {
   ATTRIBUTION_WIDTH,
@@ -26,7 +26,7 @@ import {
 } from "@/lib/og-treated";
 import { hexChannels, personHex } from "@/lib/person-colors";
 import { initials } from "@/lib/person-labels";
-import { headCrop } from "@/lib/portrait-treatment";
+import { montagePosters } from "@/lib/portrait-treatment";
 import type { PersonTimeline } from "@/lib/types";
 
 /** "111, 155, 209" for "#6f9bd1": the channels of a palette hex, for the translucent wash behind the card. */
@@ -127,8 +127,8 @@ interface QuoteCard {
   /** "r, g, b" of the faint wash behind the quote. */
   glow: string;
   quote: string;
-  /** The round headshots, left to right, each with its ring; `id` and `slot` (their colour on the page) are for the spike's treatment. */
-  people: { id: number; slot: number; name: string; profilePath: string | null; ring: string }[];
+  /** The round headshots, left to right, each with its ring; `id`, `slot` (their colour on the page) and `posters` (the montage behind a tear) are for the spike's treatment. */
+  people: { id: number; slot: number; name: string; profilePath: string | null; posters: string[]; ring: string }[];
   speaker: string;
   /** Spike: the treatment (`ogPortraitTreatment`) and the people's colours with it (`ogPersonHexes`), by slot; null for the card as it was. */
   mode: OgTreatmentMode | null;
@@ -145,14 +145,14 @@ async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, 
   const [images, fonts, treatments] = await Promise.all([
     Promise.all(people.map((p) => loadImage(p.profilePath))),
     ogQuoteFonts(),
-    mode ? Promise.all(people.map((p) => loadOgTreatment(p.id, p.profilePath, p.slot, mode, hexes))) : null,
+    mode ? Promise.all(people.map((p) => loadOgTreatment(p.id, p.profilePath, p.slot, mode, hexes, p.posters))) : null,
   ]);
   if (treatments) {
     const tile = treatedTile(people.length);
     const tiles = treatments.map((t, i) => {
       const photo = images[i];
       return t && photo
-        ? treatedHeadshotSvg(t, photo, tile.width, tile.height, { crop: headCrop(t.shape, tile.width / tile.height), grey: dimSecond && i >= 1 })
+        ? treatedTileSvg(t, photo, tile.width, tile.height, { grey: dimSecond && i >= 1 })
         : null;
     });
     return drawTreatedQuoteCard({ accent, quote: fullQuote, people, speaker, about, source }, tiles, fonts);
@@ -365,6 +365,7 @@ export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgIm
       slot: timelines.indexOf(p),
       name: p.person.name,
       profilePath: p.person.profilePath,
+      posters: montagePosters(p.films),
       ring: i === 0 ? accent : OG.border,
     })),
     speaker: clipping.speaker,
@@ -398,6 +399,7 @@ export async function renderCriticOgImage({ timelines, set, critic }: CriticOgIm
       slot: Math.max(0, timelines.findIndex((t) => t.person.id === p.id)),
       name: p.name,
       profilePath: timelines.find((t) => t.person.id === p.id)?.person.profilePath ?? null,
+      posters: montagePosters(timelines.find((t) => t.person.id === p.id)?.films ?? []),
       ring: OG.border,
     })),
     speaker: criticName(critic),

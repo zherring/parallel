@@ -158,7 +158,7 @@ interface QuoteEmbedProps {
    */
   variant: "frame" | "card";
   /** Spike: the pair's two people in the order of the slug (their slots), with their photos: what the treated card's two portraits are drawn from when the portrait flag is on. */
-  people?: readonly { id: number; name: string; profilePath: string | null }[];
+  people?: readonly { id: number; name: string; profilePath: string | null; posters?: readonly string[] }[];
   /** Spike: the treatment the server's own gate gives (`ogPortraitTreatment`, the one the quote card's PNG follows): the frame opens on it, and `?portrait=off` turns it off. */
   serverPortraitMode?: PortraitMode | null;
 }
@@ -310,6 +310,7 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant, people = [], se
                   rounded={false}
                   color={paletteHexes?.[slot]}
                   headAspect={TREATED_COLUMN / tile.height}
+                  filmPosters={person.posters}
                   strokePx={TREATED_STROKE_CSS}
                   grey={current.slot !== null && i >= 1}
                   className="h-full w-full"

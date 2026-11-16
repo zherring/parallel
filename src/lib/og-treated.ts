@@ -13,6 +13,7 @@ import {
 } from "@/lib/og-card";
 import { inPeriod, type Period } from "@/lib/period";
 import { strokeForWidth } from "@/lib/portrait-cuts";
+import { montagePosters } from "@/lib/portrait-treatment";
 import { isReleased } from "@/lib/released";
 import { yearFraction } from "@/lib/timeline-layout";
 import type { PersonTimeline } from "@/lib/types";
@@ -155,6 +156,8 @@ export interface TreatedPair {
   caption: OgCaption | null;
   /** The two names, as written under the axis, cut to fit one line. */
   names: string;
+  /** Per person, in the URL's order: the posters of their best-known films (`montagePosters`), the montage behind their portrait's tear when they have no cut. */
+  montages: string[][];
 }
 
 /** How opaque the axis is at `x`: full through its middle, fading in a straight line to nothing at both ends. */
@@ -237,5 +240,6 @@ export function buildTreatedPair(card: OgCard, timelines: readonly PersonTimelin
     dots: [...thinned, ...shared],
     caption: card.caption,
     names: namesLine(card.people.map((person) => person.name)),
+    montages: timelines.map(({ films: own }) => montagePosters(own)),
   };
 }

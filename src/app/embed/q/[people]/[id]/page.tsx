@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { QuoteEmbed } from "@/components/embed/quote-embed";
 import { ogPortraitTreatment } from "@/lib/og-portrait";
+import { montagePosters } from "@/lib/portrait-treatment";
 import { loadPeople } from "@/lib/people";
 import { embedPath, findQuoteIndex } from "@/lib/quote-embed";
 import { pairQuotes } from "@/lib/quote-embed-data";
@@ -40,7 +41,7 @@ export default async function QuoteEmbedPage({ params }: Props) {
       quotes={quotes}
       start={start}
       variant="frame"
-      people={timelines.map(({ person }) => ({ id: person.id, name: person.name, profilePath: person.profilePath }))}
+      people={timelines.map(({ person, films }) => ({ id: person.id, name: person.name, profilePath: person.profilePath, posters: montagePosters(films) }))}
       serverPortraitMode={serverPortraitMode}
     />
   );
