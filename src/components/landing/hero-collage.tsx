@@ -375,16 +375,13 @@ function PersonCard({ item, slot, tilt, flip, whiteRing = false }: { item: Item;
   );
 }
 
-/** Spike: with the portrait flag (`white`) a shared film is lit white, not green: the ring and glow at their strength, the hover ring as the portraits' (white/70). */
-const WHITE_LIT = { "--lit": "#fff", "--lit-glow": "rgb(255 255 255 / 0.45)" } as CSSProperties;
-
-function PosterCard({ item, white = false }: { item: Item; white?: boolean }) {
+function PosterCard({ item }: { item: Item }) {
   const { dx, dy, tilt } = item.place;
   return (
     <div
       title={item.text}
-      className={`absolute inset-0 overflow-hidden rounded-[6px] bg-surface shadow-[0_0_0_1px_var(--lit),0_0_14px_-3px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)] transition-shadow duration-300 ${white ? "group-hover:shadow-[0_0_0_1.5px_rgb(255_255_255/0.7),0_0_20px_-2px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)]" : "group-hover:shadow-[0_0_0_1.5px_var(--lit),0_0_20px_-2px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)]"} group-focus-visible:shadow-[0_0_0_2px_var(--focus),0_0_18px_-2px_var(--focus),0_10px_18px_-6px_rgb(0_0_0/0.7)]`}
-      style={{ translate: `${dx}px ${dy}px`, rotate: `${tilt}deg`, ...(white ? WHITE_LIT : {}) }}
+      className="absolute inset-0 overflow-hidden rounded-[6px] bg-surface shadow-[0_0_0_1px_var(--lit),0_0_14px_-3px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)] transition-shadow duration-300 group-hover:shadow-[0_0_0_1.5px_var(--lit),0_0_20px_-2px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)] group-focus-visible:shadow-[0_0_0_2px_var(--focus),0_0_18px_-2px_var(--focus),0_10px_18px_-6px_rgb(0_0_0/0.7)]"
+      style={{ translate: `${dx}px ${dy}px`, rotate: `${tilt}deg` }}
     >
       <img
         src={item.src}
@@ -405,11 +402,11 @@ function PosterCard({ item, white = false }: { item: Item; white?: boolean }) {
  * width; padding and border are in em and the border's width is counter-scaled the same way. On
  * the narrowest phones there is no room beside the row, so it sits centred under it instead.
  */
-function MoreLabel({ item, white = false }: { item: Item; white?: boolean }) {
+function MoreLabel({ item }: { item: Item }) {
   return (
     <span
       aria-hidden="true"
-      className={`absolute left-0 top-0 -translate-y-1/2 translate-x-(--dx) whitespace-nowrap rounded-full border border-border bg-canvas px-[0.75em] py-[0.3em] font-medium leading-none tracking-[0.02em] text-muted transition-colors duration-300 ${white ? "group-hover:border-white/50" : "group-hover:border-accent-green/50"} group-hover:text-strong max-[359px]:left-(--under-left) max-[359px]:top-(--under-top) max-[359px]:-translate-x-1/2 max-[359px]:translate-y-0`}
+      className="absolute left-0 top-0 -translate-y-1/2 translate-x-(--dx) whitespace-nowrap rounded-full border border-border bg-canvas px-[0.75em] py-[0.3em] font-medium leading-none tracking-[0.02em] text-muted transition-colors duration-300 group-hover:border-accent-green/50 group-hover:text-strong max-[359px]:left-(--under-left) max-[359px]:top-(--under-top) max-[359px]:-translate-x-1/2 max-[359px]:translate-y-0"
       style={
         {
           "--dx": `${item.place.dx}px`,
@@ -495,7 +492,7 @@ function Stage({
           <div data-drift="" data-kind="poster" data-depth={POSTER_DEPTH[slot]} className="absolute inset-0">
             {byType("poster", slot).map((item) => (
               <Motion key={item.id} item={item} reduced={reduced} onGone={onGone}>
-                <PosterCard item={item} white={pairWash} />
+                <PosterCard item={item} />
               </Motion>
             ))}
           </div>
@@ -506,7 +503,7 @@ function Stage({
       <div className="absolute" style={{ left: MORE_LEFT, top: LINE_Y, zIndex: 30 }}>
         {byType("label", 0).map((item) => (
           <Motion key={item.id} item={item} reduced={reduced} onGone={onGone}>
-            <MoreLabel item={item} white={pairWash} />
+            <MoreLabel item={item} />
           </Motion>
         ))}
       </div>
