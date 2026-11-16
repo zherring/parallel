@@ -5,12 +5,15 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { EMBED_BUTTON, FRAME_STYLE, EmbedWordmark, OpenInParallel, embedSize as size } from "@/components/embed/embed-shell";
 import { newsreader } from "@/components/newsreader";
 import { PersonAvatar } from "@/components/person-avatar";
+import { TreatedPortrait } from "@/components/treated-portrait";
+import { usePortraitMode } from "@/components/use-portrait-mode";
 import { cn } from "@/components/timeline/cn";
 import type { ElementLike } from "@/lib/hero-keys";
 import { QUOTE_FOOTER_BOTTOM_PX } from "@/lib/embed-insets";
 import { quoteCardType } from "@/lib/og-quote";
 import { describeShortcutTarget } from "@/lib/people-shortcut";
 import { personColor, personColorCss } from "@/lib/person-colors";
+import { parsePeopleSlug } from "@/lib/slug";
 import { MORE_PAIRS_PATH, QUOTE_BAND, QUOTE_FLOOR_PX, embedPath, noScriptClampCss, quoteInPairPath, quoteKeyStep, quotePath, quoteSizeCeiling, quoteUnits, type EmbedQuote } from "@/lib/quote-embed";
 
 /** The colour of a quote whose speaker is neither of the pair, and of every critic: the Clippings tab's quiet one. */
@@ -163,6 +166,8 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
   const count = quotes.length;
   const current = quotes[index] ?? quotes[0];
   const framed = variant === "frame";
+  // Spike: `?portrait=on|color` (or the tab's memory of it) draws the speaker as the 2:3 treated card, as the quote's card image does when its flag is on.
+  const portraitMode = usePortraitMode();
 
   // The address follows the quote (no navigation, no reload), so that reopening or reloading the frame stays on it. It is set whenever the quote
   // is not the one the address names (stepping on and then back to the quote the link opened on must put its address back too).
@@ -189,6 +194,8 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
   }, [count]);
 
   const color = current.slot === null ? MUTED : personColor(current.slot);
+  // Spike: the speaker's TMDB id, for the treatment's cut: their slot is their position in the slug, which is the people's ids in the page's order.
+  const speakerId = portraitMode && current.slot !== null ? parsePeopleSlug(slug)?.ids[current.slot] : undefined;
   const type = quoteCardType(current.quote);
   const step = (delta: number) => setIndex((i) => (i + delta + count) % count);
   const button = EMBED_BUTTON;
@@ -254,7 +261,17 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
         {/* One row that never wraps: the attribution takes what the pill leaves (it wraps inside its own column), so the footer is as tall as its tallest part and its bottom inset is whole at any width. */}
         <footer className="flex shrink-0 items-center justify-between gap-x-3" style={{ padding: `${size(5, 1.3)} ${size(12, 5.67)} ${size(QUOTE_FOOTER_BOTTOM_PX, 3.6)}` }}>
           <div className="flex min-w-0 items-center" style={{ gap: size(8.5, 1.2) }}>
-            {current.avatar && (
+            {current.avatar && portraitMode && current.avatar.profilePath && speakerId !== undefined && current.slot !== null ? (
+              <>
+                {/* Spike: the round avatar's height (31, 54), as a 2:3 card; the corners as the app's cards (`CARD_RADIUS_RATIO`). */}
+                <span className="@2xl:hidden [@container(max-height:300px)_and_(max-width:480px)]:hidden">
+                  <TreatedPortrait mode={portraitMode} personId={speakerId} slot={current.slot} name={current.avatar.name} profilePath={current.avatar.profilePath} imageSize="w185" ringColor={color} className="h-[31px] w-[21px]" />
+                </span>
+                <span className="hidden @2xl:inline-flex [@container(max-height:300px)_and_(max-width:480px)]:hidden">
+                  <TreatedPortrait mode={portraitMode} personId={speakerId} slot={current.slot} name={current.avatar.name} profilePath={current.avatar.profilePath} imageSize="w185" ringColor={color} className="h-[54px] w-[36px]" />
+                </span>
+              </>
+            ) : current.avatar && (
               <>
                 {/* In a short, narrow frame (the panel X opens over a phone) the picture goes, and its room is the quote's. */}
                 <span className="@2xl:hidden [@container(max-height:300px)_and_(max-width:480px)]:hidden">

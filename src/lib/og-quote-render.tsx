@@ -3,6 +3,7 @@ import type { Clipping, PairClippings } from "@/lib/clippings";
 import { clippingVoices, clippingYear, speakerIndex, translatedFrom, truncateQuote } from "@/lib/clippings-view";
 import type { Critic, PairCritics } from "@/lib/critics";
 import { criticAbout, criticName, criticYear } from "@/lib/critics-view";
+import { loadOgTreatment, ogPortraitTreatment, treatedHeadshotSvg } from "@/lib/og-portrait";
 import { OG_CACHE_CONTROL, loadImage } from "@/lib/og-render";
 import {
   ATTRIBUTION_WIDTH,
@@ -15,6 +16,7 @@ import {
 import { OG, OG_SIZE, ogQuoteFonts, ogWordmark } from "@/lib/og-theme";
 import { hexChannels, personHex } from "@/lib/person-colors";
 import { initials } from "@/lib/person-labels";
+import { CARD_RADIUS_RATIO } from "@/lib/portrait-cuts";
 import type { PersonTimeline } from "@/lib/types";
 
 /** "111, 155, 209" for "#6f9bd1": the channels of a palette hex, for the translucent wash behind the card. */
@@ -27,6 +29,12 @@ const PAD_TOP = 52;
 const PAD_BOTTOM = 50;
 const HEADSHOT = 72;
 const RING = 3;
+/**
+ * Spike (zherring/spike-portraits): the treated headshot is a 2:3 card a little taller than the round one (84 to its 72), which the quote's
+ * column has room for, and narrower, so the attribution beside it moves left; its ring is thinner, as the card's own edge is in the colour.
+ */
+const TREATED_CARD = { width: 56, height: 84 } as const;
+const TREATED_RING = 2;
 
 export interface QuoteOgImageInput {
   /** The two people of the page, in the order of its URL: for their headshots, and for the colour each has on the page. */
@@ -72,6 +80,27 @@ function headshot(name: string, src: string | null, ring: string) {
   );
 }
 
+/** Spike: the 2:3 card of a treated headshot (`treated`, an SVG data URI of the card's inside, see `og-portrait.ts`), ringed as the round one is. */
+function treatedHeadshot(name: string, treated: string, ring: string) {
+  const { width, height } = TREATED_CARD;
+  return (
+    <div
+      key={name}
+      style={{
+        display: "flex",
+        width,
+        height,
+        borderRadius: Math.round(width * CARD_RADIUS_RATIO),
+        border: `${TREATED_RING}px solid ${ring}`,
+        overflow: "hidden",
+        backgroundColor: OG.border,
+      }}
+    >
+      <img src={treated} alt="" width={width - 2 * TREATED_RING} height={height - 2 * TREATED_RING} />
+    </div>
+  );
+}
+
 /** What `drawQuoteCard` draws; the two kinds of quote (an artist's, a critic's) differ only in what they hand it. */
 interface QuoteCard {
   /** The colour of the marks, and of the first headshot's ring when it is the speaker's. */
@@ -79,8 +108,8 @@ interface QuoteCard {
   /** "r, g, b" of the faint wash behind the quote. */
   glow: string;
   quote: string;
-  /** The round headshots, left to right, each with its ring. */
-  people: { name: string; profilePath: string | null; ring: string }[];
+  /** The round headshots, left to right, each with its ring; `id` and `slot` (their colour on the page) are for the spike's treatment. */
+  people: { id: number; slot: number; name: string; profilePath: string | null; ring: string }[];
   speaker: string;
   /** What follows the speaker, in the muted colour: " on John Williams". */
   about: string;
@@ -89,7 +118,17 @@ interface QuoteCard {
 }
 
 async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, about, source }: QuoteCard): Promise<ImageResponse> {
-  const [images, fonts] = await Promise.all([Promise.all(people.map((p) => loadImage(p.profilePath))), ogQuoteFonts()]);
+  // Spike: off unless `PORTRAIT_TREATMENT=1` (or, outside production, the flag's cookie); null leaves the card as it was.
+  const mode = await ogPortraitTreatment();
+  const [images, fonts, treatments] = await Promise.all([
+    Promise.all(people.map((p) => loadImage(p.profilePath))),
+    ogQuoteFonts(),
+    mode ? Promise.all(people.map((p) => loadOgTreatment(p.id, p.profilePath, p.slot, mode))) : null,
+  ]);
+  const treated = treatments?.map((t, i) => {
+    const photo = images[i];
+    return t && photo ? treatedHeadshotSvg(t, photo, TREATED_CARD.width - 2 * TREATED_RING, TREATED_CARD.height - 2 * TREATED_RING) : null;
+  });
 
   const quote = truncateQuote(fullQuote, QUOTE_CARD_MAX_CHARS);
   const { fontSize, lineHeight } = quoteCardType(`${quote}”`);
@@ -146,7 +185,10 @@ async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, 
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 22 }}>
           <div style={{ display: "flex", alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 10 }}>{people.map((p, i) => headshot(p.name, images[i], p.ring))}</div>
+            <div style={{ display: "flex", gap: 10 }}>{people.map((p, i) => {
+                const card = treated?.[i];
+                return card ? treatedHeadshot(p.name, card, p.ring) : headshot(p.name, images[i], p.ring);
+              })}</div>
             <div style={{ display: "flex", flexDirection: "column", marginLeft: 24, maxWidth: ATTRIBUTION_WIDTH }}>
               <div style={{ display: "flex", flexWrap: "wrap", fontSize: attributionSize, lineHeight: 1.2, fontWeight: 600 }}>
                 <span style={{ color: OG.muted, whiteSpace: "pre" }}>{"\u2014 "}</span>
@@ -165,7 +207,8 @@ async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, 
         </div>
       </div>
     ),
-    { ...OG_SIZE, fonts, headers: { "Cache-Control": OG_CACHE_CONTROL } },
+    // A treated card is a spike's preview: never cached, so turning the flag off shows the card as it is.
+    { ...OG_SIZE, fonts, headers: { "Cache-Control": treatments ? "no-store" : OG_CACHE_CONTROL } },
   );
 }
 
@@ -199,7 +242,14 @@ export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgIm
     accent,
     glow,
     quote: clipping.quote,
-    people: ordered.map((p, i) => ({ name: p.person.name, profilePath: p.person.profilePath, ring: i === 0 ? accent : OG.border })),
+    people: ordered.map((p, i) => ({
+      id: p.person.id,
+      // The colour each has on the page: their position in the URL (as the pair's card).
+      slot: timelines.indexOf(p),
+      name: p.person.name,
+      profilePath: p.person.profilePath,
+      ring: i === 0 ? accent : OG.border,
+    })),
     speaker: clipping.speaker,
     about: ` on ${clipping.about}`,
     source: [sourceLine(clipping.publication, clippingYear(clipping)), translatedFrom(clipping)].filter(Boolean).join(" · "),
@@ -219,6 +269,8 @@ export async function renderCriticOgImage({ timelines, set, critic }: CriticOgIm
     glow: rgbOf(accent),
     quote: critic.quote,
     people: set.people.map((p) => ({
+      id: p.id,
+      slot: Math.max(0, timelines.findIndex((t) => t.person.id === p.id)),
       name: p.name,
       profilePath: timelines.find((t) => t.person.id === p.id)?.person.profilePath ?? null,
       ring: OG.border,
