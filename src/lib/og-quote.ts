@@ -57,9 +57,9 @@ export const ATTRIBUTION_FONT_SIZES = [28, 25, 22] as const;
 const ATTRIBUTION_CHAR_WIDTH = 0.55;
 
 /** The largest of `ATTRIBUTION_FONT_SIZES` at which `text` fits `ATTRIBUTION_WIDTH` on one line; the smallest when none does (the card then wraps it). */
-export function attributionFontSize(text: string): number {
+export function attributionFontSize(text: string, width: number = ATTRIBUTION_WIDTH): number {
   const length = Array.from(text).length;
-  for (const size of ATTRIBUTION_FONT_SIZES) if (length * size * ATTRIBUTION_CHAR_WIDTH <= ATTRIBUTION_WIDTH) return size;
+  for (const size of ATTRIBUTION_FONT_SIZES) if (length * size * ATTRIBUTION_CHAR_WIDTH <= width) return size;
   return ATTRIBUTION_FONT_SIZES[ATTRIBUTION_FONT_SIZES.length - 1];
 }
 
@@ -68,13 +68,32 @@ export interface QuoteCardType {
   lineHeight: number;
 }
 
-/** The largest size at which `text` fits the text column; the smallest size when none does. */
-export function quoteCardType(text: string): QuoteCardType {
-  for (const fontSize of QUOTE_FONT_SIZES) {
-    const height = quoteLineCount(text, fontSize) * fontSize * QUOTE_LINE_HEIGHT;
-    if (height <= QUOTE_TEXT_HEIGHT) return { fontSize, lineHeight: QUOTE_LINE_HEIGHT };
+/** The largest size at which `text` fits the text column (`box`, the card's own by default); the smallest size when none does. */
+export function quoteCardType(
+  text: string,
+  box: { width: number; height: number; sizes: readonly number[] } = { width: QUOTE_TEXT_WIDTH, height: QUOTE_TEXT_HEIGHT, sizes: QUOTE_FONT_SIZES },
+): QuoteCardType {
+  for (const fontSize of box.sizes) {
+    const height = quoteLineCount(text, fontSize, box.width) * fontSize * QUOTE_LINE_HEIGHT;
+    if (height <= box.height) return { fontSize, lineHeight: QUOTE_LINE_HEIGHT };
   }
-  return { fontSize: QUOTE_FONT_SIZES[QUOTE_FONT_SIZES.length - 1], lineHeight: QUOTE_LINE_HEIGHT };
+  return { fontSize: box.sizes[box.sizes.length - 1], lineHeight: QUOTE_LINE_HEIGHT };
+}
+
+/**
+ * Spike (zherring/spike-portraits): a development-only layout of the quote card with the treated portraits large, to compare with the card as it is:
+ * `qcard=lg` (the two cards side by side, 110 x 165) or `qcard=lg-stack` (140 x 210, overlapping). Read only outside production; the card ignores it
+ * unless the portrait treatment is on.
+ */
+export const QUOTE_CARD_LAYOUTS = ["lg", "lg-stack"] as const;
+export type QuoteCardLayout = (typeof QUOTE_CARD_LAYOUTS)[number];
+export const QUOTE_CARD_LAYOUT_PARAM = "qcard";
+
+/** The layout `params` asks for, or null (always in production, and for anything that is not one of `QUOTE_CARD_LAYOUTS`). */
+export function parseQuoteCardLayout(params: URLSearchParams): QuoteCardLayout | null {
+  if (process.env.NODE_ENV === "production") return null;
+  const value = params.get(QUOTE_CARD_LAYOUT_PARAM);
+  return QUOTE_CARD_LAYOUTS.find((layout) => layout === value) ?? null;
 }
 
 /**

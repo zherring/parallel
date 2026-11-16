@@ -9,9 +9,11 @@ import {
   ATTRIBUTION_WIDTH,
   QUOTE_CARD_MAX_CHARS,
   QUOTE_TEXT_HEIGHT,
+  QUOTE_TEXT_WIDTH,
   attributionFontSize,
   quoteCardType,
   splitQuoteTail,
+  type QuoteCardLayout,
 } from "@/lib/og-quote";
 import { OG, OG_SIZE, ogQuoteFonts, ogWordmark } from "@/lib/og-theme";
 import { hexChannels, personHex } from "@/lib/person-colors";
@@ -36,12 +38,30 @@ const RING = 3;
 const TREATED_CARD = { width: 56, height: 84 } as const;
 const TREATED_RING = 2;
 
+/**
+ * Spike, development only (`qcard`, see `parseQuoteCardLayout`): the treated cards large on the left, the quote in a column to their right. `lg` sets
+ * the two side by side; `lg-stack` sets them larger and overlapping, the speaker's in front at the top left and the other's behind, down and to the right.
+ */
+const LARGE_LAYOUTS = {
+  lg: { card: { width: 110, height: 165 }, offset: { x: 122, y: 0 } },
+  "lg-stack": { card: { width: 140, height: 210 }, offset: { x: 88, y: 128 } },
+} as const satisfies Record<QuoteCardLayout, { card: { width: number; height: number }; offset: { x: number; y: number } }>;
+const LARGE_RING = 3;
+/** The gap between the cards and the quote's column, and the column's room for the quote (under its mark, above the attribution). */
+const LARGE_COLUMN_GAP = 56;
+const LARGE_TEXT_HEIGHT = 330;
+const LARGE_FONT_SIZES = [56, 50, 45, 41, 37, 34, 31, 28] as const;
+/** What the attribution leaves of the column for the wordmark beside it. */
+const LARGE_WORDMARK_ROOM = 160;
+
 export interface QuoteOgImageInput {
   /** The two people of the page, in the order of its URL: for their headshots, and for the colour each has on the page. */
   timelines: PersonTimeline[];
   /** The pair's clippings, which say which of the two is the speaker. */
   set: PairClippings;
   clipping: Clipping;
+  /** Spike, development only: the large layout to compare (`qcard`); ignored unless the treatment is on. */
+  layout?: QuoteCardLayout | null;
 }
 
 export interface CriticOgImageInput {
@@ -50,6 +70,8 @@ export interface CriticOgImageInput {
   /** The pair's critics, which name the two people (and the order they are written in). */
   set: PairCritics;
   critic: Critic;
+  /** Spike, development only: as the artist's card's. */
+  layout?: QuoteCardLayout | null;
 }
 
 function headshot(name: string, src: string | null, ring: string) {
@@ -80,9 +102,12 @@ function headshot(name: string, src: string | null, ring: string) {
   );
 }
 
-/** Spike: the 2:3 card of a treated headshot (`treated`, an SVG data URI of the card's inside, see `og-portrait.ts`), ringed as the round one is. */
-function treatedHeadshot(name: string, treated: string, ring: string) {
-  const { width, height } = TREATED_CARD;
+/**
+ * Spike: the 2:3 card of a treated headshot (`treated`, an SVG data URI of the card's inside, see `og-portrait.ts`), ringed as the round one is; `size`
+ * and `ringWidth` are the small card's unless the large layout asks otherwise. With no `treated` (a person with no photo), their initials.
+ */
+function treatedHeadshot(name: string, treated: string | null, ring: string, size: { width: number; height: number } = TREATED_CARD, ringWidth = TREATED_RING) {
+  const { width, height } = size;
   return (
     <div
       key={name}
@@ -91,12 +116,13 @@ function treatedHeadshot(name: string, treated: string, ring: string) {
         width,
         height,
         borderRadius: Math.round(width * CARD_RADIUS_RATIO),
-        border: `${TREATED_RING}px solid ${ring}`,
+        border: `${ringWidth}px solid ${ring}`,
         overflow: "hidden",
         backgroundColor: OG.border,
+        ...(treated ? {} : { alignItems: "center", justifyContent: "center", color: OG.body, fontSize: Math.round(width * 0.3), fontWeight: 600 }),
       }}
     >
-      <img src={treated} alt="" width={width - 2 * TREATED_RING} height={height - 2 * TREATED_RING} />
+      {treated ? <img src={treated} alt="" width={width - 2 * ringWidth} height={height - 2 * ringWidth} /> : initials(name)}
     </div>
   );
 }
@@ -118,18 +144,26 @@ interface QuoteCard {
   about: string;
   /** "Variety · 2023". */
   source: string;
+  /** Spike, development only: the large layout (`LARGE_LAYOUTS`); only drawn when the treatment is on. */
+  layout?: QuoteCardLayout | null;
 }
 
-async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, about, source, mode, hexes }: QuoteCard): Promise<ImageResponse> {
+async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, about, source, mode, hexes, layout }: QuoteCard): Promise<ImageResponse> {
   const [images, fonts, treatments] = await Promise.all([
     Promise.all(people.map((p) => loadImage(p.profilePath))),
     ogQuoteFonts(),
     mode ? Promise.all(people.map((p) => loadOgTreatment(p.id, p.profilePath, p.slot, mode, hexes))) : null,
   ]);
+  const large = treatments && layout ? LARGE_LAYOUTS[layout] : null;
+  const card = large?.card ?? TREATED_CARD;
+  const ringWidth = large ? LARGE_RING : TREATED_RING;
   const treated = treatments?.map((t, i) => {
     const photo = images[i];
-    return t && photo ? treatedHeadshotSvg(t, photo, TREATED_CARD.width - 2 * TREATED_RING, TREATED_CARD.height - 2 * TREATED_RING) : null;
+    return t && photo ? treatedHeadshotSvg(t, photo, card.width - 2 * ringWidth, card.height - 2 * ringWidth) : null;
   });
+  if (large && treated) {
+    return drawLargeQuoteCard({ accent, glow, quote: fullQuote, people, speaker, about, source }, large, treated, fonts);
+  }
 
   const quote = truncateQuote(fullQuote, QUOTE_CARD_MAX_CHARS);
   const { fontSize, lineHeight } = quoteCardType(`${quote}”`);
@@ -213,6 +247,101 @@ async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, 
   );
 }
 
+/**
+ * Spike, development only: the card with the treated portraits large (`large`, one of `LARGE_LAYOUTS`) on the left and the quote, its attribution and the
+ * wordmark in a column to their right, the quote set at the largest of `LARGE_FONT_SIZES` that fits the narrower column. Colours and rings as the card's.
+ */
+function drawLargeQuoteCard(
+  { accent, glow, quote: fullQuote, people, speaker, about, source }: Pick<QuoteCard, "accent" | "glow" | "quote" | "people" | "speaker" | "about" | "source">,
+  large: (typeof LARGE_LAYOUTS)[QuoteCardLayout],
+  treated: (string | null)[],
+  fonts: Awaited<ReturnType<typeof ogQuoteFonts>>,
+): ImageResponse {
+  const { card, offset } = large;
+  const area = { width: offset.x + card.width, height: offset.y + card.height };
+  const textWidth = QUOTE_TEXT_WIDTH - area.width - LARGE_COLUMN_GAP;
+  const quote = truncateQuote(fullQuote, QUOTE_CARD_MAX_CHARS);
+  const { fontSize, lineHeight } = quoteCardType(`${quote}”`, { width: textWidth, height: LARGE_TEXT_HEIGHT, sizes: LARGE_FONT_SIZES });
+  const { words, tail } = splitQuoteTail(quote);
+  const attributionSize = attributionFontSize(`\u2014 ${speaker}${about}`, textWidth - LARGE_WORDMARK_ROOM);
+  // The speaker's card (the first) at the top left and in front: drawn last.
+  const cards = people
+    .map((p, i) => ({ p, i }))
+    .reverse()
+    .map(({ p, i }) => (
+      <div key={p.name} style={{ display: "flex", position: "absolute", left: i * offset.x, top: i * offset.y }}>
+        {treatedHeadshot(p.name, treated[i] ?? null, p.ring, card, LARGE_RING)}
+      </div>
+    ));
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          backgroundColor: OG.bg,
+          backgroundImage: `radial-gradient(circle at 10% 14%, rgba(${glow}, 0.13) 0%, rgba(${glow}, 0.04) 36%, rgba(20, 24, 28, 0) 66%)`,
+          padding: `${PAD_TOP}px ${PAD_X}px ${PAD_BOTTOM}px`,
+          fontFamily: "Inter",
+          color: OG.strong,
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", width: area.width, marginRight: LARGE_COLUMN_GAP }}>
+          <div style={{ display: "flex", position: "relative", width: area.width, height: area.height }}>{cards}</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", width: textWidth }}>
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "center" }}>
+            <div style={{ display: "flex", height: 56, marginLeft: -5, fontFamily: "Newsreader", fontSize: 120, lineHeight: 1, color: accent }}>{"“"}</div>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignContent: "flex-start",
+                maxHeight: LARGE_TEXT_HEIGHT + 40,
+                fontFamily: "Newsreader",
+                fontSize,
+                lineHeight,
+                letterSpacing: -0.4,
+                color: OG.strong,
+              }}
+            >
+              {words.map((word, i) => (
+                <div key={i} style={{ display: "flex", whiteSpace: "pre" }}>
+                  {`${word} `}
+                </div>
+              ))}
+              <div style={{ display: "flex" }}>
+                <div style={{ display: "flex", whiteSpace: "pre" }}>{tail}</div>
+                <div style={{ display: "flex", color: accent }}>{"”"}</div>
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginTop: 22 }}>
+            <div style={{ display: "flex", flexDirection: "column", maxWidth: textWidth - LARGE_WORDMARK_ROOM }}>
+              <div style={{ display: "flex", flexWrap: "wrap", fontSize: attributionSize, lineHeight: 1.2, fontWeight: 600 }}>
+                <span style={{ color: OG.muted, whiteSpace: "pre" }}>{"\u2014 "}</span>
+                <span style={{ color: OG.strong }}>{speaker}</span>
+                <span style={{ color: OG.muted, whiteSpace: "pre" }}>{about}</span>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", marginTop: 5, fontSize: 22, lineHeight: 1.2, fontWeight: 600, color: OG.muted }}>
+                {source.split(" · ").map((part, i) => (
+                  <span key={i} style={{ whiteSpace: "pre" }}>
+                    {i === 0 ? part : ` · ${part}`}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {ogWordmark(30)}
+          </div>
+        </div>
+      </div>
+    ),
+    { ...OG_SIZE, fonts, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
 /** "Publication · 2023", or the publication alone when the year is not known. */
 const sourceLine = (publication: string, year: number | null) => (year === null ? publication : `${publication} · ${year}`);
 
@@ -229,7 +358,7 @@ const sourceLine = (publication: string, year: number | null) => (year === null 
  * route redirects any other spelling of it to the canonical one, which keeps the order), so a card shared from
  * `/p/491-john-williams+488-steven-spielberg` colours the two the other way round from one shared from the reverse.
  */
-export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgImageInput): Promise<ImageResponse> {
+export async function renderQuoteOgImage({ timelines, set, clipping, layout }: QuoteOgImageInput): Promise<ImageResponse> {
   // Spike: off unless `PORTRAIT_TREATMENT=1` (or, outside production, the flag's cookie); null leaves the card as it was.
   const mode = await ogPortraitTreatment();
   const hexes = ogPersonHexes(timelines.map((t) => t.person.id), mode);
@@ -257,6 +386,7 @@ export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgIm
     speaker: clipping.speaker,
     mode,
     hexes,
+    layout,
     about: ` on ${clipping.about}`,
     source: [sourceLine(clipping.publication, clippingYear(clipping)), translatedFrom(clipping)].filter(Boolean).join(" · "),
   });
@@ -268,7 +398,7 @@ export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgIm
  * neutral rings; the attribution is "— {critic} on {A} & {B}" (the publication when the piece is unsigned), the source
  * the publication and the year.
  */
-export async function renderCriticOgImage({ timelines, set, critic }: CriticOgImageInput): Promise<ImageResponse> {
+export async function renderCriticOgImage({ timelines, set, critic, layout }: CriticOgImageInput): Promise<ImageResponse> {
   const accent = OG.muted;
   // Spike: off unless `PORTRAIT_TREATMENT=1` (or, outside production, the flag's cookie); null leaves the card as it was.
   const mode = await ogPortraitTreatment();
@@ -288,5 +418,6 @@ export async function renderCriticOgImage({ timelines, set, critic }: CriticOgIm
     speaker: criticName(critic),
     about: ` on ${criticAbout(set.people)}`,
     source: sourceLine(critic.publication, criticYear(critic)),
+    layout,
   });
 }
