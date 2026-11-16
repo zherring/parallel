@@ -104,8 +104,8 @@ const rectPoints = ({ x0, y0, x1, y1 }: Box): Pt[] => [
 ];
 
 /**
- * A cut-paper polygon around `box`: the 4 corners jittered, 4–10 more points along the edges pushed mostly outward, and (about half the
- * time) a thin spike: two points close together on an edge with a long slanted tip between them. `w` is the poster width, for scale.
+ * A cut-paper polygon around `box`: the 4 corners jittered and 4–10 more points along the edges pushed mostly outward (no spikes).
+ * `w` is the poster width, for scale.
  */
 function roughPoints(box: Box, w: number, jitter: number, rand: () => number): Pt[] {
   const j = (jitter / 100) * w * 0.12;
@@ -120,7 +120,6 @@ function roughPoints(box: Box, w: number, jitter: number, rand: () => number): P
   const extras = [0, 0, 0, 0];
   const extraCount = 4 + Math.floor(rand() * 7);
   for (let i = 0; i < extraCount; i++) extras[Math.floor(rand() * 4)]++;
-  const spikeEdge = jitter > 0 && rand() < 0.55 ? Math.floor(rand() * 4) : -1;
 
   const points: Pt[] = [];
   for (let e = 0; e < 4; e++) {
@@ -134,16 +133,6 @@ function roughPoints(box: Box, w: number, jitter: number, rand: () => number): P
     for (let k = 0; k < extras[e]; k++) {
       const t = between(0.12, 0.88);
       marks.push({ t, pts: [at(t, between(-0.4 * j, j))] });
-    }
-    if (e === spikeEdge) {
-      const t = between(0.2, 0.8);
-      const half = (w * between(0.02, 0.045)) / len;
-      const tipLen = w * between(0.18, 0.38) * (0.5 + jitter / 100);
-      const slant = between(-0.6, 0.6) * tipLen;
-      const [tx, ty] = at(t, tipLen);
-      const ux = (bx - ax) / len;
-      const uy = (by - ay) / len;
-      marks.push({ t, pts: [at(t - half, 0), [tx + ux * slant, ty + uy * slant], at(t + half, 0)] });
     }
     marks.sort((m, n) => m.t - n.t).forEach((m) => points.push(...m.pts));
   }
