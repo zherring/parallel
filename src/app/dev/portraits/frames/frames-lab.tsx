@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useId, type CSSProperties, type ReactNode } from "react";
 import { PORTRAIT_PALETTE } from "@/lib/portrait-cuts";
-import { buildFrame, OVERLAP, toPath } from "@/lib/rough-frame";
 import { ControlsPanel, createSettingsStore, Group, PANEL_W, PanelNote, pick, Segment } from "../controls-panel";
 
 const STYLES = ["rough", "clean", "both"] as const;
@@ -40,9 +39,11 @@ interface Settings {
   open: boolean;
 }
 
-/** Zach's picks (2026-11-16): jitter follows the size (smaller posters get more), margin 10%, offset 3% (`FRAME_MARGIN`, `FRAME_OFFSET`, `jitterForWidth`). */
+/** Zach's picks (2026-11-16): jitter follows the size (smaller posters get more), margin 10%, offset 3%. */
 const JITTER_BY_SIZE: Record<Size, number> = { s: 35, m: 25, l: 20 };
 const DEFAULTS: Settings = { style: "rough", margin: 10, offset: 3, jitter: JITTER_BY_SIZE.m, seed: 1, bg: "dark", size: "m", open: true };
+/** The overlap is white on the dark bg and black on the light one. */
+const OVERLAP: Record<Bg, string> = { dark: "#fff", light: "#000" };
 
 const RANGES = { margin: [2, 40], offset: [0, 30], jitter: [0, 100] } as const;
 
@@ -82,19 +83,100 @@ function pairsOf<T>(items: readonly T[]): [T, T][] {
   return items.flatMap((a, i) => items.slice(i + 1).map((b) => [a, b] as [T, T]));
 }
 
-/** Shape A (first colour) nudged up-left, shape B down-right; each is the poster box (0,0)–(w,1.5w) grown by the margin (see `buildFrame`). */
-function frameFor(colors: [string, string], style: "clean" | "rough", s: Settings, w: number) {
-  const { shapes, view } = buildFrame({
-    w,
-    h: w * 1.5,
-    margin: s.margin,
-    offset: s.offset,
-    jitter: s.jitter,
-    style,
-    seeds: [`${colors[0]}${colors[1]}:a:${s.seed}`, `${colors[0]}${colors[1]}:b:${s.seed}`],
-  });
-  return { a: shapes[0], b: shapes[1], view };
+/** mulberry32, seeded from a string (FNV-1a). */
+function prng(key: string): () => number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 0x01000193);
+  let a = h >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
+
+type Pt = [number, number];
+interface Box {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+const rectPoints = ({ x0, y0, x1, y1 }: Box): Pt[] => [
+  [x0, y0],
+  [x1, y0],
+  [x1, y1],
+  [x0, y1],
+];
+
+/**
+ * A cut-paper polygon around `box`: the 4 corners jittered and 4–10 more points along the edges pushed mostly outward (no spikes).
+ * `w` is the poster width, for scale.
+ */
+function roughPoints(box: Box, w: number, jitter: number, rand: () => number): Pt[] {
+  const j = (jitter / 100) * w * 0.12;
+  const between = (lo: number, hi: number) => lo + rand() * (hi - lo);
+  const corners: Pt[] = rectPoints(box);
+  const normals: Pt[] = [
+    [0, -1],
+    [1, 0],
+    [0, 1],
+    [-1, 0],
+  ];
+  const extras = [0, 0, 0, 0];
+  const extraCount = 4 + Math.floor(rand() * 7);
+  for (let i = 0; i < extraCount; i++) extras[Math.floor(rand() * 4)]++;
+
+  const points: Pt[] = [];
+  for (let e = 0; e < 4; e++) {
+    const [ax, ay] = corners[e];
+    const [bx, by] = corners[(e + 1) % 4];
+    const [nx, ny] = normals[e];
+    const at = (t: number, out: number): Pt => [ax + (bx - ax) * t + nx * out, ay + (by - ay) * t + ny * out];
+    points.push([ax + between(-j, j), ay + between(-j, j)]);
+    const marks: { t: number; pts: Pt[] }[] = [];
+    for (let k = 0; k < extras[e]; k++) {
+      const t = between(0.12, 0.88);
+      marks.push({ t, pts: [at(t, between(-0.4 * j, j))] });
+    }
+    marks.sort((m, n) => m.t - n.t).forEach((m) => points.push(...m.pts));
+  }
+  return points;
+}
+
+interface Frame {
+  a: Pt[];
+  b: Pt[];
+  view: Box;
+}
+
+/** Shape A (first colour) nudged up-left, shape B down-right; each is the poster box (0,0)–(w,1.5w) grown by the margin. */
+function frameFor(colors: [string, string], style: "clean" | "rough", s: Settings, w: number): Frame {
+  const h = w * 1.5;
+  const m = (s.margin / 100) * w;
+  const o = (s.offset / 100) * w;
+  const grow = (dx: number, dy: number): Box => ({ x0: -m + dx, y0: -m + dy, x1: w + m + dx, y1: h + m + dy });
+  const boxA = grow(-o / 2, -o / 2);
+  const boxB = grow(o / 2, o / 2);
+  const a = style === "clean" ? rectPoints(boxA) : roughPoints(boxA, w, s.jitter, prng(`${colors[0]}${colors[1]}:a:${s.seed}`));
+  const b = style === "clean" ? rectPoints(boxB) : roughPoints(boxB, w, s.jitter, prng(`${colors[0]}${colors[1]}:b:${s.seed}`));
+  const all = [...a, ...b];
+  const pad = 2;
+  return {
+    a,
+    b,
+    view: {
+      x0: Math.min(...all.map((p) => p[0])) - pad,
+      y0: Math.min(...all.map((p) => p[1])) - pad,
+      x1: Math.max(...all.map((p) => p[0])) + pad,
+      y1: Math.max(...all.map((p) => p[1])) + pad,
+    },
+  };
+}
+
+const toPath = (pts: Pt[]) => pts.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
 
 /**
  * Stack: shape B in colour B, shape A in colour A, then shape B again in white clipped to shape A (the true intersection), then the poster.

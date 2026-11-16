@@ -5,7 +5,6 @@ import { placeholderFill } from "@/lib/poster-placeholder";
 import { columnIndex, posterFactor, restOpacityFor, type DepthFilm } from "@/lib/depth-layout";
 import { personColor, personGlow } from "@/lib/person-colors";
 import { cn } from "@/components/timeline/cn";
-import { RoughFrame } from "@/components/rough-frame";
 
 interface DepthPosterProps {
   item: DepthFilm;
@@ -27,11 +26,6 @@ interface DepthPosterProps {
   eager: boolean;
   /** id of the hover card while it is open for this poster. */
   describedBy?: string;
-  /**
-   * Spike (`?frames=rough`): the seed (film id + person ids) of a rough-cut frame behind the poster, in its people's colours (two shapes for a
-   * film two people made, one for a film of one), in place of the green or colour ring. Undefined: the poster as it is.
-   */
-  frameSeed?: string;
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
@@ -74,7 +68,7 @@ function TitleFace({ title }: { title: string }) {
   );
 }
 
-function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selected, eager, describedBy, frameSeed, onSelect }: DepthPosterProps) {
+function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selected, eager, describedBy, onSelect }: DepthPosterProps) {
   const { film, shared, slots, layer, y, band, col, jitter, w, h, obscurity, push, pull, background } = item;
   // `Title, Year`: a title that already ends with its year is not said twice (see `filmLabel`). The label is only drawn for a film made together.
   const label = filmLabel(film.title, film.year);
@@ -86,7 +80,6 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
   // One person made it: their colour rings the poster. Several people making a film that is not out yet: neutral.
   const ring = coloured && !shared && slots.length === 1 ? slots[0] : null;
   const ringColor = ring === null ? null : personColor(ring);
-  const framed = frameSeed !== undefined && slots.length > 0;
 
   // The films several people made are as large as the viewport lets them be (`--collab-w`, see `depthSceneCss`): a size in CSS, 2:3, centred on `y` by the
   // transform (the poster's height is not known here), as the same markup serves every viewport. Every other poster is a fixed size, placed by its top edge.
@@ -169,12 +162,7 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
       >
         {/* The card the layered shadows hang from (globals.css). It stays where it is as it comes into focus: sharper and brighter, not lifted. */}
         <span data-poster-card data-collab={shared ? "" : undefined} className="relative block size-full">
-          {/* Inside the card (an isolated stacking context), so its shadows (::before, z -1) stay under the frame and the face paints over it.
-              The fluid posters' size is CSS, so it is measured; the others' is known. */}
-          {framed && (
-            <RoughFrame colors={slots.slice(0, 2).map(personColor)} seed={frameSeed} width={fluid ? undefined : w} height={fluid ? undefined : h} />
-          )}
-          {!framed && ring !== null && ringColor !== null && (
+          {ring !== null && ringColor !== null && (
             <span
               aria-hidden
               className="absolute rounded-[5px]"
@@ -196,7 +184,7 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
             // The fill is what shows until the image has arrived: the surface, tinted with the person's colour (green for a film made together).
             style={{
               backgroundColor: placeholderFill(shared ? "var(--lit)" : ringColor),
-              ...(framed ? null : shared ? { boxShadow: "0 0 0 2px var(--lit)" } : ringColor !== null ? { boxShadow: `0 0 0 1.5px ${ringColor}` } : null),
+              ...(shared ? { boxShadow: "0 0 0 2px var(--lit)" } : ringColor !== null ? { boxShadow: `0 0 0 1.5px ${ringColor}` } : null),
             }}
           >
             {src ? (
