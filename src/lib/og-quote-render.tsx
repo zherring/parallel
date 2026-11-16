@@ -22,6 +22,7 @@ import {
   TREATED_WIDTH,
   TREATED_WORDMARK,
   treatedTile,
+  treatedQuotePortraits,
   treatedTileTops,
 } from "@/lib/og-treated";
 import { hexChannels, personHex } from "@/lib/person-colors";
@@ -128,7 +129,7 @@ interface QuoteCard {
   glow: string;
   quote: string;
   /** The round headshots, left to right, each with its ring; `id`, `slot` (their colour on the page) and `posters` (the montage behind a tear) are for the spike's treatment. */
-  people: { id: number; slot: number; name: string; profilePath: string | null; posters: string[]; ring: string }[];
+  people: { id: number; slot: number; name: string; profilePath: string | null; posters: string[]; ring: string; grey?: boolean }[];
   speaker: string;
   /** Spike: the treatment (`ogPortraitTreatment`) and the people's colours with it (`ogPersonHexes`), by slot; null for the card as it was. */
   mode: OgTreatmentMode | null;
@@ -137,11 +138,13 @@ interface QuoteCard {
   about: string;
   /** "Variety · 2023". */
   source: string;
-  /** Spike: whether the portraits after the first are greyed when the treatment is on (an artist's quote: all but the speaker are; a critic's, with no speaker, none is). */
-  dimSecond?: boolean;
+  /** Spike: the speaker's `slot` when the treatment is on, for the portraits' colour: all but theirs are greyed (a critic's quote, with no speaker, has none greyed). The treated card keeps the order of the URL. */
+  speakerSlot?: number | null;
 }
 
-async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, about, source, mode, hexes, dimSecond = false }: QuoteCard): Promise<ImageResponse> {
+async function drawQuoteCard({ accent, glow, quote: fullQuote, people: asked, speaker, about, source, mode, hexes, speakerSlot = null }: QuoteCard): Promise<ImageResponse> {
+  // Spike: the treated card's portraits do not move with the speaker: they keep the order of the URL, as the pair's card has them, and only the colour follows the speaker.
+  const people: QuoteCard["people"] = mode ? treatedQuotePortraits(asked, speakerSlot) : asked;
   const [images, fonts, treatments] = await Promise.all([
     Promise.all(people.map((p) => loadImage(p.profilePath))),
     ogQuoteFonts(),
@@ -152,7 +155,7 @@ async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, 
     const tiles = treatments.map((t, i) => {
       const photo = images[i];
       return t && photo
-        ? treatedTileSvg(t, photo, tile.width, tile.height, { grey: dimSecond && i >= 1 })
+        ? treatedTileSvg(t, photo, tile.width, tile.height, { grey: people[i].grey === true })
         : null;
     });
     return drawTreatedQuoteCard({ accent, quote: fullQuote, people, speaker, about, source }, tiles, fonts);
@@ -237,8 +240,8 @@ async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, 
 }
 
 /**
- * Spike: the card with the treatment on, on the grid of `og-treated.ts`. The people's portraits (`tiles`, SVG data URIs of the head crops, the speaker's first
- * and in colour, the others greyed; null for one with no photo, initials) stacked down the left edge; in the column to their right the quote, at the largest
+ * Spike: the card with the treatment on, on the grid of `og-treated.ts`. The people's portraits (`tiles`, SVG data URIs of the head crops, in the order of the
+ * URL, the speaker's in colour and the others greyed; null for one with no photo, initials) stacked down the left edge; in the column to their right the quote, at the largest
  * of `TREATED_FONT_SIZES` that fits it, its marks inline in `accent` (`inlineQuoteWords`), centred in what the attribution leaves; under it, at the column's
  * left, the attribution and the source as plain text (no box: the quote's own words, smaller), and, at its right, the wordmark on the source line's baseline,
  * which is the bottom margin. No glow: the canvas is plain.
@@ -351,7 +354,7 @@ export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgIm
   const accent = side === null ? OG.muted : personHex(voices[side].slot, hexes);
   const glow = side === null ? "0, 0, 0" : rgbOf(accent);
 
-  // The speaker first, then the one they are talking about.
+  // The untreated card has the speaker first, then the one they are talking about (the treated card keeps the order of the URL: see `drawQuoteCard`).
   const speakerId = side === null ? null : set.people[side].id;
   const ordered = [...timelines].sort((a, b) => Number(b.person.id === speakerId) - Number(a.person.id === speakerId));
 
@@ -372,7 +375,7 @@ export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgIm
     mode,
     hexes,
     // The one spoken about is greyed, as in the Quotes view; with no known speaker, neither.
-    dimSecond: side !== null,
+    speakerSlot: speakerId === null ? null : timelines.findIndex((t) => t.person.id === speakerId),
     about: ` on ${clipping.about}`,
     source: [sourceLine(clipping.publication, clippingYear(clipping)), translatedFrom(clipping)].filter(Boolean).join(" · "),
   });

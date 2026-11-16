@@ -51,6 +51,15 @@ export function treatedTileTops(count: number): number[] {
 }
 
 /**
+ * The portraits of a treated quote card, top to bottom: the page's people in the order of its URL (`slot`, the position in the slug), as the pair's own
+ * card has them, whoever is speaking: the portraits stay where they are from one quote to the next. Only the colour follows the speaker: theirs is in colour,
+ * the others greyed (`grey`). With no speaker among them (`speakerSlot` null: a critic's quote, or one by a person who is neither) all are in colour.
+ */
+export function treatedQuotePortraits<T extends { slot: number }>(people: readonly T[], speakerSlot: number | null): (T & { grey: boolean })[] {
+  return [...people].sort((a, b) => a.slot - b.slot).map((person) => ({ ...person, grey: speakerSlot !== null && person.slot !== speakerSlot }));
+}
+
+/**
  * The width of the cut's edge on a portrait of the column's width, as the PNG draws it (`strokeForWidth`), as a share of the portrait's own width: a CSS length
  * in container units, for a portrait the embeds draw at the frame's scale (it is measured against the portrait's own box, so it scales with it).
  */

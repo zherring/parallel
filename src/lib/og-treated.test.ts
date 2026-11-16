@@ -19,6 +19,7 @@ import {
   treatedAxisGradient,
   treatedPairLayout,
   treatedPosterLefts,
+  treatedQuotePortraits,
   treatedTile,
   treatedTileTops,
 } from "@/lib/og-treated";
@@ -71,6 +72,32 @@ describe("the treated cards' grid", () => {
     expect(second + tile.height).toBe(630);
     expect(second).toBeGreaterThan(tile.height);
     expect(treatedTile(1).height).toBe(630);
+  });
+
+  it("keeps a quote card's portraits in the order of the URL whoever speaks, and only the colour follows the speaker", () => {
+    const pair = [
+      { id: 491, slot: 0, name: "John Williams" },
+      { id: 488, slot: 1, name: "Steven Spielberg" },
+    ];
+    // Williams on Spielberg, then Spielberg on Williams: the same person on top both times, the grey the other way round.
+    const williamsSpeaks = treatedQuotePortraits(pair, 0);
+    const spielbergSpeaks = treatedQuotePortraits(pair, 1);
+    expect(williamsSpeaks.map((p) => p.id)).toEqual([491, 488]);
+    expect(spielbergSpeaks.map((p) => p.id)).toEqual([491, 488]);
+    expect(williamsSpeaks.map((p) => p.grey)).toEqual([false, true]);
+    expect(spielbergSpeaks.map((p) => p.grey)).toEqual([true, false]);
+    // The other way round in the URL, the other way round on the card.
+    const reversed = treatedQuotePortraits([{ ...pair[1], slot: 0 }, { ...pair[0], slot: 1 }], 1);
+    expect(reversed.map((p) => p.id)).toEqual([488, 491]);
+    expect(reversed.map((p) => p.grey)).toEqual([true, false]);
+  });
+
+  it("puts a group's portraits in the order of the URL too, the speaker's alone in colour; a critic's quote has all of them in colour", () => {
+    const group = [0, 1, 2, 3].map((slot) => ({ id: 100 + slot, slot }));
+    const shuffled = [group[2], group[0], group[3], group[1]];
+    expect(treatedQuotePortraits(shuffled, 2).map((p) => [p.id, p.grey])).toEqual([[100, true], [101, true], [102, false], [103, true]]);
+    expect(treatedQuotePortraits(group, null).every((p) => !p.grey)).toBe(true);
+    expect(treatedQuotePortraits(group, null).map((p) => p.id)).toEqual([100, 101, 102, 103]);
   });
 
   it("puts the posters on the column's left edge, a fixed step apart, and the last one on its right edge when the row is full", () => {

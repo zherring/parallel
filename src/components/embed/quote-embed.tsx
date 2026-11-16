@@ -15,7 +15,7 @@ import type { ElementLike } from "@/lib/hero-keys";
 import { QUOTE_FOOTER_BOTTOM_PX } from "@/lib/embed-insets";
 import { quoteCardType } from "@/lib/og-quote";
 import { OG_WIDTH } from "@/lib/og-card";
-import { TREATED_COLUMN, TREATED_GUTTER, TREATED_MARGIN, TREATED_STROKE_CSS, TREATED_TILE_GAP, treatedTile } from "@/lib/og-treated";
+import { TREATED_COLUMN, TREATED_GUTTER, TREATED_MARGIN, TREATED_STROKE_CSS, TREATED_TILE_GAP, treatedQuotePortraits, treatedTile } from "@/lib/og-treated";
 import { describeShortcutTarget } from "@/lib/people-shortcut";
 import { personColor, personColorCss } from "@/lib/person-colors";
 import { initials } from "@/lib/person-labels";
@@ -267,7 +267,7 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant, people = [], se
   );
 
   // Spike: with the portrait flag on, the frame is the treated quote card (the PNG of `og-quote-render.tsx`, on the grid of `og-treated.ts`): the portraits
-  // stacked down the left edge, the speaker's in colour and the others greyed, the quote to their right, its attribution as plain text at the bottom left
+  // stacked down the left edge in the order of the URL, the speaker's in colour and the others greyed, the quote to their right, its attribution as plain text at the bottom left
   // of that column and the wordmark at its bottom right. The frame's own control (the arrows) sits at the column's top right: the PNG has no "Open in Parallel",
   // so neither has this first frame. In a narrow frame (the panel X opens over a phone) the portraits go and the column takes the frame.
   const treated = portraitMode !== null && people.length >= 2;
@@ -287,16 +287,15 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant, people = [], se
     </p>
   );
 
-  // The speaker's portrait first, in colour; the other one greyed (a critic's quote has no speaker: both in colour).
-  const ordered = people
-    .map((person, slot) => ({ person, slot }))
-    .sort((a, b) => Number(b.slot === current.slot) - Number(a.slot === current.slot));
+  // The portraits stay in the order of the URL (a slot is a person's position in it), as the pair's card has them, whoever is speaking: only the speaker's is in
+  // colour and the others greyed (a critic's quote has no speaker: all in colour).
+  const ordered = treatedQuotePortraits(people.map((person, slot) => ({ person, slot })), current.slot);
   const tile = treatedTile(people.length);
   const treatedSection =
     treated && portraitMode ? (
       <section aria-label={`Quotes on ${pair}`} className="relative h-full w-full bg-canvas text-body" style={{ "--px": POSTER_PX } as CSSProperties}>
         <div className="absolute inset-y-0 left-0 flex flex-col @max-[30rem]:hidden" style={{ width: `${COLUMN_SHARE}cqw`, gap: px(TREATED_TILE_GAP) }}>
-          {ordered.map(({ person, slot }, i) => (
+          {ordered.map(({ person, slot, grey }) => (
             <div key={person.id} className="relative min-h-0 flex-1 overflow-hidden bg-border">
               {person.profilePath ? (
                 <TreatedPortrait
@@ -312,7 +311,7 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant, people = [], se
                   headAspect={TREATED_COLUMN / tile.height}
                   filmPosters={person.posters}
                   strokePx={TREATED_STROKE_CSS}
-                  grey={current.slot !== null && i >= 1}
+                  grey={grey}
                   className="h-full w-full"
                 />
               ) : (
