@@ -351,7 +351,8 @@ function PersonFace({ item, slot }: { item: Item; slot: number }) {
   );
 }
 
-function PersonCard({ item, slot, tilt, flip }: { item: Item; slot: number; tilt: number; flip: boolean }) {
+/** Spike: `whiteRing` (the portrait flag) turns the hover ring white instead of green, against the pair's own colours. */
+function PersonCard({ item, slot, tilt, flip, whiteRing = false }: { item: Item; slot: number; tilt: number; flip: boolean; whiteRing?: boolean }) {
   return (
     <figure
       className="absolute inset-0 m-0 overflow-hidden rounded-[18px] bg-surface shadow-[0_1px_1px_rgb(0_0_0/0.5),0_10px_20px_-6px_rgb(0_0_0/0.55),0_30px_50px_-14px_rgb(0_0_0/0.7)]"
@@ -368,7 +369,7 @@ function PersonCard({ item, slot, tilt, flip }: { item: Item; slot: number; tilt
       </figcaption>
       <span
         aria-hidden="true"
-        className="absolute inset-0 rounded-[18px] ring-1 ring-inset ring-white/15 transition-shadow duration-300 group-hover:ring-2 group-hover:ring-accent-green/70 group-focus-visible:ring-2 group-focus-visible:ring-focus"
+        className={`absolute inset-0 rounded-[18px] ring-1 ring-inset ring-white/15 transition-shadow duration-300 group-hover:ring-2 ${whiteRing ? "group-hover:ring-white/70" : "group-hover:ring-accent-green/70"} group-focus-visible:ring-2 group-focus-visible:ring-focus`}
       />
     </figure>
   );
@@ -474,7 +475,7 @@ function Stage({
           <div data-drift="" data-kind="person" data-depth={slot === 0 ? 5 : -6} className="absolute inset-0">
             {byType("person", slot).map((item) => (
               <Motion key={item.id} item={item} reduced={reduced} onGone={onGone}>
-                <PersonCard item={item} slot={slot} tilt={place.tilt} flip={slot === 1} />
+                <PersonCard item={item} slot={slot} tilt={place.tilt} flip={slot === 1} whiteRing={pairWash} />
               </Motion>
             ))}
           </div>
