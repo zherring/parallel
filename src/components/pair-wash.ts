@@ -1,0 +1,66 @@
+"use client";
+
+import { useEffect, useSyncExternalStore, type CSSProperties } from "react";
+
+/**
+ * Spike (zherring/spike-portraits): a pair's two colours as a soft background, the first washing in from the element's top left and the second
+ * from its bottom right, at the strength of the quote embed's old wash. The two colours are registered `<color>` custom properties, so a change
+ * (the next pair on the landing hero, the other speaker's quote) eases from one pair of colours to the next; where registration is missing
+ * they change at once, as they do when the visitor asks for less motion. Only behind the portrait flag: without it nothing here is set.
+ */
+export const PAIR_WASH_A = "--pair-wash-a";
+export const PAIR_WASH_B = "--pair-wash-b";
+/** About as long as the landing hero's portraits take to swap: the leaving card's 320ms, the arriving one's delay and 520ms. */
+export const PAIR_WASH_MS = 800;
+export const PAIR_WASH_IMAGE = [
+  `radial-gradient(ellipse 70% 95% at 0% 0%, color-mix(in srgb, var(${PAIR_WASH_A}) 16%, transparent), transparent 70%)`,
+  `radial-gradient(ellipse 70% 95% at 100% 100%, color-mix(in srgb, var(${PAIR_WASH_B}) 16%, transparent), transparent 70%)`,
+].join(", ");
+
+let registered = false;
+/** Registers the two colours (once, and only once something asks for the wash: behind the flag). */
+export function registerPairWash() {
+  if (registered) return;
+  registered = true;
+  for (const name of [PAIR_WASH_A, PAIR_WASH_B]) {
+    try {
+      CSS.registerProperty({ name, syntax: "<color>", inherits: false, initialValue: "transparent" });
+    } catch {
+      // Registered already (a hot reload), or not supported: then the colours swap without easing.
+    }
+  }
+}
+
+/** The wash's transition: none when the visitor asks for less motion, so the colours swap at once. */
+export function pairWashTransition(reduced: boolean): string {
+  return reduced ? "" : `${PAIR_WASH_A} ${PAIR_WASH_MS}ms ease-in-out, ${PAIR_WASH_B} ${PAIR_WASH_MS}ms ease-in-out`;
+}
+
+const REDUCED_QUERY = "(prefers-reduced-motion: reduce)";
+function subscribeReduced(onChange: () => void) {
+  const query = window.matchMedia(REDUCED_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+/** Whether the visitor asks for less motion; false on the server and in the hydrating render. */
+export const useReducedMotion = () =>
+  useSyncExternalStore(subscribeReduced, () => window.matchMedia(REDUCED_QUERY).matches, () => false);
+
+/**
+ * The wash as an element's style, for an element React renders: `colors` is [top left, bottom right], or null (no flag) for no style at all.
+ * Callers pass null on the server and in the hydrating render (the flag is read with `usePortraitMode`), so the markup matches.
+ */
+export function usePairWashStyle(colors: readonly [string, string] | null): CSSProperties | undefined {
+  const reduced = useReducedMotion();
+  const on = colors !== null;
+  useEffect(() => {
+    if (on) registerPairWash();
+  }, [on]);
+  if (!colors) return undefined;
+  return {
+    backgroundImage: PAIR_WASH_IMAGE,
+    transition: pairWashTransition(reduced) || undefined,
+    [PAIR_WASH_A]: colors[0],
+    [PAIR_WASH_B]: colors[1],
+  } as CSSProperties;
+}

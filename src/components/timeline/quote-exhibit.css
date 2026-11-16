@@ -65,6 +65,18 @@ body:has([data-quote-exhibit-deck]) > footer {
   padding: 6rem clamp(2rem, 4vw, 5rem);
 }
 
+/* Spike (portrait flag only): the quote pane's two-colour glow (`usePairWashStyle`), under the quotes; the toolbar lets it show through. */
+.quote-exhibit-wash {
+  position: absolute;
+  inset: 0 0 0 50%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.quote-exhibit:has(> .quote-exhibit-wash) .quote-exhibit-toolbar {
+  background: transparent;
+}
+
 .quote-exhibit-media {
   position: absolute;
   inset: 0 auto 0 0;
@@ -321,6 +333,10 @@ body:has([data-quote-exhibit-deck]) > footer {
     /* A broad 3:2 image panel, capped only to leave the quote usable on short screens. */
     --image-height: min(calc((100vw - 3rem) * 2 / 3), max(6rem, calc(100dvh - var(--image-top) - 15rem)));
     --image-pane-height: calc(var(--image-top) + var(--image-height));
+  }
+
+  .quote-exhibit-wash {
+    inset: var(--image-pane-height) 0 0;
   }
 
   .quote-exhibit-media {

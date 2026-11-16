@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { EMBED_BUTTON, FRAME_STYLE, EmbedWordmark, OpenInParallel, embedSize as size } from "@/components/embed/embed-shell";
 import { newsreader } from "@/components/newsreader";
+import { usePairWashStyle } from "@/components/pair-wash";
 import { PersonAvatar } from "@/components/person-avatar";
 import { usePortraitPersonHexes } from "@/components/person-palette";
 import { TreatedPortrait } from "@/components/treated-portrait";
@@ -199,6 +200,11 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
   const color = current.slot === null ? MUTED : personColor(current.slot);
   // Spike: the speaker's TMDB id, for the treatment's cut: their slot is their position in the slug, which is the people's ids in the page's order.
   const speakerId = portraitMode && current.slot !== null ? parsePeopleSlug(slug)?.ids[current.slot] : undefined;
+  // Spike: with the flag, the speaker's colour washes in from the top left and the other person's from the bottom right, easing across when the
+  // next quote is the other person's (`usePairWashStyle`); a critic's quote, or one whose speaker is neither of the pair, takes the pair's order.
+  const washSlots = current.slot === 0 || current.slot === 1 ? [current.slot, 1 - current.slot] : [0, 1];
+  const washHexes = paletteHexes?.length === 2 ? ([paletteHexes[washSlots[0]], paletteHexes[washSlots[1]]] as const) : null;
+  const pairWash = usePairWashStyle(washHexes);
   const type = quoteCardType(current.quote);
   const step = (delta: number) => setIndex((i) => (i + delta + count) % count);
   const button = EMBED_BUTTON;
@@ -219,8 +225,8 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
       <section
         aria-label={`Quotes on ${pair}`}
         className="flex h-full w-full flex-col bg-canvas text-body"
-        // A faint wash of the speaker's colour from the top left, as the quote's card image has behind it.
-        style={{ backgroundImage: `radial-gradient(ellipse 75% 95% at 0% 0%, color-mix(in srgb, ${color} 15%, transparent), transparent 70%)` }}
+        // A faint wash of the speaker's colour from the top left, as the quote's card image has behind it; with the flag, both people's (see `pairWash`).
+        style={pairWash ?? { backgroundImage: `radial-gradient(ellipse 75% 95% at 0% 0%, color-mix(in srgb, ${color} 15%, transparent), transparent 70%)` }}
       >
         <header className="flex shrink-0 items-center justify-between gap-3" style={{ padding: `${size(9, 2.4)} ${size(12, 5.67)} 0` }}>
           {/* More pairs: the wordmark leads to the landing page's Quotes tab. */}

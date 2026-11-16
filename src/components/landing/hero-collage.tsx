@@ -15,6 +15,7 @@ import {
   type RefObject,
 } from "react";
 import { TimelineLine } from "@/components/landing/hero-timeline";
+import { PAIR_WASH_A, PAIR_WASH_B, PAIR_WASH_IMAGE, pairWashTransition, registerPairWash, useReducedMotion } from "@/components/pair-wash";
 import { TreatedPortrait } from "@/components/treated-portrait";
 import { usePortraitMode } from "@/components/use-portrait-mode";
 import { pairPortraitColors } from "@/lib/portrait-cuts";
@@ -200,57 +201,24 @@ function sceneLabel(scene: Scene): string {
 const sceneHref = (scene: Scene) =>
   `/p/${buildPeopleSlug(scene.people.map(({ id, name }) => ({ id, name })))}`;
 
-const REDUCED_QUERY = "(prefers-reduced-motion: reduce)";
-function subscribeReduced(onChange: () => void) {
-  const query = window.matchMedia(REDUCED_QUERY);
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
-}
-const useReducedMotion = () =>
-  useSyncExternalStore(subscribeReduced, () => window.matchMedia(REDUCED_QUERY).matches, () => false);
-
 const subscribeNever = () => () => {};
 
 /**
- * Spike (zherring/spike-portraits): behind the portrait flag the hero's green gives way to the pair's colours, the left person's washing in
- * from the section's top left and the right person's from its bottom right, at the strength of the quote embed's wash. The two colours are
- * registered custom properties, so a change of pair eases from one pair's colours to the next over about the cards' own swap; where
- * registration is missing they change at once. All of it is set on the section here, and only with the flag on: without it the section,
- * its classes and its style are as the server sent them.
+ * Spike (zherring/spike-portraits): behind the portrait flag the hero's green gives way to the pair's colours (`PAIR_WASH_IMAGE`), the left
+ * person's from the section's top left and the right person's from its bottom right. All of it is set on the section here, and only with the
+ * flag on: without it the section, its classes and its style are as the server sent them.
  */
-const WASH_A = "--hero-wash-a";
-const WASH_B = "--hero-wash-b";
-/** About as long as the portraits take to swap: the leaving card's 320ms, the arriving one's delay and 520ms. */
-const WASH_MS = 800;
-const WASH_IMAGE = [
-  `radial-gradient(ellipse 70% 95% at 0% 0%, color-mix(in srgb, var(${WASH_A}) 16%, transparent), transparent 70%)`,
-  `radial-gradient(ellipse 70% 95% at 100% 100%, color-mix(in srgb, var(${WASH_B}) 16%, transparent), transparent 70%)`,
-].join(", ");
-
-let washRegistered = false;
-function registerWash() {
-  if (washRegistered) return;
-  washRegistered = true;
-  for (const name of [WASH_A, WASH_B]) {
-    try {
-      CSS.registerProperty({ name, syntax: "<color>", inherits: false, initialValue: "transparent" });
-    } catch {
-      // Registered already (a hot reload), or not supported: then the colours swap without easing.
-    }
-  }
-}
-
 function usePairWash(root: RefObject<HTMLDivElement | null>, colors: readonly [string, string] | null, reduced: boolean) {
   const on = colors !== null;
   useEffect(() => {
     const section = root.current?.closest("section");
     if (!on || !section) return;
-    registerWash();
+    registerPairWash();
     const { style } = section;
-    style.backgroundImage = WASH_IMAGE;
-    style.transition = reduced ? "" : `${WASH_A} ${WASH_MS}ms ease-in-out, ${WASH_B} ${WASH_MS}ms ease-in-out`;
+    style.backgroundImage = PAIR_WASH_IMAGE;
+    style.transition = pairWashTransition(reduced);
     return () => {
-      for (const property of ["background-image", "transition", WASH_A, WASH_B]) style.removeProperty(property);
+      for (const property of ["background-image", "transition", PAIR_WASH_A, PAIR_WASH_B]) style.removeProperty(property);
     };
   }, [root, on, reduced]);
 
@@ -258,8 +226,8 @@ function usePairWash(root: RefObject<HTMLDivElement | null>, colors: readonly [s
   useEffect(() => {
     const section = root.current?.closest("section");
     if (!section || !a || !b) return;
-    section.style.setProperty(WASH_A, a);
-    section.style.setProperty(WASH_B, b);
+    section.style.setProperty(PAIR_WASH_A, a);
+    section.style.setProperty(PAIR_WASH_B, b);
   }, [root, a, b]);
 }
 

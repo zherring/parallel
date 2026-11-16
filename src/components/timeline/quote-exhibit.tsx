@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type CSSProperties, type ReactNode } from "react";
+import { usePairWashStyle } from "@/components/pair-wash";
+import { usePersonPalette } from "@/components/person-palette";
 import { TreatedPortrait } from "@/components/treated-portrait";
 import { usePortraitMode } from "@/components/use-portrait-mode";
 import type { ClippingsVoice } from "@/lib/clippings";
@@ -18,8 +20,18 @@ interface Props {
 
 /** A stationary image pane beside the scrolling quote pane. */
 export function QuoteExhibit({ people, speakerId, children }: Props) {
+  // Spike: with the portrait flag (the page's palette, `PersonPaletteProvider`), the quote pane glows with the speaker's colour from its top left
+  // and the other person's from its bottom right, easing across as the deck moves to the other person's quote; a critic's quote takes the
+  // page's order (person 1, then person 2). Without the flag there is no wash layer at all.
+  const palette = usePersonPalette();
+  const speaker = people.find((person) => person.id === speakerId);
+  const other = speaker && people.find((person) => person !== speaker);
+  const washSlots = speaker && other ? [speaker.slot, other.slot] : [0, 1];
+  const washHexes = palette && palette[washSlots[0]] && palette[washSlots[1]] ? ([palette[washSlots[0]], palette[washSlots[1]]] as const) : null;
+  const wash = usePairWashStyle(washHexes);
   return (
     <div className="quote-exhibit" data-quote-exhibit="portraits">
+      {wash && <div className="quote-exhibit-wash" aria-hidden="true" style={wash} />}
       <div className="quote-exhibit-media">
         <div className="quote-exhibit-visual">
           <div className="quote-exhibit-diptych" role="group" aria-label="Artist portraits">
