@@ -22,7 +22,8 @@ type Size = (typeof SIZES)[number];
 /** The poster's width in px; it is 2:3. */
 const POSTER_W: Record<Size, number> = { s: 56, m: 84, l: 120 };
 
-const POSTER_FILL = "#111827";
+/** Placeholder poster: dark on the dark bg, white on the light bg (it only needs to stand apart from the overlap edge). */
+const POSTER_FILL: Record<"dark" | "light", string> = { dark: "#111827", light: "#fff" };
 
 interface Settings {
   style: FrameStyle;
@@ -197,7 +198,7 @@ function FramedPoster({ colors, style, settings, w }: { colors: [string, string]
       <polygon points={toPath(b)} fill={colors[1]} />
       <polygon points={toPath(a)} fill={colors[0]} />
       <polygon points={toPath(b)} fill={OVERLAP[settings.bg]} clipPath={`url(#${uid}a)`} data-overlap />
-      <rect x={0} y={0} width={w} height={h} fill={POSTER_FILL} />
+      <rect x={0} y={0} width={w} height={h} fill={POSTER_FILL[settings.bg]} />
       <text x={w / 2} y={h / 2} fill="#6b7280" fontSize={Math.max(10, w * 0.14)} textAnchor="middle" dominantBaseline="middle" fontFamily="system-ui, sans-serif">
         poster
       </text>
