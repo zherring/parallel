@@ -1,4 +1,5 @@
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
+import { RoughFrame } from "@/components/rough-frame";
 import { tmdbImage } from "@/lib/images";
 import type { PersonTint } from "@/lib/person-colors";
 import { CARD_HEIGHT, POSTER_HEIGHT, QUIET_POSTER_HEIGHT, QUIET_RESTORE_SCALE, cardWidthOf } from "@/lib/timeline-layout";
@@ -18,6 +19,12 @@ export type CardTone = "lit" | "some" | "plain";
 export const QUIET_OPACITY = 0.55;
 
 export type CardTint = PersonTint;
+
+/** Spike (`?frames=rough`): the rough-cut frame behind the poster, one colour per person who made the film (one or two). */
+export interface CardFrame {
+  colors: readonly string[];
+  seed: string;
+}
 
 interface FilmCardProps {
   id: number;
@@ -46,6 +53,8 @@ interface FilmCardProps {
    * as heavy as the green of a lit one (on the combined track and in the separate lanes). Null otherwise.
    */
   tint?: CardTint | null;
+  /** Spike (`?frames=rough`): a rough-cut frame in place of the green, tint or accent ring. Null or absent: the card as it is. */
+  frame?: CardFrame | null;
   /** Combined track only: a dot in the colour of each contributor, before the year. Purely visual: the names are in the label. */
   dots?: readonly string[];
   /** Index of the lane the card is in. Read by the timeline's delegated hover handlers. */
@@ -90,6 +99,7 @@ function FilmCardImpl(props: FilmCardProps) {
     quiet,
     accent,
     tint = null,
+    frame = null,
     dots,
     laneIndex,
     upcoming,
@@ -107,9 +117,11 @@ function FilmCardImpl(props: FilmCardProps) {
   const restored = quiet && (emphasized || selected);
   const faded = quiet && !restored;
   const textSize = quiet ? "text-[10px] leading-[12px]" : "text-[11px] leading-[13px]";
-  const tinted = tone === "plain" && tint !== null && !dimmed;
+  const tinted = tone === "plain" && tint !== null && !dimmed && frame === null;
   const boxShadow =
-    tinted && !emphasized
+    frame !== null
+      ? undefined
+      : tinted && !emphasized
       ? `0 0 0 2px ${tint.color}, 0 0 22px ${tint.glow}`
       : tone === "some" && accent && !emphasized && !dimmed
         ? `0 0 0 1.5px ${accent}`
@@ -155,12 +167,14 @@ function FilmCardImpl(props: FilmCardProps) {
           className="block rounded-[4px] bg-canvas transition-transform duration-150 ease-out group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-focus motion-reduce:transition-none origin-bottom"
           style={restored ? { transform: `scale(${QUIET_RESTORE_SCALE})` } : undefined}
         >
+          {/* Spike (`?frames=rough`): a positioned box the poster's size, for the frame behind it; without the flag the poster span stands alone, as it was. */}
+          <FrameBox frame={frame} width={width} height={posterHeight}>
           <span
             className={cn(
               "relative block overflow-hidden rounded-[4px] transition-shadow duration-150 motion-reduce:transition-none",
               quiet ? "bg-canvas" : "bg-surface",
-              tone === "lit" && !dimmed && (emphasized ? "shadow-[0_0_0_2px_var(--lit),0_0_32px_6px_var(--lit-glow)]" : "shadow-lit"),
-              tone !== "lit" && emphasized && "ring-2 ring-strong/80",
+              frame === null && tone === "lit" && !dimmed && (emphasized ? "shadow-[0_0_0_2px_var(--lit),0_0_32px_6px_var(--lit-glow)]" : "shadow-lit"),
+              (tone !== "lit" || frame !== null) && emphasized && "ring-2 ring-strong/80",
               selected && "outline outline-2 outline-offset-2 outline-strong",
             )}
             style={{ height: posterHeight, boxShadow }}
@@ -208,6 +222,7 @@ function FilmCardImpl(props: FilmCardProps) {
               </span>
             )}
           </span>
+          </FrameBox>
           {/* Above the connector lines (z-15), with a dark outline, so a line that crosses the caption never hides a letter.
               Wraps at spaces only (wrap-normal, no hyphenation): a single word wider than the card ends in an ellipsis,
               it is never broken in two. */}
@@ -230,6 +245,16 @@ function FilmCardImpl(props: FilmCardProps) {
         </span>
       </button>
     </li>
+  );
+}
+
+function FrameBox({ frame, width, height, children }: { frame: CardFrame | null; width: number; height: number; children: ReactNode }) {
+  if (frame === null) return children;
+  return (
+    <span className="relative block">
+      <RoughFrame colors={frame.colors} seed={frame.seed} width={width} height={height} />
+      {children}
+    </span>
   );
 }
 

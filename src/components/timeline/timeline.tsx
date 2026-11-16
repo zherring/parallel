@@ -65,7 +65,8 @@ import {
 import type { Film, PersonSummary } from "@/lib/types";
 import { cn } from "./cn";
 import { ConnectionLegend } from "./connection-legend";
-import { FilmCard, type CardTone } from "./film-card";
+import { FilmCard, type CardFrame, type CardTone } from "./film-card";
+import { useRoughFrames } from "@/components/rough-frame";
 import { FilmNode } from "./film-node";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "./film-popover";
 import { LaneAvatars } from "./lane-avatars";
@@ -773,6 +774,26 @@ export function Timeline({
     return slot === undefined ? null : { color: personColor(slot), glow: personGlow(slot) };
   };
 
+  // Spike (`?frames=rough`): each film's rough-cut frame, in the colours of the visible people who list it (two shapes for a film both made, one
+  // for a film of one), seeded by the film and those people so it stays put. Null without the flag, or on one person's page (no colours).
+  const roughFrames = useRoughFrames();
+  const frames = useMemo(() => {
+    if (!roughFrames || !colored) return null;
+    const makers = new Map<number, number[]>();
+    for (const lane of lanes) {
+      for (const film of lane.films) {
+        const ids = makers.get(film.id);
+        if (!ids) makers.set(film.id, [lane.person.id]);
+        else if (!ids.includes(lane.person.id)) ids.push(lane.person.id);
+      }
+    }
+    const map = new Map<number, CardFrame>();
+    for (const [filmId, ids] of makers) {
+      map.set(filmId, { colors: ids.slice(0, 2).map((id) => personColor(slots.get(id) ?? 0)), seed: `${filmId}:${ids.join("+")}` });
+    }
+    return map;
+  }, [roughFrames, colored, lanes, slots]);
+
   const cardFor = (
     { film, x }: PackedFilm<Film>,
     laneIndex: number,
@@ -797,6 +818,7 @@ export function Timeline({
         accent={layout.accents.get(film.id) ?? null}
         note={combinedInfo?.get(film.id)?.note ?? layout.notes.get(film.id) ?? ""}
         tint={tint}
+        frame={frames?.get(film.id) ?? null}
         dots={combinedInfo?.get(film.id)?.dots}
         laneIndex={laneIndex}
         upcoming={!isReleased(film.releaseDate, today)}
