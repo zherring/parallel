@@ -211,6 +211,58 @@ const useReducedMotion = () =>
 
 const subscribeNever = () => () => {};
 
+/**
+ * Spike (zherring/spike-portraits): behind the portrait flag the hero's green gives way to the pair's colours, the left person's washing in
+ * from the section's top left and the right person's from its bottom right, at the strength of the quote embed's wash. The two colours are
+ * registered custom properties, so a change of pair eases from one pair's colours to the next over about the cards' own swap; where
+ * registration is missing they change at once. All of it is set on the section here, and only with the flag on: without it the section,
+ * its classes and its style are as the server sent them.
+ */
+const WASH_A = "--hero-wash-a";
+const WASH_B = "--hero-wash-b";
+/** About as long as the portraits take to swap: the leaving card's 320ms, the arriving one's delay and 520ms. */
+const WASH_MS = 800;
+const WASH_IMAGE = [
+  `radial-gradient(ellipse 70% 95% at 0% 0%, color-mix(in srgb, var(${WASH_A}) 16%, transparent), transparent 70%)`,
+  `radial-gradient(ellipse 70% 95% at 100% 100%, color-mix(in srgb, var(${WASH_B}) 16%, transparent), transparent 70%)`,
+].join(", ");
+
+let washRegistered = false;
+function registerWash() {
+  if (washRegistered) return;
+  washRegistered = true;
+  for (const name of [WASH_A, WASH_B]) {
+    try {
+      CSS.registerProperty({ name, syntax: "<color>", inherits: false, initialValue: "transparent" });
+    } catch {
+      // Registered already (a hot reload), or not supported: then the colours swap without easing.
+    }
+  }
+}
+
+function usePairWash(root: RefObject<HTMLDivElement | null>, colors: readonly [string, string] | null, reduced: boolean) {
+  const on = colors !== null;
+  useEffect(() => {
+    const section = root.current?.closest("section");
+    if (!on || !section) return;
+    registerWash();
+    const { style } = section;
+    style.backgroundImage = WASH_IMAGE;
+    style.transition = reduced ? "" : `${WASH_A} ${WASH_MS}ms ease-in-out, ${WASH_B} ${WASH_MS}ms ease-in-out`;
+    return () => {
+      for (const property of ["background-image", "transition", WASH_A, WASH_B]) style.removeProperty(property);
+    };
+  }, [root, on, reduced]);
+
+  const [a, b] = colors ?? [];
+  useEffect(() => {
+    const section = root.current?.closest("section");
+    if (!section || !a || !b) return;
+    section.style.setProperty(WASH_A, a);
+    section.style.setProperty(WASH_B, b);
+  }, [root, a, b]);
+}
+
 /** The pairing the last visit of this browser session opened on, so the next one differs. */
 const LAST_FIRST_KEY = "parallel:hero-first";
 function lastFirstKey(): string | null {
@@ -416,12 +468,15 @@ function Stage({
   onGone,
   stageRef,
   className = "",
+  pairWash = false,
 }: {
   items: readonly Item[];
   reduced: boolean;
   onGone: (id: string) => void;
   stageRef?: RefObject<HTMLDivElement | null>;
   className?: string;
+  /** Spike: the section carries the pair's colours (`usePairWash`), so the green glow stays out. */
+  pairWash?: boolean;
 }) {
   const byType = (type: Item["type"], slot: number) =>
     items.filter((item) => item.type === type && item.slot === slot);
@@ -434,7 +489,9 @@ function Stage({
       style={{ width: STAGE.width, height: STAGE.height }}
     >
       {/* Atmosphere: a soft green glow and a little grain, feathered so no edge shows. */}
-      <div className="pointer-events-none absolute -left-32 -top-16 h-[640px] w-[640px] bg-[radial-gradient(closest-side,rgb(0_224_84/0.16),transparent)]" />
+      {!pairWash && (
+        <div className="pointer-events-none absolute -left-32 -top-16 h-[640px] w-[640px] bg-[radial-gradient(closest-side,rgb(0_224_84/0.16),transparent)]" />
+      )}
       <div
         className="pointer-events-none absolute -left-24 -top-12 h-[560px] w-[560px] opacity-[0.07] [mask-image:radial-gradient(closest-side,#000_35%,transparent)]"
         style={{ backgroundImage: GRAIN }}
@@ -646,6 +703,11 @@ function Collage({
   }, [root, reduced]);
 
   const { scene } = state;
+  // Spike: the left card's person (slot 0) takes the top left. Collage renders only in the browser, after hydration, so the flag is read here.
+  const portrait = usePortraitMode() !== null;
+  const washColors = portrait ? pairPortraitColors(scene.people[0].id, scene.people[1].id) : null;
+  usePairWash(root, washColors, reduced);
+
   const navigate = (direction: NavDirection) => () => step(direction);
   // With a single pairing in the pool there is nowhere to step to.
   const canStep = pool.length > 1;
@@ -678,6 +740,7 @@ function Collage({
           reduced={reduced}
           onGone={onGone}
           stageRef={stage}
+          pairWash={portrait}
           className={revealed ? "opacity-100 motion-safe:transition-opacity motion-safe:duration-500" : "opacity-0"}
         />
       </Link>
