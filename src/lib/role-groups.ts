@@ -19,6 +19,7 @@ const GROUP_OF_ROLE: Record<RoleKey, RoleGroup> = {
   producer: "other",
   "production-designer": "other",
   "costume-designer": "other",
+  "title-designer": "other",
   other: "other",
 };
 

@@ -537,6 +537,80 @@
       }
     ]
   },
+  "834+19460": {
+    "sharedCount": 10,
+    "people": [
+      {
+        "id": 834,
+        "name": "Otto Preminger",
+        "profilePath": "/zmJuWBIbWURkB138eD9IPVzpAUt.jpg"
+      },
+      {
+        "id": 19460,
+        "name": "Saul Bass",
+        "profilePath": "/rc6STkpKNPVUpjelWyXPOePNRlB.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/3TUOhZhM5GCYIbxwFO3chpZ0DHx.jpg",
+        "title": "The Man with the Golden Arm",
+        "year": 1955
+      },
+      {
+        "path": "/Pm9H9Rzubd9doNTsVMOfv588n1.jpg",
+        "title": "Bonjour Tristesse",
+        "year": 1958
+      },
+      {
+        "path": "/b2G1QSAwtBv9luhEwErIgSRaU92.jpg",
+        "title": "Anatomy of a Murder",
+        "year": 1959
+      },
+      {
+        "path": "/4NrxQVGjIfGdPJdG4RJggAgs4vW.jpg",
+        "title": "In Harm's Way",
+        "year": 1965
+      },
+      {
+        "path": "/zsZ2PAMMyBhkn5OSC8Qnror2KCA.jpg",
+        "title": "Bunny Lake Is Missing",
+        "year": 1965
+      }
+    ]
+  },
+  "13776+19460": {
+    "sharedCount": 3,
+    "people": [
+      {
+        "id": 13776,
+        "name": "John Frankenheimer",
+        "profilePath": "/8a3qZrHQaj5JBG1uVv6NdCC7PK3.jpg"
+      },
+      {
+        "id": 19460,
+        "name": "Saul Bass",
+        "profilePath": "/rc6STkpKNPVUpjelWyXPOePNRlB.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/eT6SuUZl8lwUGJtjzRJ3fqFUaEl.jpg",
+        "title": "The Young Stranger",
+        "year": 1957
+      },
+      {
+        "path": "/5G3q3OvulFTnFdiouaZdD8wjtIc.jpg",
+        "title": "Seconds",
+        "year": 1966
+      },
+      {
+        "path": "/yEXrf09o8wVRFSptYFr6VcqLjPr.jpg",
+        "title": "Grand Prix",
+        "year": 1966
+      }
+    ]
+  },
   "1060+11770": {
     "sharedCount": 7,
     "people": [
@@ -2156,6 +2230,43 @@
         "path": "/svIDTNUoajS8dLEo7EosxvyAsgJ.jpg",
         "title": "Glass",
         "year": 2019
+      }
+    ]
+  },
+  "1032+19460": {
+    "sharedCount": 4,
+    "people": [
+      {
+        "id": 1032,
+        "name": "Martin Scorsese",
+        "profilePath": "/g3DjfKsgZQWZiw30I20hZVk1oMX.jpg"
+      },
+      {
+        "id": 19460,
+        "name": "Saul Bass",
+        "profilePath": "/rc6STkpKNPVUpjelWyXPOePNRlB.jpg"
+      }
+    ],
+    "posters": [
+      {
+        "path": "/9OkCLM73MIU2CrKZbqiT8Ln1wY2.jpg",
+        "title": "GoodFellas",
+        "year": 1990
+      },
+      {
+        "path": "/meJZAAuVcjic2ipvbOPz5UlE4P9.jpg",
+        "title": "Cape Fear",
+        "year": 1991
+      },
+      {
+        "path": "/5Tuyt26v7qNR8Cl3m7ZRx36rduf.jpg",
+        "title": "The Age of Innocence",
+        "year": 1993
+      },
+      {
+        "path": "/gziIkUSnYuj9ChCi8qOu2ZunpSC.jpg",
+        "title": "Casino",
+        "year": 1995
       }
     ]
   },

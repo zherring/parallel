@@ -150,6 +150,7 @@ const MAIN_ROLE_PRIORITY: readonly RoleKey[] = [
   "composer",
   "production-designer",
   "costume-designer",
+  "title-designer",
   "actor",
   "writer",
   "producer",

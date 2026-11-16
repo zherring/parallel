@@ -1559,6 +1559,45 @@ export const PAIR_DESCRIPTIONS: PairDescriptions = {
         "url": "https://moveablefest.com/sam-levy-lady-bird/"
       }
     ]
+  },
+  "834+19460": {
+    "text": "Bass was designing the ad symbols for Carmen Jones and The Man with the Golden Arm when he and Preminger looked at each other and asked: why not make it move?[1] Preminger liked the jagged arm so much he asked Bass for the titles too,[2] and they went on making posters and titles together through The Human Factor.[2]",
+    "sources": [
+      {
+        "title": "Celebrating Saul Bass’s centenary: 10 essential title sequences (Matthew Thrift, BFI)",
+        "url": "https://www.bfi.org.uk/lists/celebrating-saul-basss-centenary-10-essential-title-sequences"
+      },
+      {
+        "title": "Saul Bass, the Filmmaker’s Graphic Designer (Steven Brower, AIGA Eye on Design)",
+        "url": "https://eyeondesign.aiga.org/design-history-101/"
+      }
+    ]
+  },
+  "13776+19460": {
+    "text": "Already working with Bass on Grand Prix, Frankenheimer thought him the only person who could title Seconds, and pursued him until he agreed.[1] Saul and Elaine Bass broke apart a face reflected in warped aluminium sheets,[1] Bass's first return to the human face since Vertigo,[2] and Frankenheimer called the result breathtaking.[1]",
+    "sources": [
+      {
+        "title": "Seconds (1966), from Pat Kirkham's Saul Bass: A Life in Film and Design (Art of the Title)",
+        "url": "https://www.artofthetitle.com/title/seconds/"
+      },
+      {
+        "title": "Celebrating Saul Bass’s centenary: 10 essential title sequences (Matthew Thrift, BFI)",
+        "url": "https://www.bfi.org.uk/lists/celebrating-saul-basss-centenary-10-essential-title-sequences"
+      }
+    ]
+  },
+  "1032+19460": {
+    "text": "Unable to make the word GoodFellas sit right in its opening action, Scorsese decided only Saul Bass could work it out; he did, and stayed on for Cape Fear.[1] For The Age of Innocence, Saul and Elaine Bass worked from the first 40 edited minutes and opened on flowers.[1] Elaine is now seen as the driving force of this late work.[2]",
+    "sources": [
+      {
+        "title": "Martin Scorsese on The Age of Innocence (Ian Christie, Sight and Sound, February 1994)",
+        "url": "https://www.bfi.org.uk/sight-and-sound/interviews/martin-scorsese-age-innocence"
+      },
+      {
+        "title": "Celebrating Saul Bass’s centenary: 10 essential title sequences (Matthew Thrift, BFI)",
+        "url": "https://www.bfi.org.uk/lists/celebrating-saul-basss-centenary-10-essential-title-sequences"
+      }
+    ]
   }
 };
 

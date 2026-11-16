@@ -94,6 +94,16 @@ describe("normalizeMovieCredits", () => {
     expect(films[2].minor).toBe(true);
   });
 
+  it("counts a title designer's credit on a feature as a real, non-minor credit", () => {
+    // Saul Bass: TMDB credits his title sequences as "Title Designer" in the Art department.
+    const [film] = normalizeMovieCredits({
+      cast: [],
+      crew: [{ ...movie(426, "Vertigo", "1958-05-09"), job: "Title Designer" }],
+    });
+    expect(film.credits).toEqual([{ role: "title-designer", job: "Title Designer", minor: false }]);
+    expect(film.minor).toBe(false);
+  });
+
   it("keeps one credit per character for the same job", () => {
     const [film] = normalizeMovieCredits({
       cast: [

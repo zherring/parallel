@@ -157,6 +157,22 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
     ],
     blurb: "Director and actor: The Godfather, Apocalypse Now.",
   },
+  {
+    genre: "classic",
+    people: [
+      { id: 834, name: "Otto Preminger" },
+      { id: 19460, name: "Saul Bass" },
+    ],
+    blurb: "Director and title designer: Carmen Jones, The Man with the Golden Arm, Anatomy of a Murder, Advise & Consent.",
+  },
+  {
+    genre: "classic",
+    people: [
+      { id: 13776, name: "John Frankenheimer" },
+      { id: 19460, name: "Saul Bass" },
+    ],
+    blurb: "Director and title designer: The Young Stranger, Seconds, Grand Prix.",
+  },
 
   // Horror
   {
@@ -490,6 +506,14 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 2231, name: "Samuel L. Jackson" },
     ],
     blurb: "Two actors on screen together: Pulp Fiction, Die Hard: With a Vengeance, Unbreakable, Glass.",
+  },
+  {
+    genre: "crime-thriller",
+    people: [
+      { id: 1032, name: "Martin Scorsese" },
+      { id: 19460, name: "Saul Bass" },
+    ],
+    blurb: "Director and title designer: GoodFellas, Cape Fear, The Age of Innocence, Casino.",
   },
 
   // Comedy

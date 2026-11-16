@@ -10,6 +10,7 @@ export type RoleKey =
   | "producer"
   | "production-designer"
   | "costume-designer"
+  | "title-designer"
   | "other";
 
 export interface PersonSummary {
