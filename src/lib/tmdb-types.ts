@@ -55,10 +55,16 @@ export interface RawFilmCredits {
   crew?: { id: number; job?: string; popularity?: number }[];
 }
 
-/** One page of `/discover/movie`; only the ids are read. */
+/** One page of `/discover/movie`; only the ids and vote counts are read. */
 export interface RawDiscoverMovies {
   total_pages?: number;
-  results: { id: number }[];
+  results: { id: number; vote_count?: number }[];
+}
+
+/** `/movie/{id}` read for its runtime only (the short-film check); minutes, TMDB stores 0 when unknown. */
+export interface RawMovieRuntime {
+  id: number;
+  runtime?: number | null;
 }
 
 interface RawFilmPerson {

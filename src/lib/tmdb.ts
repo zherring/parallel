@@ -9,6 +9,7 @@ import type {
   RawMovieCredits,
   RawMovieDetails,
   RawMovieMetrics,
+  RawMovieRuntime,
   RawPerson,
   RawSearchPeople,
   RawSearchPerson,
@@ -57,6 +58,14 @@ const CREDENTIALS_LOG_INTERVAL_MS = 60 * 1000;
 const USER_AGENT = "Parallel/1.0 (+https://github.com/zherring/parallel)";
 /** Anything shorter than this many minutes is a "short" and counts as a minor credit. */
 const SHORT_MAX_MINUTES = 39;
+/**
+ * Discover hits with at least this many votes get their runtime checked (see `lookUpShortMovies`):
+ * discover lists some features among the shorts (North by Northwest, 137 minutes, 4700+ votes), and
+ * those are popular films, while almost every real short has a handful of votes.
+ */
+const RUNTIME_CHECK_MIN_VOTES = 100;
+/** At most this many checks per person, most-voted first: a Pixar animator has dozens of popular shorts. */
+const MAX_RUNTIME_CHECKS = 10;
 /** 20 results per page: 200 short movies per person is far more than anyone has (more is `shortsIncomplete`). */
 const MAX_DISCOVER_PAGES = 10;
 /**
@@ -413,6 +422,12 @@ export async function getPerson(id: number, signal?: AbortSignal): Promise<Perso
  * - Long video compilations (e.g. a 60+ minute "Video Collection") and movies with no
  *   runtime are not caught here; `normalizeMovieCredits` also honours the `video` flag
  *   that `movie_credits` carries.
+ * - Discover also returns some features: North by Northwest (137 minutes) is among Hitchcock's
+ *   under-40 results, and The Departed among Scorsese's. So the most-voted hits (up to
+ *   MAX_RUNTIME_CHECKS with RUNTIME_CHECK_MIN_VOTES or more) are checked against the movie's own
+ *   `runtime` (`/movie/{id}`, the request the hover card makes, so its cache is shared) and dropped
+ *   when it is 40 minutes or more. A check that fails, or that has no runtime to go by, keeps
+ *   discover's answer (a failed check marks the lookup incomplete, like a lost page).
  *
  * Never throws: the lookup only refines the page, so any failure (after the retries in
  * `tmdbGet`) yields an empty set, or the pages that did load. So that it can never hold a page
@@ -429,6 +444,14 @@ export async function getPerson(id: number, signal?: AbortSignal): Promise<Perso
  * ones again, and `getPersonMovieCredits` marks the timeline `shortsIncomplete` so the caches
  * downstream (collaborator suggestions, OG cards) keep it briefly.
  */
+/**
+ * Whether a runtime from `/movie/{id}` confirms a short: false only for a known runtime of 40
+ * minutes or more. TMDB stores 0 for an unknown runtime, and then discover's answer stands.
+ */
+export function isShortRuntime(runtime: number | null | undefined): boolean {
+  return !(typeof runtime === "number" && Number.isFinite(runtime) && runtime > SHORT_MAX_MINUTES);
+}
+
 async function lookUpShortMovies(personId: number): Promise<{ ids: Set<number>; complete: boolean }> {
   const budget = AbortSignal.timeout(REFINEMENT_BUDGET_MS);
   // Registered before any request is made, so it runs first when the budget ends.
@@ -462,10 +485,29 @@ async function lookUpShortMovies(personId: number): Promise<{ ids: Set<number>; 
     );
 
   const ids = new Set<number>();
+  const votes = new Map<number, number>();
   let complete = true;
   const collect = (data: RawDiscoverMovies) => {
-    for (const movie of data.results ?? []) ids.add(movie.id);
+    for (const movie of data.results ?? []) {
+      ids.add(movie.id);
+      votes.set(movie.id, movie.vote_count ?? 0);
+    }
   };
+
+  // Each check applies as soon as it answers, so a budget that runs out midway keeps the ones done.
+  const checkRuntime = (movieId: number) =>
+    tmdbGet<RawMovieRuntime>(`/movie/${movieId}`, DAY, {}, budget, "refinement").then(
+      (movie) => {
+        if (!isShortRuntime(movie.runtime)) ids.delete(movieId);
+      },
+      (error: unknown) => {
+        complete = false;
+        if (!cutShort) {
+          const status = error instanceof TmdbError ? ` (status ${error.status})` : "";
+          console.warn(`TMDB runtime check of movie ${movieId} failed for person ${personId}${status}; left as a short`);
+        }
+      },
+    );
 
   const pages = (async () => {
     try {
@@ -482,6 +524,12 @@ async function lookUpShortMovies(personId: number): Promise<{ ids: Set<number>; 
         if (result.status === "fulfilled") collect(result.value);
         else complete = false;
       }
+
+      const suspects = [...votes]
+        .filter(([, count]) => count >= RUNTIME_CHECK_MIN_VOTES)
+        .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+        .slice(0, MAX_RUNTIME_CHECKS);
+      await Promise.all(suspects.map(([movieId]) => checkRuntime(movieId)));
     } catch (error) {
       complete = false;
       if (!cutShort) {

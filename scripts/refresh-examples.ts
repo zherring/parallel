@@ -22,6 +22,7 @@ import {
   type GeneratedPoster,
 } from "../src/lib/examples";
 import { joinNames } from "../src/lib/format";
+import { mapLimited } from "../src/lib/map-limited";
 import { MAX_PEOPLE } from "../src/lib/people-nav";
 import { sharedFilms } from "../src/lib/shared";
 import { TmdbError, getPersonMovieCredits } from "../src/lib/tmdb";
@@ -30,6 +31,12 @@ import type { PersonTimeline, SharedFilm } from "../src/lib/types";
 const OUTPUT = fileURLToPath(new URL("../src/lib/examples.generated.json", import.meta.url));
 /** TMDB asks clients to stay well under its rate limit; this keeps a run polite and quick. */
 const MAX_IN_FLIGHT = 8;
+/**
+ * People loaded at once. Each short-film lookup has 3 seconds (REFINEMENT_BUDGET_MS) counted from
+ * the call, its wait in the two-wide short-film lane included: asking for every person at once left
+ * most lookups cut short, and their shorts counted as ordinary credits.
+ */
+const PEOPLE_IN_FLIGHT = 2;
 
 /** Caps concurrent TMDB requests across everything the shared client does for each person. */
 function limitFetch(): void {
@@ -118,13 +125,24 @@ async function main(): Promise<void> {
   const ids = [...names.keys()];
   console.log(`Checking ${EXAMPLE_PAIRINGS.length} pairings (${ids.length} people) against TMDB...`);
 
-  const settled = await Promise.allSettled(ids.map((id) => getPersonMovieCredits(id)));
+  const settled = await mapLimited(ids, PEOPLE_IN_FLIGHT, (id) => getPersonMovieCredits(id));
   const timelines = new Map<number, PersonTimeline>();
   const problems: string[] = [];
   settled.forEach((result, i) => {
     if (result.status === "fulfilled") timelines.set(ids[i], result.value);
     else problems.push(describeFailure(ids[i], names.get(ids[i])!, result.reason));
   });
+  // A short-film lookup that did not finish counts that person's shorts as ordinary credits, which
+  // inflates every count they are in. Each such person is asked once more, alone; one that still
+  // does not finish is a failure, not a number to write.
+  for (const [id, timeline] of timelines) {
+    if (!timeline.shortsIncomplete) continue;
+    const retry = await getPersonMovieCredits(id).catch(() => timeline);
+    timelines.set(id, retry);
+    if (retry.shortsIncomplete) {
+      problems.push(`person ${id} (${names.get(id)}): the short-film lookup did not finish, so its shorts would count; run again`);
+    }
+  }
 
   const generated: GeneratedExamples = {};
   const rows: { genre: string; pair: string; sharedCount: number; posters: string }[] = [];

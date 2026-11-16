@@ -9,6 +9,7 @@ import {
   getMovieMetrics,
   getPersonMovieCredits,
   __resetTmdbClientStateForTests,
+  isShortRuntime,
   searchPeople,
   searchPeopleWithPopularity,
 } from "@/lib/tmdb";
@@ -293,6 +294,96 @@ describe("the short-film lookup", () => {
     const promise = shortMovieIds(1);
     await vi.runAllTimersAsync();
     await expect(promise).resolves.toEqual(new Set([9]));
+  });
+});
+
+describe("the short-film lookup's runtime check", () => {
+  // Canned credits are ids 1 to 100, so these stand in for real TMDB ids.
+  const NORTH_BY_NORTHWEST = 13; // TMDB 213: 137 minutes, 4700+ votes, yet in Hitchcock's under-40 discover results
+  const discoverHits = (hits: { id: number; vote_count?: number }[]) => json({ page: 1, total_pages: 1, results: hits });
+  const movieRequests = () =>
+    fetchMock.mock.calls.map(([url]) => new URL(String(url))).filter((url) => /^\/3\/movie\/\d+$/.test(url.pathname));
+  /** Answers discover with `hits` and `/movie/{id}` from `runtimes` (a Response for a failure). */
+  const respond = (hits: { id: number; vote_count?: number }[], runtimes: Record<number, number | null | Response>) =>
+    fetchMock.mockImplementation(async (input) => {
+      const { pathname } = new URL(String(input));
+      if (pathname.endsWith("/discover/movie")) return discoverHits(hits);
+      const id = Number(pathname.split("/").pop());
+      const runtime = runtimes[id];
+      if (runtime instanceof Response) return runtime;
+      return json({ id, runtime });
+    });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("drops a feature discover listed among the shorts once its own runtime says 40 minutes or more (North by Northwest)", async () => {
+    respond(
+      [
+        { id: 4, vote_count: 76 }, // Bon Voyage: a real short, too few votes to be checked
+        { id: NORTH_BY_NORTHWEST, vote_count: 4738 },
+      ],
+      { [NORTH_BY_NORTHWEST]: 137 },
+    );
+    await expect(shortMovieIds(2636)).resolves.toEqual(new Set([4]));
+
+    const checked = movieRequests();
+    expect(checked.map((url) => url.pathname)).toEqual([`/3/movie/${NORTH_BY_NORTHWEST}`]);
+    // The plain request the hover card makes, so the two share one cached response.
+    expect(Object.fromEntries(checked[0].searchParams)).toEqual({});
+  });
+
+  it("keeps a popular short whose runtime confirms it", async () => {
+    respond([{ id: 7, vote_count: 1853 }], { 7: 7 });
+    await expect(shortMovieIds(1)).resolves.toEqual(new Set([7]));
+    expect(movieRequests()).toHaveLength(1);
+  });
+
+  it("keeps discover's answer when the movie has no runtime to go by", async () => {
+    respond([{ id: 8, vote_count: 500 }, { id: 9, vote_count: 500 }], { 8: 0, 9: null });
+    await expect(shortMovieIds(1)).resolves.toEqual(new Set([8, 9]));
+  });
+
+  it("checks only the 10 most-voted hits with 100 votes or more", async () => {
+    const hits = Array.from({ length: 15 }, (_, i) => ({ id: i + 1, vote_count: 1000 + i }));
+    respond([...hits, { id: 50, vote_count: 99 }, { id: 51 }], {});
+    await shortMovieIds(1);
+
+    const checked = movieRequests().map((url) => Number(url.pathname.split("/").pop()));
+    expect(checked.sort((a, b) => a - b)).toEqual([6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+  });
+
+  it("keeps the film as a short, marks the timeline incomplete and warns when the check fails", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    respond([{ id: NORTH_BY_NORTHWEST, vote_count: 4738 }], { [NORTH_BY_NORTHWEST]: json({}, 503) });
+    answerPersonRequests = true;
+    const promise = getPersonMovieCredits(2636);
+    await vi.runAllTimersAsync();
+    const timeline = await promise;
+
+    // Failing safe: the film stays minor, as before the check existed, never counted on a hunch.
+    expect(timeline.films.find((film) => film.id === NORTH_BY_NORTHWEST)?.minor).toBe(true);
+    expect(timeline.shortsIncomplete).toBe(true);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0])).toContain(`movie ${NORTH_BY_NORTHWEST}`);
+    expect(String(warn.mock.calls[0])).not.toContain(TOKEN);
+  });
+
+  it("leaves a timeline whose checks all answered complete", async () => {
+    respond([{ id: NORTH_BY_NORTHWEST, vote_count: 4738 }], { [NORTH_BY_NORTHWEST]: 137 });
+    answerPersonRequests = true;
+    const timeline = await getPersonMovieCredits(2636);
+    expect(timeline.shortsIncomplete).toBeUndefined();
+    expect(timeline.films.find((film) => film.id === NORTH_BY_NORTHWEST)?.minor).toBe(false);
+  });
+});
+
+describe("isShortRuntime", () => {
+  it("is false only for a known runtime of 40 minutes or more", () => {
+    expect(isShortRuntime(137)).toBe(false);
+    expect(isShortRuntime(40)).toBe(false);
+    expect(isShortRuntime(39)).toBe(true);
+    expect(isShortRuntime(7)).toBe(true);
+    for (const unknown of [0, null, undefined, Number.NaN]) expect(isShortRuntime(unknown)).toBe(true);
   });
 });
 
