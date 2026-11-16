@@ -7,6 +7,7 @@ import {
   TREATED_NAMES_SIZE,
   TREATED_NODE,
   TREATED_POSTER,
+  TREATED_SOLO_COLOR,
   TREATED_SOLO_DOT,
   TREATED_WIDTH,
   TREATED_WORDMARK,
@@ -22,7 +23,7 @@ import type { OgPoster } from "@/lib/og-card";
 
 /**
  * Spike (zherring/spike-portraits): the pair's treated share card as a view, on the grid of `og-treated.ts`: the two portraits down the left edge, the
- * posters of the films they made together, the axis under them, the names and the count at the bottom, the wordmark in the corner. Like `OgCardView`, it
+ * posters of the films they made together, the axis under them, the names and the count centred under the axis, the wordmark in the corner. Like `OgCardView`, it
  * takes everything already fetched (the portraits as SVG data URIs, the posters as data URIs) since the renderer throws on an image it cannot load.
  * The embed's first frame (`pair-poster.tsx`) draws the same card in HTML; keep the two in step.
  */
@@ -69,11 +70,9 @@ export interface TreatedPairCardProps {
   people: { name: string; initials: string }[];
   /** The posters' images, by `pair.posters`; null where there is none. */
   posterImages: (string | null)[];
-  /** The two people's colours by slot (the URL order), for their solo films on the axis. */
-  hexes: readonly [string, string];
 }
 
-export function TreatedPairCardView({ pair, tiles, people, posterImages, hexes }: TreatedPairCardProps) {
+export function TreatedPairCardView({ pair, tiles, people, posterImages }: TreatedPairCardProps) {
   const place = treatedPairLayout();
   const lefts = treatedPosterLefts(pair.posters.length);
   const tile = treatedTile(people.length);
@@ -124,7 +123,7 @@ export function TreatedPairCardView({ pair, tiles, people, posterImages, hexes }
               width: size,
               height: size,
               borderRadius: size,
-              backgroundColor: shared ? "#ffffff" : hexes[dot.kind as number],
+              backgroundColor: shared ? "#ffffff" : TREATED_SOLO_COLOR,
               opacity: dot.opacity,
               ...(shared ? { border: `${TREATED_NODE.ring}px solid ${OG.bg}` } : {}),
             }}
@@ -132,13 +131,17 @@ export function TreatedPairCardView({ pair, tiles, people, posterImages, hexes }
         );
       })}
 
-      <div data-part="names" style={{ display: "flex", position: "absolute", left: TREATED_LEFT, top: place.namesTop, width: TREATED_WIDTH, fontSize: TREATED_NAMES_SIZE, lineHeight: 1, color: OG.body, whiteSpace: "pre" }}>
+      {/* The names and the count: centred on the column, under the axis. */}
+      <div
+        data-part="names"
+        style={{ display: "flex", justifyContent: "center", position: "absolute", left: TREATED_LEFT, top: place.namesTop, width: TREATED_WIDTH, fontSize: TREATED_NAMES_SIZE, lineHeight: 1, color: OG.body, whiteSpace: "pre" }}
+      >
         {pair.names}
       </div>
       {caption && (
         <div
           data-part="caption"
-          style={{ display: "flex", alignItems: "baseline", position: "absolute", left: TREATED_LEFT, top: place.captionTop, fontSize: TREATED_CAPTION_SIZE, lineHeight: 1, letterSpacing: -1.5, whiteSpace: "pre" }}
+          style={{ display: "flex", alignItems: "baseline", justifyContent: "center", position: "absolute", left: TREATED_LEFT, top: place.captionTop, width: TREATED_WIDTH, fontSize: TREATED_CAPTION_SIZE, lineHeight: 1, letterSpacing: -1.2, whiteSpace: "pre" }}
         >
           {caption.segments.map((segment, i) => (
             <span key={i} style={{ display: "flex", whiteSpace: "pre", color: segment.accent ? OG.strong : OG.muted }}>

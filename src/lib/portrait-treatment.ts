@@ -52,14 +52,22 @@ export interface PhotoCrop {
 
 /** Of a photo `w` wide, the share a tile's crop takes: the head, with a little of the cut and the montage around it. */
 const HEAD_CROP_WIDTH = 1;
+/**
+ * The widest tile (width / height) for which the crop is `HEAD_CROP_WIDTH` of the photo's width: a little wider than a pair's tile (320 x 313 on the share cards).
+ * A wider tile (a group of three or four, whose tiles are shorter) shows the same height of the photo, the head and the shoulders, and so more across than
+ * the photo has: the montage fills the sides, and the head stays whole and in the middle, rather than cut at the eyes.
+ */
+const HEAD_CROP_FULL_WIDTH_ASPECT = 1.03;
 /** How much of the crop's height is left above the top of the cut (the crown), so the edge shows over the head. */
 const HEAD_CROP_HEADROOM = 0.04;
 /** The part of the cut, from its top, whose points say where the head is across. */
 const HEAD_BAND = 0.3;
 
 /**
- * Spike: the crop of a tile of aspect `aspect` (width / height) on the head of `shape`: `HEAD_CROP_WIDTH` of the photo's width, centred across on the
- * points of the cut's top `HEAD_BAND` (the head, not the shoulders), its top a little above the cut's, kept inside the photo.
+ * Spike: the crop of a tile of aspect `aspect` (width / height) on the head of `shape`: `HEAD_CROP_WIDTH` of the photo's width (or, for a tile wider than
+ * `HEAD_CROP_FULL_WIDTH_ASPECT`, as much height as that, and the width its aspect asks for, which is past the photo's), centred across on the points of the
+ * cut's top `HEAD_BAND` (the head, not the shoulders), its top a little above the cut's, kept inside the photo (across, a crop wider than the photo is kept
+ * round it instead).
  */
 export function headCrop(shape: TreatmentShape, aspect: number): PhotoCrop {
   const [w, h] = shape.size;
@@ -68,8 +76,9 @@ export function headCrop(shape: TreatmentShape, aspect: number): PhotoCrop {
   const span = Math.max(...ys) - top;
   const head = shape.points.filter(([, y]) => y <= top + span * HEAD_BAND).map(([x]) => x);
   const centre = ((Math.min(...head) + Math.max(...head)) / 2) * w;
-  const cw = Math.min(w, HEAD_CROP_WIDTH * w, h * aspect);
-  const ch = cw / aspect;
-  const clamp = (v: number, max: number) => Math.min(Math.max(v, 0), max);
-  return { x: clamp(centre - cw / 2, w - cw), y: clamp(top * h - HEAD_CROP_HEADROOM * ch, h - ch), w: cw, h: ch };
+  const ch = Math.min(h, (HEAD_CROP_WIDTH * w) / Math.min(aspect, HEAD_CROP_FULL_WIDTH_ASPECT));
+  const cw = ch * aspect;
+  const clamp = (v: number, a: number, b: number) => Math.min(Math.max(v, Math.min(a, b)), Math.max(a, b));
+  // Across, the crop stays inside the photo, or, when it is wider than the photo, has the whole photo inside it.
+  return { x: clamp(centre - cw / 2, 0, w - cw), y: clamp(top * h - HEAD_CROP_HEADROOM * ch, 0, h - ch), w: cw, h: ch };
 }

@@ -40,18 +40,18 @@ const PAD_BOTTOM = 50;
 const HEADSHOT = 72;
 const RING = 3;
 /**
- * Spike (zherring/spike-portraits): with the treatment on, the card is on the grid of `og-treated.ts`: the two portraits stacked down the left edge, the
- * quote in the column to their right at the largest of `TREATED_FONT_SIZES` that fits it, its attribution in a small dark box at the column's bottom left
+ * Spike (zherring/spike-portraits): with the treatment on, the card is on the grid of `og-treated.ts`: the portraits stacked down the left edge, the
+ * quote in the column to their right at the largest of `TREATED_FONT_SIZES` that fits it, its attribution as plain text under it, at the column's left edge,
  * and the wordmark at its bottom right (`drawTreatedQuoteCard`).
  */
 const TREATED_TEXT_HEIGHT = 386;
 const TREATED_FONT_SIZES = [56, 50, 45, 41, 37, 34, 31, 28] as const;
-/** What the attribution's box leaves of the column for the wordmark beside it. */
+/** What the attribution leaves of the column for the wordmark beside it. */
 const TREATED_WORDMARK_ROOM = 160;
-/** The attribution's box: its padding, and the corners; the quote is the gap above it. */
-const TREATED_BOX = { padX: 20, padY: 14, radius: 8 } as const;
-const TREATED_BOX_GAP = 22;
+/** The gap between the quote and its attribution, and the source line's size and line height (its baseline is put on the bottom margin, as the wordmark's is). */
+const TREATED_ATTRIBUTION_GAP = 28;
 const TREATED_SOURCE_SIZE = 22;
+const TREATED_SOURCE_LINE = 1.2;
 
 export interface QuoteOgImageInput {
   /** The two people of the page, in the order of its URL: for their headshots, and for the colour each has on the page. */
@@ -137,7 +137,7 @@ interface QuoteCard {
   about: string;
   /** "Variety · 2023". */
   source: string;
-  /** Spike: whether the second person's portrait is greyed when the treatment is on (an artist's quote: the one not speaking is; a critic's, with no speaker, is not). */
+  /** Spike: whether the portraits after the first are greyed when the treatment is on (an artist's quote: all but the speaker are; a critic's, with no speaker, none is). */
   dimSecond?: boolean;
 }
 
@@ -152,7 +152,7 @@ async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, 
     const tiles = treatments.map((t, i) => {
       const photo = images[i];
       return t && photo
-        ? treatedHeadshotSvg(t, photo, tile.width, tile.height, { crop: headCrop(t.shape, tile.width / tile.height), grey: dimSecond && i === 1 })
+        ? treatedHeadshotSvg(t, photo, tile.width, tile.height, { crop: headCrop(t.shape, tile.width / tile.height), grey: dimSecond && i >= 1 })
         : null;
     });
     return drawTreatedQuoteCard({ accent, quote: fullQuote, people, speaker, about, source }, tiles, fonts);
@@ -238,9 +238,10 @@ async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, 
 
 /**
  * Spike: the card with the treatment on, on the grid of `og-treated.ts`. The people's portraits (`tiles`, SVG data URIs of the head crops, the speaker's first
- * and in colour, the other greyed; null for one with no photo, initials) stacked down the left edge; in the column to their right the quote, at the largest
+ * and in colour, the others greyed; null for one with no photo, initials) stacked down the left edge; in the column to their right the quote, at the largest
  * of `TREATED_FONT_SIZES` that fits it, its marks inline in `accent` (`inlineQuoteWords`), centred in what the attribution leaves; under it, at the column's
- * left, the attribution and the source in a small dark box, and, at its right, the wordmark on the box's bottom line. No glow: the canvas is plain.
+ * left, the attribution and the source as plain text (no box: the quote's own words, smaller), and, at its right, the wordmark on the source line's baseline,
+ * which is the bottom margin. No glow: the canvas is plain.
  */
 function drawTreatedQuoteCard(
   { accent, quote: fullQuote, people, speaker, about, source }: Pick<QuoteCard, "accent" | "quote" | "people" | "speaker" | "about" | "source">,
@@ -251,8 +252,8 @@ function drawTreatedQuoteCard(
   const tops = treatedTileTops(people.length);
   const quote = truncateQuote(fullQuote, QUOTE_CARD_MAX_CHARS);
   const { fontSize, lineHeight } = quoteCardType(`“${quote}”`, { width: TREATED_WIDTH, height: TREATED_TEXT_HEIGHT, sizes: TREATED_FONT_SIZES });
-  const boxWidth = TREATED_WIDTH - TREATED_WORDMARK_ROOM;
-  const attributionSize = attributionFontSize(`\u2014 ${speaker}${about}`, boxWidth - 2 * TREATED_BOX.padX);
+  const attributionWidth = TREATED_WIDTH - TREATED_WORDMARK_ROOM;
+  const attributionSize = attributionFontSize(`\u2014 ${speaker}${about}`, attributionWidth);
 
   return new ImageResponse(
     (
@@ -295,25 +296,18 @@ function drawTreatedQuoteCard(
               {inlineQuoteWords(quote, accent)}
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginTop: TREATED_BOX_GAP }}>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginTop: TREATED_ATTRIBUTION_GAP }}>
+            {/* Plain text on the canvas, left-aligned with the quote: no box, no border. Its last line's baseline is on the bottom margin, as the wordmark's. */}
             <div
               data-part="attribution"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                maxWidth: boxWidth,
-                padding: `${TREATED_BOX.padY}px ${TREATED_BOX.padX}px`,
-                borderRadius: TREATED_BOX.radius,
-                backgroundColor: "rgba(0, 0, 0, 0.5)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-              }}
+              style={{ display: "flex", flexDirection: "column", maxWidth: attributionWidth, marginBottom: -Math.round(TREATED_SOURCE_SIZE * ((TREATED_SOURCE_LINE - 1) / 2 + INTER_BASELINE_DROP)) }}
             >
               <div style={{ display: "flex", flexWrap: "wrap", fontSize: attributionSize, lineHeight: 1.2, fontWeight: 600 }}>
                 <span style={{ color: OG.muted, whiteSpace: "pre" }}>{"\u2014 "}</span>
                 <span style={{ color: OG.strong }}>{speaker}</span>
                 <span style={{ color: OG.muted, whiteSpace: "pre" }}>{about}</span>
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", marginTop: 5, fontSize: TREATED_SOURCE_SIZE, lineHeight: 1.2, fontWeight: 600, color: OG.muted }}>
+              <div style={{ display: "flex", flexWrap: "wrap", marginTop: 5, fontSize: TREATED_SOURCE_SIZE, lineHeight: TREATED_SOURCE_LINE, fontWeight: 600, color: OG.muted }}>
                 {source.split(" \u00b7 ").map((part, i) => (
                   <span key={i} style={{ whiteSpace: "pre" }}>
                     {i === 0 ? part : ` \u00b7 ${part}`}
@@ -321,7 +315,7 @@ function drawTreatedQuoteCard(
                 ))}
               </div>
             </div>
-            {/* Its baseline on the box's bottom line (the margin), as the pair's card sets its count and its wordmark. */}
+            {/* Its baseline on the bottom margin, as the pair's card sets its wordmark. */}
             <div style={{ display: "flex", lineHeight: 1, marginBottom: -Math.round(TREATED_WORDMARK * INTER_BASELINE_DROP) }}>{ogWordmark(TREATED_WORDMARK)}</div>
           </div>
         </div>

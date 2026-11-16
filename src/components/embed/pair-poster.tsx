@@ -1,5 +1,4 @@
 import type { CSSProperties } from "react";
-import { usePersonPalette } from "@/components/person-palette";
 import { TreatedPortrait } from "@/components/treated-portrait";
 import { usePortraitMode, type PortraitMode } from "@/components/use-portrait-mode";
 import { tmdbImage } from "@/lib/images";
@@ -34,6 +33,7 @@ import {
   TREATED_NAMES_SIZE,
   TREATED_NODE,
   TREATED_POSTER,
+  TREATED_SOLO_COLOR,
   TREATED_SOLO_DOT,
   TREATED_STROKE_CSS,
   TREATED_WIDTH,
@@ -45,7 +45,6 @@ import {
   treatedTileTops,
   type TreatedPair,
 } from "@/lib/og-treated";
-import { PERSON_COLORS } from "@/lib/person-colors";
 
 /**
  * The pair's preview card (the 1200 x 630 PNG of `/p/<people>/opengraph-image`, drawn by `OgCardView` in `og-render.tsx`) rebuilt as HTML and CSS,
@@ -243,8 +242,17 @@ export function PairPoster({
 }) {
   // Spike: the cut-paper treatment, as the PNG draws it when its flag is on (`og-portrait.ts`).
   const portraitMode = usePortraitMode(serverPortraitMode);
-  if (portraitMode && treated && card.people.length === 2) return <TreatedPairPoster card={card} treated={treated} mode={portraitMode} />;
+  if (portraitMode && treated && card.people.length >= 2) return <TreatedPairPoster card={card} treated={treated} mode={portraitMode} />;
   return <PlainPairPoster card={card} portraitMode={portraitMode} />;
+}
+
+/**
+ * Whether the frame's first frame is the treated card (`PairPoster` draws it): the same test, for the parts of the frame around the card that follow it (the
+ * embed's "Open in Parallel" is not drawn over the treated card, as the PNG has none).
+ */
+export function useTreatedFirstFrame(card: OgCard, treated: TreatedPair | null, serverPortraitMode: PortraitMode | null): boolean {
+  const portraitMode = usePortraitMode(serverPortraitMode);
+  return portraitMode !== null && treated !== null && card.people.length >= 2;
 }
 
 function PlainPairPoster({ card, portraitMode }: { card: OgCard; portraitMode: PortraitMode | null }) {
@@ -379,12 +387,10 @@ const AXIS_ALPHA = 0.7;
 
 /**
  * Spike: the pair's treated card (`TreatedPairCardView`, in `og-treated-render.tsx`) rebuilt as HTML, on the same grid and from the same numbers
- * (`og-treated.ts`): both portraits in colour down the left edge, the posters of their shared films, the axis, the names, the count and the wordmark. The
+ * (`og-treated.ts`): both portraits in colour down the left edge, the posters of their shared films, the axis, the names and the count (centred on the column) and the wordmark. The
  * parts the sequence moves carry the plain card's names: `poster`, `node` (a shared film's white dot) and `accent` (the count's numbers).
  */
 function TreatedPairPoster({ card, treated, mode }: { card: OgCard; treated: TreatedPair; mode: PortraitMode }) {
-  const palette = usePersonPalette();
-  const hexes = [0, 1].map((slot) => palette?.[slot] ?? PERSON_COLORS[slot].hex);
   const place = treatedPairLayout();
   const lefts = treatedPosterLefts(treated.posters.length);
   const tile = treatedTile(card.people.length);
@@ -467,7 +473,7 @@ function TreatedPairPoster({ card, treated, mode }: { card: OgCard; treated: Tre
               width: px(size),
               height: px(size),
               borderRadius: "50%",
-              backgroundColor: shared ? "#ffffff" : hexes[dot.kind as number],
+              backgroundColor: shared ? "#ffffff" : TREATED_SOLO_COLOR,
               opacity: dot.opacity,
               boxSizing: "border-box",
               ...(shared ? { border: `${px(TREATED_NODE.ring)} solid ${OG.bg}` } : {}),
@@ -476,11 +482,12 @@ function TreatedPairPoster({ card, treated, mode }: { card: OgCard; treated: Tre
         );
       })}
 
-      <div data-part="names" style={at(TREATED_LEFT, place.namesTop, { width: px(TREATED_WIDTH), fontSize: px(TREATED_NAMES_SIZE), lineHeight: 1, color: OG.body, whiteSpace: "pre" })}>
+      {/* The names and the count: centred on the column, under the axis. */}
+      <div data-part="names" style={at(TREATED_LEFT, place.namesTop, { justifyContent: "center", width: px(TREATED_WIDTH), fontSize: px(TREATED_NAMES_SIZE), lineHeight: 1, color: OG.body, whiteSpace: "pre" })}>
         {treated.names}
       </div>
       {treated.caption && (
-        <div data-part="caption" style={at(TREATED_LEFT, place.captionTop, { alignItems: "baseline", fontSize: px(TREATED_CAPTION_SIZE), lineHeight: 1, letterSpacing: px(-1.5), whiteSpace: "pre" })}>
+        <div data-part="caption" style={at(TREATED_LEFT, place.captionTop, { alignItems: "baseline", justifyContent: "center", width: px(TREATED_WIDTH), fontSize: px(TREATED_CAPTION_SIZE), lineHeight: 1, letterSpacing: px(-1.2), whiteSpace: "pre" })}>
           {treated.caption.segments.map((segment, i) => (
             <span key={i} data-part={segment.accent ? "accent" : undefined} style={{ display: "flex", whiteSpace: "pre", color: segment.accent ? OG.strong : OG.muted }}>
               {segment.text}

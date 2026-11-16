@@ -4,12 +4,15 @@ import { describe, expect, it } from "vitest";
 import { buildOgCard } from "@/lib/og-card";
 import { TreatedPairCardView } from "@/lib/og-treated-render";
 import {
+  TREATED_CAPTION_SIZE,
   TREATED_COLUMN,
   TREATED_GUTTER,
   TREATED_LEFT,
   TREATED_MARGIN,
   TREATED_POSTER,
+  TREATED_NAMES_SIZE,
   TREATED_RIGHT,
+  TREATED_SOLO_COLOR,
   TREATED_WIDTH,
   buildTreatedPair,
   treatedAxisFade,
@@ -82,12 +85,24 @@ describe("the treated cards' grid", () => {
 
   it("stacks the pair's parts: posters, then the axis, then the names, then the count, all inside the margins", () => {
     const place = treatedPairLayout();
-    expect(place.postersTop).toBe(TREATED_MARGIN);
+    expect(place.postersTop).toBeGreaterThanOrEqual(TREATED_MARGIN);
     expect(place.axisY).toBeGreaterThan(place.postersBottom);
     expect(place.namesTop).toBeGreaterThan(place.axisY + 10);
-    expect(place.captionTop).toBeGreaterThan(place.namesTop + 24);
-    // The wordmark and the count share a baseline: their boxes end a little past the margin, by the same share of their size.
-    expect(place.captionTop + 60 - (place.wordmarkTop + 30)).toBeCloseTo(60 * 0.137 - 30 * 0.137, 0);
+    // The count is under the names (the names are small, the count twice their size), with a gap, not a band, between them.
+    expect(TREATED_CAPTION_SIZE).toBe(2 * TREATED_NAMES_SIZE);
+    expect(place.captionTop).toBeGreaterThan(place.namesTop + TREATED_NAMES_SIZE);
+    expect(place.captionTop - (place.namesTop + TREATED_NAMES_SIZE)).toBeLessThan(TREATED_NAMES_SIZE);
+    expect(place.captionTop + TREATED_CAPTION_SIZE).toBeLessThan(630 - TREATED_MARGIN);
+  });
+
+  it("centres the posters, the axis and the text as one block in the card's height, the count's baseline the block's bottom, and keeps the wordmark's baseline on the bottom margin", () => {
+    const place = treatedPairLayout();
+    const countBaseline = place.captionTop + TREATED_CAPTION_SIZE * (1 - 0.137);
+    expect(place.postersTop).toBeCloseTo(630 - countBaseline, 0);
+    // The text hangs under the axis by a gap like the posters' above it, and nothing is left between the axis and the names but that gap.
+    expect(place.namesTop - place.axisY).toBeLessThan(60);
+    expect(place.axisY - place.postersBottom).toBeLessThan(60);
+    expect(place.wordmarkTop + 30 * (1 - 0.137)).toBeCloseTo(630 - TREATED_MARGIN, 0);
   });
 
   it("fades the axis to nothing at both ends and not at all through the middle", () => {
@@ -101,11 +116,28 @@ describe("the treated cards' grid", () => {
 });
 
 describe("buildTreatedPair", () => {
-  it("is for exactly two people", () => {
+  it("is for two to four people, and not for one, whose page keeps the plain card", () => {
     const [a, b] = pairOf([2000, 2005]);
-    const card = buildOgCard([a], TODAY);
-    expect(buildTreatedPair(card, [a], TODAY)).toBeNull();
-    expect(buildTreatedPair(card, [a, b, a], TODAY)).toBeNull();
+    const c = timeline(3, "Jack Klugman", [film(1, 2000), film(2, 2005)]);
+    const d = timeline(4, "Felix Unger", [film(1, 2000), film(2, 2005)]);
+    expect(buildTreatedPair(buildOgCard([a], TODAY), [a], TODAY)).toBeNull();
+    expect(buildTreatedPair(buildOgCard([a, b], TODAY), [a, b], TODAY)).not.toBeNull();
+    expect(buildTreatedPair(buildOgCard([a, b, c], TODAY), [a, b, c], TODAY)).not.toBeNull();
+    expect(buildTreatedPair(buildOgCard([a, b, c, d], TODAY), [a, b, c, d], TODAY)!.posters).toHaveLength(2);
+  });
+
+  it("is the same card for a group: the films all of them made are the shared ones, the names are joined, each one's own films are dots", () => {
+    const together = [film(1, 1990), film(2, 1995), film(3, 2000)];
+    const group = [
+      timeline(1, "Jack Lemmon", [...together, film(100, 1992)]),
+      timeline(2, "Walter Matthau", [...together, film(200, 1997)]),
+      timeline(3, "Jack Klugman", [...together, film(300, 1994)]),
+    ];
+    const { treated } = treatedOf(group);
+    expect(treated!.names).toBe("Jack Lemmon, Walter Matthau & Jack Klugman");
+    expect(treated!.dots.filter((dot) => dot.kind === "shared")).toHaveLength(3);
+    expect(treated!.dots.filter((dot) => dot.kind === 2).map((dot) => dot.id)).toEqual([300]);
+    expect(treated!.caption!.segments.map((s) => s.text).join("")).toBe("3 films over 10 years");
   });
 
   it("picks the posters as the plain card does (the first film, the last, the best known between), up to the row's count, oldest first", () => {
@@ -192,19 +224,18 @@ describe("the pair's treated card as markup", () => {
         tiles: [null, null],
         people: card.people.map(({ name, initials }) => ({ name, initials })),
         posterImages: treated!.posters.map(() => null),
-        hexes: ["#E5487D", "#6B4BA1"],
       }),
     );
   }
 
-  it("has no green and no glow: the posters' ring is white, the dots white or a person's colour, and only the wordmark's two l's are the brand's", () => {
+  it("has no green and no glow: the posters' ring is white, the dots white or a neutral grey (not a person's colour), and only the wordmark's two l's are the brand's", () => {
     const html = markup(pairOf([1990, 1995, 2000], [1989], [1999]));
     expect(html).not.toContain("0, 224, 84");
     expect(html).not.toContain("box-shadow");
     expect(html).not.toContain("radial-gradient");
     expect(html).toContain("border:2px solid #ffffff");
-    expect(html).toContain("#E5487D");
-    expect(html).toContain("#6B4BA1");
+    expect(html.match(new RegExp(`background-color:${TREATED_SOLO_COLOR}`, "g"))).toHaveLength(2);
+    expect(html).not.toContain("#E5487D");
     // The wordmark is the one place the brand's green is, as it is on every card.
     expect(html.match(/#00e054/g)).toHaveLength(1);
     expect(html).toContain('<span style="color:#00e054">ll</span>');
@@ -222,6 +253,37 @@ describe("the pair's treated card as markup", () => {
     expect(parts("wordmark")).toBe(1);
     expect(html).toContain("Jack Lemmon &amp; Walter Matthau");
     expect(html.replace(/<[^>]+>/g, "")).toContain("3 films over 10 years");
+  });
+
+  it("centres the names and the count on the column, under the axis", () => {
+    const html = markup(pairOf([1990, 1995, 2000]));
+    for (const part of ["names", "caption"]) {
+      const style = new RegExp(`data-part="${part}" style="([^"]*)"`).exec(html)![1];
+      expect(style).toContain("justify-content:center");
+      expect(style).toContain(`left:${TREATED_LEFT}px`);
+      expect(style).toContain(`width:${TREATED_WIDTH}px`);
+    }
+    expect(/data-part="caption" style="([^"]*)"/.exec(html)![1]).toContain(`font-size:${TREATED_CAPTION_SIZE}px`);
+  });
+
+  it("stacks the portraits of a group of four down the column, each a quarter of its height (less the gaps)", () => {
+    const together = [film(1, 1990), film(2, 1995)];
+    const four = [1, 2, 3, 4].map((id) => timeline(id, `Person ${id}`, together));
+    const { card, treated } = treatedOf(four);
+    const html = renderToStaticMarkup(
+      createElement(TreatedPairCardView, {
+        pair: treated!,
+        tiles: [null, null, null, null],
+        people: card.people.map(({ name, initials }) => ({ name, initials })),
+        posterImages: treated!.posters.map(() => null),
+      }),
+    );
+    expect((html.match(/data-part="person"/g) ?? []).length).toBe(4);
+    expect(html).toContain("Person 1, Person 2, Person 3 &amp; Person 4");
+    const tile = treatedTile(4);
+    expect(tile.height).toBeCloseTo((630 - 3 * 4) / 4, 5);
+    expect(tile.height).toBeGreaterThan(120);
+    expect(html).toContain(`height:${tile.height}px`);
   });
 
   it("has no header row: the wordmark is at the bottom right and nothing sits at the top left", () => {

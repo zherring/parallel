@@ -3,7 +3,7 @@
 import { RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { EMBED_AVATAR_LINK, EMBED_BUTTON, EXTERNAL, EmbedWordmark, OpenInParallel, FRAME_STYLE, embedSize as size } from "@/components/embed/embed-shell";
-import { PairPoster, POSTER_PX } from "@/components/embed/pair-poster";
+import { PairPoster, POSTER_PX, useTreatedFirstFrame } from "@/components/embed/pair-poster";
 import { springEasing } from "@/components/landing/hero-motion";
 import { PersonAvatar } from "@/components/person-avatar";
 import { PersonPaletteProvider, usePortraitPersonHexes } from "@/components/person-palette";
@@ -308,6 +308,8 @@ export function PairEmbed({ slug, timelines, today, card, count, treated = null,
   const barHeight = `calc(${INSET_TOP} + var(--bar-row))`;
   const timelineVisible = phase === "timeline";
   const pairHref = `/p/${slug}`;
+  // Spike: the treated first frame is the PNG's picture, which has no "Open in Parallel": the pill is not over it, and comes with the timeline.
+  const treatedFirstFrame = useTreatedFirstFrame(card, treated, serverPortraitMode);
 
   return (
     <div
@@ -363,7 +365,7 @@ export function PairEmbed({ slug, timelines, today, card, count, treated = null,
               <RotateCcw aria-hidden="true" className="size-1/2" />
             </button>
           )}
-          <OpenInParallel href={pairHref} external />
+          {(timelineVisible || !treatedFirstFrame) && <OpenInParallel href={pairHref} external />}
         </div>
       </div>
 

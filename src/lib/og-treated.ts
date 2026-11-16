@@ -1,4 +1,5 @@
 import { cardFilms } from "@/lib/card-films";
+import { joinNames } from "@/lib/format";
 import {
   OG_HEIGHT,
   OG_WIDTH,
@@ -21,14 +22,14 @@ import type { PersonTimeline } from "@/lib/types";
  * pair's is made of. Pure, with nothing of the server in it, so the PNG (`og-render.tsx`, `og-quote-render.tsx`) and the embeds' first frame
  * (`pair-poster.tsx`, `quote-embed.tsx`) place the same parts from the same numbers, in the card's own 1200 x 630 pixels.
  *
- * One grid for both cards. The two portraits are one column down the left edge, full height, bleeding off the top, the left and the bottom. The rest of
- * the card is a column of `TREATED_WIDTH` px, `TREATED_GUTTER` from the portraits and `TREATED_MARGIN` from the other three edges; everything in it starts
- * on its left edge, `TREATED_LEFT`. The wordmark sits in its bottom right corner, on the bottom margin.
+ * One grid for both cards. The portraits (two, or up to four on a group's page: `treatedTile`) are one column down the left edge, full height, bleeding off the top, the left and the bottom. The rest of
+ * the card is a column of `TREATED_WIDTH` px, `TREATED_GUTTER` from the portraits and `TREATED_MARGIN` from the other three edges; the quote and its attribution
+ * start on its left edge, `TREATED_LEFT`, and the pair's names and count are centred on it. The wordmark sits in its bottom right corner, on the bottom margin.
  */
 
 /** The portraits' column. */
 export const TREATED_COLUMN = 320;
-/** The space between the two portraits (the card's canvas shows through). */
+/** The space between portraits (the card's canvas shows through). */
 export const TREATED_TILE_GAP = 4;
 /** The room from the card's top, right and bottom edges, and between the portraits' column and the rest. */
 export const TREATED_MARGIN = 48;
@@ -75,12 +76,13 @@ export function treatedPosterLefts(count: number): number[] {
   return Array.from({ length: k }, (_, i) => Math.round(TREATED_LEFT + i * (TREATED_POSTER.width + POSTER_GAP)));
 }
 
-/** The names under the axis (small), the count under them (large), and the type of both. */
+/** The names under the axis (small) and the count under them (twice the names' size), the type of both; both are centred on the column. */
 export const TREATED_NAMES_SIZE = 24;
-export const TREATED_CAPTION_SIZE = 60;
-/** A shared film's dot on the axis (white, ringed in the canvas) and a solo film's (a person's colour). */
+export const TREATED_CAPTION_SIZE = 48;
+/** A shared film's dot on the axis (white, ringed in the canvas) and a solo film's (a neutral grey, the same for both people: about 3:1 on the canvas). */
 export const TREATED_NODE = { size: 18, ring: 3 } as const;
 export const TREATED_SOLO_DOT = 8;
+export const TREATED_SOLO_COLOR = "#5b6470";
 /** The axis's line, and how much of its length at each end it takes to fade out. */
 export const TREATED_AXIS_WIDTH = 2;
 export const TREATED_AXIS_FADE = 0.14;
@@ -100,7 +102,7 @@ export interface TreatedPairLayout {
   /** Top of the names' line and of the count's, as the card places their boxes (line height 1). */
   namesTop: number;
   captionTop: number;
-  /** The wordmark's box, on the same baseline as the count. */
+  /** The wordmark's box, its baseline on the bottom margin. */
   wordmarkTop: number;
 }
 
@@ -109,27 +111,34 @@ const lineBox = (size: number) => size;
 /** The baseline's lift: how far past the bottom margin a box of `size` goes so that its baseline sits on it. */
 const baselineLift = (size: number) => Math.round(size * INTER_BASELINE_DROP);
 
+/** The gaps of the right column, top to bottom: the posters to the axis, the axis to the names' box, the names' box to the count's. */
+const POSTERS_TO_AXIS = 44;
+const AXIS_TO_NAMES = 40;
+const NAMES_TO_CAPTION = 8;
+
 /**
- * Where everything of the pair's card goes, top to bottom: the posters at the top margin, the axis a gap under them, and the names and the count at the
- * bottom, the count's baseline on the bottom margin, the wordmark's on the same one.
+ * Where everything of the pair's card goes, top to bottom: the posters, the axis a gap under them, and the names and the count a gap under the axis. The
+ * column is one block, centred in the card's height (the count's baseline, not its box's bottom, is the block's bottom, as the eye measures it, so the
+ * space over the posters and under the count is the same); the wordmark is the card's corner, its baseline on the bottom margin.
  */
 export function treatedPairLayout(): TreatedPairLayout {
-  const bottom = OG_HEIGHT - TREATED_MARGIN;
-  const captionTop = bottom + baselineLift(TREATED_CAPTION_SIZE) - lineBox(TREATED_CAPTION_SIZE);
-  const namesTop = captionTop - 18 - lineBox(TREATED_NAMES_SIZE);
-  const postersTop = TREATED_MARGIN;
+  const block =
+    TREATED_POSTER.height + POSTERS_TO_AXIS + AXIS_TO_NAMES + lineBox(TREATED_NAMES_SIZE) + NAMES_TO_CAPTION + lineBox(TREATED_CAPTION_SIZE) - baselineLift(TREATED_CAPTION_SIZE);
+  const postersTop = Math.round((OG_HEIGHT - block) / 2);
   const postersBottom = postersTop + TREATED_POSTER.height;
+  const axisY = postersBottom + POSTERS_TO_AXIS;
+  const namesTop = axisY + AXIS_TO_NAMES;
   return {
     postersTop,
     postersBottom,
-    axisY: postersBottom + 44,
+    axisY,
     namesTop,
-    captionTop,
-    wordmarkTop: bottom + baselineLift(TREATED_WORDMARK) - lineBox(TREATED_WORDMARK),
+    captionTop: namesTop + lineBox(TREATED_NAMES_SIZE) + NAMES_TO_CAPTION,
+    wordmarkTop: OG_HEIGHT - TREATED_MARGIN + baselineLift(TREATED_WORDMARK) - lineBox(TREATED_WORDMARK),
   };
 }
 
-/** A film on the axis: white when they made it together (`kind` "shared"), else in the colour of the person who made it (`kind` their slot, the URL order). */
+/** A film on the axis: white when they made it together (`kind` "shared"), else a neutral grey (`kind` the slot, the URL order, of the person who made it). */
 export interface TreatedAxisDot {
   id: number;
   x: number;
@@ -163,20 +172,21 @@ export function treatedAxisGradient(rgb: string, alpha: number): string {
   return `linear-gradient(to right, rgba(${rgb}, 0) 0%, rgba(${rgb}, ${alpha}) ${edge}%, rgba(${rgb}, ${alpha}) ${100 - edge}%, rgba(${rgb}, 0) 100%)`;
 }
 
-/** The names under the axis: "Robert De Niro & Martin Scorsese", cut with an ellipsis if it would run past the column. */
+/** The names under the axis (centred): "Robert De Niro & Martin Scorsese", "A, B & C" for more, cut with an ellipsis if it would run past the column. */
 function namesLine(names: readonly string[]): string {
-  return truncateToFit(names.join(" & "), (line) => textWidth(line, TREATED_NAMES_SIZE) <= TREATED_WIDTH);
+  return truncateToFit(joinNames([...names]), (line) => textWidth(line, TREATED_NAMES_SIZE) <= TREATED_WIDTH);
 }
 
 /**
  * What the pair's treated card draws, from `card` (the plain card's, which has the people, the caption and the films' year range) and the people's own films:
- * the posters of the shared films (up to `TREATED_POSTER.count`), and the axis, where every film is a dot: shared ones white, each person's solo films in
- * their colour. The axis's scale is the lane's: the shared films' years, from the first to the last, are centred and take the axis's middle (what the ends'
- * fade leaves), each year `TREATED_MAX_PX_PER_YEAR` wide at most; the solo films around them show as far as the axis does, fading with it. Null unless
- * exactly two people.
+ * the posters of the shared films (up to `TREATED_POSTER.count`), and the axis, where every film is a dot: shared ones white, each person's solo films
+ * grey. The axis's scale is the lane's: the shared films' years, from the first to the last, are centred and take the axis's middle (what the ends'
+ * fade leaves), each year `TREATED_MAX_PX_PER_YEAR` wide at most; the solo films around them show as far as the axis does, fading with it. Null for
+ * fewer than two people (a person's own page keeps the plain card). Three and four people (`MAX_PEOPLE`) are the same card: the shared films are the films
+ * all of them made, the dots are every one's own, the names are joined ("A, B & C").
  */
 export function buildTreatedPair(card: OgCard, timelines: readonly PersonTimeline[], today: string, period: Period | null = null): TreatedPair | null {
-  if (timelines.length !== 2) return null;
+  if (timelines.length < 2) return null;
   const { films: all, source } = cardFilms([...timelines], today);
   const films = all.filter((film) => inPeriod(film.year, period));
   const posters = pickTimelineFilms(films, TREATED_POSTER.count);

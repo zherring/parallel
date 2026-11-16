@@ -266,11 +266,11 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant, people = [], se
     </p>
   );
 
-  // Spike: with the portrait flag on, the frame is the treated quote card (the PNG of `og-quote-render.tsx`, on the grid of `og-treated.ts`): the two portraits
-  // stacked down the left edge, the speaker's in colour and the other greyed, the quote to their right, its attribution in a small dark box at the bottom left
-  // of that column and the wordmark at its bottom right. The frame's own controls (the arrows, the way to the page) sit at the column's top right. In a
-  // narrow frame (the panel X opens over a phone) the portraits go and the column takes the frame.
-  const treated = portraitMode !== null && people.length === 2;
+  // Spike: with the portrait flag on, the frame is the treated quote card (the PNG of `og-quote-render.tsx`, on the grid of `og-treated.ts`): the portraits
+  // stacked down the left edge, the speaker's in colour and the others greyed, the quote to their right, its attribution as plain text at the bottom left
+  // of that column and the wordmark at its bottom right. The frame's own control (the arrows) sits at the column's top right: the PNG has no "Open in Parallel",
+  // so neither has this first frame. In a narrow frame (the panel X opens over a phone) the portraits go and the column takes the frame.
+  const treated = portraitMode !== null && people.length >= 2;
   const roomStyle: CSSProperties = {
     padding: treated ? 0 : `0 ${size(12, 5.67)}`,
     containerType: "size",
@@ -311,7 +311,7 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant, people = [], se
                   color={paletteHexes?.[slot]}
                   headAspect={TREATED_COLUMN / tile.height}
                   strokePx={TREATED_STROKE_CSS}
-                  grey={current.slot !== null && i === 1}
+                  grey={current.slot !== null && i >= 1}
                   className="h-full w-full"
                 />
               ) : (
@@ -326,16 +326,15 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant, people = [], se
           className="absolute inset-y-0 right-0 flex flex-col left-[calc(26.667cqw_+_var(--gutter))] @max-[30rem]:left-[var(--gutter)]"
           style={{ "--gutter": px(TREATED_GUTTER), paddingRight: px(TREATED_MARGIN), paddingBottom: px(TREATED_MARGIN) } as CSSProperties}
         >
-          {/* The frame's own controls, where a post's player has them: the way to the page, and the arrows. */}
+          {/* The frame's own control, where a post's player has it: the arrows. */}
           <div className="flex shrink-0 items-center justify-end" style={{ gap: size(8, 0.8), paddingTop: size(9, 2.4), minHeight: px(TREATED_MARGIN) }}>
             {nav}
-            <OpenInParallel href={quoteInPairPath(slug, current.id)} external={framed} short />
           </div>
           {room}
           {status}
           <div className="flex shrink-0 items-end justify-between gap-x-3" style={{ paddingTop: size(5, 1.3) }}>
-            {/* The attribution: "— Speaker on About" and the source, in a small dark box. */}
-            <div className="min-w-0 border" style={{ padding: `${size(6, 1.17)} ${size(10, 1.67)}`, borderRadius: size(6, 0.67), background: "rgba(0, 0, 0, 0.5)", borderColor: "rgba(255, 255, 255, 0.08)" }}>
+            {/* The attribution: "— Speaker on About" and the source, plain text on the canvas, left-aligned with the quote (no box); its last baseline is on the bottom margin. */}
+            <div className="min-w-0" style={{ marginBottom: "-0.33em", fontSize: size(10.5, 1.28) }}>
               <p className="leading-snug" style={{ fontSize: size(12, 1.7) }}>
                 <span aria-hidden="true" className="text-muted">
                   &mdash;{" "}
@@ -345,7 +344,9 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant, people = [], se
               {sourceLine}
             </div>
             {/* More pairs: the wordmark leads to the landing page's Quotes tab. */}
-            <EmbedWordmark href={MORE_PAIRS_PATH} title="More pairs on Parallel" label="Parallel: more pairs" external={framed} fontSize={size(15, 2.5)} />
+            <div className="leading-none" style={{ marginBottom: "-0.137em", fontSize: size(15, 2.5) }}>
+              <EmbedWordmark href={MORE_PAIRS_PATH} title="More pairs on Parallel" label="Parallel: more pairs" external={framed} fontSize={size(15, 2.5)} />
+            </div>
           </div>
         </div>
       </section>
