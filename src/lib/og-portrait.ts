@@ -3,7 +3,7 @@ import { tmdbImage } from "@/lib/images";
 import { fetchImageDataUri } from "@/lib/og-image";
 import { personHex } from "@/lib/person-colors";
 import { cutEdgePath, polygonPoints, portraitPersonHexes, strokeForWidth } from "@/lib/portrait-cuts";
-import { PORTRAIT_COOKIE, duotoneMatrix, treatmentShape, type TreatmentShape } from "@/lib/portrait-treatment";
+import { PORTRAIT_COOKIE, duotoneMatrix, treatmentShape, type PhotoCrop, type TreatmentShape } from "@/lib/portrait-treatment";
 
 /**
  * Spike (zherring/spike-portraits): the cut-paper treatment on the preview cards (the PNGs of `ImageResponse`). The renderer (Satori, then Resvg)
@@ -61,38 +61,6 @@ export async function loadOgTreatment(
 }
 
 const r = (n: number) => Math.round(n * 100) / 100;
-
-/** A box of the photo, in its own units (`TreatmentShape.size`): what a tile shows of it. */
-export interface PhotoCrop {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-/** Of a photo `w` wide, the share a tile's crop takes: the head, with a little of the cut and the montage around it. */
-const HEAD_CROP_WIDTH = 1;
-/** How much of the crop's height is left above the top of the cut (the crown), so the edge shows over the head. */
-const HEAD_CROP_HEADROOM = 0.04;
-/** The part of the cut, from its top, whose points say where the head is across. */
-const HEAD_BAND = 0.3;
-
-/**
- * Spike: the crop of a tile of aspect `aspect` (width / height) on the head of `shape`: `HEAD_CROP_WIDTH` of the photo's width, centred across on the
- * points of the cut's top `HEAD_BAND` (the head, not the shoulders), its top a little above the cut's, kept inside the photo.
- */
-export function headCrop(shape: TreatmentShape, aspect: number): PhotoCrop {
-  const [w, h] = shape.size;
-  const ys = shape.points.map(([, y]) => y);
-  const top = Math.min(...ys);
-  const span = Math.max(...ys) - top;
-  const head = shape.points.filter(([, y]) => y <= top + span * HEAD_BAND).map(([x]) => x);
-  const centre = ((Math.min(...head) + Math.max(...head)) / 2) * w;
-  const cw = Math.min(w, HEAD_CROP_WIDTH * w, h * aspect);
-  const ch = cw / aspect;
-  const clamp = (v: number, max: number) => Math.min(Math.max(v, 0), max);
-  return { x: clamp(centre - cw / 2, w - cw), y: clamp(top * h - HEAD_CROP_HEADROOM * ch, h - ch), w: cw, h: ch };
-}
 
 /** As the Quotes view dims the one not speaking (`grayscale(1) brightness(0.72)`): luminance, at 0.72. */
 const GREY_ROW = `${0.2126 * 0.72} ${0.7152 * 0.72} ${0.0722 * 0.72} 0 0`;

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/components/timeline/cn";
 import { usePortraitMode } from "@/components/use-portrait-mode";
-import { QUOTE_LAYOUT_PARAM, type QuoteLayout } from "@/lib/og-quote";
 import {
   DESKTOP_WIDTHS,
   PANEL_HEIGHTS,
@@ -24,8 +23,6 @@ interface XPreviewProps {
   input: string;
   meta: PreviewMeta | null;
   error: string | null;
-  /** Spike: the tiles layout of a quote's treated card (`?qlayout=tiles` on this page), added to the card image's URL; null for the card as it is. */
-  qlayout?: QuoteLayout | null;
 }
 
 /** How long the card shows its picture before the frame takes its place: the time X's own frame takes to show up is not known, this is only a beat to see both. */
@@ -63,7 +60,7 @@ function PostShell({ children, wide }: { children: React.ReactNode; wide: number
 /** `url` with `name=value` added to its query. */
 const withParam = (url: string, name: string, value: string) => `${url}${url.includes("?") ? "&" : "?"}${name}=${value}`;
 
-export function XPreview({ origin, target, input, meta, error, qlayout = null }: XPreviewProps) {
+export function XPreview({ origin, target, input, meta, error }: XPreviewProps) {
   const [mode, setMode] = useState<"desktop" | "mobile">("desktop");
   const [width, setWidth] = useState<number>(DESKTOP_WIDTHS[1]);
   const [panelHeight, setPanelHeight] = useState<number>(PANEL_HEIGHTS[0]);
@@ -86,8 +83,7 @@ export function XPreview({ origin, target, input, meta, error, qlayout = null }:
   const held = portraitMode !== null && !flagSaved;
   const player = useMemo(() => (held ? "" : withMotion(onOrigin(meta?.player ?? null, origin) ?? "", reduced)), [held, meta?.player, origin, reduced]);
   const sharedImage = onOrigin(meta?.image ?? null, origin);
-  const rawImage = sharedImage && qlayout ? withParam(sharedImage, QUOTE_LAYOUT_PARAM, qlayout) : sharedImage;
-  const image = held ? null : portraitMode && rawImage ? withParam(rawImage, "portrait", portraitMode) : rawImage;
+  const image = held ? null : portraitMode && sharedImage ? withParam(sharedImage, "portrait", portraitMode) : sharedImage;
   const problems = meta ? previewProblems(meta) : [];
   const sandboxAttribute = sandbox === "strict" ? STRICT_SANDBOX : undefined;
   const aspect = (meta?.playerHeight ?? 630) / (meta?.playerWidth ?? 1200);
@@ -131,7 +127,6 @@ export function XPreview({ origin, target, input, meta, error, qlayout = null }:
           placeholder="/p/488-steven-spielberg+491-john-williams, or 488+491"
           className="min-w-[22rem] flex-1 rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-strong"
         />
-        {qlayout && <input type="hidden" name={QUOTE_LAYOUT_PARAM} value={qlayout} />}
         <button type="submit" className={BUTTON}>
           Preview
         </button>
@@ -139,7 +134,7 @@ export function XPreview({ origin, target, input, meta, error, qlayout = null }:
       <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted">
         Quick picks:
         {X_PREVIEW_PRESETS.map((preset) => (
-          <a key={preset.target} href={`?target=${encodeURIComponent(preset.target)}${qlayout ? `&${QUOTE_LAYOUT_PARAM}=${qlayout}` : ""}`} className={cn(BUTTON, "no-underline", preset.target === target && ON)}>
+          <a key={preset.target} href={`?target=${encodeURIComponent(preset.target)}`} className={cn(BUTTON, "no-underline", preset.target === target && ON)}>
             {preset.label}
           </a>
         ))}

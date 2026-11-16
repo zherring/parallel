@@ -283,3 +283,45 @@ describe("the card route for a critic's quote", () => {
     expect(redirectOf(await get(PAIR_SLUG, "?quote=short"))).toBe(OG_IMAGE);
   });
 });
+
+// Spike (zherring/spike-portraits): the treated cards, drawn when `PORTRAIT_TREATMENT=1` (or the flag's cookie, outside production). The stub's people have no photo, so
+// nothing is fetched and each portrait is its initials; what is asserted is that the new layout draws at all, at the card's size, and is never cached.
+describe("the treated cards (the portrait treatment on)", () => {
+  const SHORT = "short-one";
+
+  async function png(response: Response) {
+    const bytes = new DataView(await response.arrayBuffer());
+    expect(bytes.getUint32(0)).toBe(0x89504e47);
+    return [bytes.getUint32(16), bytes.getUint32(20)];
+  }
+
+  it.each([
+    ["the pair's own card", `/p/${PAIR_SLUG}/og?from=1970&to=1990`],
+    ["an artist's quote", `/p/${PAIR_SLUG}/og?quote=${SHORT}`],
+    ["a long artist's quote", `/p/${PAIR_SLUG}/og?quote=long-one`],
+    ["a critic's quote", `/p/${PAIR_SLUG}/og?quote=critic-short`],
+    ["an unsigned critic's long quote", `/p/${PAIR_SLUG}/og?quote=critic-unsigned`],
+  ])("draws %s as a 1200 x 630 PNG that is not cached", async (_name, path) => {
+    vi.stubEnv("PORTRAIT_TREATMENT", "1");
+    try {
+      const url = new URL(path, BASE);
+      const response = await get(PAIR_SLUG, url.search);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(await png(response)).toEqual([1200, 630]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("leaves the cards as they were without the flag: the same cache header, and the same bytes for the same card", async () => {
+    const first = await get(PAIR_SLUG, `?quote=${SHORT}`);
+    const second = await get(PAIR_SLUG, `?quote=${SHORT}`);
+    expect(first.headers.get("cache-control")).toBe(OG_CACHE_CONTROL);
+    expect(Buffer.from(await first.arrayBuffer()).equals(Buffer.from(await second.arrayBuffer()))).toBe(true);
+  });
+
+  it("no longer has a second layout: `qlayout` is an extra parameter, and a quote card's one spelling has none", async () => {
+    expect(redirectOf(await get(PAIR_SLUG, `?quote=${SHORT}&qlayout=tiles`))).toBe(`/p/${PAIR_SLUG}/og?quote=${SHORT}`);
+  });
+});
