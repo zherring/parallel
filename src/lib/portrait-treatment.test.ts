@@ -34,20 +34,38 @@ describe("headCrop", () => {
     expect(crop.x + crop.w).toBeLessThanOrEqual(342 + 1e-9);
   });
 
-  it("shows a wide tile (a group's) the same height of the photo as a pair's, with the head in the middle and the montage on both sides, not the head cut at the eyes", () => {
-    const pair = headCrop(shape, 320 / 313);
+  it("crops a wide tile (a group's) tight: the photo's whole width, as a tear's strip has it, so the face is as large as a pair's, not scaled down to fit the head", () => {
+    const pair = headCrop(shape, 320 / 315);
     for (const aspect of [320 / 207, 320 / 154.5]) {
       const crop = headCrop(shape, aspect);
-      expect(Math.abs(crop.h - pair.h) / pair.h).toBeLessThan(0.01);
-      expect(crop.w).toBeCloseTo(crop.h * aspect, 5);
-      expect(crop.w).toBeGreaterThan(342);
-      // The head's middle (x = 0.4 of the photo) is the crop's middle.
-      expect(crop.x + crop.w / 2).toBeCloseTo(0.4 * 342, 5);
-      // All of the photo is inside the crop, across.
-      expect(crop.x).toBeLessThanOrEqual(0);
-      expect(crop.x + crop.w).toBeGreaterThanOrEqual(342);
-      // The crown is in, a little under the crop's top.
-      expect(crop.y).toBeLessThan(0.1 * 513);
+      expect(crop.w).toBeCloseTo(pair.w, 5);
+      expect(crop.x).toBe(0);
+      expect(crop.w / crop.h).toBeCloseTo(aspect, 5);
+      // Shorter than a pair's: the top of the head and the shoulders are cropped off.
+      expect(crop.h).toBeLessThan(pair.h);
+    }
+  });
+
+  it("centres a wide tile down on the middle of the face, which is below the crown by a share of the head's width, not on the crown", () => {
+    for (const aspect of [320 / 207, 320 / 154.5]) {
+      const crop = headCrop(shape, aspect);
+      // The head band's points (0.3 to 0.5 across, y up to 0.1 + 0.9 * 0.3) are 0.2 of the photo's width wide; the face is a little under that below the crown.
+      const crown = 0.1 * 513;
+      const face = crop.y + crop.h / 2;
+      expect(face).toBeGreaterThan(crown);
+      expect(face).toBeLessThan(crown + 0.2 * 342 * 1.5);
+      expect(crop.y).toBeGreaterThanOrEqual(0);
+      expect(crop.y + crop.h).toBeLessThanOrEqual(513 + 1e-9);
+    }
+  });
+
+  it("leaves a pair's tile (320 x 315 or 313) as it was, the head whole from a little above the crown", () => {
+    for (const height of [315, 313]) {
+      const crop = headCrop(shape, 320 / height);
+      expect(crop.x).toBe(0);
+      expect(crop.w).toBeCloseTo(342, 5);
+      expect(crop.h).toBeCloseTo(342 / (320 / height), 5);
+      expect(crop.y).toBeCloseTo(0.1 * 513 - 0.04 * crop.h, 5);
     }
   });
 });

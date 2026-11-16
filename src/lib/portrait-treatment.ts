@@ -75,21 +75,27 @@ export interface PhotoCrop {
 /** Of a photo `w` wide, the share a tile's crop takes: the head, with a little of the cut and the montage around it. */
 const HEAD_CROP_WIDTH = 1;
 /**
- * The widest tile (width / height) for which the crop is `HEAD_CROP_WIDTH` of the photo's width: a little wider than a pair's tile (320 x 313 on the share cards).
- * A wider tile (a group of three or four, whose tiles are shorter) shows the same height of the photo, the head and the shoulders, and so more across than
- * the photo has: the montage fills the sides, and the head stays whole and in the middle, rather than cut at the eyes.
+ * The widest tile (width / height) that shows the head whole: a little wider than a pair's tile (320 x 315 on the share cards). A wider (shorter) tile, a
+ * group of three or four's, is cropped tight instead (`FACE_DROP`): the photo's width across, as a tear's strip has it, so the face reads as large as
+ * the tears' faces do, and the top of the head and the shoulders are cut by the tile's edges.
  */
 const HEAD_CROP_FULL_WIDTH_ASPECT = 1.03;
 /** How much of the crop's height is left above the top of the cut (the crown), so the edge shows over the head. */
 const HEAD_CROP_HEADROOM = 0.04;
 /** The part of the cut, from its top, whose points say where the head is across. */
 const HEAD_BAND = 0.3;
+/**
+ * How far below the top of the cut the middle of the face (from the eyes to the mouth) is, as a multiple of the head's width (the cut's points in
+ * `HEAD_BAND`, hair and ears included). Not a measure of the face (the cuts carry none), a rule fitted by eye to the whole cut set: the face sits in
+ * the middle of a short tile, the eyes in its upper half and the mouth in its lower.
+ */
+const FACE_DROP = 0.85;
 
 /**
- * Spike: the crop of a tile of aspect `aspect` (width / height) on the head of `shape`: `HEAD_CROP_WIDTH` of the photo's width (or, for a tile wider than
- * `HEAD_CROP_FULL_WIDTH_ASPECT`, as much height as that, and the width its aspect asks for, which is past the photo's), centred across on the points of the
- * cut's top `HEAD_BAND` (the head, not the shoulders), its top a little above the cut's, kept inside the photo (across, a crop wider than the photo is kept
- * round it instead).
+ * Spike: the crop of a tile of aspect `aspect` (width / height) on the head of `shape`, centred across on the points of the cut's top `HEAD_BAND` (the head,
+ * not the shoulders), kept inside the photo. A tile no wider than `HEAD_CROP_FULL_WIDTH_ASPECT` takes `HEAD_CROP_WIDTH` of the photo's width, its top a
+ * little above the cut's. A wider tile is cropped tight: the photo's whole width, whatever it is, and so a height of only the tile's shape, which is
+ * centred down on the middle of the face (`FACE_DROP`): the crown and the chin are cut by the tile where they do not fit.
  */
 export function headCrop(shape: TreatmentShape, aspect: number): PhotoCrop {
   const [w, h] = shape.size;
@@ -98,10 +104,16 @@ export function headCrop(shape: TreatmentShape, aspect: number): PhotoCrop {
   const span = Math.max(...ys) - top;
   const head = shape.points.filter(([, y]) => y <= top + span * HEAD_BAND).map(([x]) => x);
   const centre = ((Math.min(...head) + Math.max(...head)) / 2) * w;
-  const ch = Math.min(h, (HEAD_CROP_WIDTH * w) / Math.min(aspect, HEAD_CROP_FULL_WIDTH_ASPECT));
-  const cw = ch * aspect;
   const clamp = (v: number, a: number, b: number) => Math.min(Math.max(v, Math.min(a, b)), Math.max(a, b));
-  // Across, the crop stays inside the photo, or, when it is wider than the photo, has the whole photo inside it.
+  if (aspect > HEAD_CROP_FULL_WIDTH_ASPECT) {
+    const cw = HEAD_CROP_WIDTH * w;
+    const ch = cw / aspect;
+    const face = top * h + FACE_DROP * (Math.max(...head) - Math.min(...head)) * w;
+    return { x: clamp(centre - cw / 2, 0, w - cw), y: clamp(face - ch / 2, 0, h - ch), w: cw, h: ch };
+  }
+  const ch = Math.min(h, (HEAD_CROP_WIDTH * w) / aspect);
+  const cw = ch * aspect;
+  // Across, the crop stays inside the photo.
   return { x: clamp(centre - cw / 2, 0, w - cw), y: clamp(top * h - HEAD_CROP_HEADROOM * ch, 0, h - ch), w: cw, h: ch };
 }
 
