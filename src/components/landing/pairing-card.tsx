@@ -25,7 +25,7 @@ export function PairingCardFrame({ href, people, photos = true, children }: Fram
       <div className="flex -space-x-4" aria-hidden="true">
         {/* Spike: `?portrait=on` cuts the faces out (`PairingFace`); without it they are the round avatars they were. */}
         {people.map((person, slot) => (
-          <PairingFace key={person.id} person={person} slot={slot} photos={photos} />
+          <PairingFace key={person.id} person={person} slot={slot} partnerId={people[1 - slot]?.id ?? person.id} photos={photos} />
         ))}
       </div>
       {children}

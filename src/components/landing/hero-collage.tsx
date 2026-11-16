@@ -17,6 +17,7 @@ import {
 import { TimelineLine } from "@/components/landing/hero-timeline";
 import { TreatedPortrait } from "@/components/treated-portrait";
 import { usePortraitMode } from "@/components/use-portrait-mode";
+import { pairPortraitColors } from "@/lib/portrait-cuts";
 import { KeycapButton } from "@/components/landing/keycap-button";
 import { TIMING, arrive, depart, float, nod } from "@/components/landing/hero-motion";
 import { personImageUrl, posterImageUrl, preloadScene, useHeroRotation } from "@/components/landing/use-hero-rotation";
@@ -81,6 +82,8 @@ interface Item {
   nod: number;
   /** Spike (zherring/spike-portraits): a portrait's person, for the cut-out treatment. */
   person?: HeroPerson;
+  /** Spike: the person beside them in the current scene, for the pair's colours (`pairPortraitColors`); kept up to date while they stay. */
+  partner?: HeroPerson;
 }
 
 interface State {
@@ -102,6 +105,7 @@ const personItem = (scene: Scene, slot: 0 | 1, id: string, phase: Phase, delay: 
   dir,
   nod: 0,
   person: scene.people[slot],
+  partner: scene.people[slot === 0 ? 1 : 0],
 });
 
 const posterItem = (pairing: HeroPairing, slot: number, id: string, phase: Phase, delay: number, dir: Dir = 1): Item => ({
@@ -162,7 +166,9 @@ function applyTransition(state: State, transition: Transition, dir: Dir): State 
     if (item.type === "label") return sameMore ? item : { ...item, phase: "leaving", delay: 0, dir };
     if (item.type === "person") {
       if (transition.changed.includes(item.slot as 0 | 1)) return { ...item, phase: "leaving", delay: 0, dir };
-      return transition.stayed === item.slot ? { ...item, nod: seq } : item;
+      const partner = item.partner?.id === scene.people[item.slot === 0 ? 1 : 0].id ? item.partner : scene.people[item.slot === 0 ? 1 : 0];
+      if (transition.stayed === item.slot) return { ...item, nod: seq, partner };
+      return partner === item.partner ? item : { ...item, partner };
     }
     if (samePoster(item.slot)) return item;
     return { ...item, phase: "leaving", delay: item.slot * TIMING.posterLeaveStagger, dir };
@@ -301,18 +307,20 @@ function PersonPhoto({ item }: { item: Item }) {
 }
 
 /**
- * Spike (zherring/spike-portraits): behind `?portrait=on|color` the card's photo is cut out (`TreatedPortrait`, colour by the card's slot, the
- * pair page's order) over the duotoned montage; the card keeps its own corners, shadow, ring and name. Without the flag it is the photo.
+ * Spike (zherring/spike-portraits): behind `?portrait=on|color` the card's photo is cut out (`TreatedPortrait`, colour by person from the dev
+ * grid's palette, `pairPortraitColors`) over the duotoned montage; the card keeps its own corners, shadow, ring and name. Without the flag it is the photo.
  */
 function PersonFace({ item, slot }: { item: Item; slot: number }) {
   const mode = usePortraitMode();
   const person = item.person;
   if (!mode || !person?.profilePath) return <PersonPhoto item={item} />;
+  const [color] = pairPortraitColors(person.id, item.partner?.id ?? person.id);
   return (
     <TreatedPortrait
       mode={mode}
       personId={person.id}
       slot={slot}
+      color={color}
       name={person.name}
       profilePath={person.profilePath}
       imageSize="w342"

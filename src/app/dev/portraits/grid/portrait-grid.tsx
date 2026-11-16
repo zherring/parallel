@@ -4,12 +4,10 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { tmdbImage } from "@/lib/images";
 import { CutPortraitImage } from "@/components/cut-portrait-image";
-import { CUT_STROKE_WHITE, EDGE_POSITIONS, parseEdgePosition, polygonPoints, type CutPoint, type EdgePosition, type PortraitCut } from "@/lib/portrait-cuts";
+import { CUT_STROKE_WHITE, EDGE_POSITIONS, PORTRAIT_PALETTE as PALETTE, parseEdgePosition, polygonPoints, type CutPoint, type EdgePosition, type PortraitCut } from "@/lib/portrait-cuts";
 import { TEAR_SIZE, tearFor, type PortraitTestArtist } from "@/lib/portrait-tears";
 import { ControlsPanel, createSettingsStore, EDGE_LABELS, Group, PANEL_W, PanelNote, pick, Segment } from "../controls-panel";
 
-/** Eight saturated, screen-print-poster colors that sit well together on a near-black page. */
-const PALETTE = ["#E63B2E", "#F2C230", "#2E5EAA", "#F28C28", "#1F9E89", "#E5487D", "#6B4BA1", "#3E9E4F"];
 const MODES = ["Color", "Montage", "Mix"] as const;
 type Mode = (typeof MODES)[number];
 /** One card per artist, so no "Both": "color" strokes the edge in the card's own colour (the flat fill, or the montage's tint). */

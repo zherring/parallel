@@ -82,6 +82,26 @@ export const CARD_RADIUS_RATIO = 6 / 150;
 
 export const CUT_STROKE_WHITE = "#fff";
 
+/** Eight saturated, screen-print-poster colors that sit well together on a near-black page (the dev grid's, and the landing page's). */
+export const PORTRAIT_PALETTE: readonly string[] = ["#E63B2E", "#F2C230", "#2E5EAA", "#F28C28", "#1F9E89", "#E5487D", "#6B4BA1", "#3E9E4F"];
+
+/** A person's palette index: the top bits of a multiplicative (Fibonacci) hash of their TMDB id, so neighbouring ids spread. */
+function paletteIndex(personId: number): number {
+  return Math.floor(((Math.imul(personId, 0x9e3779b1) >>> 0) / 2 ** 32) * PORTRAIT_PALETTE.length);
+}
+
+/**
+ * The landing page's colours for a pair, in the order given: each person's own (`paletteIndex`), except that when the two match, the one with
+ * the higher id steps to the next entry, so they never share one, whichever order the pair comes in. The hero and the pairing cards both use it.
+ */
+export function pairPortraitColors(firstId: number, secondId: number): [string, string] {
+  const first = paletteIndex(firstId);
+  const second = paletteIndex(secondId);
+  if (first !== second) return [PORTRAIT_PALETTE[first], PORTRAIT_PALETTE[second]];
+  const stepped = PORTRAIT_PALETTE[(first + 1) % PORTRAIT_PALETTE.length];
+  return firstId <= secondId ? [PORTRAIT_PALETTE[first], stepped] : [stepped, PORTRAIT_PALETTE[second]];
+}
+
 /**
  * Where the cut edge's line sits against the polygon: straddling it (`center`, a plain SVG stroke), all inside the cut-out, or all outside it.
  * The visible line is the rule's width in every mode: inside and outside draw twice the width and hide half of it, inside by clipping the

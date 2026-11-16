@@ -21,6 +21,8 @@ interface Props {
   className?: string;
   /** The person's slot on the page: their colour, for the ring, the flat background and the montage's tint. */
   slot: number;
+  /** A #rrggbb colour for the edge, the flat background and the montage's tint, instead of the slot's (the landing page's `pairPortraitColors`). */
+  color?: string;
   /** A CSS colour for the ring, as `PersonPortrait`'s. */
   ringColor?: string;
   /** The treatment; null renders `PersonPortrait` exactly as the app does today. */
@@ -47,7 +49,7 @@ interface Props {
  * and the corners scale with the card (`CARD_RADIUS_RATIO`), all through container units, so nothing is measured. The edge sits inside the
  * cut in the person's colour (the owner's picks); `?outline=white` and `?edge=center|outside` override them, for comparison.
  */
-export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, ringColor, mode, posterSize = "w92", rounded = true, strokePx, ringPx, outline, edgePosition }: Props) {
+export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, color, ringColor, mode, posterSize = "w92", rounded = true, strokePx, ringPx, outline, edgePosition }: Props) {
   const rawId = useId();
   const searchParams = useSearchParams();
   const edge = edgePosition ?? parseEdgePosition(searchParams?.get("edge")) ?? "inside";
@@ -58,7 +60,7 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
   }
 
   const id = `portrait-${personId}-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
-  const hex = PERSON_COLORS[((Math.trunc(slot) % PERSON_COLORS.length) + PERSON_COLORS.length) % PERSON_COLORS.length].hex;
+  const hex = color ?? PERSON_COLORS[((Math.trunc(slot) % PERSON_COLORS.length) + PERSON_COLORS.length) % PERSON_COLORS.length].hex;
   const { points, size, posters } = treatmentShape(personId, profilePath);
   const [w, h] = size;
   const montage = mode === "montage";
