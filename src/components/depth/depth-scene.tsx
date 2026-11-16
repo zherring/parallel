@@ -2,7 +2,7 @@
 
 import { useCallback, useId, useMemo, useRef, type FocusEvent, type PointerEvent, type RefObject } from "react";
 import { DepthPoster } from "@/components/depth/depth-poster";
-import { useRoughFrames } from "@/components/rough-frame";
+import { useRoughFrames, useSingleFrameMode } from "@/components/rough-frame";
 import { useFocusField } from "@/components/depth/use-focus-field";
 import { IMAGE_WINDOW, usePosterImages } from "@/components/depth/use-poster-images";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "@/components/timeline/film-popover";
@@ -232,8 +232,13 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
   // Only with several people, as the rings are. Undefined without the flag: the posters as they are.
   const roughFrames = useRoughFrames() && coloured;
   const personOfSlot = useMemo(() => new Map([...slots].map(([personId, slot]) => [slot, personId])), [slots]);
+  // A film of one follows `?single=`: a smaller rough shape (rough), its usual colour ring (border), or neither (none).
+  const singleMode = useSingleFrameMode();
+  const isSingle = (item: DepthFilm) => item.slots.length === 1;
   const frameSeedOf = (item: DepthFilm) =>
-    roughFrames ? `${item.film.id}:${item.slots.map((slot) => personOfSlot.get(slot) ?? slot).join("+")}` : undefined;
+    roughFrames && !(isSingle(item) && singleMode !== "rough")
+      ? `${item.film.id}:${item.slots.map((slot) => personOfSlot.get(slot) ?? slot).join("+")}`
+      : undefined;
 
   // The horizontal spacing of every viewport, as CSS (see `depthSceneCss`): one markup for all of them.
   const sceneCss = useMemo(() => depthSceneCss(people.length), [people.length]);
@@ -280,6 +285,7 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
                     upcoming={!isReleased(film.releaseDate, today)}
                     coloured={coloured}
                     frameSeed={frameSeedOf(item)}
+                    unringed={roughFrames && singleMode === "none" && isSingle(item)}
                     outside={outsideIds.has(film.id)}
                     selected={selectedId === film.id}
                     eager={eagerIds.has(film.id)}

@@ -20,7 +20,10 @@ export const QUIET_OPACITY = 0.55;
 
 export type CardTint = PersonTint;
 
-/** Spike (`?frames=rough`): the rough-cut frame behind the poster, one colour per person who made the film (one or two). */
+/**
+ * Spike (`?frames=rough`): the rough-cut frame behind the poster, one colour per person who made the film (one or two). No colours
+ * (`?single=none` on a film of one): no frame, and no ring either.
+ */
 export interface CardFrame {
   colors: readonly string[];
   seed: string;
@@ -249,7 +252,7 @@ function FilmCardImpl(props: FilmCardProps) {
 }
 
 function FrameBox({ frame, width, height, children }: { frame: CardFrame | null; width: number; height: number; children: ReactNode }) {
-  if (frame === null) return children;
+  if (frame === null || frame.colors.length === 0) return children;
   return (
     <span className="relative block">
       <RoughFrame colors={frame.colors} seed={frame.seed} width={width} height={height} />
