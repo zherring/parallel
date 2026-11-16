@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { XPreview } from "@/components/dev/x-preview";
+import { QUOTE_LAYOUT_PARAM, parseQuoteLayout } from "@/lib/og-quote";
 import { X_PREVIEW_PRESETS, parseMetaTags, previewFetchOrigin, previewMeta, previewTarget, type PreviewMeta } from "@/lib/x-preview";
 
 export const metadata: Metadata = { title: "X preview (development)", robots: { index: false, follow: false } };
@@ -22,6 +23,9 @@ export default async function XPreviewPage({ searchParams }: Props) {
   const [query, requestHeaders] = await Promise.all([searchParams, headers()]);
   const raw = Array.isArray(query.target) ? query.target[0] : query.target;
   const target = previewTarget(raw ?? X_PREVIEW_PRESETS[0].target);
+  // Spike: `&qlayout=tiles` here is passed on to the card image's URL, for the tiles layout of a quote's treated card (see `parseQuoteLayout`).
+  const qlayoutRaw = query[QUOTE_LAYOUT_PARAM];
+  const qlayout = parseQuoteLayout(new URLSearchParams(typeof qlayoutRaw === "string" ? { [QUOTE_LAYOUT_PARAM]: qlayoutRaw } : {}));
 
   // `origin` is where the visitor's browser reached this page (what the preview's frames are loaded from, by the browser). It is not where the server reads the target from: the
   // `Host` header is the client's, so a crafted one would make the fetch below a request to any host and show the reply in the tags panel. That goes to this machine (the request's
@@ -52,5 +56,5 @@ export default async function XPreviewPage({ searchParams }: Props) {
     }
   }
 
-  return <XPreview origin={origin} target={target ?? ""} input={raw ?? ""} meta={meta} error={error} />;
+  return <XPreview origin={origin} target={target ?? ""} input={raw ?? ""} meta={meta} error={error} qlayout={qlayout} />;
 }

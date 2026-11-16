@@ -3,7 +3,7 @@ import type { Clipping, PairClippings } from "@/lib/clippings";
 import { clippingVoices, clippingYear, speakerIndex, translatedFrom, truncateQuote } from "@/lib/clippings-view";
 import type { Critic, PairCritics } from "@/lib/critics";
 import { criticAbout, criticName, criticYear } from "@/lib/critics-view";
-import { loadOgTreatment, ogPersonHexes, ogPortraitTreatment, treatedHeadshotSvg, type OgTreatmentMode } from "@/lib/og-portrait";
+import { headCrop, loadOgTreatment, ogPersonHexes, ogPortraitTreatment, treatedHeadshotSvg, type OgTreatmentMode } from "@/lib/og-portrait";
 import { OG_CACHE_CONTROL, loadImage } from "@/lib/og-render";
 import {
   ATTRIBUTION_WIDTH,
@@ -13,6 +13,7 @@ import {
   attributionFontSize,
   quoteCardType,
   splitQuoteTail,
+  type QuoteLayout,
 } from "@/lib/og-quote";
 import { OG, OG_SIZE, ogQuoteFonts, ogWordmark } from "@/lib/og-theme";
 import { hexChannels, personHex } from "@/lib/person-colors";
@@ -44,12 +45,35 @@ const TREATED_FONT_SIZES = [56, 50, 45, 41, 37, 34, 31, 28] as const;
 /** What the attribution leaves of the column for the wordmark beside it. */
 const TREATED_WORDMARK_ROOM = 160;
 
+/**
+ * Spike: the tiles layout (`qlayout=tiles`, `drawTilesQuoteCard`), a collage on navy: the two portraits as tiles stacked in a column on the left, each a
+ * crop of the head, and three panels to their right, square-cornered as cut-out cards: the quote, the attribution and the wordmark. Every box is
+ * placed on the 1200 x 630 card: `left`, `top`, `width`, `height`.
+ */
+const TILES = {
+  bg: "#0f1626",
+  panel: "#1c1f24",
+  /** The hairline between the two tiles: the navy showing through. */
+  hairline: 3,
+  column: { left: 36, top: 36, width: 324, height: 558 },
+  quote: { left: 384, top: 36, width: 780, height: 392 },
+  attribution: { left: 400, top: 446, width: 580, height: 136 },
+  wordmark: { left: 1000, top: 458, width: 164, height: 136 },
+} as const;
+const TILES_QUOTE_PAD = { x: 44, top: 34, bottom: 34 } as const;
+const TILES_MARK_HEIGHT = 50;
+const TILES_FONT_SIZES = [54, 50, 46, 42, 38, 35, 32, 29, 27] as const;
+const TILES_ATTRIBUTION_PAD = 30;
+const TILE = { width: TILES.column.width, height: (TILES.column.height - TILES.hairline) / 2 };
+
 export interface QuoteOgImageInput {
   /** The two people of the page, in the order of its URL: for their headshots, and for the colour each has on the page. */
   timelines: PersonTimeline[];
   /** The pair's clippings, which say which of the two is the speaker. */
   set: PairClippings;
   clipping: Clipping;
+  /** Spike: the tiles layout of the treated card (`parseQuoteLayout`, development only); null or absent for the card as it is. */
+  layout?: QuoteLayout | null;
 }
 
 export interface CriticOgImageInput {
@@ -58,6 +82,8 @@ export interface CriticOgImageInput {
   /** The pair's critics, which name the two people (and the order they are written in). */
   set: PairCritics;
   critic: Critic;
+  /** Spike: as `QuoteOgImageInput.layout`. */
+  layout?: QuoteLayout | null;
 }
 
 function headshot(name: string, src: string | null, ring: string) {
@@ -131,14 +157,26 @@ interface QuoteCard {
   about: string;
   /** "Variety · 2023". */
   source: string;
+  /** Spike: the tiles layout (with the treatment on only), and whether its second person is greyed (an artist's quote: the one not speaking). */
+  layout?: QuoteLayout | null;
+  dimSecond?: boolean;
 }
 
-async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, about, source, mode, hexes }: QuoteCard): Promise<ImageResponse> {
+async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, about, source, mode, hexes, layout = null, dimSecond = false }: QuoteCard): Promise<ImageResponse> {
   const [images, fonts, treatments] = await Promise.all([
     Promise.all(people.map((p) => loadImage(p.profilePath))),
     ogQuoteFonts(),
     mode ? Promise.all(people.map((p) => loadOgTreatment(p.id, p.profilePath, p.slot, mode, hexes))) : null,
   ]);
+  if (treatments && layout === "tiles") {
+    const tiles = treatments.map((t, i) => {
+      const photo = images[i];
+      return t && photo
+        ? treatedHeadshotSvg(t, photo, TILE.width, TILE.height, { crop: headCrop(t.shape, TILE.width / TILE.height), grey: dimSecond && i === 1 })
+        : null;
+    });
+    return drawTilesQuoteCard({ accent, quote: fullQuote, people, speaker, about, source }, tiles, fonts);
+  }
   if (treatments) {
     const treated = treatments.map((t, i) => {
       const photo = images[i];
@@ -321,6 +359,115 @@ function drawTreatedQuoteCard(
   );
 }
 
+/** A box placed on the card (see `TILES`). */
+const placed = (box: { left: number; top: number; width: number; height: number }) => ({ position: "absolute", display: "flex", ...box }) as const;
+
+/**
+ * Spike: the tiles layout of the treated card (`TILES`). The people's tiles (`tiles`, the SVG data URIs of their head crops; null for one with no
+ * photo, initials) top to bottom, the speaker's first; the quote in its panel at the largest of `TILES_FONT_SIZES` that fits, marks in `accent`; the
+ * attribution and source in theirs; the wordmark in its own. No wash: the navy and the panels are the look.
+ */
+function drawTilesQuoteCard(
+  { accent, quote: fullQuote, people, speaker, about, source }: Pick<QuoteCard, "accent" | "quote" | "people" | "speaker" | "about" | "source">,
+  tiles: (string | null)[],
+  fonts: Awaited<ReturnType<typeof ogQuoteFonts>>,
+): ImageResponse {
+  const textWidth = TILES.quote.width - 2 * TILES_QUOTE_PAD.x;
+  const textHeight = TILES.quote.height - TILES_QUOTE_PAD.top - TILES_QUOTE_PAD.bottom - TILES_MARK_HEIGHT;
+  const quote = truncateQuote(fullQuote, QUOTE_CARD_MAX_CHARS);
+  const { fontSize, lineHeight } = quoteCardType(`${quote}”`, { width: textWidth, height: textHeight, sizes: TILES_FONT_SIZES });
+  const { words, tail } = splitQuoteTail(quote);
+  const attributionWidth = TILES.attribution.width - 2 * TILES_ATTRIBUTION_PAD;
+  const attributionSize = attributionFontSize(`\u2014 ${speaker}${about}`, attributionWidth);
+
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", backgroundColor: TILES.bg, fontFamily: "Inter", color: OG.strong }}>
+        <div style={{ ...placed(TILES.column), flexDirection: "column", justifyContent: "space-between" }}>
+          {people.map((p, i) => (
+            <div
+              key={p.name}
+              style={{
+                display: "flex",
+                width: TILE.width,
+                height: TILE.height,
+                overflow: "hidden",
+                backgroundColor: TILES.panel,
+                ...(tiles[i] ? {} : { alignItems: "center", justifyContent: "center", color: OG.body, fontSize: 72, fontWeight: 600 }),
+              }}
+            >
+              {tiles[i] ? <img src={tiles[i]} alt="" width={TILE.width} height={TILE.height} /> : initials(p.name)}
+            </div>
+          ))}
+        </div>
+
+        <div
+          style={{
+            ...placed(TILES.quote),
+            flexDirection: "column",
+            backgroundColor: TILES.panel,
+            padding: `${TILES_QUOTE_PAD.top}px ${TILES_QUOTE_PAD.x}px ${TILES_QUOTE_PAD.bottom}px`,
+          }}
+        >
+          <div style={{ display: "flex", height: TILES_MARK_HEIGHT, marginLeft: -5, fontFamily: "Newsreader", fontSize: 110, lineHeight: 1, color: accent }}>{"“"}</div>
+          <div style={{ display: "flex", flex: 1, alignItems: "center" }}>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignContent: "flex-start",
+                maxHeight: textHeight + 30,
+                fontFamily: "Newsreader",
+                fontSize,
+                lineHeight,
+                letterSpacing: -0.4,
+                color: OG.strong,
+              }}
+            >
+              {words.map((word, i) => (
+                <div key={i} style={{ display: "flex", whiteSpace: "pre" }}>
+                  {`${word} `}
+                </div>
+              ))}
+              <div style={{ display: "flex" }}>
+                <div style={{ display: "flex", whiteSpace: "pre" }}>{tail}</div>
+                <div style={{ display: "flex", color: accent }}>{"”"}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            ...placed(TILES.attribution),
+            flexDirection: "column",
+            justifyContent: "center",
+            backgroundColor: TILES.panel,
+            padding: `0 ${TILES_ATTRIBUTION_PAD}px`,
+          }}
+        >
+          <div style={{ display: "flex", flexWrap: "wrap", fontSize: attributionSize, lineHeight: 1.2, fontWeight: 600 }}>
+            <span style={{ color: OG.muted, whiteSpace: "pre" }}>{"\u2014 "}</span>
+            <span style={{ color: OG.strong }}>{speaker}</span>
+            <span style={{ color: OG.muted, whiteSpace: "pre" }}>{about}</span>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", marginTop: 6, fontSize: 21, lineHeight: 1.2, fontWeight: 600, color: OG.muted }}>
+            {source.split(" · ").map((part, i) => (
+              <span key={i} style={{ whiteSpace: "pre" }}>
+                {i === 0 ? part : ` · ${part}`}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ ...placed(TILES.wordmark), alignItems: "center", justifyContent: "center", backgroundColor: TILES.panel }}>{ogWordmark(30)}</div>
+      </div>
+    ),
+    // A spike's preview, as the treated card: never cached.
+    { ...OG_SIZE, fonts, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
 /** "Publication · 2023", or the publication alone when the year is not known. */
 const sourceLine = (publication: string, year: number | null) => (year === null ? publication : `${publication} · ${year}`);
 
@@ -337,7 +484,7 @@ const sourceLine = (publication: string, year: number | null) => (year === null 
  * route redirects any other spelling of it to the canonical one, which keeps the order), so a card shared from
  * `/p/491-john-williams+488-steven-spielberg` colours the two the other way round from one shared from the reverse.
  */
-export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgImageInput): Promise<ImageResponse> {
+export async function renderQuoteOgImage({ timelines, set, clipping, layout = null }: QuoteOgImageInput): Promise<ImageResponse> {
   // Spike: off unless `PORTRAIT_TREATMENT=1` (or, outside production, the flag's cookie); null leaves the card as it was.
   const mode = await ogPortraitTreatment();
   const hexes = ogPersonHexes(timelines.map((t) => t.person.id), mode);
@@ -365,6 +512,9 @@ export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgIm
     speaker: clipping.speaker,
     mode,
     hexes,
+    layout,
+    // The one spoken about is greyed, as in the Quotes view; with no known speaker, neither.
+    dimSecond: side !== null,
     about: ` on ${clipping.about}`,
     source: [sourceLine(clipping.publication, clippingYear(clipping)), translatedFrom(clipping)].filter(Boolean).join(" · "),
   });
@@ -376,12 +526,13 @@ export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgIm
  * neutral rings; the attribution is "— {critic} on {A} & {B}" (the publication when the piece is unsigned), the source
  * the publication and the year.
  */
-export async function renderCriticOgImage({ timelines, set, critic }: CriticOgImageInput): Promise<ImageResponse> {
+export async function renderCriticOgImage({ timelines, set, critic, layout = null }: CriticOgImageInput): Promise<ImageResponse> {
   const accent = OG.muted;
   // Spike: off unless `PORTRAIT_TREATMENT=1` (or, outside production, the flag's cookie); null leaves the card as it was.
   const mode = await ogPortraitTreatment();
   return drawQuoteCard({
     mode,
+    layout,
     hexes: ogPersonHexes(timelines.map((t) => t.person.id), mode),
     accent,
     glow: rgbOf(accent),

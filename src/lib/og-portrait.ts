@@ -62,16 +62,62 @@ export async function loadOgTreatment(
 
 const r = (n: number) => Math.round(n * 100) / 100;
 
+/** A box of the photo, in its own units (`TreatmentShape.size`): what a tile shows of it. */
+export interface PhotoCrop {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Of a photo `w` wide, the share a tile's crop takes: the head, with a little of the cut and the montage around it. */
+const HEAD_CROP_WIDTH = 1;
+/** How much of the crop's height is left above the top of the cut (the crown), so the edge shows over the head. */
+const HEAD_CROP_HEADROOM = 0.04;
+/** The part of the cut, from its top, whose points say where the head is across. */
+const HEAD_BAND = 0.3;
+
+/**
+ * Spike: the crop of a tile of aspect `aspect` (width / height) on the head of `shape`: `HEAD_CROP_WIDTH` of the photo's width, centred across on the
+ * points of the cut's top `HEAD_BAND` (the head, not the shoulders), its top a little above the cut's, kept inside the photo.
+ */
+export function headCrop(shape: TreatmentShape, aspect: number): PhotoCrop {
+  const [w, h] = shape.size;
+  const ys = shape.points.map(([, y]) => y);
+  const top = Math.min(...ys);
+  const span = Math.max(...ys) - top;
+  const head = shape.points.filter(([, y]) => y <= top + span * HEAD_BAND).map(([x]) => x);
+  const centre = ((Math.min(...head) + Math.max(...head)) / 2) * w;
+  const cw = Math.min(w, HEAD_CROP_WIDTH * w, h * aspect);
+  const ch = cw / aspect;
+  const clamp = (v: number, max: number) => Math.min(Math.max(v, 0), max);
+  return { x: clamp(centre - cw / 2, w - cw), y: clamp(top * h - HEAD_CROP_HEADROOM * ch, h - ch), w: cw, h: ch };
+}
+
+/** As the Quotes view dims the one not speaking (`grayscale(1) brightness(0.72)`): luminance, at 0.72. */
+const GREY_ROW = `${0.2126 * 0.72} ${0.7152 * 0.72} ${0.0722 * 0.72} 0 0`;
+const GREY_MATRIX = `${GREY_ROW} ${GREY_ROW} ${GREY_ROW} 0 0 0 1 0`;
+
 /**
  * The treated headshot as an SVG data URI of `width` x `height` px: the photo (`photo`, a data URI) covers the box as the app's `slice` does, cut
  * along the polygon, with the edge inside the cut in the person's colour at the app's width rule (`strokeForWidth`), over the 3 x 3 montage or the flat colour.
+ *
+ * Spike, for the tiles layout: with `crop`, that box of the photo (`headCrop`) covers the box instead, the montage as it is; with `grey`, all of it is
+ * greyed and dimmed as the Quotes view does to the one not speaking.
  */
-export function treatedHeadshotSvg(treatment: OgTreatment, photo: string, width: number, height: number): string {
+export function treatedHeadshotSvg(
+  treatment: OgTreatment,
+  photo: string,
+  width: number,
+  height: number,
+  options: { crop?: PhotoCrop; grey?: boolean } = {},
+): string {
   const { shape, hex, posters } = treatment;
   const [w, h] = shape.size;
-  const scale = Math.max(width / w, height / h);
-  const tx = (width - w * scale) / 2;
-  const ty = (height - h * scale) / 2;
+  const { crop, grey = false } = options;
+  const scale = crop ? width / crop.w : Math.max(width / w, height / h);
+  const tx = crop ? -crop.x * scale : (width - w * scale) / 2;
+  const ty = crop ? -crop.y * scale : (height - h * scale) / 2;
   // Inside: twice the visible width, clipped by the polygon, so its inner half shows. In the photo's units, which are scaled by `scale`.
   const stroke = (2 * strokeForWidth(width)) / scale;
   const cell = { w: width / 3, h: height / 3 };
@@ -81,15 +127,21 @@ export function treatedHeadshotSvg(treatment: OgTreatment, photo: string, width:
         `<image href="${src}" x="${r((i % 3) * cell.w)}" y="${r(Math.floor(i / 3) * cell.h)}" width="${r(cell.w)}" height="${r(cell.h)}" preserveAspectRatio="xMidYMid slice"/>`,
     )
     .join("");
+  const greyFilter = grey
+    ? `<filter id="grey" x="0" y="0" width="${width}" height="${height}" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${GREY_MATRIX}"/></filter>`
+    : "";
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
     `<defs><clipPath id="cut"><polygon points="${polygonPoints(shape.points, w, h)}"/></clipPath>` +
-    `<filter id="duo" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${duotoneMatrix(hex)}"/></filter></defs>` +
+    `<filter id="duo" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${duotoneMatrix(hex)}"/></filter>${greyFilter}</defs>` +
+    (grey ? `<g filter="url(#grey)">` : "") +
     `<rect width="${width}" height="${height}" fill="${posters.length > 0 ? "#111" : hex}"/>` +
     (montage ? `<g filter="url(#duo)">${montage}</g>` : "") +
     `<g transform="translate(${r(tx)} ${r(ty)}) scale(${scale})">` +
     `<image href="${photo}" width="${w}" height="${h}" preserveAspectRatio="none" clip-path="url(#cut)"/>` +
     `<g clip-path="url(#cut)"><path d="${cutEdgePath(shape.points, w, h)}" fill="none" stroke="${hex}" stroke-width="${r(stroke)}" stroke-linejoin="miter" stroke-linecap="square"/></g>` +
-    `</g></svg>`;
+    `</g>` +
+    (grey ? `</g>` : "") +
+    `</svg>`;
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 }

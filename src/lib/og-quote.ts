@@ -81,6 +81,22 @@ export function quoteCardType(
 }
 
 /**
+ * Spike (zherring/spike-portraits): a development-only layout of the treated quote card to compare with the one it has, `qlayout=tiles` (the two
+ * portraits as tiles stacked on the left, the quote, its attribution and the wordmark in panels to their right). Read only outside production; the
+ * card ignores it unless the portrait treatment is on.
+ */
+export const QUOTE_LAYOUTS = ["tiles"] as const;
+export type QuoteLayout = (typeof QUOTE_LAYOUTS)[number];
+export const QUOTE_LAYOUT_PARAM = "qlayout";
+
+/** The layout `params` asks for, or null (always in production, and for anything that is not one of `QUOTE_LAYOUTS`). */
+export function parseQuoteLayout(params: URLSearchParams): QuoteLayout | null {
+  if (process.env.NODE_ENV === "production") return null;
+  const value = params.get(QUOTE_LAYOUT_PARAM);
+  return QUOTE_LAYOUTS.find((layout) => layout === value) ?? null;
+}
+
+/**
  * `text` as the words that flow freely and the tail that stays together: the last `tailWords` words, which the card
  * sets in one piece with the closing mark, so that the mark never starts a line of its own and a short last line has
  * at least a couple of words. The renderer cannot colour part of a wrapping line (nested text becomes separate boxes),
