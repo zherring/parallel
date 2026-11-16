@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { EMBED_BUTTON, FRAME_STYLE, EmbedWordmark, OpenInParallel, embedSize as size } from "@/components/embed/embed-shell";
 import { newsreader } from "@/components/newsreader";
 import { PersonAvatar } from "@/components/person-avatar";
+import { usePortraitPersonHexes } from "@/components/person-palette";
 import { TreatedPortrait } from "@/components/treated-portrait";
 import { usePortraitMode } from "@/components/use-portrait-mode";
 import { cn } from "@/components/timeline/cn";
@@ -168,6 +169,8 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
   const framed = variant === "frame";
   // Spike: `?portrait=on|color` (or the tab's memory of it) draws the speaker as the 2:3 treated card, as the quote's card image does when its flag is on.
   const portraitMode = usePortraitMode();
+  // Spike: with the flag, the pair's landing colours (`portraitPersonHexes`), by slot, from the slug's ids, as the page and the quote's card do.
+  const paletteHexes = usePortraitPersonHexes(parsePeopleSlug(slug)?.ids ?? []);
 
   // The address follows the quote (no navigation, no reload), so that reopening or reloading the frame stays on it. It is set whenever the quote
   // is not the one the address names (stepping on and then back to the quote the link opened on must put its address back too).
@@ -210,7 +213,7 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
       style={{ ...FRAME_STYLE, containerName: FRAME }}
     >
       {/* The palette's custom properties: the page's own view sets them (see `PeopleView`), and a frame has no page. */}
-      <style>{personColorCss()}</style>
+      <style>{personColorCss(paletteHexes)}</style>
       {/* The quote's clamp for a page with no script (see `NO_SCRIPT_CLAMP`). */}
       <style>{CLAMP_CSS}</style>
       <section
@@ -265,10 +268,10 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
               <>
                 {/* Spike: the round avatar's height (31, 54), as a 2:3 card; the corners as the app's cards (`CARD_RADIUS_RATIO`). */}
                 <span className="@2xl:hidden [@container(max-height:300px)_and_(max-width:480px)]:hidden">
-                  <TreatedPortrait mode={portraitMode} personId={speakerId} slot={current.slot} name={current.avatar.name} profilePath={current.avatar.profilePath} imageSize="w185" ringColor={color} className="h-[31px] w-[21px]" />
+                  <TreatedPortrait mode={portraitMode} personId={speakerId} slot={current.slot} name={current.avatar.name} profilePath={current.avatar.profilePath} imageSize="w185" color={paletteHexes?.[current.slot]} ringColor={color} className="h-[31px] w-[21px]" />
                 </span>
                 <span className="hidden @2xl:inline-flex [@container(max-height:300px)_and_(max-width:480px)]:hidden">
-                  <TreatedPortrait mode={portraitMode} personId={speakerId} slot={current.slot} name={current.avatar.name} profilePath={current.avatar.profilePath} imageSize="w185" ringColor={color} className="h-[54px] w-[36px]" />
+                  <TreatedPortrait mode={portraitMode} personId={speakerId} slot={current.slot} name={current.avatar.name} profilePath={current.avatar.profilePath} imageSize="w185" color={paletteHexes?.[current.slot]} ringColor={color} className="h-[54px] w-[36px]" />
                 </span>
               </>
             ) : current.avatar && (

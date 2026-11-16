@@ -82,8 +82,11 @@ export const CARD_RADIUS_RATIO = 6 / 150;
 
 export const CUT_STROKE_WHITE = "#fff";
 
-/** Eight saturated, screen-print-poster colors that sit well together on a near-black page (the dev grid's, and the landing page's). */
-export const PORTRAIT_PALETTE: readonly string[] = ["#E63B2E", "#F2C230", "#2E5EAA", "#F28C28", "#1F9E89", "#E5487D", "#6B4BA1", "#3E9E4F"];
+/**
+ * Seven saturated, screen-print-poster colors that sit well together on a near-black page (the dev grid's, the landing page's, and the pair
+ * pages' with the flag on). No green: the app's green means "together" (the films they share, the logo, the hover ring), never one person.
+ */
+export const PORTRAIT_PALETTE: readonly string[] = ["#E63B2E", "#F2C230", "#2E5EAA", "#F28C28", "#1F9E89", "#E5487D", "#6B4BA1"];
 
 /** A person's palette index: the top bits of a multiplicative (Fibonacci) hash of their TMDB id, so neighbouring ids spread. */
 function paletteIndex(personId: number): number {
@@ -100,6 +103,15 @@ export function pairPortraitColors(firstId: number, secondId: number): [string, 
   if (first !== second) return [PORTRAIT_PALETTE[first], PORTRAIT_PALETTE[second]];
   const stepped = PORTRAIT_PALETTE[(first + 1) % PORTRAIT_PALETTE.length];
   return firstId <= secondId ? [PORTRAIT_PALETTE[first], stepped] : [stepped, PORTRAIT_PALETTE[second]];
+}
+
+/**
+ * Spike: the person colours of a page with the portrait flag on, by slot (the URL order): a pair's `pairPortraitColors`, so the pair page, its
+ * embeds and its preview cards match the landing page. Null for one person or three and more, who keep `PERSON_COLORS`. From the ids alone, so
+ * the server and the hydrating render agree.
+ */
+export function portraitPersonHexes(personIds: readonly number[]): readonly [string, string] | null {
+  return personIds.length === 2 ? pairPortraitColors(personIds[0], personIds[1]) : null;
 }
 
 /**

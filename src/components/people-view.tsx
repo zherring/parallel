@@ -10,6 +10,7 @@ import { usePairHero } from "@/components/hero/use-pair-hero";
 import { PageHeadline } from "@/components/page-headline";
 import { PeopleBar } from "@/components/people-bar";
 import { PeopleStagingProvider } from "@/components/people-staging";
+import { PersonPaletteProvider, usePersonPalette, usePortraitPersonHexes } from "@/components/person-palette";
 import { PersonPanel } from "@/components/person-panel/person-panel";
 import { rememberOpener } from "@/components/side-panel/side-panel";
 import { FilmsSection } from "@/components/timeline/films-section";
@@ -66,10 +67,14 @@ export function PeopleView(props: Props) {
   // A different set of people is a different page: start over (zoom, selection, scroll, and the people staged while a panel was open).
   const key = props.timelines.map((t) => t.person.id).join("+");
   const people = useMemo(() => props.timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [props.timelines]);
+  // Spike: with the portrait flag, a pair takes the landing page's colours (`portraitPersonHexes`); null leaves the palette as it is.
+  const paletteHexes = usePortraitPersonHexes(props.timelines.map((t) => t.person.id));
   return (
-    <PeopleStagingProvider key={key} people={people} carry={carryCurrentView}>
-      <PeopleViewInner key={key} {...props} />
-    </PeopleStagingProvider>
+    <PersonPaletteProvider hexes={paletteHexes}>
+      <PeopleStagingProvider key={key} people={people} carry={carryCurrentView}>
+        <PeopleViewInner key={key} {...props} />
+      </PeopleStagingProvider>
+    </PersonPaletteProvider>
   );
 }
 
@@ -92,6 +97,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
   const multi = timelines.length > 1;
+  const paletteHexes = usePersonPalette();
   // The Clippings tab draws each speaker in the colour and with the headshot the page gives them, resolved by TMDB id.
   const voicedClippings = useMemo(
     () => (clippings ? voiceClippings(clippings, timelines.map((t) => t.person)) : null),
@@ -359,7 +365,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         {/* Only the Table has an in-page masthead; Quotes keeps the compact bar and its own full-screen layout. */}
         {view === "table" && <div className="pb-2 pt-0.5">{heroBody}</div>}
         {/* The combined timeline's colours, as custom properties (src/lib/person-colors.ts): the hover card is in a portal. */}
-        {multi && <style>{personColorCss()}</style>}
+        {multi && <style>{personColorCss(paletteHexes)}</style>}
 
         {multi ? (
           <Together

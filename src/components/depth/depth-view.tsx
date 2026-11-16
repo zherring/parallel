@@ -16,6 +16,7 @@ import { rememberOpener } from "@/components/side-panel/side-panel";
 import { scrollBehavior } from "@/components/timeline/scroll-behavior";
 import { PageHeadline } from "@/components/page-headline";
 import { PeopleStagingProvider } from "@/components/people-staging";
+import { PersonPaletteProvider, usePersonPalette, usePortraitPersonHexes } from "@/components/person-palette";
 import type { ExportList } from "@/components/timeline/export-button";
 import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
 import { useUrlPeriod } from "@/components/timeline/use-period";
@@ -72,10 +73,14 @@ export function DepthView(props: Props) {
   const key = props.timelines.map((t) => t.person.id).join("+");
   const people = useMemo(() => props.timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [props.timelines]);
   // Staged changes to the people lead to the Films view of the final people (`view=depth`, always named), as the pill's links always did.
+  // Spike: with the portrait flag, a pair takes the landing page's colours (`portraitPersonHexes`); null leaves the palette as it is.
+  const paletteHexes = usePortraitPersonHexes(props.timelines.map((t) => t.person.id));
   return (
-    <PeopleStagingProvider key={key} people={people} carry={withDepth}>
-      <DepthViewInner key={key} {...props} />
-    </PeopleStagingProvider>
+    <PersonPaletteProvider hexes={paletteHexes}>
+      <PeopleStagingProvider key={key} people={people} carry={withDepth}>
+        <DepthViewInner key={key} {...props} />
+      </PeopleStagingProvider>
+    </PersonPaletteProvider>
   );
 }
 
@@ -97,6 +102,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
   }, []);
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
+  const paletteHexes = usePersonPalette();
   // Minor credits are left out unless the settings include them; with them in, a film that is minor for everyone who has it is a background poster.
   const lanes = useMemo(
     () => timelines.map(({ person, films }) => ({ person, films: includeMinor ? films : films.filter((film) => !film.minor) })),
@@ -266,7 +272,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
   return (
     <>
       {/* The palette as custom properties (src/lib/person-colors.ts): the hover card and the panel are in portals. */}
-      <style>{personColorCss()}</style>
+      <style>{personColorCss(paletteHexes)}</style>
       {/* First in the tab order, as the site's header was; fixed chrome is a sibling of the scroller, never inside it. */}
       <DepthChrome
         people={pillPeople}

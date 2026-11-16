@@ -23,7 +23,7 @@ import {
   type OgPoster,
 } from "@/lib/og-card";
 import { fetchImageDataUri } from "@/lib/og-image";
-import { loadOgTreatment, ogPortraitTreatment, treatedHeadshotSvg } from "@/lib/og-portrait";
+import { loadOgTreatment, ogPersonHexes, ogPortraitTreatment, treatedHeadshotSvg } from "@/lib/og-portrait";
 import { OG, OG_SIZE, ogFonts, ogGlow, ogWordmark } from "@/lib/og-theme";
 import type { Period } from "@/lib/period";
 import { todayIso } from "@/lib/released";
@@ -251,12 +251,13 @@ export async function renderPairOgImage({ timelines, period = null }: PairOgImag
   const card = buildOgCard(timelines, todayIso(), period);
   // Spike: off unless `PORTRAIT_TREATMENT=1` (or, outside production, the flag's cookie); null leaves the card as it was.
   const treatment = await ogPortraitTreatment();
+  const hexes = ogPersonHexes(timelines.map(({ person }) => person.id), treatment);
   const [avatars, posterImages, fonts, treatments] = await Promise.all([
     Promise.all(card.people.map((person) => loadImage(person.profilePath))),
     Promise.all(card.posters.map((poster) => loadImage(poster.posterPath))),
     ogFonts(),
     // The card's people are the timelines', in the URL's order, which is also their colour's slot.
-    treatment ? Promise.all(timelines.map(({ person }, i) => loadOgTreatment(person.id, person.profilePath, i, treatment))) : null,
+    treatment ? Promise.all(timelines.map(({ person }, i) => loadOgTreatment(person.id, person.profilePath, i, treatment, hexes))) : null,
   ]);
   const hasLane = card.posters.length > 0;
   const fan = headshotFan(card.people.length);

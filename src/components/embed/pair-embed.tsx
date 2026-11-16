@@ -6,6 +6,7 @@ import { EMBED_AVATAR_LINK, EMBED_BUTTON, EXTERNAL, EmbedWordmark, OpenInParalle
 import { PairPoster, POSTER_PX } from "@/components/embed/pair-poster";
 import { springEasing } from "@/components/landing/hero-motion";
 import { PersonAvatar } from "@/components/person-avatar";
+import { PersonPaletteProvider, usePortraitPersonHexes } from "@/components/person-palette";
 import { cn } from "@/components/timeline/cn";
 import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
 import { drawnScale } from "@/lib/drawn-scale";
@@ -154,6 +155,8 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
   const timelineRef = useRef<TimelineHandle>(null);
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
+  // Spike: with the portrait flag, a pair takes the landing page's colours, as the page and its card do (`portraitPersonHexes`).
+  const paletteHexes = usePortraitPersonHexes(timelines.map((t) => t.person.id));
   const multi = timelines.length > 1;
   // Three or four people crowd the bar in a narrow frame (the panel X opens over a phone): there the wordmark gives way to the people (the way to the site is
   // still the pill's). Two fit with the wordmark down to a very small phone, and then it goes too. On the smallest phones (under 22rem) the people's
@@ -304,7 +307,7 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
       style={{ ...FRAME_STYLE, "--px": POSTER_PX } as CSSProperties}
     >
       {/* The palette's custom properties: the page's own view sets them (see `PeopleView`), and a frame has no page. */}
-      <style>{personColorCss()}</style>
+      <style>{personColorCss(paletteHexes)}</style>
       <h1 className="sr-only">{summary ? `${names}: ${summary}` : names}</h1>
 
       {/* The bar over both (first in the page, so that the way to the page is the first stop of the keyboard, not the last after every film): the people and their count on the left once the timeline is up, and always, on the right, the way to the page. */}
@@ -357,7 +360,9 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
 
       {/* The first frame: the preview card, the picture X shows until this page loads. It is a picture of what the timeline then says. */}
       <div ref={posterRef} aria-hidden="true" inert={timelineVisible} className={cn("absolute inset-0 transition-opacity duration-300 motion-reduce:duration-300", timelineVisible && "opacity-0")}>
-        <PairPoster card={card} />
+        <PersonPaletteProvider hexes={paletteHexes}>
+          <PairPoster card={card} />
+        </PersonPaletteProvider>
       </div>
 
       {/* The timeline, under a bar of its own: built in the browser only, and shown when the card has given way to it. It is laid out `1 / fit` as large as the room it

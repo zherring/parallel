@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { tmdbImage } from "@/lib/images";
 import { fetchImageDataUri } from "@/lib/og-image";
 import { personHex } from "@/lib/person-colors";
-import { cutEdgePath, polygonPoints, strokeForWidth } from "@/lib/portrait-cuts";
+import { cutEdgePath, polygonPoints, portraitPersonHexes, strokeForWidth } from "@/lib/portrait-cuts";
 import { PORTRAIT_COOKIE, duotoneMatrix, treatmentShape, type TreatmentShape } from "@/lib/portrait-treatment";
 
 /**
@@ -35,15 +35,29 @@ export interface OgTreatment {
   posters: string[];
 }
 
-/** The treatment of the person in `slot` (their colour), or null when they have no photo (initials, as today). */
-export async function loadOgTreatment(personId: number, profilePath: string | null, slot: number, mode: OgTreatmentMode): Promise<OgTreatment | null> {
+/**
+ * The person colours of a card whose treatment is on, by slot (the URL order): a pair's landing colours (`portraitPersonHexes`), as the page
+ * gives them with the flag, so a shared link's card matches the page. Null when the treatment is off, or for one person or three and more.
+ */
+export function ogPersonHexes(personIds: readonly number[], mode: OgTreatmentMode | null): readonly string[] | null {
+  return mode ? portraitPersonHexes(personIds) : null;
+}
+
+/** The treatment of the person in `slot` (their colour: `hexes`'s, the override of `ogPersonHexes`, else the palette's), or null when they have no photo (initials, as today). */
+export async function loadOgTreatment(
+  personId: number,
+  profilePath: string | null,
+  slot: number,
+  mode: OgTreatmentMode,
+  hexes?: readonly string[] | null,
+): Promise<OgTreatment | null> {
   if (!profilePath) return null;
   const shape = treatmentShape(personId, profilePath);
   const posters =
     mode === "montage"
       ? (await Promise.all(shape.posters.slice(0, 9).map((path) => fetchImageDataUri(tmdbImage(path, "w154") ?? "")))).filter((uri): uri is string => uri !== null)
       : [];
-  return { shape, hex: personHex(slot), posters };
+  return { shape, hex: personHex(slot, hexes), posters };
 }
 
 const r = (n: number) => Math.round(n * 100) / 100;

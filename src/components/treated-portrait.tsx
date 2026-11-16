@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useId } from "react";
+import { usePersonPalette } from "@/components/person-palette";
 import { PersonPortrait } from "@/components/person-portrait";
 import { cn } from "@/components/timeline/cn";
 import type { PortraitMode } from "@/components/use-portrait-mode";
@@ -21,7 +22,7 @@ interface Props {
   className?: string;
   /** The person's slot on the page: their colour, for the ring, the flat background and the montage's tint. */
   slot: number;
-  /** A #rrggbb colour for the edge, the flat background and the montage's tint, instead of the slot's (the landing page's `pairPortraitColors`). */
+  /** A #rrggbb colour for the edge, the flat background and the montage's tint, instead of the slot's (the landing page's `pairPortraitColors`); without it, the page's override of the slot (`PersonPaletteProvider`), if any. */
   color?: string;
   /** A CSS colour for the ring, as `PersonPortrait`'s. */
   ringColor?: string;
@@ -51,6 +52,7 @@ interface Props {
  */
 export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, color, ringColor, mode, posterSize = "w92", rounded = true, strokePx, ringPx, outline, edgePosition }: Props) {
   const rawId = useId();
+  const palette = usePersonPalette();
   const searchParams = useSearchParams();
   const edge = edgePosition ?? parseEdgePosition(searchParams?.get("edge")) ?? "inside";
   const outlineColor = (outline ?? (searchParams?.get("outline") === "white" ? "white" : "color")) === "color";
@@ -60,7 +62,7 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
   }
 
   const id = `portrait-${personId}-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
-  const hex = color ?? PERSON_COLORS[((Math.trunc(slot) % PERSON_COLORS.length) + PERSON_COLORS.length) % PERSON_COLORS.length].hex;
+  const hex = color ?? palette?.[slot] ?? PERSON_COLORS[((Math.trunc(slot) % PERSON_COLORS.length) + PERSON_COLORS.length) % PERSON_COLORS.length].hex;
   const { points, size, posters } = treatmentShape(personId, profilePath);
   const [w, h] = size;
   const montage = mode === "montage";

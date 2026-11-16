@@ -3,7 +3,7 @@ import type { Clipping, PairClippings } from "@/lib/clippings";
 import { clippingVoices, clippingYear, speakerIndex, translatedFrom, truncateQuote } from "@/lib/clippings-view";
 import type { Critic, PairCritics } from "@/lib/critics";
 import { criticAbout, criticName, criticYear } from "@/lib/critics-view";
-import { loadOgTreatment, ogPortraitTreatment, treatedHeadshotSvg } from "@/lib/og-portrait";
+import { loadOgTreatment, ogPersonHexes, ogPortraitTreatment, treatedHeadshotSvg, type OgTreatmentMode } from "@/lib/og-portrait";
 import { OG_CACHE_CONTROL, loadImage } from "@/lib/og-render";
 import {
   ATTRIBUTION_WIDTH,
@@ -111,19 +111,20 @@ interface QuoteCard {
   /** The round headshots, left to right, each with its ring; `id` and `slot` (their colour on the page) are for the spike's treatment. */
   people: { id: number; slot: number; name: string; profilePath: string | null; ring: string }[];
   speaker: string;
+  /** Spike: the treatment (`ogPortraitTreatment`) and the people's colours with it (`ogPersonHexes`), by slot; null for the card as it was. */
+  mode: OgTreatmentMode | null;
+  hexes: readonly string[] | null;
   /** What follows the speaker, in the muted colour: " on John Williams". */
   about: string;
   /** "Variety · 2023". */
   source: string;
 }
 
-async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, about, source }: QuoteCard): Promise<ImageResponse> {
-  // Spike: off unless `PORTRAIT_TREATMENT=1` (or, outside production, the flag's cookie); null leaves the card as it was.
-  const mode = await ogPortraitTreatment();
+async function drawQuoteCard({ accent, glow, quote: fullQuote, people, speaker, about, source, mode, hexes }: QuoteCard): Promise<ImageResponse> {
   const [images, fonts, treatments] = await Promise.all([
     Promise.all(people.map((p) => loadImage(p.profilePath))),
     ogQuoteFonts(),
-    mode ? Promise.all(people.map((p) => loadOgTreatment(p.id, p.profilePath, p.slot, mode))) : null,
+    mode ? Promise.all(people.map((p) => loadOgTreatment(p.id, p.profilePath, p.slot, mode, hexes))) : null,
   ]);
   const treated = treatments?.map((t, i) => {
     const photo = images[i];
@@ -229,9 +230,12 @@ const sourceLine = (publication: string, year: number | null) => (year === null 
  * `/p/491-john-williams+488-steven-spielberg` colours the two the other way round from one shared from the reverse.
  */
 export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgImageInput): Promise<ImageResponse> {
+  // Spike: off unless `PORTRAIT_TREATMENT=1` (or, outside production, the flag's cookie); null leaves the card as it was.
+  const mode = await ogPortraitTreatment();
+  const hexes = ogPersonHexes(timelines.map((t) => t.person.id), mode);
   const voices = clippingVoices(set.people, timelines.map((t) => t.person));
   const side = speakerIndex(clipping, voices);
-  const accent = side === null ? OG.muted : personHex(voices[side].slot);
+  const accent = side === null ? OG.muted : personHex(voices[side].slot, hexes);
   const glow = side === null ? "0, 0, 0" : rgbOf(accent);
 
   // The speaker first, then the one they are talking about.
@@ -251,6 +255,8 @@ export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgIm
       ring: i === 0 ? accent : OG.border,
     })),
     speaker: clipping.speaker,
+    mode,
+    hexes,
     about: ` on ${clipping.about}`,
     source: [sourceLine(clipping.publication, clippingYear(clipping)), translatedFrom(clipping)].filter(Boolean).join(" · "),
   });
@@ -264,7 +270,11 @@ export async function renderQuoteOgImage({ timelines, set, clipping }: QuoteOgIm
  */
 export async function renderCriticOgImage({ timelines, set, critic }: CriticOgImageInput): Promise<ImageResponse> {
   const accent = OG.muted;
+  // Spike: off unless `PORTRAIT_TREATMENT=1` (or, outside production, the flag's cookie); null leaves the card as it was.
+  const mode = await ogPortraitTreatment();
   return drawQuoteCard({
+    mode,
+    hexes: ogPersonHexes(timelines.map((t) => t.person.id), mode),
     accent,
     glow: rgbOf(accent),
     quote: critic.quote,
