@@ -38,7 +38,11 @@ interface Settings {
   open: boolean;
 }
 
-const DEFAULTS: Settings = { style: "rough", margin: 16, offset: 9, jitter: 50, seed: 1, bg: "dark", size: "m", open: true };
+/** Zach's picks (2026-11-16): jitter follows the size (smaller posters get more), margin 10%, offset 3%. */
+const JITTER_BY_SIZE: Record<Size, number> = { s: 35, m: 25, l: 20 };
+const DEFAULTS: Settings = { style: "rough", margin: 10, offset: 3, jitter: JITTER_BY_SIZE.m, seed: 1, bg: "dark", size: "m", open: true };
+/** The overlap is white on the dark bg and black on the light one. */
+const OVERLAP: Record<Bg, string> = { dark: "#fff", light: "#000" };
 
 const RANGES = { margin: [2, 40], offset: [0, 30], jitter: [0, 100] } as const;
 
@@ -49,22 +53,25 @@ const parseInt0 = (value: unknown, [min, max]: readonly [number, number]): numbe
 
 /** `?style=`, `?margin=`, `?offset=`, `?jitter=`, `?seed=`, `?bg=`, `?size=`, then localStorage, then the defaults. */
 const { useSettings, setSettings } = createSettingsStore<Settings>({
-  storageKey: "spike-portrait-frames-v1",
+  storageKey: "spike-portrait-frames-v2",
   defaults: DEFAULTS,
-  read: (params, saved) => ({
-    style: pick(STYLES, params.get("style")) ?? pick(STYLES, saved.style) ?? DEFAULTS.style,
-    margin: parseInt0(params.get("margin"), RANGES.margin) ?? parseInt0(saved.margin, RANGES.margin) ?? DEFAULTS.margin,
-    offset: parseInt0(params.get("offset"), RANGES.offset) ?? parseInt0(saved.offset, RANGES.offset) ?? DEFAULTS.offset,
-    jitter: parseInt0(params.get("jitter"), RANGES.jitter) ?? parseInt0(saved.jitter, RANGES.jitter) ?? DEFAULTS.jitter,
-    seed: parseInt0(params.get("seed"), [0, 1e9]) ?? parseInt0(saved.seed, [0, 1e9]) ?? DEFAULTS.seed,
-    bg: pick(BGS, params.get("bg")) ?? pick(BGS, saved.bg) ?? DEFAULTS.bg,
-    size: pick(SIZES, params.get("size")) ?? pick(SIZES, saved.size) ?? DEFAULTS.size,
-  }),
+  read: (params, saved) => {
+    const size = pick(SIZES, params.get("size")) ?? pick(SIZES, saved.size) ?? DEFAULTS.size;
+    return {
+      style: pick(STYLES, params.get("style")) ?? pick(STYLES, saved.style) ?? DEFAULTS.style,
+      margin: parseInt0(params.get("margin"), RANGES.margin) ?? parseInt0(saved.margin, RANGES.margin) ?? DEFAULTS.margin,
+      offset: parseInt0(params.get("offset"), RANGES.offset) ?? parseInt0(saved.offset, RANGES.offset) ?? DEFAULTS.offset,
+      jitter: parseInt0(params.get("jitter"), RANGES.jitter) ?? parseInt0(saved.jitter, RANGES.jitter) ?? JITTER_BY_SIZE[size],
+      seed: parseInt0(params.get("seed"), [0, 1e9]) ?? parseInt0(saved.seed, [0, 1e9]) ?? DEFAULTS.seed,
+      bg: pick(BGS, params.get("bg")) ?? pick(BGS, saved.bg) ?? DEFAULTS.bg,
+      size,
+    };
+  },
   toParams: (s) => ({
     style: s.style === DEFAULTS.style ? null : s.style,
     margin: s.margin === DEFAULTS.margin ? null : String(s.margin),
     offset: s.offset === DEFAULTS.offset ? null : String(s.offset),
-    jitter: s.jitter === DEFAULTS.jitter ? null : String(s.jitter),
+    jitter: s.jitter === JITTER_BY_SIZE[s.size] ? null : String(s.jitter),
     seed: s.seed === DEFAULTS.seed ? null : String(s.seed),
     bg: s.bg === DEFAULTS.bg ? null : s.bg,
     size: s.size === DEFAULTS.size ? null : s.size,
@@ -189,7 +196,7 @@ function FramedPoster({ colors, style, settings, w }: { colors: [string, string]
       </defs>
       <polygon points={toPath(b)} fill={colors[1]} />
       <polygon points={toPath(a)} fill={colors[0]} />
-      <polygon points={toPath(b)} fill="#fff" clipPath={`url(#${uid}a)`} data-overlap />
+      <polygon points={toPath(b)} fill={OVERLAP[settings.bg]} clipPath={`url(#${uid}a)`} data-overlap />
       <rect x={0} y={0} width={w} height={h} fill={POSTER_FILL} />
       <text x={w / 2} y={h / 2} fill="#6b7280" fontSize={Math.max(10, w * 0.14)} textAnchor="middle" dominantBaseline="middle" fontFamily="system-ui, sans-serif">
         poster
@@ -220,7 +227,7 @@ export function FramesLab() {
       <header style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, marginBottom: 16 }}>
         <h1 style={{ fontSize: 15, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", margin: 0 }}>Overlap frames</h1>
         <span style={{ fontSize: 12, color: ink.muted }}>
-          {style} · margin {settings.margin}% · offset {settings.offset}%{style !== "clean" ? ` · jitter ${settings.jitter} · seed ${settings.seed}` : ""} · overlap = #fff
+          {style} · margin {settings.margin}% · offset {settings.offset}%{style !== "clean" ? ` · jitter ${settings.jitter} · seed ${settings.seed}` : ""} · overlap = {OVERLAP[bg]}
         </span>
         <Link href="/dev/portraits/blend" style={{ fontSize: 12, color: ink.muted, marginLeft: "auto" }}>
           blends
@@ -302,14 +309,14 @@ function Panel({ settings }: { settings: Settings }) {
       </Group>
       <Group label="Size">
         {SIZES.map((value) => (
-          <Segment key={value} on={settings.size === value} onClick={() => setSettings({ size: value })}>
+          <Segment key={value} on={settings.size === value} onClick={() => setSettings({ size: value, jitter: JITTER_BY_SIZE[value] })}>
             {value.toUpperCase()}
           </Segment>
         ))}
       </Group>
       <PanelNote>
         Two shapes per pair, each the poster grown by the margin, offset up-left (first colour) and down-right (second). Where they overlap is
-        white: shape B clipped to shape A, no blend modes. Margin and offset are % of the poster width; the white band is margin − offset/2.
+        white (black on the light bg): shape B clipped to shape A, no blend modes. Margin and offset are % of the poster width; the overlap band is margin − offset/2.
       </PanelNote>
     </ControlsPanel>
   );
