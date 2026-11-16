@@ -403,11 +403,11 @@ function PosterCard({ item, whiteHover = false }: { item: Item; whiteHover?: boo
  * width; padding and border are in em and the border's width is counter-scaled the same way. On
  * the narrowest phones there is no room beside the row, so it sits centred under it instead.
  */
-function MoreLabel({ item }: { item: Item }) {
+function MoreLabel({ item, whiteHover = false }: { item: Item; whiteHover?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className="absolute left-0 top-0 -translate-y-1/2 translate-x-(--dx) whitespace-nowrap rounded-full border border-border bg-canvas px-[0.75em] py-[0.3em] font-medium leading-none tracking-[0.02em] text-muted transition-colors duration-300 group-hover:border-accent-green/50 group-hover:text-strong max-[359px]:left-(--under-left) max-[359px]:top-(--under-top) max-[359px]:-translate-x-1/2 max-[359px]:translate-y-0"
+      className={`absolute left-0 top-0 -translate-y-1/2 translate-x-(--dx) whitespace-nowrap rounded-full border border-border bg-canvas px-[0.75em] py-[0.3em] font-medium leading-none tracking-[0.02em] text-muted transition-colors duration-300 ${whiteHover ? "group-hover:border-white" : "group-hover:border-accent-green/50"} group-hover:text-strong max-[359px]:left-(--under-left) max-[359px]:top-(--under-top) max-[359px]:-translate-x-1/2 max-[359px]:translate-y-0`}
       style={
         {
           "--dx": `${item.place.dx}px`,
@@ -504,7 +504,7 @@ function Stage({
       <div className="absolute" style={{ left: MORE_LEFT, top: LINE_Y, zIndex: 30 }}>
         {byType("label", 0).map((item) => (
           <Motion key={item.id} item={item} reduced={reduced} onGone={onGone}>
-            <MoreLabel item={item} />
+            <MoreLabel item={item} whiteHover={pairWash} />
           </Motion>
         ))}
       </div>
