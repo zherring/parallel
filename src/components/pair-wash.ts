@@ -32,9 +32,15 @@ export function registerPairWash() {
 }
 
 /** The wash's transition: none when the visitor asks for less motion, so the colours swap at once. */
-export function pairWashTransition(reduced: boolean): string {
-  return reduced ? "" : `${PAIR_WASH_A} ${PAIR_WASH_MS}ms ease-in-out, ${PAIR_WASH_B} ${PAIR_WASH_MS}ms ease-in-out`;
+export function pairWashTransition(reduced: boolean, names: readonly string[] = [PAIR_WASH_A, PAIR_WASH_B]): string {
+  return reduced ? "" : names.map((name) => `${name} ${PAIR_WASH_MS}ms ease-in-out`).join(", ");
 }
+
+/**
+ * The quotes' variant: one colour (the speaker's), as if the quote were lit from below: an ellipse rising from the bottom centre, as faint as the
+ * pair's wash and gone by about 70% of the height. It rides the first of the pair's registered colours, so it eases as they do.
+ */
+export const QUOTE_GLOW_IMAGE = `radial-gradient(ellipse 85% 100% at 50% 100%, color-mix(in srgb, var(${PAIR_WASH_A}) 16%, transparent), transparent 70%)`;
 
 const REDUCED_QUERY = "(prefers-reduced-motion: reduce)";
 function subscribeReduced(onChange: () => void) {
@@ -46,11 +52,7 @@ function subscribeReduced(onChange: () => void) {
 export const useReducedMotion = () =>
   useSyncExternalStore(subscribeReduced, () => window.matchMedia(REDUCED_QUERY).matches, () => false);
 
-/**
- * The wash as an element's style, for an element React renders: `colors` is [top left, bottom right], or null (no flag) for no style at all.
- * Callers pass null on the server and in the hydrating render (the flag is read with `usePortraitMode`), so the markup matches.
- */
-export function usePairWashStyle(colors: readonly [string, string] | null): CSSProperties | undefined {
+function useWashStyle(colors: readonly string[] | null, image: string, names: readonly string[]): CSSProperties | undefined {
   const reduced = useReducedMotion();
   const on = colors !== null;
   useEffect(() => {
@@ -58,9 +60,21 @@ export function usePairWashStyle(colors: readonly [string, string] | null): CSSP
   }, [on]);
   if (!colors) return undefined;
   return {
-    backgroundImage: PAIR_WASH_IMAGE,
-    transition: pairWashTransition(reduced) || undefined,
-    [PAIR_WASH_A]: colors[0],
-    [PAIR_WASH_B]: colors[1],
+    backgroundImage: image,
+    transition: pairWashTransition(reduced, names) || undefined,
+    ...Object.fromEntries(names.map((name, i) => [name, colors[i]])),
   } as CSSProperties;
+}
+
+/**
+ * The wash as an element's style, for an element React renders: `colors` is [top left, bottom right], or null (no flag) for no style at all.
+ * Callers pass null on the server and in the hydrating render (the flag is read with `usePortraitMode`), so the markup matches.
+ */
+export function usePairWashStyle(colors: readonly [string, string] | null): CSSProperties | undefined {
+  return useWashStyle(colors, PAIR_WASH_IMAGE, [PAIR_WASH_A, PAIR_WASH_B]);
+}
+
+/** The quotes' glow (`QUOTE_GLOW_IMAGE`) as an element's style: `color` is the speaker's, or null (no flag) for no style at all. */
+export function useQuoteGlowStyle(color: string | null): CSSProperties | undefined {
+  return useWashStyle(color === null ? null : [color], QUOTE_GLOW_IMAGE, [PAIR_WASH_A]);
 }

@@ -65,7 +65,7 @@ body:has([data-quote-exhibit-deck]) > footer {
   padding: 6rem clamp(2rem, 4vw, 5rem);
 }
 
-/* Spike (portrait flag only): the quote pane's two-colour glow (`usePairWashStyle`), under the quotes; the toolbar lets it show through. */
+/* Spike (portrait flag only): the quote pane's glow from below in the speaker's colour (`useQuoteGlowStyle`), under the quotes; the toolbar lets it show through. */
 .quote-exhibit-wash {
   position: absolute;
   inset: 0 0 0 50%;
