@@ -80,13 +80,13 @@ describe("the pair embed's first frame (the preview card as HTML)", () => {
 });
 
 describe("the pair embed's first frame with the portrait treatment on (the treated card as HTML)", () => {
-  async function treatedPoster(slug: string, params: string | null) {
+  async function treatedPoster(slug: string, params: string | null, serverPortraitMode: "montage" | "color" | null = null) {
     const { timelines } = await stubLoadPeople(slug);
     const card = buildOgCard(timelines, TODAY);
     const treated = buildTreatedPair(card, timelines, TODAY);
     flag.params = params === null ? null : new URLSearchParams(params);
     try {
-      return { card, treated, html: renderToStaticMarkup(createElement(PairPoster, { card, treated })) };
+      return { card, treated, html: renderToStaticMarkup(createElement(PairPoster, { card, treated, serverPortraitMode })) };
     } finally {
       flag.params = null;
     }
@@ -128,5 +128,23 @@ describe("the pair embed's first frame with the portrait treatment on (the treat
     expect(count(html, "chip")).toBe(1);
     expect(count(html, "names")).toBe(0);
     expect(html).toContain("0 0 0 calc(3 * var(--px)) #00e054");
+  });
+
+  it("is the treated card in the server's own render when the server's gate is on, with no flag in the address or the tab (the first frame is the PNG's)", async () => {
+    const { html } = await treatedPoster(PAIR_SLUG, null, "montage");
+    expect(count(html, "names")).toBe(1);
+    expect(count(html, "chip")).toBe(0);
+    expect(html).not.toContain("0 0 0 calc(3 * var(--px)) #00e054");
+  });
+
+  it("is the plain card for `?portrait=off`, whatever the server's gate says", async () => {
+    const { html } = await treatedPoster(PAIR_SLUG, "portrait=off", "montage");
+    expect(count(html, "chip")).toBe(1);
+    expect(count(html, "names")).toBe(0);
+  });
+
+  it("follows the address over the server's gate: `?portrait=color` is still the treated card", async () => {
+    const { html } = await treatedPoster(PAIR_SLUG, "portrait=color", "montage");
+    expect(count(html, "names")).toBe(1);
   });
 });

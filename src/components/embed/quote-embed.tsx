@@ -9,7 +9,7 @@ import { useQuoteGlowStyle } from "@/components/pair-wash";
 import { PersonAvatar } from "@/components/person-avatar";
 import { usePortraitPersonHexes } from "@/components/person-palette";
 import { TreatedPortrait } from "@/components/treated-portrait";
-import { usePortraitMode } from "@/components/use-portrait-mode";
+import { usePortraitMode, type PortraitMode } from "@/components/use-portrait-mode";
 import { cn } from "@/components/timeline/cn";
 import type { ElementLike } from "@/lib/hero-keys";
 import { QUOTE_FOOTER_BOTTOM_PX } from "@/lib/embed-insets";
@@ -159,6 +159,8 @@ interface QuoteEmbedProps {
   variant: "frame" | "card";
   /** Spike: the pair's two people in the order of the slug (their slots), with their photos: what the treated card's two portraits are drawn from when the portrait flag is on. */
   people?: readonly { id: number; name: string; profilePath: string | null }[];
+  /** Spike: the treatment the server's own gate gives (`ogPortraitTreatment`, the one the quote card's PNG follows): the frame opens on it, and `?portrait=off` turns it off. */
+  serverPortraitMode?: PortraitMode | null;
 }
 
 /**
@@ -174,15 +176,15 @@ interface QuoteEmbedProps {
  * small as `QUOTE_FLOOR_PX` and then cut with an ellipsis, and the footer's link sits under it. X sandboxes the frame (no forms, no popups
  * but links), so nothing here needs a cookie, a login or a request: stepping is local state, and the links open a new tab.
  */
-export function QuoteEmbed({ slug, pair, quotes, start, variant, people = [] }: QuoteEmbedProps) {
+export function QuoteEmbed({ slug, pair, quotes, start, variant, people = [], serverPortraitMode = null }: QuoteEmbedProps) {
   const [index, setIndex] = useState(start);
   const count = quotes.length;
   const current = quotes[index] ?? quotes[0];
   const framed = variant === "frame";
   // Spike: `?portrait=on|color` (or the tab's memory of it) draws the speaker as the 2:3 treated card, as the quote's card image does when its flag is on.
-  const portraitMode = usePortraitMode();
+  const portraitMode = usePortraitMode(serverPortraitMode);
   // Spike: with the flag, the pair's landing colours (`portraitPersonHexes`), by slot, from the slug's ids, as the page and the quote's card do.
-  const paletteHexes = usePortraitPersonHexes(parsePeopleSlug(slug)?.ids ?? []);
+  const paletteHexes = usePortraitPersonHexes(parsePeopleSlug(slug)?.ids ?? [], serverPortraitMode);
 
   // The address follows the quote (no navigation, no reload), so that reopening or reloading the frame stays on it. It is set whenever the quote
   // is not the one the address names (stepping on and then back to the quote the link opened on must put its address back too).

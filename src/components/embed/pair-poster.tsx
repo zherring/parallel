@@ -113,6 +113,7 @@ function Headshot({
   left,
   top,
   fontSize,
+  portraitMode,
 }: {
   person: OgPerson;
   index: number;
@@ -121,10 +122,10 @@ function Headshot({
   left: number;
   top: number;
   fontSize: number;
+  /** Spike: the cut-paper treatment, as the PNG draws it when its flag is on (`og-portrait.ts`): the frame's mode (`PairPoster`). */
+  portraitMode: PortraitMode | null;
 }) {
   const src = tmdbImage(person.profilePath, "w342");
-  // Spike: the cut-paper treatment, as the PNG draws it when its flag is on (`og-portrait.ts`); this frame reads the tab's flag (`usePortraitMode`).
-  const portraitMode = usePortraitMode();
   return (
     <div
       data-part="person"
@@ -227,15 +228,26 @@ function Poster({ poster, left, top }: { poster: OgPoster; left: number; top: nu
  * The card, in the frame's pixels: put it in an element that is a size container (`container-type: size`) and set `--px` on it to `POSTER_PX`.
  * `aria-hidden` is the caller's to set (the card is a picture of what the page below it says). With the portrait flag on and the pair's treated card
  * (`treated`, from `buildTreatedPair`), it is that card (`TreatedPairPoster`), as the PNG is.
+ *
+ * The flag is the address's, else the tab's, else `serverPortraitMode` (the server's own gate, which the PNG follows: see `usePortraitMode`), so that the
+ * server-rendered card is already the PNG's and the frame does not open on the plain one when the PNG was treated.
  */
-export function PairPoster({ card, treated = null }: { card: OgCard; treated?: TreatedPair | null }) {
-  // Spike: the cut-paper treatment, as the PNG draws it when its flag is on (`og-portrait.ts`); this frame reads the tab's flag (`usePortraitMode`).
-  const portraitMode = usePortraitMode();
+export function PairPoster({
+  card,
+  treated = null,
+  serverPortraitMode = null,
+}: {
+  card: OgCard;
+  treated?: TreatedPair | null;
+  serverPortraitMode?: PortraitMode | null;
+}) {
+  // Spike: the cut-paper treatment, as the PNG draws it when its flag is on (`og-portrait.ts`).
+  const portraitMode = usePortraitMode(serverPortraitMode);
   if (portraitMode && treated && card.people.length === 2) return <TreatedPairPoster card={card} treated={treated} mode={portraitMode} />;
-  return <PlainPairPoster card={card} />;
+  return <PlainPairPoster card={card} portraitMode={portraitMode} />;
 }
 
-function PlainPairPoster({ card }: { card: OgCard }) {
+function PlainPairPoster({ card, portraitMode }: { card: OgCard; portraitMode: PortraitMode | null }) {
   const hasLane = card.posters.length > 0;
   const fan = headshotFan(card.people.length);
   const place = composition(fan.height, hasLane, card.chip !== null);
@@ -333,6 +345,7 @@ function PlainPairPoster({ card }: { card: OgCard }) {
           left={fanLeft + fan.cards[i].left}
           top={place.headshotTop}
           fontSize={card.overlayFontSize}
+          portraitMode={portraitMode}
         />
       ))}
 

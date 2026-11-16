@@ -32,8 +32,14 @@ function readStored(): PortraitMode | null {
 
 const subscribe = () => () => {};
 
-/** The treatment the address asks for, else the one this tab last asked for; null for the app as it is. */
-export function usePortraitMode(): PortraitMode | null {
+/**
+ * The treatment the address asks for, else the one this tab last asked for, else `serverMode`; null for the app as it is.
+ *
+ * `serverMode` is the server's own gate (`ogPortraitTreatment`, which the preview card's PNG follows): for a page that must open on what the PNG shows
+ * (the X embeds), so its server-rendered first frame is already the treated card, not the plain one until the tab's memory is read. An explicit
+ * `?portrait=off` beats it. Nothing is saved for it: it sets no cookie and no tab memory.
+ */
+export function usePortraitMode(serverMode: PortraitMode | null = null): PortraitMode | null {
   const value = useSearchParams()?.get("portrait") ?? null;
   const fromUrl = parseMode(value);
   // The server (and the hydrating render) has no tab memory, so a remembered flag shows after hydration.
@@ -54,5 +60,5 @@ export function usePortraitMode(): PortraitMode | null {
   }, [value, fromUrl]);
 
   if (value === "off") return null;
-  return fromUrl ?? stored;
+  return fromUrl ?? stored ?? serverMode;
 }

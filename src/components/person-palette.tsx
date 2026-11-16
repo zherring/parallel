@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { usePortraitMode } from "@/components/use-portrait-mode";
+import { usePortraitMode, type PortraitMode } from "@/components/use-portrait-mode";
 import { portraitPersonHexes } from "@/lib/portrait-cuts";
 
 /**
@@ -23,9 +23,10 @@ export function usePersonPalette(): readonly string[] | null {
 /**
  * The override for these people (in the URL order) when the portrait flag is on, else null. From the ids alone, so the server and the
  * hydrating render agree; a flag remembered by the tab (not in the address) applies after hydration, as `usePortraitMode` does.
+ * `serverMode` is the server's own gate, as `usePortraitMode`'s.
  */
-export function usePortraitPersonHexes(personIds: readonly number[]): readonly string[] | null {
-  const mode = usePortraitMode();
+export function usePortraitPersonHexes(personIds: readonly number[], serverMode: PortraitMode | null = null): readonly string[] | null {
+  const mode = usePortraitMode(serverMode);
   const key = personIds.join("+");
   // Keyed by the ids, not the array's identity.
   return useMemo(() => (mode ? portraitPersonHexes(key.split("+").map(Number)) : null), [mode, key]);

@@ -9,6 +9,7 @@ import { PersonAvatar } from "@/components/person-avatar";
 import { PersonPaletteProvider, usePortraitPersonHexes } from "@/components/person-palette";
 import { cn } from "@/components/timeline/cn";
 import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
+import type { PortraitMode } from "@/components/use-portrait-mode";
 import { drawnScale } from "@/lib/drawn-scale";
 import { EMBED_AVATAR_PX, EMBED_INSET_PX } from "@/lib/embed-insets";
 import { joinNames } from "@/lib/format";
@@ -31,6 +32,8 @@ interface PairEmbedProps {
   count: number | null;
   /** Spike: the pair's treated card (`buildTreatedPair`), which the first frame draws instead of `card` when the portrait flag is on; null for anyone but two people. */
   treated?: TreatedPair | null;
+  /** Spike: the treatment the server's own gate gives (`ogPortraitTreatment`, the one the preview card's PNG follows): the first frame opens on it, and `?portrait=off` turns it off. */
+  serverPortraitMode?: PortraitMode | null;
 }
 
 /** The sequence's beats, in milliseconds. The first frame is held (`HOLD`) so that the picture X showed is seen as it was before it moves. */
@@ -142,7 +145,7 @@ const onTheServer = () => false;
  * and pans sideways only. The people's names and
  * pictures lead to their pages (a bio is the person's own page, which opens in a new tab: X sandboxes the frame, so nothing here navigates it or needs a cookie or a request).
  */
-export function PairEmbed({ slug, timelines, today, card, count, treated = null }: PairEmbedProps) {
+export function PairEmbed({ slug, timelines, today, card, count, treated = null, serverPortraitMode = null }: PairEmbedProps) {
   const [phase, setPhase] = useState<"poster" | "timeline">("poster");
   /** Counts up with each Replay; the sequence runs once for each. */
   const [run, setRun] = useState(0);
@@ -159,7 +162,10 @@ export function PairEmbed({ slug, timelines, today, card, count, treated = null 
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
   // Spike: with the portrait flag, a pair takes the landing page's colours, as the page and its card do (`portraitPersonHexes`).
-  const paletteHexes = usePortraitPersonHexes(timelines.map((t) => t.person.id));
+  const paletteHexes = usePortraitPersonHexes(
+    timelines.map((t) => t.person.id),
+    serverPortraitMode,
+  );
   const multi = timelines.length > 1;
   // Three or four people crowd the bar in a narrow frame (the panel X opens over a phone): there the wordmark gives way to the people (the way to the site is
   // still the pill's). Two fit with the wordmark down to a very small phone, and then it goes too. On the smallest phones (under 22rem) the people's
@@ -364,7 +370,7 @@ export function PairEmbed({ slug, timelines, today, card, count, treated = null 
       {/* The first frame: the preview card, the picture X shows until this page loads. It is a picture of what the timeline then says. */}
       <div ref={posterRef} aria-hidden="true" inert={timelineVisible} className={cn("absolute inset-0 transition-opacity duration-300 motion-reduce:duration-300", timelineVisible && "opacity-0")}>
         <PersonPaletteProvider hexes={paletteHexes}>
-          <PairPoster card={card} treated={treated} />
+          <PairPoster card={card} treated={treated} serverPortraitMode={serverPortraitMode} />
         </PersonPaletteProvider>
       </div>
 

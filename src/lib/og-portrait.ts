@@ -12,6 +12,9 @@ import { PORTRAIT_COOKIE, duotoneMatrix, treatmentShape, type PhotoCrop, type Tr
  *
  * Off unless asked for, so the cards are as they were: `PORTRAIT_TREATMENT=1` turns it on (any environment), and outside production the
  * `spike-portrait` cookie does too, which `usePortraitMode` sets with `?portrait=on` (so /dev/x-preview shows it after a visit with the flag).
+ *
+ * The X embed pages (`/embed/p/...`, `/embed/q/...`) ask the same function, so that their server-rendered first frame is the treatment the PNG showed
+ * (`serverPortraitMode`). The environment is checked first, and production never reads the cookie, so the production path needs no request data.
  */
 export type OgTreatmentMode = "montage" | "color";
 
