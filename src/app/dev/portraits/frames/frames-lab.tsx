@@ -126,7 +126,6 @@ function roughPoints(box: Box, w: number, jitter: number, rand: () => number): P
     const [ax, ay] = corners[e];
     const [bx, by] = corners[(e + 1) % 4];
     const [nx, ny] = normals[e];
-    const len = Math.hypot(bx - ax, by - ay);
     const at = (t: number, out: number): Pt => [ax + (bx - ax) * t + nx * out, ay + (by - ay) * t + ny * out];
     points.push([ax + between(-j, j), ay + between(-j, j)]);
     const marks: { t: number; pts: Pt[] }[] = [];
