@@ -3,10 +3,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { PairPoster } from "@/components/embed/pair-poster";
 import { composition, headshotFan, posterRow, buildOgCard, captionText } from "@/lib/og-card";
+import { TREATED_POSTER, buildTreatedPair, treatedPairLayout } from "@/lib/og-treated";
 import { PAIR_SLUG, stubLoadPeople } from "@/lib/test-people";
 
-// `useSearchParams`: the spike's portrait flag (`usePortraitMode`), off here.
-vi.mock("next/navigation", () => ({ notFound: () => { throw new Error("NEXT_NOT_FOUND"); }, useSearchParams: () => null }));
+// `useSearchParams`: the spike's portrait flag (`usePortraitMode`), off unless a test sets it.
+const flag = vi.hoisted(() => ({ params: null as URLSearchParams | null }));
+vi.mock("next/navigation", () => ({ notFound: () => { throw new Error("NEXT_NOT_FOUND"); }, useSearchParams: () => flag.params }));
 
 const TODAY = "2026-11-13";
 
@@ -74,5 +76,57 @@ describe("the pair embed's first frame (the preview card as HTML)", () => {
     expect(card.kind).toBe("solo");
     expect(count(html, "ring")).toBe(0);
     expect(count(html, "person")).toBe(1);
+  });
+});
+
+describe("the pair embed's first frame with the portrait treatment on (the treated card as HTML)", () => {
+  async function treatedPoster(slug: string, params: string | null) {
+    const { timelines } = await stubLoadPeople(slug);
+    const card = buildOgCard(timelines, TODAY);
+    const treated = buildTreatedPair(card, timelines, TODAY);
+    flag.params = params === null ? null : new URLSearchParams(params);
+    try {
+      return { card, treated, html: renderToStaticMarkup(createElement(PairPoster, { card, treated })) };
+    } finally {
+      flag.params = null;
+    }
+  }
+
+  it("is the PNG's layout: both portraits down the left edge, the posters, the axis with its nodes, the names, the count and the wordmark", async () => {
+    const { treated, html } = await treatedPoster(PAIR_SLUG, "portrait=on");
+    expect(count(html, "person")).toBe(2);
+    expect(count(html, "poster")).toBe(treated!.posters.length);
+    expect(count(html, "node")).toBe(treated!.dots.filter((dot) => dot.kind === "shared").length);
+    expect(count(html, "dot")).toBe(treated!.dots.filter((dot) => dot.kind !== "shared").length);
+    expect(count(html, "lane")).toBe(1);
+    expect(count(html, "names")).toBe(1);
+    expect(count(html, "caption")).toBe(1);
+    expect(count(html, "wordmark")).toBe(1);
+    // The sequence's parts: the numbers of the count tick.
+    expect(count(html, "accent")).toBe(2);
+    expect(html.replace(/<[^>]+>/g, "")).toContain("6 films over 32 years");
+    const place = treatedPairLayout();
+    expect(html).toContain(`top:calc(${place.postersTop} * var(--px))`);
+    expect(html).toContain(`top:calc(${place.captionTop} * var(--px))`);
+    expect(html).toContain("width:calc(1200 * var(--px));height:calc(630 * var(--px))");
+    expect(treated!.posters.length).toBeLessThanOrEqual(TREATED_POSTER.count);
+  });
+
+  it("has no header row, no green ring or glow, and no chip", async () => {
+    const { html } = await treatedPoster(PAIR_SLUG, "portrait=on");
+    expect(html).not.toContain("0 0 0 calc(3 * var(--px)) #00e054");
+    expect(html).not.toContain("rgba(0, 224, 84");
+    expect(count(html, "chip")).toBe(0);
+    expect(count(html, "years")).toBe(0);
+    // White rings on the posters; the wordmark's two l's are the brand's only green.
+    expect(html).toContain("2 * var(--px)) solid #ffffff");
+    expect(html.match(/#00e054/g)).toHaveLength(1);
+  });
+
+  it("is the plain card without the flag, even with the treated card at hand", async () => {
+    const { html } = await treatedPoster(PAIR_SLUG, null);
+    expect(count(html, "chip")).toBe(1);
+    expect(count(html, "names")).toBe(0);
+    expect(html).toContain("0 0 0 calc(3 * var(--px)) #00e054");
   });
 });

@@ -10,7 +10,7 @@ import { tmdbImage, type ImageSize } from "@/lib/images";
 import { PERSON_COLORS } from "@/lib/person-colors";
 import { CutPortraitImage } from "@/components/cut-portrait-image";
 import { CARD_RADIUS_RATIO, STROKE_CSS, parseEdgePosition, polygonPoints, type EdgePosition } from "@/lib/portrait-cuts";
-import { duotoneMatrix, treatmentShape } from "@/lib/portrait-treatment";
+import { duotoneMatrix, headCrop, treatmentShape } from "@/lib/portrait-treatment";
 
 interface Props {
   /** TMDB person id, the key of `portrait-cuts.json`. */
@@ -32,14 +32,18 @@ interface Props {
   posterSize?: ImageSize;
   /** Round the corners (`CARD_RADIUS_RATIO`); false for a portrait that fills a square-cornered panel. */
   rounded?: boolean;
-  /** Tuning override (/dev/portraits/stroke): the cut edge's width in screen px, instead of the rule (`STROKE_CSS`). */
-  strokePx?: number;
+  /** Tuning override (/dev/portraits/stroke): the cut edge's width in screen px (or a CSS length), instead of the rule (`STROKE_CSS`). */
+  strokePx?: number | string;
   /** Tuning override: the ring's band (and the gap inside it) in screen px, instead of the rule (`STROKE_CSS`) each. */
   ringPx?: number;
   /** Tuning override: the edge's colour, instead of the `?outline=white` flag (the person's colour by default). */
   outline?: "white" | "color";
   /** Tuning override: where the edge sits against the polygon, instead of the `?edge=` flag (inside by default). */
   edgePosition?: EdgePosition;
+  /** The share cards' portraits: the box's width / height, when it shows the head of the cut (`headCrop`, as the preview card's PNG does) and not the whole photo. */
+  headAspect?: number;
+  /** The share cards' dimmed one (the person not speaking): greyed and darkened, as the Quotes view does. */
+  grey?: boolean;
 }
 
 /**
@@ -50,7 +54,7 @@ interface Props {
  * and the corners scale with the card (`CARD_RADIUS_RATIO`), all through container units, so nothing is measured. The edge sits inside the
  * cut in the person's colour (the owner's picks); `?outline=white` and `?edge=center|outside` override them, for comparison.
  */
-export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, color, ringColor, mode, posterSize = "w92", rounded = true, strokePx, ringPx, outline, edgePosition }: Props) {
+export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, color, ringColor, mode, posterSize = "w92", rounded = true, strokePx, ringPx, outline, edgePosition, headAspect, grey = false }: Props) {
   const rawId = useId();
   const palette = usePersonPalette();
   const searchParams = useSearchParams();
@@ -66,6 +70,8 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
   const { points, size, posters } = treatmentShape(personId, profilePath);
   const [w, h] = size;
   const montage = mode === "montage";
+  // The box of the photo the viewBox shows: all of it, or (`headAspect`) the head, in the photo's own units.
+  const view = headAspect ? headCrop({ points, size, posters }, headAspect) : { x: 0, y: 0, w, h };
 
   // Container units: the outer span is the container, the inner one draws the ring and clips the picture.
   const radius = rounded ? `calc(100cqw * ${CARD_RADIUS_RATIO})` : undefined;
@@ -73,7 +79,7 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
   const ringOuter = ringPx === undefined ? `calc(2 * ${STROKE_CSS})` : `${2 * ringPx}px`;
 
   return (
-    <span aria-hidden="true" data-treated-portrait className={cn("relative inline-flex shrink-0 select-none", className)} style={{ containerType: "inline-size", borderRadius: radius }}>
+    <span aria-hidden="true" data-treated-portrait className={cn("relative inline-flex shrink-0 select-none", className)} style={{ containerType: "inline-size", borderRadius: radius, filter: grey ? "grayscale(1) brightness(0.72)" : undefined }}>
       <span
         className="absolute inset-0 overflow-hidden"
         style={{
@@ -89,7 +95,7 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
             ))}
           </span>
         )}
-        <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full">
+        <svg viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`} preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full">
           <defs>
             <clipPath id={`clip-${id}`}>
               <polygon points={polygonPoints(points, w, h)} />

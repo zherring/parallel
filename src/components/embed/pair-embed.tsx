@@ -14,6 +14,7 @@ import { EMBED_AVATAR_PX, EMBED_INSET_PX } from "@/lib/embed-insets";
 import { joinNames } from "@/lib/format";
 import { peopleHref } from "@/lib/lanes";
 import { captionText, type OgCard } from "@/lib/og-card";
+import type { TreatedPair } from "@/lib/og-treated";
 import { personColor, personColorCss } from "@/lib/person-colors";
 import { embedRowsFor, embedTrackHeight } from "@/lib/timeline-layout";
 import type { PersonTimeline } from "@/lib/types";
@@ -28,6 +29,8 @@ interface PairEmbedProps {
   card: OgCard;
   /** The films they made together ("11 films together"), or one person's films; null when there is no number to say. */
   count: number | null;
+  /** Spike: the pair's treated card (`buildTreatedPair`), which the first frame draws instead of `card` when the portrait flag is on; null for anyone but two people. */
+  treated?: TreatedPair | null;
 }
 
 /** The sequence's beats, in milliseconds. The first frame is held (`HOLD`) so that the picture X showed is seen as it was before it moves. */
@@ -139,7 +142,7 @@ const onTheServer = () => false;
  * and pans sideways only. The people's names and
  * pictures lead to their pages (a bio is the person's own page, which opens in a new tab: X sandboxes the frame, so nothing here navigates it or needs a cookie or a request).
  */
-export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProps) {
+export function PairEmbed({ slug, timelines, today, card, count, treated = null }: PairEmbedProps) {
   const [phase, setPhase] = useState<"poster" | "timeline">("poster");
   /** Counts up with each Replay; the sequence runs once for each. */
   const [run, setRun] = useState(0);
@@ -361,7 +364,7 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
       {/* The first frame: the preview card, the picture X shows until this page loads. It is a picture of what the timeline then says. */}
       <div ref={posterRef} aria-hidden="true" inert={timelineVisible} className={cn("absolute inset-0 transition-opacity duration-300 motion-reduce:duration-300", timelineVisible && "opacity-0")}>
         <PersonPaletteProvider hexes={paletteHexes}>
-          <PairPoster card={card} />
+          <PairPoster card={card} treated={treated} />
         </PersonPaletteProvider>
       </div>
 

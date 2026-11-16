@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { EMBED_BUTTON, FRAME_STYLE, EmbedWordmark, OpenInParallel, embedSize as size } from "@/components/embed/embed-shell";
+import { POSTER_PX } from "@/components/embed/pair-poster";
 import { newsreader } from "@/components/newsreader";
 import { useQuoteGlowStyle } from "@/components/pair-wash";
 import { PersonAvatar } from "@/components/person-avatar";
@@ -13,8 +14,11 @@ import { cn } from "@/components/timeline/cn";
 import type { ElementLike } from "@/lib/hero-keys";
 import { QUOTE_FOOTER_BOTTOM_PX } from "@/lib/embed-insets";
 import { quoteCardType } from "@/lib/og-quote";
+import { OG_WIDTH } from "@/lib/og-card";
+import { TREATED_COLUMN, TREATED_GUTTER, TREATED_MARGIN, TREATED_STROKE_CSS, TREATED_TILE_GAP, treatedTile } from "@/lib/og-treated";
 import { describeShortcutTarget } from "@/lib/people-shortcut";
 import { personColor, personColorCss } from "@/lib/person-colors";
+import { initials } from "@/lib/person-labels";
 import { parsePeopleSlug } from "@/lib/slug";
 import { MORE_PAIRS_PATH, QUOTE_BAND, QUOTE_FLOOR_PX, embedPath, noScriptClampCss, quoteInPairPath, quoteKeyStep, quotePath, quoteSizeCeiling, quoteUnits, type EmbedQuote } from "@/lib/quote-embed";
 
@@ -32,6 +36,11 @@ const FIRST_PAINT_SCALE = 0.85;
  * `FittedQuote`) must ask the frame, not the room. The name is in their class names (`[@container_quote-frame_...]`), whole, as Tailwind finds them.
  */
 const FRAME = "quote-frame";
+
+/** `n` of the treated card's pixels (the PNG's 1200 x 630) in the frame's: `--px` is set on the treated section (see `POSTER_PX`). */
+const px = (n: number) => `calc(${n} * var(--px))`;
+/** The treated card's portraits' column as a share of the frame's width (the PNG's 320 of 1200), and the column's left edge. */
+const COLUMN_SHARE = (TREATED_COLUMN / OG_WIDTH) * 100;
 
 /**
  * The quote's first paint and a page with no script: as many lines as the room's band holds (`--quote-lines`, stepped by the room's height in `noScriptClampCss`), the last of them ending
@@ -148,6 +157,8 @@ interface QuoteEmbedProps {
    * open in the same tab, the address follows the quote on the share URL).
    */
   variant: "frame" | "card";
+  /** Spike: the pair's two people in the order of the slug (their slots), with their photos: what the treated card's two portraits are drawn from when the portrait flag is on. */
+  people?: readonly { id: number; name: string; profilePath: string | null }[];
 }
 
 /**
@@ -163,7 +174,7 @@ interface QuoteEmbedProps {
  * small as `QUOTE_FLOOR_PX` and then cut with an ellipsis, and the footer's link sits under it. X sandboxes the frame (no forms, no popups
  * but links), so nothing here needs a cookie, a login or a request: stepping is local state, and the links open a new tab.
  */
-export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedProps) {
+export function QuoteEmbed({ slug, pair, quotes, start, variant, people = [] }: QuoteEmbedProps) {
   const [index, setIndex] = useState(start);
   const count = quotes.length;
   const current = quotes[index] ?? quotes[0];
@@ -209,6 +220,135 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
   const button = EMBED_BUTTON;
   const buttonSize: CSSProperties = { width: size(34, 3.4), height: size(34, 3.4) };
 
+  const nav = count > 1 && (
+    <nav aria-label="Browse quotes" className="flex shrink-0 items-center" style={{ gap: size(8, 0.8) }}>
+      <button type="button" onClick={() => step(-1)} aria-label="Previous quote" title="Previous quote" className={button} style={buttonSize}>
+        <ChevronLeft aria-hidden="true" className="size-1/2" />
+      </button>
+      <span className="min-w-[3.5ch] text-center tabular-nums text-muted" style={{ fontSize: size(10.5, 1.28) }}>
+        {index + 1} / {count}
+      </span>
+      <button type="button" onClick={() => step(1)} aria-label="Next quote" title="Next quote" className={button} style={buttonSize}>
+        <ChevronRight aria-hidden="true" className="size-1/2" />
+      </button>
+    </nav>
+  );
+  // The film, then the source as the link to the original, as the pull quote of the Clippings tab sets them.
+  const sourceLine = (
+    <p className="flex flex-wrap items-center gap-x-1.5 leading-snug text-muted" style={{ fontSize: size(10.5, 1.28) }}>
+      {current.film && (
+        <>
+          <i>{current.film}</i>
+          <span aria-hidden="true">&middot;</span>
+        </>
+      )}
+      <a
+        href={current.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="rounded text-strong underline decoration-border underline-offset-4 transition-colors hover:decoration-strong motion-reduce:transition-none"
+      >
+        {current.publication}
+        <span className="whitespace-nowrap">
+          {current.year !== null && <> &middot; {current.year}</>}
+          <ExternalLink aria-hidden="true" className="ml-1 inline size-2.5 align-[-0.1em]" />
+          <span className="sr-only">(opens in a new tab)</span>
+        </span>
+      </a>
+      {current.translation && (
+        <span className="whitespace-nowrap" title={current.translation.original}>
+          <span aria-hidden="true">&middot;</span> {current.translation.label}
+          <span className="sr-only"> (original: {current.translation.original})</span>
+        </span>
+      )}
+    </p>
+  );
+
+  // Spike: with the portrait flag on, the frame is the treated quote card (the PNG of `og-quote-render.tsx`, on the grid of `og-treated.ts`): the two portraits
+  // stacked down the left edge, the speaker's in colour and the other greyed, the quote to their right, its attribution in a small dark box at the bottom left
+  // of that column and the wordmark at its bottom right. The frame's own controls (the arrows, the way to the page) sit at the column's top right. In a
+  // narrow frame (the panel X opens over a phone) the portraits go and the column takes the frame.
+  const treated = portraitMode !== null && people.length === 2;
+  const roomStyle: CSSProperties = {
+    padding: treated ? 0 : `0 ${size(12, 5.67)}`,
+    containerType: "size",
+    fontSize: `max(${QUOTE_FLOOR_PX}px, calc(${Math.round(quoteUnits(type.fontSize) * FIRST_PAINT_SCALE * 100) / 100} * var(--u)))`,
+  };
+  const room = (
+    <div key={current.id} data-quote-room="" className="min-h-0 flex-1 overflow-hidden" style={roomStyle}>
+      <FittedQuote quote={current.quote} url={current.url} color={color} />
+    </div>
+  );
+  const status = (
+    <p role="status" aria-live="polite" className="sr-only">
+      {`Quote ${index + 1} of ${count}: ${current.speaker} on ${current.about}`}
+    </p>
+  );
+
+  // The speaker's portrait first, in colour; the other one greyed (a critic's quote has no speaker: both in colour).
+  const ordered = people
+    .map((person, slot) => ({ person, slot }))
+    .sort((a, b) => Number(b.slot === current.slot) - Number(a.slot === current.slot));
+  const tile = treatedTile(people.length);
+  const treatedSection =
+    treated && portraitMode ? (
+      <section aria-label={`Quotes on ${pair}`} className="relative h-full w-full bg-canvas text-body" style={{ "--px": POSTER_PX } as CSSProperties}>
+        <div className="absolute inset-y-0 left-0 flex flex-col @max-[30rem]:hidden" style={{ width: `${COLUMN_SHARE}cqw`, gap: px(TREATED_TILE_GAP) }}>
+          {ordered.map(({ person, slot }, i) => (
+            <div key={person.id} className="relative min-h-0 flex-1 overflow-hidden bg-border">
+              {person.profilePath ? (
+                <TreatedPortrait
+                  mode={portraitMode}
+                  personId={person.id}
+                  slot={slot}
+                  name={person.name}
+                  profilePath={person.profilePath}
+                  imageSize="w342"
+                  posterSize="w154"
+                  rounded={false}
+                  color={paletteHexes?.[slot]}
+                  headAspect={TREATED_COLUMN / tile.height}
+                  strokePx={TREATED_STROKE_CSS}
+                  grey={current.slot !== null && i === 1}
+                  className="h-full w-full"
+                />
+              ) : (
+                <span aria-hidden="true" className="flex h-full w-full items-center justify-center text-muted" style={{ fontSize: size(28, 6) }}>
+                  {initials(person.name)}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+        <div
+          className="absolute inset-y-0 right-0 flex flex-col left-[calc(26.667cqw_+_var(--gutter))] @max-[30rem]:left-[var(--gutter)]"
+          style={{ "--gutter": px(TREATED_GUTTER), paddingRight: px(TREATED_MARGIN), paddingBottom: px(TREATED_MARGIN) } as CSSProperties}
+        >
+          {/* The frame's own controls, where a post's player has them: the way to the page, and the arrows. */}
+          <div className="flex shrink-0 items-center justify-end" style={{ gap: size(8, 0.8), paddingTop: size(9, 2.4), minHeight: px(TREATED_MARGIN) }}>
+            {nav}
+            <OpenInParallel href={quoteInPairPath(slug, current.id)} external={framed} short />
+          </div>
+          {room}
+          {status}
+          <div className="flex shrink-0 items-end justify-between gap-x-3" style={{ paddingTop: size(5, 1.3) }}>
+            {/* The attribution: "— Speaker on About" and the source, in a small dark box. */}
+            <div className="min-w-0 border" style={{ padding: `${size(6, 1.17)} ${size(10, 1.67)}`, borderRadius: size(6, 0.67), background: "rgba(0, 0, 0, 0.5)", borderColor: "rgba(255, 255, 255, 0.08)" }}>
+              <p className="leading-snug" style={{ fontSize: size(12, 1.7) }}>
+                <span aria-hidden="true" className="text-muted">
+                  &mdash;{" "}
+                </span>
+                <span className="font-medium text-strong">{current.speaker}</span> <span className="text-muted">on {current.about}</span>
+              </p>
+              {sourceLine}
+            </div>
+            {/* More pairs: the wordmark leads to the landing page's Quotes tab. */}
+            <EmbedWordmark href={MORE_PAIRS_PATH} title="More pairs on Parallel" label="Parallel: more pairs" external={framed} fontSize={size(15, 2.5)} />
+          </div>
+        </div>
+      </section>
+    ) : null;
+
   return (
     <div
       className={cn(
@@ -221,112 +361,62 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant }: QuoteEmbedPro
       <style>{personColorCss(paletteHexes)}</style>
       {/* The quote's clamp for a page with no script (see `NO_SCRIPT_CLAMP`). */}
       <style>{CLAMP_CSS}</style>
-      <section
-        aria-label={`Quotes on ${pair}`}
-        className="flex h-full w-full flex-col bg-canvas text-body"
-        // A faint wash of the speaker's colour from the top left, as the quote's card image has behind it; with the flag, one from below (see `pairWash`).
-        style={pairWash ?? { backgroundImage: `radial-gradient(ellipse 75% 95% at 0% 0%, color-mix(in srgb, ${color} 15%, transparent), transparent 70%)` }}
-      >
-        <header className="flex shrink-0 items-center justify-between gap-3" style={{ padding: `${size(9, 2.4)} ${size(12, 5.67)} 0` }}>
-          {/* More pairs: the wordmark leads to the landing page's Quotes tab. */}
-          <EmbedWordmark href={MORE_PAIRS_PATH} title="More pairs on Parallel" label="Parallel: more pairs" external={framed} />
-          <p className="hidden min-w-0 flex-1 truncate text-muted @2xl:block" style={{ fontSize: size(11, 1.45) }}>
-            {pair}
-          </p>
-          {count > 1 && (
-            <nav aria-label="Browse quotes" className="flex shrink-0 items-center" style={{ gap: size(8, 0.8) }}>
-              <button type="button" onClick={() => step(-1)} aria-label="Previous quote" title="Previous quote" className={button} style={buttonSize}>
-                <ChevronLeft aria-hidden="true" className="size-1/2" />
-              </button>
-              <span className="min-w-[3.5ch] text-center tabular-nums text-muted" style={{ fontSize: size(10.5, 1.28) }}>
-                {index + 1} / {count}
-              </span>
-              <button type="button" onClick={() => step(1)} aria-label="Next quote" title="Next quote" className={button} style={buttonSize}>
-                <ChevronRight aria-hidden="true" className="size-1/2" />
-              </button>
-            </nav>
-          )}
-        </header>
-
-        {/* The quote is set to its band of the room the frame leaves it (see `FittedQuote`): nothing in a frame scrolls, so a scrollbar never takes the room or the feed's gesture. */}
-        {/* The room is a size container, and its type size is the quote's first paint (it is inherited by the quote until the fit sets its own), so that the clamp's steps, in ems, are asked of its height. */}
-        <div
-          key={current.id}
-          data-quote-room=""
-          className="min-h-0 flex-1 overflow-hidden"
-          style={{
-            padding: `0 ${size(12, 5.67)}`,
-            containerType: "size",
-            fontSize: `max(${QUOTE_FLOOR_PX}px, calc(${Math.round(quoteUnits(type.fontSize) * FIRST_PAINT_SCALE * 100) / 100} * var(--u)))`,
-          }}
+      {treatedSection ?? (
+        <section
+          aria-label={`Quotes on ${pair}`}
+          className="flex h-full w-full flex-col bg-canvas text-body"
+          // A faint wash of the speaker's colour from the top left, as the quote's card image has behind it; with the flag, one from below (see `pairWash`).
+          style={pairWash ?? { backgroundImage: `radial-gradient(ellipse 75% 95% at 0% 0%, color-mix(in srgb, ${color} 15%, transparent), transparent 70%)` }}
         >
-          <FittedQuote quote={current.quote} url={current.url} color={color} />
-        </div>
-        <p role="status" aria-live="polite" className="sr-only">
-          {`Quote ${index + 1} of ${count}: ${current.speaker} on ${current.about}`}
-        </p>
+          <header className="flex shrink-0 items-center justify-between gap-3" style={{ padding: `${size(9, 2.4)} ${size(12, 5.67)} 0` }}>
+            {/* More pairs: the wordmark leads to the landing page's Quotes tab. */}
+            <EmbedWordmark href={MORE_PAIRS_PATH} title="More pairs on Parallel" label="Parallel: more pairs" external={framed} />
+            <p className="hidden min-w-0 flex-1 truncate text-muted @2xl:block" style={{ fontSize: size(11, 1.45) }}>
+              {pair}
+            </p>
+            {nav}
+          </header>
 
-        {/* One row that never wraps: the attribution takes what the pill leaves (it wraps inside its own column), so the footer is as tall as its tallest part and its bottom inset is whole at any width. */}
-        <footer className="flex shrink-0 items-center justify-between gap-x-3" style={{ padding: `${size(5, 1.3)} ${size(12, 5.67)} ${size(QUOTE_FOOTER_BOTTOM_PX, 3.6)}` }}>
-          <div className="flex min-w-0 items-center" style={{ gap: size(8.5, 1.2) }}>
-            {current.avatar && portraitMode && current.avatar.profilePath && speakerId !== undefined && current.slot !== null ? (
-              <>
-                {/* Spike: the round avatar's height (31, 54), as a 2:3 card; the corners as the app's cards (`CARD_RADIUS_RATIO`). */}
-                <span className="@2xl:hidden [@container(max-height:300px)_and_(max-width:480px)]:hidden">
-                  <TreatedPortrait mode={portraitMode} personId={speakerId} slot={current.slot} name={current.avatar.name} profilePath={current.avatar.profilePath} imageSize="w185" color={paletteHexes?.[current.slot]} ringColor={color} className="h-[31px] w-[21px]" />
-                </span>
-                <span className="hidden @2xl:inline-flex [@container(max-height:300px)_and_(max-width:480px)]:hidden">
-                  <TreatedPortrait mode={portraitMode} personId={speakerId} slot={current.slot} name={current.avatar.name} profilePath={current.avatar.profilePath} imageSize="w185" color={paletteHexes?.[current.slot]} ringColor={color} className="h-[54px] w-[36px]" />
-                </span>
-              </>
-            ) : current.avatar && (
-              <>
-                {/* In a short, narrow frame (the panel X opens over a phone) the picture goes, and its room is the quote's. */}
-                <span className="@2xl:hidden [@container(max-height:300px)_and_(max-width:480px)]:hidden">
-                  <PersonAvatar name={current.avatar.name} profilePath={current.avatar.profilePath} size={31} imageSize="w185" ringColor={color} />
-                </span>
-                <span className="hidden @2xl:inline-flex [@container(max-height:300px)_and_(max-width:480px)]:hidden">
-                  <PersonAvatar name={current.avatar.name} profilePath={current.avatar.profilePath} size={54} imageSize="w185" ringColor={color} />
-                </span>
-              </>
-            )}
-            <div className="min-w-0">
-              <p className="leading-snug" style={{ fontSize: size(12, 1.7) }}>
-                <span className="font-medium text-strong">{current.speaker}</span> <span className="text-muted">on {current.about}</span>
-              </p>
-              {/* The film, then the source as the link to the original, as the pull quote of the Clippings tab sets them. */}
-              <p className="flex flex-wrap items-center gap-x-1.5 leading-snug text-muted" style={{ fontSize: size(10.5, 1.28) }}>
-                {current.film && (
-                  <>
-                    <i>{current.film}</i>
-                    <span aria-hidden="true">&middot;</span>
-                  </>
-                )}
-                <a
-                  href={current.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded text-strong underline decoration-border underline-offset-4 transition-colors hover:decoration-strong motion-reduce:transition-none"
-                >
-                  {current.publication}
-                  <span className="whitespace-nowrap">
-                    {current.year !== null && <> &middot; {current.year}</>}
-                    <ExternalLink aria-hidden="true" className="ml-1 inline size-2.5 align-[-0.1em]" />
-                    <span className="sr-only">(opens in a new tab)</span>
+          {/* The quote is set to its band of the room the frame leaves it (see `FittedQuote`): nothing in a frame scrolls, so a scrollbar never takes the room or the feed's gesture. */}
+          {/* The room is a size container, and its type size is the quote's first paint (it is inherited by the quote until the fit sets its own), so that the clamp's steps, in ems, are asked of its height. */}
+          {room}
+          {status}
+
+          {/* One row that never wraps: the attribution takes what the pill leaves (it wraps inside its own column), so the footer is as tall as its tallest part and its bottom inset is whole at any width. */}
+          <footer className="flex shrink-0 items-center justify-between gap-x-3" style={{ padding: `${size(5, 1.3)} ${size(12, 5.67)} ${size(QUOTE_FOOTER_BOTTOM_PX, 3.6)}` }}>
+            <div className="flex min-w-0 items-center" style={{ gap: size(8.5, 1.2) }}>
+              {current.avatar && portraitMode && current.avatar.profilePath && speakerId !== undefined && current.slot !== null ? (
+                <>
+                  {/* Spike: the round avatar's height (31, 54), as a 2:3 card; the corners as the app's cards (`CARD_RADIUS_RATIO`). */}
+                  <span className="@2xl:hidden [@container(max-height:300px)_and_(max-width:480px)]:hidden">
+                    <TreatedPortrait mode={portraitMode} personId={speakerId} slot={current.slot} name={current.avatar.name} profilePath={current.avatar.profilePath} imageSize="w185" color={paletteHexes?.[current.slot]} ringColor={color} className="h-[31px] w-[21px]" />
                   </span>
-                </a>
-                {current.translation && (
-                  <span className="whitespace-nowrap" title={current.translation.original}>
-                    <span aria-hidden="true">&middot;</span> {current.translation.label}
-                    <span className="sr-only"> (original: {current.translation.original})</span>
+                  <span className="hidden @2xl:inline-flex [@container(max-height:300px)_and_(max-width:480px)]:hidden">
+                    <TreatedPortrait mode={portraitMode} personId={speakerId} slot={current.slot} name={current.avatar.name} profilePath={current.avatar.profilePath} imageSize="w185" color={paletteHexes?.[current.slot]} ringColor={color} className="h-[54px] w-[36px]" />
                   </span>
-                )}
-              </p>
+                </>
+              ) : current.avatar && (
+                <>
+                  {/* In a short, narrow frame (the panel X opens over a phone) the picture goes, and its room is the quote's. */}
+                  <span className="@2xl:hidden [@container(max-height:300px)_and_(max-width:480px)]:hidden">
+                    <PersonAvatar name={current.avatar.name} profilePath={current.avatar.profilePath} size={31} imageSize="w185" ringColor={color} />
+                  </span>
+                  <span className="hidden @2xl:inline-flex [@container(max-height:300px)_and_(max-width:480px)]:hidden">
+                    <PersonAvatar name={current.avatar.name} profilePath={current.avatar.profilePath} size={54} imageSize="w185" ringColor={color} />
+                  </span>
+                </>
+              )}
+              <div className="min-w-0">
+                <p className="leading-snug" style={{ fontSize: size(12, 1.7) }}>
+                  <span className="font-medium text-strong">{current.speaker}</span> <span className="text-muted">on {current.about}</span>
+                </p>
+                {sourceLine}
+              </div>
             </div>
-          </div>
-          <OpenInParallel href={quoteInPairPath(slug, current.id)} external={framed} short />
-        </footer>
-      </section>
+            <OpenInParallel href={quoteInPairPath(slug, current.id)} external={framed} short />
+          </footer>
+        </section>
+      )}
     </div>
   );
 }

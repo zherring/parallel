@@ -129,10 +129,11 @@ export function parseEdgePosition(value: string | null | undefined): EdgePositio
 /**
  * The cut edge path's presentation props. The width is set through `style` (an attribute can't hold `min()` or `cqw`) with
  * `vector-effect: non-scaling-stroke`, so it is in screen px whatever the viewBox; `widthPx` overrides the rule (the tuner). The path must sit
- * inside a size container that is the portrait's box (see `STROKE_CSS`). Inside and outside double the stroke, as half of it is hidden.
+ * inside a size container that is the portrait's box (see `STROKE_CSS`). Inside and outside double the stroke, as half of it is hidden. `widthPx` is a number
+ * of px, or a CSS length (a card drawn at the frame's scale sets its own: `calc(3.3 * var(--px))`).
  */
-export function cutEdgeStroke(strokeColor: string = CUT_STROKE_WHITE, widthPx?: number, edgePosition: EdgePosition = "center") {
-  const width = widthPx === undefined ? STROKE_CSS : `${widthPx}px`;
+export function cutEdgeStroke(strokeColor: string = CUT_STROKE_WHITE, widthPx?: number | string, edgePosition: EdgePosition = "center") {
+  const width = widthPx === undefined ? STROKE_CSS : typeof widthPx === "number" ? `${widthPx}px` : widthPx;
   return {
     fill: "none",
     stroke: strokeColor,

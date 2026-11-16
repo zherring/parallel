@@ -53,7 +53,7 @@ export default async function QuotePage({ params }: Props) {
   const pair = criticAbout(timelines.map((t) => t.person));
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-14">
-      <QuoteEmbed slug={canonical} pair={pair} quotes={quotes} start={start} variant="card" />
+      <QuoteEmbed slug={canonical} pair={pair} quotes={quotes} start={start} variant="card" people={timelines.map(({ person }) => ({ id: person.id, name: person.name, profilePath: person.profilePath }))} />
       <p className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted">
         <Link href={quoteInPairPath(canonical, quotes[start].id)} className="underline decoration-border underline-offset-4 hover:decoration-strong">
           Every quote on {pair}

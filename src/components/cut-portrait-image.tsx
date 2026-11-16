@@ -12,8 +12,8 @@ interface Props {
   /** The id of the caller's `<clipPath>` holding the polygon. */
   clipId: string;
   strokeColor?: string;
-  /** Tuning override: the visible line's width in screen px, instead of the rule. */
-  strokePx?: number;
+  /** Tuning override: the visible line's width in screen px (or a CSS length), instead of the rule. */
+  strokePx?: number | string;
   edgePosition?: EdgePosition;
 }
 

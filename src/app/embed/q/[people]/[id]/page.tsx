@@ -35,6 +35,7 @@ export default async function QuoteEmbedPage({ params }: Props) {
       quotes={quotes}
       start={start}
       variant="frame"
+      people={timelines.map(({ person }) => ({ id: person.id, name: person.name, profilePath: person.profilePath }))}
     />
   );
 }
