@@ -2,18 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useId, useLayoutEffect, useRef, useState } from "react";
-import {
-  buildFrame,
-  FRAME_MARGIN,
-  FRAME_OFFSET,
-  jitterForWidth,
-  OVERLAP,
-  parseSingleFrameMode,
-  SINGLE_FRAME_MARGIN,
-  toPath,
-  type FrameBg,
-  type SingleFrameMode,
-} from "@/lib/rough-frame";
+import { buildFrame, FRAME_MARGIN, FRAME_OFFSET, jitterForWidth, OVERLAP, toPath, type FrameBg } from "@/lib/rough-frame";
 
 /**
  * Spike (zherring/spike-portraits): `?frames=rough` on a pair page draws the rough-cut frame of /dev/portraits/frames behind the posters of the
@@ -21,11 +10,6 @@ import {
  */
 export function useRoughFrames(): boolean {
   return useSearchParams()?.get("frames") === "rough";
-}
-
-/** `?single=rough|border|none` (with `?frames=rough`): how a film of one person is framed. See `SingleFrameMode`. */
-export function useSingleFrameMode(): SingleFrameMode {
-  return parseSingleFrameMode(useSearchParams()?.get("single"));
 }
 
 interface RoughFrameProps {
@@ -37,8 +21,6 @@ interface RoughFrameProps {
   width?: number;
   height?: number;
   bg?: FrameBg;
-  /** How far the shape extends past the poster, in % of its width. Defaults to `FRAME_MARGIN` for two shapes, `SINGLE_FRAME_MARGIN` for one. */
-  margin?: number;
 }
 
 /**
@@ -46,7 +28,7 @@ interface RoughFrameProps {
  * Put it before the poster in the parent so the poster paints over it. It takes no pointer events and does not animate.
  * Stack: shape B in colour B, shape A in colour A, then shape B again in white clipped to shape A (the true intersection). No blend modes.
  */
-export function RoughFrame({ colors, seed, width, height, bg = "dark", margin }: RoughFrameProps) {
+export function RoughFrame({ colors, seed, width, height, bg = "dark" }: RoughFrameProps) {
   const uid = useId().replace(/:/g, "");
   const ref = useRef<SVGSVGElement>(null);
   const known = width !== undefined && height !== undefined;
@@ -73,7 +55,7 @@ export function RoughFrame({ colors, seed, width, height, bg = "dark", margin }:
   const { shapes, view } = buildFrame({
     w,
     h,
-    margin: margin ?? (two ? FRAME_MARGIN : SINGLE_FRAME_MARGIN),
+    margin: FRAME_MARGIN,
     offset: FRAME_OFFSET,
     jitter: jitterForWidth(w),
     style: "rough",

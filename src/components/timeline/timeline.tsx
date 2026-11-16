@@ -66,7 +66,7 @@ import type { Film, PersonSummary } from "@/lib/types";
 import { cn } from "./cn";
 import { ConnectionLegend } from "./connection-legend";
 import { FilmCard, type CardFrame, type CardTone } from "./film-card";
-import { useRoughFrames, useSingleFrameMode } from "@/components/rough-frame";
+import { useRoughFrames } from "@/components/rough-frame";
 import { FilmNode } from "./film-node";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "./film-popover";
 import { LaneAvatars } from "./lane-avatars";
@@ -776,9 +776,7 @@ export function Timeline({
 
   // Spike (`?frames=rough`): each film's rough-cut frame, in the colours of the visible people who list it (two shapes for a film both made, one
   // for a film of one), seeded by the film and those people so it stays put. Null without the flag, or on one person's page (no colours).
-  // A film of one follows `?single=`: a smaller rough shape (rough), no entry so the card keeps its usual ring (border), or no frame nor ring (none).
   const roughFrames = useRoughFrames();
-  const singleMode = useSingleFrameMode();
   const frames = useMemo(() => {
     if (!roughFrames || !colored) return null;
     const makers = new Map<number, number[]>();
@@ -791,15 +789,10 @@ export function Timeline({
     }
     const map = new Map<number, CardFrame>();
     for (const [filmId, ids] of makers) {
-      if (ids.length === 1 && singleMode === "border") continue;
-      if (ids.length === 1 && singleMode === "none") {
-        map.set(filmId, { colors: [], seed: `${filmId}:${ids[0]}` });
-        continue;
-      }
       map.set(filmId, { colors: ids.slice(0, 2).map((id) => personColor(slots.get(id) ?? 0)), seed: `${filmId}:${ids.join("+")}` });
     }
     return map;
-  }, [roughFrames, singleMode, colored, lanes, slots]);
+  }, [roughFrames, colored, lanes, slots]);
 
   const cardFor = (
     { film, x }: PackedFilm<Film>,

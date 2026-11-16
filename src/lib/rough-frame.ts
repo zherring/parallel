@@ -19,17 +19,6 @@ export const OVERLAP: Record<FrameBg, string> = { dark: "#fff", light: "#000" };
 /** The owner's picks (2026-11-16): margin 10% of the poster's width, offset 3%. */
 export const FRAME_MARGIN = 10;
 export const FRAME_OFFSET = 3;
-/** A film of one person sits on a smaller shape, 35% less margin (6.5%), so it does not compete with the films two people made (`?single=rough`). */
-export const SINGLE_FRAME_MARGIN = FRAME_MARGIN * 0.65;
-
-/**
- * How a film of one person is framed under `?frames=rough` (`?single=`): "rough" (the default), one smaller rough shape in their colour;
- * "border", the plain coloured ring the poster has without the flag; "none", nothing. The films two people made are framed the same either way.
- */
-export type SingleFrameMode = "rough" | "border" | "none";
-export function parseSingleFrameMode(value: string | null | undefined): SingleFrameMode {
-  return value === "border" || value === "none" ? value : "rough";
-}
 
 /** Smaller posters get a raggeder cut: 35 under ~70px wide, 25 under ~120px, else 20 (the lab's S, M and L). */
 export function jitterForWidth(w: number): number {

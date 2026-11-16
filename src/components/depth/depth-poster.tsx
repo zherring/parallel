@@ -32,8 +32,6 @@ interface DepthPosterProps {
    * film two people made, one for a film of one), in place of the green or colour ring. Undefined: the poster as it is.
    */
   frameSeed?: string;
-  /** Spike (`?frames=rough&single=none`): a film of one person with neither a frame nor its colour ring. */
-  unringed?: boolean;
   onSelect: (id: number, trigger: HTMLElement) => void;
 }
 
@@ -76,7 +74,7 @@ function TitleFace({ title }: { title: string }) {
   );
 }
 
-function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selected, eager, describedBy, frameSeed, unringed = false, onSelect }: DepthPosterProps) {
+function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selected, eager, describedBy, frameSeed, onSelect }: DepthPosterProps) {
   const { film, shared, slots, layer, y, band, col, jitter, w, h, obscurity, push, pull, background } = item;
   // `Title, Year`: a title that already ends with its year is not said twice (see `filmLabel`). The label is only drawn for a film made together.
   const label = filmLabel(film.title, film.year);
@@ -86,7 +84,7 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
   // faint and small, and the smaller one is enough. The layers behind are faint, not blurred: their opacity is the cue (see `restOpacityFor`).
   const src = tmdbImage(film.posterPath, shared || !background ? "w342" : "w185");
   // One person made it: their colour rings the poster. Several people making a film that is not out yet: neutral.
-  const ring = coloured && !shared && slots.length === 1 && !unringed ? slots[0] : null;
+  const ring = coloured && !shared && slots.length === 1 ? slots[0] : null;
   const ringColor = ring === null ? null : personColor(ring);
   const framed = frameSeed !== undefined && slots.length > 0;
 

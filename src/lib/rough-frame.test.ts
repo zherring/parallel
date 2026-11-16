@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildFrame, FRAME_MARGIN, jitterForWidth, parseSingleFrameMode, SINGLE_FRAME_MARGIN } from "./rough-frame";
+import { buildFrame, jitterForWidth } from "./rough-frame";
 
 const base = { w: 64, h: 96, margin: 10, offset: 3, jitter: 35, style: "rough" as const };
 
@@ -20,10 +20,5 @@ describe("rough frame", () => {
     expect(shapes).toHaveLength(1);
     expect(view.x0).toBeLessThan(0);
     expect(view.y1).toBeGreaterThan(96);
-  });
-
-  it("frames a film of one 35% tighter, and reads ?single= with rough as the default", () => {
-    expect(SINGLE_FRAME_MARGIN).toBeCloseTo(FRAME_MARGIN * 0.65);
-    expect(["border", "none", "rough", null, "x"].map(parseSingleFrameMode)).toEqual(["border", "none", "rough", "rough", "rough"]);
   });
 });
