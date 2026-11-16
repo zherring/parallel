@@ -6,8 +6,8 @@ import { BLEND_MODES, colorMix, MIX_SPACES, overlapColor, type BlendMode, type M
 import { PORTRAIT_PALETTE } from "@/lib/portrait-cuts";
 import { ControlsPanel, createSettingsStore, Group, PANEL_W, PanelNote, pick, Segment } from "../controls-panel";
 
-/** A mix method: a CSS blend mode, or color-mix in one of the spaces (the overlap only). */
-const MIXES = [...BLEND_MODES, ...MIX_SPACES] as const;
+/** A mix method: a CSS blend mode, color-mix in one of the spaces (the overlap only), or "white" (the overlap is #fff). */
+const MIXES = [...BLEND_MODES, ...MIX_SPACES, "white"] as const;
 type Mix = (typeof MIXES)[number];
 const isSpace = (mix: Mix): mix is MixSpace => (MIX_SPACES as readonly string[]).includes(mix);
 
@@ -72,6 +72,7 @@ const mixCss = (space: MixSpace, a: string, b: string, bShare = 50) => `color-mi
 
 /** The overlap of `colors` (drawn in this order) as the page draws it, for the label. color-mix's centre mixes in thirds. */
 function overlapHex(mix: Mix, colors: readonly string[], opacity: number, bg: string): string {
+  if (mix === "white") return overlapColor("normal", ["#ffffff"], opacity, bg);
   if (!isSpace(mix)) return overlapColor(mix, colors, opacity, bg);
   const mixed = colors.length === 3 ? colorMix(mix, colorMix(mix, colors[0], colors[1]), colors[2], 1 / 3) : colorMix(mix, colors[0], colors[1]);
   return overlapColor("normal", [mixed], opacity, bg);
@@ -99,7 +100,7 @@ export function BlendLab() {
       <header style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, marginBottom: 16 }}>
         <h1 style={{ fontSize: 15, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", margin: 0 }}>Colour blends</h1>
         <span style={{ fontSize: 12, color: ink.muted }}>
-          {isSpace(mix) ? `color-mix(in ${mix}) 50%` : `mix-blend-mode: ${mix}`} · opacity {opacity} · {bg} bg
+          {mix === "white" ? "overlap = #fff" : isSpace(mix) ? `color-mix(in ${mix}) 50%` : `mix-blend-mode: ${mix}`} · opacity {opacity} · {bg} bg
         </span>
         <span data-app-green style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: ink.muted }}>
           <span style={{ width: 22, height: 22, borderRadius: 999, background: APP_GREEN, display: "inline-block" }} />
@@ -193,7 +194,7 @@ function Venn({ colors, mix, opacity, bg, r }: { colors: readonly string[]; mix:
   const height = colors.length === 2 ? 2 * r : 2 * r + (d * Math.sqrt(3)) / 2;
   const circle = (i: number, props: Record<string, unknown> = {}, key: string | number = i) => <circle key={key} cx={centres[i][0]} cy={centres[i][1]} r={r} {...props} />;
 
-  if (!isSpace(mix)) {
+  if (mix !== "white" && !isSpace(mix)) {
     return (
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden>
         <g style={{ isolation: "isolate" }}>{colors.map((color, i) => circle(i, { fill: color, opacity, style: { mixBlendMode: mix } }))}</g>
@@ -206,7 +207,8 @@ function Venn({ colors, mix, opacity, bg, r }: { colors: readonly string[]; mix:
     circle(i, { fill: bg, clipPath: `url(#${clip})` }, "patch"),
     circle(i, { fill, opacity, clipPath: `url(#${clip})` }, "mix"),
   ];
-  const centreMix = colors.length === 3 ? mixCss(mix, mixCss(mix, colors[0], colors[1]), colors[2], 33.333) : null;
+  const pairFill = (a: string, b: string) => (mix === "white" ? "#fff" : mixCss(mix, a, b));
+  const centreMix = colors.length !== 3 ? null : mix === "white" ? "#fff" : mixCss(mix, mixCss(mix, colors[0], colors[1]), colors[2], 33.333);
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden>
       <defs>
@@ -224,7 +226,7 @@ function Venn({ colors, mix, opacity, bg, r }: { colors: readonly string[]; mix:
       </defs>
       {colors.map((color, i) => circle(i, { fill: color, opacity }))}
       {pairIdx.map(([i, j]) => (
-        <g key={`${i}${j}`}>{region(mixCss(mix, colors[i], colors[j]), `${uid}c${i}`, j)}</g>
+        <g key={`${i}${j}`}>{region(pairFill(colors[i], colors[j]), `${uid}c${i}`, j)}</g>
       ))}
       {centreMix && <g>{region(centreMix, `${uid}c01`, 2)}</g>}
     </svg>
@@ -298,6 +300,7 @@ function Panel({ settings }: { settings: Settings }) {
               </option>
             ))}
           </optgroup>
+          <option value="white">white (overlap = #fff)</option>
         </select>
       </div>
       <div style={{ marginBottom: 10 }}>
