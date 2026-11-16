@@ -4,7 +4,6 @@ import { getPairClippingSet } from "@/lib/clippings";
 import { clippingById, parseQuoteId, quoteCardSearch } from "@/lib/clippings-view";
 import { getPairCritics } from "@/lib/critics";
 import { criticById } from "@/lib/critics-view";
-import { QUOTE_CARD_LAYOUT_PARAM, parseQuoteCardLayout } from "@/lib/og-quote";
 import { renderCriticOgImage, renderQuoteOgImage } from "@/lib/og-quote-render";
 import { renderPairOgImage } from "@/lib/og-render";
 import { loadPeople } from "@/lib/people";
@@ -70,16 +69,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const clipping = clippingById(set?.clippings ?? [], quoteId);
   const criticSet = getPairCritics(ids);
   const critic = criticById(criticSet?.critics ?? [], quoteId);
-  // Spike, development only (null in production): a large layout of the quote card to compare, `&qcard=lg`, kept in the canonical query.
-  const layout = parseQuoteCardLayout(request.nextUrl.searchParams);
   const quote =
     set && clipping
-      ? { id: clipping.id, draw: () => renderQuoteOgImage({ timelines, set, clipping, layout }) }
+      ? { id: clipping.id, draw: () => renderQuoteOgImage({ timelines, set, clipping }) }
       : criticSet && critic
-        ? { id: critic.id, draw: () => renderCriticOgImage({ timelines, set: criticSet, critic, layout }) }
+        ? { id: critic.id, draw: () => renderCriticOgImage({ timelines, set: criticSet, critic }) }
         : null;
   if (quote) {
-    const quoteSearch = `${quoteCardSearch(quote.id)}${layout ? `&${QUOTE_CARD_LAYOUT_PARAM}=${layout}` : ""}`;
+    const quoteSearch = quoteCardSearch(quote.id);
     if (!isCanonical || rawSearch !== quoteSearch) return redirectTo(`${base}/og${quoteSearch}`);
     return quote.draw();
   }
