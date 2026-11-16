@@ -1512,6 +1512,53 @@ export const PAIR_DESCRIPTIONS: PairDescriptions = {
         "url": "https://screendaily.com/features/how-antonio-banderas-personal-baggage-helped-his-pain-and-glory-performance-/5145378.article"
       }
     ]
+  },
+  "5656+45400": {
+    "text": "On Greenberg they found a shorthand fast, and Baumbach guessed they would write well together.[1] For Frances Ha, Gerwig emailed him her scraps of scenes and dialogue;[2] they wrote scenes apart, then reworked them together.[1] Barbie, written at home in the pandemic, came despite his calls to get them out of it.[3]",
+    "sources": [
+      {
+        "title": "Flavorwire Interview: Greta Gerwig and Noah Baumbach on Creating 'Frances Ha' Together (Flavorwire)",
+        "url": "https://www.flavorwire.com/391777/flavorwire-interview-greta-gerwig-and-noah-baumbach-on-creating-frances-ha-together"
+      },
+      {
+        "title": "Interview: Noah Baumbach and Greta Gerwig discuss making Frances Ha (The List)",
+        "url": "https://list.co.uk/news/interview-noah-baumbach-and-greta-gerwig-discuss-making-frances-ha-17732"
+      },
+      {
+        "title": "\"Barbie\" filmmaker Greta Gerwig on pressure of making blockbuster (60 Minutes transcript, CBS News)",
+        "url": "https://www.cbsnews.com/news/barbie-filmmaker-greta-gerwig-60-minutes-transcript/"
+      }
+    ]
+  },
+  "40863+45400": {
+    "text": "Gerwig hit the emotion Swanberg described at once,[1] and across three of his films, ending in one they co-directed,[2] he gave her more: on Nights and Weekends he stepped back and handed her scenes.[1] They shot its halves a year apart, and the couple's ending doubled as the end of their collaboration.[3]",
+    "sources": [
+      {
+        "title": "Indie Auteur: A Conversation With Joe Swanberg, 'Mumblecore' Lynchpin (The Quietus)",
+        "url": "https://thequietus.com/culture/film/hannah-takes-the-stairs/"
+      },
+      {
+        "title": "Joe Swanberg Interview (The Seventh Art)",
+        "url": "https://theseventhart.org/joe-swanberg-interview-drinking-buddies/"
+      },
+      {
+        "title": "Don't call it mumblecore (Andrew O'Hehir, Salon, 11 Oct 2008)",
+        "url": "https://www.salon.com/2008/10/11/nights_weekends/"
+      }
+    ]
+  },
+  "45400+1075441": {
+    "text": "Levy met Gerwig in the prep for Frances Ha, where she was always around for tests and scouts.[1] After three films together she told him she had written a script she would direct.[2] Lady Bird was to feel like a memory,[2] so they photocopied its reference images again and again to wear them down.[1]",
+    "sources": [
+      {
+        "title": "The Ideology of Kinko's: A Conversation with 'Lady Bird' Cinematographer Sam Levy (Vague Visages)",
+        "url": "https://vaguevisages.com/2017/12/20/ideology-kinkos-conversation-lady-bird-cinematographer-sam-levy/"
+      },
+      {
+        "title": "Interview: Sam Levy on Lighting the Way for \"Lady Bird\" (Moveable Fest)",
+        "url": "https://moveablefest.com/sam-levy-lady-bird/"
+      }
+    ]
   }
 };
 

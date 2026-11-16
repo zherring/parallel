@@ -605,6 +605,14 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
     ],
     blurb: "Director and actor: Jabberwocky, Time Bandits, Brazil.",
   },
+  {
+    genre: "comedy",
+    people: [
+      { id: 5656, name: "Noah Baumbach" },
+      { id: 45400, name: "Greta Gerwig" },
+    ],
+    blurb: "Director and actor, then co-writers: Greenberg, Frances Ha, Mistress America, Barbie.",
+  },
 
   // Drama
   {
@@ -742,6 +750,22 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 5292, name: "Denzel Washington" },
     ],
     blurb: "Director and actor: Mo' Better Blues, Malcolm X, He Got Game, Inside Man.",
+  },
+  {
+    genre: "drama",
+    people: [
+      { id: 40863, name: "Joe Swanberg" },
+      { id: 45400, name: "Greta Gerwig" },
+    ],
+    blurb: "Director and actor, then co-directors: LOL, Hannah Takes the Stairs, Nights and Weekends.",
+  },
+  {
+    genre: "drama",
+    people: [
+      { id: 45400, name: "Greta Gerwig" },
+      { id: 1075441, name: "Sam Levy" },
+    ],
+    blurb: "An actor-writer, then a director, and a cinematographer: Frances Ha, Mistress America, Lady Bird.",
   },
 
   // Action & Western
