@@ -375,12 +375,13 @@ function PersonCard({ item, slot, tilt, flip, whiteRing = false }: { item: Item;
   );
 }
 
-function PosterCard({ item }: { item: Item }) {
+/** Spike: with the portrait flag (`whiteHover`) a shared film stays green at rest and turns white on hover, as the portrait cards do. */
+function PosterCard({ item, whiteHover = false }: { item: Item; whiteHover?: boolean }) {
   const { dx, dy, tilt } = item.place;
   return (
     <div
       title={item.text}
-      className="absolute inset-0 overflow-hidden rounded-[6px] bg-surface shadow-[0_0_0_1px_var(--lit),0_0_14px_-3px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)] transition-shadow duration-300 group-hover:shadow-[0_0_0_1.5px_var(--lit),0_0_20px_-2px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)] group-focus-visible:shadow-[0_0_0_2px_var(--focus),0_0_18px_-2px_var(--focus),0_10px_18px_-6px_rgb(0_0_0/0.7)]"
+      className={`absolute inset-0 overflow-hidden rounded-[6px] bg-surface shadow-[0_0_0_1px_var(--lit),0_0_14px_-3px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)] transition-shadow duration-300 ${whiteHover ? "group-hover:shadow-[0_0_0_1.5px_#fff,0_0_20px_-2px_rgb(255_255_255/0.45),0_10px_18px_-6px_rgb(0_0_0/0.7)]" : "group-hover:shadow-[0_0_0_1.5px_var(--lit),0_0_20px_-2px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)]"} group-focus-visible:shadow-[0_0_0_2px_var(--focus),0_0_18px_-2px_var(--focus),0_10px_18px_-6px_rgb(0_0_0/0.7)]`}
       style={{ translate: `${dx}px ${dy}px`, rotate: `${tilt}deg` }}
     >
       <img
@@ -492,7 +493,7 @@ function Stage({
           <div data-drift="" data-kind="poster" data-depth={POSTER_DEPTH[slot]} className="absolute inset-0">
             {byType("poster", slot).map((item) => (
               <Motion key={item.id} item={item} reduced={reduced} onGone={onGone}>
-                <PosterCard item={item} />
+                <PosterCard item={item} whiteHover={pairWash} />
               </Motion>
             ))}
           </div>
