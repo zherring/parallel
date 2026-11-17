@@ -1598,6 +1598,19 @@ export const PAIR_DESCRIPTIONS: PairDescriptions = {
         "url": "https://www.bfi.org.uk/lists/celebrating-saul-basss-centenary-10-essential-title-sequences"
       }
     ]
+  },
+  "2636+19460": {
+    "text": "Impressed by his titles for The Man with the Golden Arm, Hitchcock asked Bass to title Vertigo, where the original plan was cards over a shot of the San Francisco skyline.[1] He brought Bass back for North by Northwest and Psycho,[2] where Bass received the American industry's first public credit as \"pictorial consultant\" and storyboarded the shower scene, which Hitchcock later played down.[2]",
+    "sources": [
+      {
+        "title": "Saul Bass and John Whitney (Dan Auiler, Hitchcock’s Vertigo)",
+        "url": "https://hitchcocksvertigo.substack.com/p/saul-bass-and-john-whitney"
+      },
+      {
+        "title": "Reassessing the Saul Bass and Alfred Hitchcock Collaboration (Pat Kirkham, West 86th, Spring 2011)",
+        "url": "https://west86th.bgc.bard.edu/articles/reassessing-the-saul-bass-and-alfred-hitchcock-collaboration"
+      }
+    ]
   }
 };
 

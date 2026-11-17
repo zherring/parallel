@@ -173,6 +173,14 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
     ],
     blurb: "Director and title designer: The Young Stranger, Seconds, Grand Prix.",
   },
+  {
+    genre: "classic",
+    people: [
+      { id: 2636, name: "Alfred Hitchcock" },
+      { id: 19460, name: "Saul Bass" },
+    ],
+    blurb: "Director and title designer: Vertigo, North by Northwest, Psycho.",
+  },
 
   // Horror
   {
