@@ -514,27 +514,34 @@ test("linked quotes keep their original order; history and resizing retain the a
   await expect(deck(page)).toHaveAttribute("data-active-quote", SECOND);
 });
 
-test("long quotes remain scrollable inside a slide, and switching views removes and restores the exhibition cleanly", async ({ page }) => {
+test("a long quote never scrolls inside its slide: its type steps down to fit, the focused text pane hands Space to the deck, and switching views removes and restores the exhibition cleanly", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 320, height: 568 });
   await openExhibit(page, `${ANDERSON}?view=clippings&quote=when-i-read-rushmore-i-figured`);
   const quote = active(page).locator(".quote-exhibit-plate");
-  expect(await quote.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  // The deck is the only scroller: the plate has none (the quote's type falls with its length, `--quote-fit` in quote-exhibit.css), so nothing of it overflows the plate and the plate sits whole in its slide.
+  await expect(quote).toHaveCSS("overflow-y", "visible");
+  expect(await quote.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(1);
+  const slide = (await active(page).boundingBox())!;
+  const plate = (await quote.boundingBox())!;
+  expect(plate.y).toBeGreaterThanOrEqual(slide.y);
+  expect(plate.y + plate.height).toBeLessThanOrEqual(slide.y + slide.height);
+  // This quote (and its context) is past the 220 characters a short phone sets at full size (15px), so it is set smaller.
+  expect(await active(page).locator(".quote-exhibit-words").evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))).toBeLessThan(15);
   const quoteId = await deck(page).getAttribute("data-active-quote");
-  // Tab from the deck reaches the named text pane; click focus is not stolen by the outer scroller either.
+  // Tab from the deck still reaches the named text pane; click focus is not stolen by the outer scroller either.
   await page.keyboard.press("Tab");
   await expect(quote).toBeFocused();
   await expect(quote).toHaveAttribute("aria-label", /Quote \d+ text/);
+  // With nothing in the pane to scroll, Space is the deck's: it goes to the next quote and the focus goes back to the deck's scroller.
   await page.keyboard.press("Space");
-  await expect.poll(() => quote.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  await expect(deck(page)).toHaveAttribute("data-active-quote", quoteId!);
+  await expect(deck(page)).not.toHaveAttribute("data-active-quote", quoteId!);
+  await expect(scroller(page)).toBeFocused();
   await page.keyboard.press("Shift+Space");
-  await expect.poll(() => quote.evaluate((element) => element.scrollTop)).toBe(0);
   await expect(deck(page)).toHaveAttribute("data-active-quote", quoteId!);
   await quote.click({ position: { x: 3, y: 3 } });
   await expect(quote).toBeFocused();
-  await quote.evaluate((element) => element.scrollTo({ top: element.scrollHeight, behavior: "instant" }));
-  expect(await quote.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  expect(await quote.evaluate((element) => element.scrollTop)).toBe(0);
   await expectSnap(page, await active(page).evaluate((element) => Array.from(element.parentElement!.children).indexOf(element)));
   await page.keyboard.press("Space");
   await expect(deck(page)).not.toHaveAttribute("data-active-quote", quoteId!);
