@@ -1,13 +1,13 @@
 "use client";
 
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { rememberOpener } from "@/components/side-panel/side-panel";
 import type { ClippingsVoice } from "@/lib/clippings";
 import { parseQuoteId } from "@/lib/clippings-view";
 import type { ReadingItem } from "@/lib/critics";
 import { INTERACTIVE_SELECTOR, OVERLAY_SELECTOR } from "@/lib/interaction-target";
-import { exhibitSpaceAction, nextExhibitIndex, quoteExhibitQuoteSearch, quotePaneCanScroll } from "@/lib/quote-exhibit";
+import { exhibitSpaceAction, nextExhibitIndex, quoteExhibitQuoteSearch, quoteFit, quotePaneCanScroll } from "@/lib/quote-exhibit";
 import { QuoteLibraryPanel, type QuoteLibraryView } from "./quote-library-panel";
 import { quoteElementId } from "./pull-quote";
 import { QuoteExhibit, QuoteExhibitSlide } from "./quote-exhibit";
@@ -17,6 +17,10 @@ export interface ExhibitSlide {
   id: string;
   speakerId: number | null;
   quote: string;
+  /** Length of the context line under the quote, which shares the slide's height with it. */
+  contextChars?: number;
+  /** Length of the source line under that, which shares it too. */
+  sourceChars?: number;
   speaker: string;
   publication: string;
   year: number | null;
@@ -40,6 +44,8 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
   const motionTarget = useRef<number | null>(null);
   const initialized = useRef(false);
   const slideKey = slides.map((slide) => slide.id).join("+");
+  // What each quote's type is fitted from: its text's width, and how much of the slide's height the lines under it take.
+  const fits = useMemo(() => slides.map((slide) => quoteFit(slide.quote, slide.contextChars, slide.sourceChars)), [slides]);
 
   const publish = useCallback((index: number) => {
     const slide = slides[index];
@@ -140,7 +146,7 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
                 aria-current={current === index ? "true" : undefined}
                 inert={current !== index}
               >
-                <QuoteExhibitSlide label={`Quote ${index + 1} text`}>{slide.content}</QuoteExhibitSlide>
+                <QuoteExhibitSlide label={`Quote ${index + 1} text`} fit={fits[index]}>{slide.content}</QuoteExhibitSlide>
               </li>
             ))}
           </ol>

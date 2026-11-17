@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { TreatedPortrait } from "@/components/treated-portrait";
 import { tmdbImage } from "@/lib/images";
 import {
   CHIP,
@@ -22,15 +23,36 @@ import {
   type OgPerson,
   type OgPoster,
 } from "@/lib/og-card";
+import {
+  TREATED_AXIS_WIDTH,
+  TREATED_CAPTION_SIZE,
+  TREATED_COLUMN,
+  TREATED_LEFT,
+  TREATED_MARGIN,
+  TREATED_NAMES_SIZE,
+  TREATED_NODE,
+  TREATED_POSTER,
+  TREATED_SOLO_COLOR,
+  TREATED_SOLO_DOT,
+  TREATED_STROKE_CSS,
+  TREATED_WIDTH,
+  TREATED_WORDMARK,
+  treatedAxisGradient,
+  treatedPairLayout,
+  treatedPosterLefts,
+  treatedTile,
+  treatedTileTops,
+  type TreatedPair,
+} from "@/lib/og-treated";
 
 /**
- * The pair's preview card (the 1200 x 630 PNG of `/p/<people>/opengraph-image`, drawn by `OgCardView` in `og-render.tsx`) rebuilt as HTML and CSS,
- * so that its parts can move. It is the first frame of the pair embed: X shows the PNG as the poster until the frame loads, and the frame
+ * The preview card (the 1200 x 630 PNG of `/p/<people>/opengraph-image`) rebuilt as HTML and CSS, so that its parts can move: a pair's (`TreatedPairPoster`, the PNG
+ * of `renderTreatedPairOgImage`) or, for one person, the card of the app's own timeline (`PlainPairPoster`, the PNG of `OgCardView` in `og-render.tsx`). It is the first frame of the pair embed: X shows the PNG as the poster until the frame loads, and the frame
  * opens on the same picture, so the hand-off is not seen. Everything is placed by the same functions that place the PNG's (`composition`,
  * `headshotFan`, `posterRow`, `yearLabelXs`, from `og-card.ts`) from the same `OgCard`, in the PNG's own pixels, which `--px` turns into the
  * frame's size: the stage is 1200 x 630 and is fitted into the frame, centred, as a picture would be.
  *
- * Keep the look of the two in step: the colours, type and shadows below are `OgCardView`'s (and `og-theme.ts`'s, which a client file cannot import:
+ * Keep the look of the two in step: the colours, type and shadows of `PlainPairPoster` are `OgCardView`'s (and `og-theme.ts`'s, which a client file cannot import:
  * it reads the fonts from disk). The parts the animation moves carry `data-part` (wordmark, lane, node, poster, years, chip, caption, accent). The headshots (`person`)
  * are not moved or drawn over at any point: they stay as the PNG draws them, and nothing sits behind them or around them but the card's own canvas.
  */
@@ -114,7 +136,16 @@ function Headshot({
       })}
     >
       {src ? (
-        <img src={src} alt="" decoding="async" draggable={false} style={{ ...cover, objectPosition: "50% 18%" }} />
+        <TreatedPortrait
+          personId={person.id}
+          slot={index}
+          name={person.name}
+          profilePath={person.profilePath}
+          imageSize="w342"
+          posterSize="w154"
+          rounded={false}
+          className="h-full w-full"
+        />
       ) : (
         <div
           style={{
@@ -187,9 +218,15 @@ function Poster({ poster, left, top }: { poster: OgPoster; left: number; top: nu
 
 /**
  * The card, in the frame's pixels: put it in an element that is a size container (`container-type: size`) and set `--px` on it to `POSTER_PX`.
- * `aria-hidden` is the caller's to set (the card is a picture of what the page below it says).
+ * `aria-hidden` is the caller's to set (the card is a picture of what the page below it says). For a pair it is the treated card (`treated`, from
+ * `buildTreatedPair`: `TreatedPairPoster`), as the PNG is; for one person (`treated` null) it is the timeline's own card (`PlainPairPoster`).
  */
-export function PairPoster({ card }: { card: OgCard }) {
+export function PairPoster({ card, treated = null }: { card: OgCard; treated?: TreatedPair | null }) {
+  return treated ? <TreatedPairPoster card={card} treated={treated} /> : <PlainPairPoster card={card} />;
+}
+
+/** One person's card: the app's own timeline, the headshot (cut out), the posters of their films on the lane, the years and the count (`OgCardView`). */
+function PlainPairPoster({ card }: { card: OgCard }) {
   const hasLane = card.posters.length > 0;
   const fan = headshotFan(card.people.length);
   const place = composition(fan.height, hasLane, card.chip !== null);
@@ -310,6 +347,128 @@ export function PairPoster({ card }: { card: OgCard }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** The treated card's axis line: `og-render.tsx`'s (`AXIS_RGB`, `AXIS_ALPHA` of `og-treated-render.tsx`). */
+const AXIS_RGB = "136, 153, 170";
+const AXIS_ALPHA = 0.7;
+
+/**
+ * The pair's treated card (`TreatedPairCardView`, in `og-treated-render.tsx`) rebuilt as HTML, on the same grid and from the same numbers
+ * (`og-treated.ts`): both portraits in colour down the left edge, the posters of their shared films, the axis, the names and the count (centred on the column) and the wordmark. The
+ * parts the sequence moves carry the plain card's names: `poster`, `node` (a shared film's white dot) and `accent` (the count's numbers).
+ */
+function TreatedPairPoster({ card, treated }: { card: OgCard; treated: TreatedPair }) {
+  const place = treatedPairLayout();
+  const lefts = treatedPosterLefts(treated.posters.length);
+  const tile = treatedTile(card.people.length);
+  const tops = treatedTileTops(card.people.length);
+
+  return (
+    <div
+      data-part="stage"
+      style={{
+        position: "absolute",
+        left: "50%",
+        top: "50%",
+        width: px(OG_WIDTH),
+        height: px(OG_HEIGHT),
+        transform: "translate(-50%, -50%)",
+        backgroundColor: OG.bg,
+        color: OG.strong,
+        fontWeight: 600,
+        overflow: "hidden",
+      }}
+    >
+      {card.people.map((person, i) => (
+        <div
+          key={person.id}
+          data-part="person"
+          data-index={i}
+          style={at(0, tops[i], { width: px(TREATED_COLUMN), height: px(tile.height), overflow: "hidden", backgroundColor: OG.border })}
+        >
+          {person.profilePath ? (
+            <TreatedPortrait
+              personId={person.id}
+              slot={i}
+              name={person.name}
+              profilePath={person.profilePath}
+              imageSize="w342"
+              posterSize="w154"
+              rounded={false}
+              headAspect={TREATED_COLUMN / tile.height}
+              filmPosters={treated.montages[i]}
+              strokePx={TREATED_STROKE_CSS}
+              className="h-full w-full"
+            />
+          ) : (
+            <div style={{ display: "flex", width: "100%", height: "100%", alignItems: "center", justifyContent: "center", color: OG.body, fontSize: px(72) }}>{person.initials}</div>
+          )}
+        </div>
+      ))}
+
+      {treated.posters.map((poster, i) => {
+        const src = tmdbImage(poster.posterPath, "w342");
+        return (
+          <div
+            key={poster.id}
+            data-part="poster"
+            style={at(lefts[i], place.postersTop, {
+              width: px(TREATED_POSTER.width),
+              height: px(TREATED_POSTER.height),
+              borderRadius: px(8),
+              border: `${px(2)} solid #ffffff`,
+              overflow: "hidden",
+              backgroundColor: OG.surface,
+              ...(src ? {} : { alignItems: "flex-start", justifyContent: "flex-start", padding: `${px(14)} 0 0 ${px(18)}`, color: OG.muted, fontSize: px(56), lineHeight: 1 }),
+            })}
+          >
+            {src ? <img src={src} alt="" decoding="async" draggable={false} style={cover} /> : (Array.from(poster.title.trim())[0]?.toUpperCase() ?? "?")}
+          </div>
+        );
+      })}
+
+      {/* The axis: one line the width of the column, fading out at both ends, and a dot for every film. */}
+      <div data-part="lane" style={at(TREATED_LEFT, place.axisY - TREATED_AXIS_WIDTH / 2, { width: px(TREATED_WIDTH), height: px(TREATED_AXIS_WIDTH), backgroundImage: treatedAxisGradient(AXIS_RGB, AXIS_ALPHA) })} />
+      {treated.dots.map((dot) => {
+        const shared = dot.kind === "shared";
+        const size = shared ? TREATED_NODE.size : TREATED_SOLO_DOT;
+        return (
+          <div
+            key={`${dot.kind}-${dot.id}`}
+            data-part={shared ? "node" : "dot"}
+            style={at(dot.x - size / 2, place.axisY - size / 2, {
+              width: px(size),
+              height: px(size),
+              borderRadius: "50%",
+              backgroundColor: shared ? "#ffffff" : TREATED_SOLO_COLOR,
+              opacity: dot.opacity,
+              boxSizing: "border-box",
+              ...(shared ? { border: `${px(TREATED_NODE.ring)} solid ${OG.bg}` } : {}),
+            })}
+          />
+        );
+      })}
+
+      {/* The names and the count: centred on the column, under the axis. */}
+      <div data-part="names" style={at(TREATED_LEFT, place.namesTop, { justifyContent: "center", width: px(TREATED_WIDTH), fontSize: px(TREATED_NAMES_SIZE), lineHeight: 1, color: OG.body, whiteSpace: "pre" })}>
+        {treated.names}
+      </div>
+      {treated.caption && (
+        <div data-part="caption" style={at(TREATED_LEFT, place.captionTop, { alignItems: "baseline", justifyContent: "center", width: px(TREATED_WIDTH), fontSize: px(TREATED_CAPTION_SIZE), lineHeight: 1, letterSpacing: px(-1.2), whiteSpace: "pre" })}>
+          {treated.caption.segments.map((segment, i) => (
+            <span key={i} data-part={segment.accent ? "accent" : undefined} style={{ display: "flex", whiteSpace: "pre", color: segment.accent ? OG.strong : OG.muted }}>
+              {segment.text}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div data-part="wordmark" style={at(OG_WIDTH - TREATED_MARGIN, place.wordmarkTop, { transform: "translateX(-100%)", fontSize: px(TREATED_WORDMARK), letterSpacing: px(-1), lineHeight: 1 })}>
+        Para<span style={{ color: OG.green }}>ll</span>el
+      </div>
     </div>
   );
 }

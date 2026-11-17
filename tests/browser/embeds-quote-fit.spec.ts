@@ -1,8 +1,9 @@
 import type { Page } from "@playwright/test";
 import clippings from "../../src/lib/clippings.json";
 import essays from "../../src/lib/essays.json";
-import { QUOTE_FOOTER_BOTTOM_PX } from "../../src/lib/embed-insets";
+import { OG_HEIGHT, OG_WIDTH } from "../../src/lib/og-card";
 import { CHAR_WIDTH } from "../../src/lib/og-quote";
+import { TREATED_MARGIN } from "../../src/lib/og-treated";
 import { QUOTE_BAND, QUOTE_FLOOR_PX, QUOTE_MAX_PX, QUOTE_MIN_LINE_CHARS, embedPath } from "../../src/lib/quote-embed";
 import { pairQuotes } from "../../src/lib/quote-embed-data";
 import type { PersonTimeline } from "../../src/lib/types";
@@ -26,8 +27,17 @@ import {
 } from "./fixtures";
 
 // The quote's embed (`/embed/q/<people>/<id>`, src/components/embed/quote-embed.tsx) in the frames X gives it: every quote is set to the room it has (its band, its characters to a
-// line, its footer's row) and never scrolls, and the arrows and the link out are touch targets. Stepping through the quotes and the address are in `embeds.spec.ts`; the TMDB stub
-// and the helpers are in `fixtures.ts`.
+// line, its footer's row) and never scrolls, and the arrows and the wordmark are touch targets. The bar is the row of the arrows and the footer the row of the attribution and the
+// wordmark (`data-quote-bar`, `data-quote-footer`). Stepping through the quotes and the address are in `embeds.spec.ts`; the TMDB stub and the helpers are in `fixtures.ts`.
+
+/**
+ * The room the card leaves under its footer, in px, in a frame of this size: the card's bottom margin (`TREATED_MARGIN`) at the frame's scale, less what the attribution's
+ * and the wordmark's baselines hang below it (they stand on the margin, so their boxes go a little past it: about 0.13 of the margin, and never under 4px).
+ */
+const bottomInset = (frame: { width: number; height: number }) => {
+  const margin = TREATED_MARGIN * Math.min(frame.width / OG_WIDTH, frame.height / OG_HEIGHT);
+  return margin - Math.max(4, 0.13 * margin);
+};
 
 // The server's TMDB stub (`next`, in `embedTest`) must be in place before the first page: the fixture is only set up for a test that asks for it.
 test.beforeEach(async ({ next }) => {
@@ -50,15 +60,15 @@ async function quoteFit(page: Page) {
     last.setStart(text, (text.textContent ?? "").length - 1);
     last.setEnd(text, (text.textContent ?? "").length);
     const rect = last.getBoundingClientRect();
-    const header = document.querySelector("header")?.getBoundingClientRect();
-    const footerElement = document.querySelector("footer");
+    const header = document.querySelector("[data-quote-bar]")?.getBoundingClientRect();
+    const footerElement = document.querySelector("[data-quote-footer]");
     const footer = footerElement?.getBoundingClientRect();
     const attribution = footerElement?.firstElementChild?.getBoundingClientRect();
     // Every part of the footer that takes room (not the screen-reader text, which is placed out of the way).
     const partsBottom = footerElement
       ? Math.max(...[...footerElement.querySelectorAll<HTMLElement>("*")].filter((el) => getComputedStyle(el).position !== "absolute").map((el) => el.getBoundingClientRect().bottom))
       : Number.NEGATIVE_INFINITY;
-    const open = document.querySelector('a[aria-label^="Open in Parallel"]')?.getBoundingClientRect();
+    const open = document.querySelector('a[aria-label="Parallel: more pairs"]')?.getBoundingClientRect();
     // The characters on each line: every character of the quote is a rect, and a new line is a rect a half line lower than the one before.
     const lines: number[] = [];
     let lineTop: number | null = null;
@@ -101,17 +111,18 @@ async function expectQuoteFits(page: Page, label: string) {
   if (!fit) return;
   expect(fit.fontSize, `${label}: the type is not under the floor`).toBeGreaterThanOrEqual(QUOTE_FLOOR_PX);
 
-  // The footer is whole in the frame, with its bottom inset: every part of it (the picture, the attribution, the link out) and the footer itself, cut quote or not.
-  expect(fit.open, `${label}: Open in Parallel is there`).not.toBeNull();
+  // The footer is whole in the frame, with its bottom inset: every part of it (the attribution, the wordmark) and the footer itself, cut quote or not.
+  const inset = bottomInset(fit.frame);
+  expect(fit.open, `${label}: the wordmark is there`).not.toBeNull();
   expect(fit.footerBottom, `${label}: the footer ends inside the frame`).toBeLessThanOrEqual(fit.frame.height + 0.5);
-  expect(fit.partsBottom, `${label}: every part of the footer ends at least ${QUOTE_FOOTER_BOTTOM_PX}px inside the frame`).toBeLessThanOrEqual(fit.frame.height - QUOTE_FOOTER_BOTTOM_PX + 0.5);
-  expect(fit.open?.bottom ?? 0, `${label}: Open in Parallel ends at least ${QUOTE_FOOTER_BOTTOM_PX}px inside the frame`).toBeLessThanOrEqual(fit.frame.height - QUOTE_FOOTER_BOTTOM_PX + 0.5);
+  expect(fit.partsBottom, `${label}: every part of the footer ends at least ${Math.round(inset)}px inside the frame`).toBeLessThanOrEqual(fit.frame.height - inset + 0.5);
+  expect(fit.open?.bottom ?? 0, `${label}: the wordmark ends at least ${Math.round(inset)}px inside the frame`).toBeLessThanOrEqual(fit.frame.height - inset + 0.5);
   expect(fit.open?.right ?? 0, `${label}: and inside it at the side`).toBeLessThanOrEqual(fit.frame.width + 0.5);
   expect(fit.open?.left ?? 0).toBeGreaterThanOrEqual(0);
   // On the one row with the attribution (it never wraps under it): its middle is in the attribution's height.
   const middle = ((fit.open?.top ?? 0) + (fit.open?.bottom ?? 0)) / 2;
-  expect(middle, `${label}: Open in Parallel is on the attribution's row`).toBeGreaterThanOrEqual((fit.attribution?.top ?? 0) - 0.5);
-  expect(middle, `${label}: Open in Parallel is on the attribution's row`).toBeLessThanOrEqual((fit.attribution?.bottom ?? 0) + 0.5);
+  expect(middle, `${label}: the wordmark is on the attribution's row`).toBeGreaterThanOrEqual((fit.attribution?.top ?? 0) - 0.5);
+  expect(middle, `${label}: the wordmark is on the attribution's row`).toBeLessThanOrEqual((fit.attribution?.bottom ?? 0) + 0.5);
 
   if (fit.clamped) {
     // Only a quote that is too long at the floor is cut (with an ellipsis).
@@ -190,7 +201,7 @@ test.describe("quote embed: a translated quote's footer, with its \"Translated f
       await page.setViewportSize(frame);
       for (const { key, id } of translated) {
         await page.goto(`/embed/q/${key}/${id}`);
-        await expect(page.locator("footer")).toContainText("Translated from");
+        await expect(page.locator("[data-quote-footer]")).toContainText("Translated from");
         await expectQuoteFits(page, `translated quote ${id} at ${frame.width} x ${frame.height}`);
       }
     }
@@ -271,8 +282,8 @@ test.describe("quote embed: with no script, the first paint is cut at the lines 
 async function quoteLayout(page: Page) {
   const layout = await page.evaluate(() => {
     const block = document.querySelector("blockquote");
-    const header = document.querySelector("header")?.getBoundingClientRect();
-    const footer = document.querySelector("footer")?.getBoundingClientRect();
+    const header = document.querySelector("[data-quote-bar]")?.getBoundingClientRect();
+    const footer = document.querySelector("[data-quote-footer]")?.getBoundingClientRect();
     if (!block || !header || !footer) return null;
     const rect = block.getBoundingClientRect();
     return {
@@ -379,12 +390,9 @@ test.describe("quote embed: the quote is set to the room it has, whatever the fr
   });
 });
 
-// ---- The quote embed: the bar's arrows and the footer's link are touch targets -----------------------------------------------------------------------------------
+// ---- The quote embed: the bar's arrows are touch targets, and the footer is one row -----------------------------------------------------------------------------
 
-/** The pill reads "Open" in a frame narrower than 26rem (416px): `@max-[26rem]` in `OpenInParallel`, a Tailwind class, which is a literal and so not a number this spec can import. */
-const SHORT_PILL_BELOW = 416;
-
-test.describe("quote embed: the arrows and Open in Parallel are separate targets, 32px tall in a phone's width, and the footer is on one row", () => {
+test.describe("quote embed: the arrows and the wordmark are separate targets, 32px tall in a phone's width, and the footer is on one row", () => {
   test.use({ reducedMotion: "reduce" });
 
   for (const frame of [...TALL_FRAMES, ...FIT_FRAMES, { width: 320, height: 253, what: "the smallest phone" }, { width: 360, height: 640, what: "a small phone's tall panel" }]) {
@@ -393,35 +401,29 @@ test.describe("quote embed: the arrows and Open in Parallel are separate targets
       await page.goto(embedPath(PAIR, QUOTES[START].id));
       const previous = page.getByRole("button", { name: "Previous quote", exact: true });
       const next = page.getByRole("button", { name: "Next quote", exact: true });
-      const open = page.getByRole("link", { name: /^Open in Parallel/ });
-      await expect(open).toBeVisible();
       const wordmark = page.getByRole("link", { name: "Parallel: more pairs", exact: true });
+      await expect(wordmark).toBeVisible();
       const controls = [
         { name: "Previous quote", locator: previous },
         { name: "Next quote", locator: next },
-        { name: "Open in Parallel", locator: open },
         { name: "the wordmark", locator: wordmark },
       ];
       const boxes = await Promise.all(controls.map(({ locator }) => boxOf(locator)));
       for (const [index, { name, locator }] of controls.entries()) {
         expect(boxes[index].x, `${name} starts inside the frame`).toBeGreaterThanOrEqual(0);
         expect(boxes[index].x + boxes[index].width, `${name} ends inside the frame`).toBeLessThanOrEqual(frame.width);
-        expect(boxes[index].y + boxes[index].height, `${name} ends inside the frame`).toBeLessThanOrEqual(frame.height - (name === "Open in Parallel" ? QUOTE_FOOTER_BOTTOM_PX : 0) + 0.5);
+        expect(boxes[index].y + boxes[index].height, `${name} ends inside the frame`).toBeLessThanOrEqual(frame.height - (name === "the wordmark" ? bottomInset(frame) : 0) + 0.5);
         expect(await isOnTopAtCentre(page, locator), `${name} is on top at its middle`).toBe(true);
       }
       for (let a = 0; a < controls.length; a++) {
         for (let b = a + 1; b < controls.length; b++) expect(intersects(boxes[a], boxes[b]), `${controls[a].name} and ${controls[b].name} do not overlap`).toBe(false);
       }
 
-      // The label is the whole of the name in a wide frame and "Open" in a narrow one (under 26rem), and the name is the same.
-      await expect(open).toHaveAttribute("aria-label", /^Open in Parallel \(opens in a new tab\)$/);
-      expect(await open.evaluate((node) => (node as HTMLElement).innerText.trim()), `${frame.width}px wide: the pill's label`).toBe(frame.width < SHORT_PILL_BELOW ? "Open" : "Open in Parallel");
-
       if (isPhoneWidth(frame)) {
-        for (const [name, locator, round] of [["Previous quote", previous, true], ["Next quote", next, true], ["Open in Parallel", open, false]] as const) {
+        for (const [name, locator] of [["Previous quote", previous], ["Next quote", next]] as const) {
           const target = await touchTarget(locator);
           expect(target.height, `${name} is at least 32px tall`).toBeGreaterThanOrEqual(32 - 0.5);
-          if (round) expect(target.width, `${name} is at least 32px wide`).toBeGreaterThanOrEqual(32 - 0.5);
+          expect(target.width, `${name} is at least 32px wide`).toBeGreaterThanOrEqual(32 - 0.5);
           expect(target.areaHeight, `${name}'s hit area is about 44px tall`).toBeGreaterThanOrEqual(43);
           expect(target.areaWidth, `${name}'s hit area is wider than the button`).toBeGreaterThan(target.width);
         }

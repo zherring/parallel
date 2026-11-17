@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { Portrait } from "@/components/portrait";
 import { SidePanel, useSlideOut } from "@/components/side-panel/side-panel";
 import { Spinner } from "@/components/spinner";
+import { TreatedPortrait } from "@/components/treated-portrait";
 import { lifeLine, splitParagraphs } from "@/lib/biography";
 import { tmdbPersonUrl } from "@/lib/film-people";
 import { tmdbImage } from "@/lib/images";
@@ -53,18 +54,34 @@ export function PersonContent({
   titleId: string;
   peopleInView: PersonPanelProps["peopleInView"];
 }) {
-  const { person, roles } = entry;
+  const { person, roles, posters } = entry;
   const photo = tmdbImage(person.profilePath, "w342");
   const life = lifeLine(person);
   const paragraphs = useMemo(() => splitParagraphs(person.biography ?? ""), [person.biography]);
   // Their own timeline; nowhere new to go from the page that is already theirs alone.
   const onOwnPage = peopleInView.length === 1 && peopleInView[0].id === person.id;
   const soloHref = onOwnPage ? null : peopleHref([person]);
+  // The photo is cut out (see `TreatedPortrait`), in the person's colour: their slot on the page, the first one's for a person who is not on it (a film's
+  // cast). With no photo, the panel's picture is the plain `Portrait`.
+  const slot = Math.max(0, peopleInView.findIndex((p) => p.id === person.id));
 
   return (
     <>
       <div className="flex gap-4">
-        <Portrait src={photo} alt={`Photo of ${person.name}`} fallback={initials(person.name)} />
+        {person.profilePath ? (
+          <TreatedPortrait
+            personId={person.id}
+            slot={slot}
+            name={person.name}
+            profilePath={person.profilePath}
+            imageSize="w342"
+            posterSize="w154"
+            filmPosters={posters}
+            className="aspect-[2/3] w-28 sm:w-32"
+          />
+        ) : (
+          <Portrait src={photo} alt={`Photo of ${person.name}`} fallback={initials(person.name)} />
+        )}
         <div className="min-w-0 flex-1">
           <h2 id={titleId} className="break-words text-xl font-semibold leading-tight text-strong">
             <a

@@ -1,4 +1,5 @@
 import { memo, type CSSProperties } from "react";
+import { usePersonPalette } from "@/components/person-palette";
 import { filmLabel } from "@/lib/film-label";
 import { tmdbImage } from "@/lib/images";
 import { placeholderFill } from "@/lib/poster-placeholder";
@@ -80,6 +81,10 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
   // One person made it: their colour rings the poster. Several people making a film that is not out yet: neutral.
   const ring = coloured && !shared && slots.length === 1 ? slots[0] : null;
   const ringColor = ring === null ? null : personColor(ring);
+  // On a pair's page (its palette), a film of one person has no ring or glow (its dots carry the colour), and a film made
+  // together a plain white ring instead of the green one. The placeholder fill keeps its colour.
+  const palette = usePersonPalette() !== null;
+  const drawnRing = palette ? null : ring;
 
   // The films several people made are as large as the viewport lets them be (`--collab-w`, see `depthSceneCss`): a size in CSS, 2:3, centred on `y` by the
   // transform (the poster's height is not known here), as the same markup serves every viewport. Every other poster is a fixed size, placed by its top edge.
@@ -162,13 +167,13 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
       >
         {/* The card the layered shadows hang from (globals.css). It stays where it is as it comes into focus: sharper and brighter, not lifted. */}
         <span data-poster-card data-collab={shared ? "" : undefined} className="relative block size-full">
-          {ring !== null && ringColor !== null && (
+          {drawnRing !== null && ringColor !== null && (
             <span
               aria-hidden
               className="absolute rounded-[5px]"
               style={{
                 inset: 0,
-                boxShadow: `0 0 18px 2px ${personGlow(ring)}`,
+                boxShadow: `0 0 18px 2px ${personGlow(drawnRing)}`,
                 opacity: "calc(0.3 + var(--focus) * 0.7)",
               }}
             />
@@ -181,10 +186,15 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
               "group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-focus",
             )}
             // The ring only: the glow and the shadows are under the card (globals.css), so a ring and a shadow never paint over each other.
-            // The fill is what shows until the image has arrived: the surface, tinted with the person's colour (green for a film made together).
+            // The fill is what shows until the image has arrived: the surface, tinted with the person's colour (green for a film made together; on a pair's page
+            // it is the plain surface, a dark grey, as the white ring does the marking).
             style={{
-              backgroundColor: placeholderFill(shared ? "var(--lit)" : ringColor),
-              ...(shared ? { boxShadow: "0 0 0 2px var(--lit)" } : ringColor !== null ? { boxShadow: `0 0 0 1.5px ${ringColor}` } : null),
+              backgroundColor: placeholderFill(shared ? (palette ? null : "var(--lit)") : ringColor),
+              ...(shared
+                ? { boxShadow: `0 0 0 2px ${palette ? "#fff" : "var(--lit)"}` }
+                : drawnRing !== null && ringColor !== null
+                  ? { boxShadow: `0 0 0 1.5px ${ringColor}` }
+                  : null),
             }}
           >
             {src ? (

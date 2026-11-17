@@ -23,6 +23,8 @@ export function personIdOf(target: PanelTarget | null): number | null {
 export interface PersonPanelEntry {
   person: PersonSummary;
   roles: string;
+  /** The posters of their own best-known films (`montagePosters`): the montage behind their portrait's tear, where they have no cut. */
+  posters?: readonly string[];
 }
 
 /**

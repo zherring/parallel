@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { QuoteEmbed } from "@/components/embed/quote-embed";
+import { montagePosters } from "@/lib/portrait-treatment";
 import { loadPeople } from "@/lib/people";
 import { embedPath, findQuoteIndex } from "@/lib/quote-embed";
 import { pairQuotes } from "@/lib/quote-embed-data";
@@ -17,8 +18,8 @@ type Props = { params: Promise<{ people: string; id: string }> };
 /**
  * The page X frames in a post for a link to one quote (`twitter:player` of `/p/<people>/q/<id>`): that quote, large, with the
  * pair's other quotes to step through, and no site header, footer or search (`SiteChrome`). It is sent with the CSP that lets
- * X frame it (`embedHeaders`, from `next.config.ts`), and uses no cookie. A quote the pair does not have is a 404, and a
- * spelling of the people other than the canonical one redirects to it, as on the pair page.
+ * X frame it (`embedHeaders`, from `next.config.ts`), and uses no cookie. A quote the pair does not have is a 404, and a spelling of the people other than
+ * the canonical one redirects to it, as on the pair page.
  */
 export default async function QuoteEmbedPage({ params }: Props) {
   const { people, id } = await params;
@@ -35,6 +36,7 @@ export default async function QuoteEmbedPage({ params }: Props) {
       quotes={quotes}
       start={start}
       variant="frame"
+      people={timelines.map(({ person, films }) => ({ id: person.id, name: person.name, profilePath: person.profilePath, posters: montagePosters(films) }))}
     />
   );
 }

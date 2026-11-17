@@ -57,9 +57,9 @@ export const ATTRIBUTION_FONT_SIZES = [28, 25, 22] as const;
 const ATTRIBUTION_CHAR_WIDTH = 0.55;
 
 /** The largest of `ATTRIBUTION_FONT_SIZES` at which `text` fits `ATTRIBUTION_WIDTH` on one line; the smallest when none does (the card then wraps it). */
-export function attributionFontSize(text: string): number {
+export function attributionFontSize(text: string, width: number = ATTRIBUTION_WIDTH): number {
   const length = Array.from(text).length;
-  for (const size of ATTRIBUTION_FONT_SIZES) if (length * size * ATTRIBUTION_CHAR_WIDTH <= ATTRIBUTION_WIDTH) return size;
+  for (const size of ATTRIBUTION_FONT_SIZES) if (length * size * ATTRIBUTION_CHAR_WIDTH <= width) return size;
   return ATTRIBUTION_FONT_SIZES[ATTRIBUTION_FONT_SIZES.length - 1];
 }
 
@@ -68,13 +68,16 @@ export interface QuoteCardType {
   lineHeight: number;
 }
 
-/** The largest size at which `text` fits the text column; the smallest size when none does. */
-export function quoteCardType(text: string): QuoteCardType {
-  for (const fontSize of QUOTE_FONT_SIZES) {
-    const height = quoteLineCount(text, fontSize) * fontSize * QUOTE_LINE_HEIGHT;
-    if (height <= QUOTE_TEXT_HEIGHT) return { fontSize, lineHeight: QUOTE_LINE_HEIGHT };
+/** The largest size at which `text` fits the text column (`box`, the card's own by default); the smallest size when none does. */
+export function quoteCardType(
+  text: string,
+  box: { width: number; height: number; sizes: readonly number[] } = { width: QUOTE_TEXT_WIDTH, height: QUOTE_TEXT_HEIGHT, sizes: QUOTE_FONT_SIZES },
+): QuoteCardType {
+  for (const fontSize of box.sizes) {
+    const height = quoteLineCount(text, fontSize, box.width) * fontSize * QUOTE_LINE_HEIGHT;
+    if (height <= box.height) return { fontSize, lineHeight: QUOTE_LINE_HEIGHT };
   }
-  return { fontSize: QUOTE_FONT_SIZES[QUOTE_FONT_SIZES.length - 1], lineHeight: QUOTE_LINE_HEIGHT };
+  return { fontSize: box.sizes[box.sizes.length - 1], lineHeight: QUOTE_LINE_HEIGHT };
 }
 
 /**

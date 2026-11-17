@@ -9,8 +9,5 @@
  */
 export const EMBED_INSET_PX = { top: 10, x: 14 } as const;
 
-/** The room under the quote embed's footer, below its last part (the picture, the attribution, the pill), in px at the least. */
-export const QUOTE_FOOTER_BOTTOM_PX = 12;
-
 /** The size of a person's round picture in the pair embed's bar (px): the pictures' pitch is never less than it, tucked together or not. */
 export const EMBED_AVATAR_PX = 22;

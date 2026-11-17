@@ -12,6 +12,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { usePersonPalette } from "@/components/person-palette";
 import {
   dateFraction,
   dragScrollLeft,
@@ -138,6 +139,7 @@ export function MinimapBar({
 }: MinimapBarProps) {
   // Parked (see MINIMAP_BRUSH_ENABLED): with no brush the bar is the plain scrollbar it was before the brush.
   const brush = MINIMAP_BRUSH_ENABLED ? brushProp : undefined;
+  const palette = usePersonPalette() !== null;
   const trackRef = useRef<HTMLDivElement>(null);
   const windowRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -643,7 +645,8 @@ export function MinimapBar({
                   className={cn("group absolute top-0 z-10 flex h-[62%] w-4 -translate-x-1/2 cursor-pointer items-center justify-center", MINIMAP_COLOR)}
                   style={{ left: `${fraction * 100}%` }}
                 >
-                  <span className="h-3.5 w-1 rounded-full bg-lit shadow-[0_0_8px_var(--lit-glow)] group-hover:h-4" />
+                  {/* On a pair's page (its palette) a film made together is a white node with no glow. */}
+                  <span className={cn("h-3.5 w-1 rounded-full group-hover:h-4", palette ? "bg-white" : "bg-lit shadow-[0_0_8px_var(--lit-glow)]")} />
                 </button>
               ))}
 

@@ -13,7 +13,8 @@ export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
   return (
     <section
       aria-labelledby="hero-heading"
-      className="relative overflow-x-clip bg-[radial-gradient(60%_70%_at_50%_0%,rgb(0_224_84/0.10),transparent_70%)] px-4 pb-10 pt-6 sm:pb-12 sm:pt-8"
+      // The pair's wash (`usePairWash`, in the collage) is this section's background once the collage is up.
+      className="relative overflow-x-clip px-4 pb-10 pt-6 sm:pb-12 sm:pt-8"
     >
       {/* Centered above the headline: two people, the films they share, on the timeline line. */}
       {fallback && (
