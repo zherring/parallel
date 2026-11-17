@@ -254,7 +254,7 @@ export interface PairOgImageInput {
 export async function renderPairOgImage({ timelines, period = null }: PairOgImageInput): Promise<ImageResponse> {
   const today = todayIso();
   const card = buildOgCard(timelines, today, period);
-  // A pair's colours are its landing ones (`portraitPersonHexes`); null for one person, and for three and four, whose colours are the palette's.
+  // A pair's colours are its landing ones, three's and four's the palette's (`portraitPersonHexes`); null for one person.
   const hexes = portraitPersonHexes(timelines.map(({ person }) => person.id));
   const pair = buildTreatedPair(card, timelines, today, period);
   if (pair) return renderTreatedPairOgImage({ timelines, card, pair, hexes });

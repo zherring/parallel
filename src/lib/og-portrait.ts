@@ -21,7 +21,7 @@ export interface OgTreatment {
 }
 
 /**
- * The treatment of the person in `slot` (their colour: `hexes`'s, a pair's landing colours (`portraitPersonHexes`), else the palette's), or null when they have no photo
+ * The treatment of the person in `slot` (their colour: `hexes`'s (`portraitPersonHexes`), else the palette's), or null when they have no photo
  * (initials). `filmPosters` (`montagePosters` of their films) is the montage behind their tear, when they have no cut.
  */
 export async function loadOgTreatment(

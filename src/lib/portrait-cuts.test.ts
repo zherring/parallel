@@ -44,14 +44,17 @@ describe("pairPortraitColors", () => {
 });
 
 describe("portraitPersonHexes", () => {
-  it("gives a pair its landing colours, by slot, and nothing to one person or three", () => {
+  it("gives a pair its landing colours, by slot, three or four people the app's palette (what their cards draw), and nothing to one person", () => {
     expect(portraitPersonHexes([5026, 7450])).toEqual(pairPortraitColors(5026, 7450));
     expect(portraitPersonHexes([7450, 5026])).toEqual(pairPortraitColors(7450, 5026));
     expect(portraitPersonHexes([5026])).toBeNull();
-    expect(portraitPersonHexes([1, 2, 3])).toBeNull();
+    // The same colours whoever the people are (a group's slot, not the person, picks it), and the same ones `personHex` gives with no override.
+    expect(portraitPersonHexes([380, 1032, 1037])).toEqual([personHex(0), personHex(1), personHex(2)]);
+    expect(portraitPersonHexes([1, 2, 3, 4])).toEqual([personHex(0), personHex(1), personHex(2), personHex(3)]);
+    expect(portraitPersonHexes([380, 1032, 1037])).toEqual(["#6f9bd1", "#d0a845", "#d27650"]);
   });
 
-  it("overrides the person custom properties and hexes only when given, so the page of one person, or three and more, is unchanged", () => {
+  it("overrides the person custom properties and hexes only when given, so the page of one person is unchanged", () => {
     const hexes = portraitPersonHexes([5026, 7450])!;
     expect(personColorCss(null)).toBe(personColorCss());
     expect(personHex(0, null)).toBe(personHex(0));
@@ -68,5 +71,6 @@ describe("portraitPersonHexes", () => {
     expect(personColorCss()).not.toContain("--row-flash");
     expect(personColorCss(null)).not.toContain("--row-flash");
     expect(personColorCss(portraitPersonHexes([5026, 7450])!)).toContain("--row-flash:#fff;");
+    expect(personColorCss(portraitPersonHexes([380, 1032, 1037])!)).toContain("--row-flash:#fff;");
   });
 });

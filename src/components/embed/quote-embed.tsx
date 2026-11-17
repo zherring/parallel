@@ -175,7 +175,7 @@ export function QuoteEmbed({ slug, pair, quotes, start, variant, people }: Quote
   const count = quotes.length;
   const current = quotes[index] ?? quotes[0];
   const framed = variant === "frame";
-  // The pair's landing colours (`portraitPersonHexes`), by slot, from the slug's ids, as the page and the quote's card do.
+  // The people's colours (`portraitPersonHexes`), by slot, from the slug's ids, as the page and the quote's card do.
   const paletteHexes = usePortraitPersonHexes(parsePeopleSlug(slug)?.ids ?? []);
 
   // The address follows the quote (no navigation, no reload), so that reopening or reloading the frame stays on it. It is set whenever the quote

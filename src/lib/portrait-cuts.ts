@@ -4,6 +4,7 @@
  */
 
 import { EXAMPLE_PAIRINGS } from "@/lib/examples";
+import { PERSON_COLORS } from "@/lib/person-colors";
 
 /**
  * The spike's first artists, each picked to stress the cut (see the spike's report). The contact sheet now shows every artist; this list
@@ -106,12 +107,14 @@ export function pairPortraitColors(firstId: number, secondId: number): [string, 
 }
 
 /**
- * The person colours of a page, by slot (the URL order): a pair's `pairPortraitColors`, so the pair page, its embeds and its preview cards match the
- * landing page. Null for one person or three and more, who keep `PERSON_COLORS` and, with them, the app's green for the films made together. From the
- * ids alone, so the server and the hydrating render agree.
+ * The person colours of a page, by slot (the URL order), or null for one person, whose films stay in the app's green. A pair's are `pairPortraitColors`, so the
+ * pair page, its embeds and its preview cards match the landing page; three or four people have the `PERSON_COLORS` (blue, amber, orange, rose), the colours their
+ * preview cards and embeds draw them in. Either way it is also the gate of the white "made together" (see `PersonPaletteProvider`). From the ids alone, so the
+ * server and the hydrating render agree.
  */
-export function portraitPersonHexes(personIds: readonly number[]): readonly [string, string] | null {
-  return personIds.length === 2 ? pairPortraitColors(personIds[0], personIds[1]) : null;
+export function portraitPersonHexes(personIds: readonly number[]): readonly string[] | null {
+  if (personIds.length === 2) return pairPortraitColors(personIds[0], personIds[1]);
+  return personIds.length >= 3 ? PERSON_COLORS.slice(0, personIds.length).map(({ hex }) => hex) : null;
 }
 
 /**

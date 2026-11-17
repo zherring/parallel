@@ -158,7 +158,7 @@ export function PairEmbed({ slug, timelines, today, card, count, treated = null 
   const timelineRef = useRef<TimelineHandle>(null);
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
-  // A pair takes the landing page's colours, as the page and its card do (`portraitPersonHexes`).
+  // The people's colours (`portraitPersonHexes`), as the page and its card have them.
   const paletteHexes = usePortraitPersonHexes(timelines.map((t) => t.person.id));
   const multi = timelines.length > 1;
   // Three or four people crowd the bar in a narrow frame (the panel X opens over a phone): there the wordmark gives way to the people (the way to the site is

@@ -67,7 +67,7 @@ export function PeopleView(props: Props) {
   // A different set of people is a different page: start over (zoom, selection, scroll, and the people staged while a panel was open).
   const key = props.timelines.map((t) => t.person.id).join("+");
   const people = useMemo(() => props.timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [props.timelines]);
-  // A pair takes the landing page's colours (`portraitPersonHexes`); one person, or three and more, keep the palette as it is (null).
+  // Two to four people take the page's colours (`portraitPersonHexes`: a pair, the landing page's); one person keeps the palette as it is (null).
   const paletteHexes = usePortraitPersonHexes(props.timelines.map((t) => t.person.id));
   return (
     <PersonPaletteProvider hexes={paletteHexes}>
