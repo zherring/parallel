@@ -27,6 +27,8 @@ export interface PillPerson {
   roles: string;
   /** Films of theirs in the scene. */
   filmCount: number;
+  /** The posters of their own best-known films (`montagePosters`): the montage behind their portrait's tear, where they have no cut. */
+  posters?: readonly string[];
   /** Their films are on the timeline (the eye); only meaningful where the pill has `onToggleVisible`. A person is shown unless this says false. */
   visible?: boolean;
 }

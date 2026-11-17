@@ -54,7 +54,7 @@ export function PersonContent({
   titleId: string;
   peopleInView: PersonPanelProps["peopleInView"];
 }) {
-  const { person, roles } = entry;
+  const { person, roles, posters } = entry;
   const photo = tmdbImage(person.profilePath, "w342");
   const life = lifeLine(person);
   const paragraphs = useMemo(() => splitParagraphs(person.biography ?? ""), [person.biography]);
@@ -76,6 +76,7 @@ export function PersonContent({
             profilePath={person.profilePath}
             imageSize="w342"
             posterSize="w154"
+            filmPosters={posters}
             className="aspect-[2/3] w-28 sm:w-32"
           />
         ) : (

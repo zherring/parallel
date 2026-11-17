@@ -1,13 +1,12 @@
 import type { ClippingsPerson, ClippingsVoice, VoicedClippings } from "./clippings";
-import { clippingVoices } from "./clippings-view";
+import { clippingVoices, type PageVoice } from "./clippings-view";
 import type { PairCritics } from "./critics";
-import type { PersonSummary } from "./types";
 
 /** Critics-only and reading-only pairs use the same page portraits and palette slots as artists' quotes. */
 export function quoteExhibitPeople(
   pair: VoicedClippings | null,
   critics: PairCritics | null,
-  page: readonly Pick<PersonSummary, "id" | "profilePath">[],
+  page: readonly PageVoice[],
 ): readonly [ClippingsVoice, ClippingsVoice] | null {
   return pair?.people ?? (critics ? clippingVoices(critics.people, page) : null);
 }

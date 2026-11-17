@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "next/experimental/testmode/playwright";
+import { test, expect, type Locator, type Page } from "next/experimental/testmode/playwright";
 import { PIXEL } from "./fixtures";
 import cuts from "../../src/lib/portrait-cuts.json";
 import { portraitPersonHexes } from "../../src/lib/portrait-cuts";
@@ -116,6 +116,51 @@ test.describe("a portrait whose photo cannot be loaded is the person's colour an
         expect(box.width).toBeCloseTo(panel.width, 0);
         expect(box.height).toBeCloseTo(panel.height, 0);
       }
+    }
+  });
+});
+
+/** The montage behind a portrait: the `src` of each poster, in the order of the cells. */
+const montageOf = (portrait: Locator) => portrait.locator("img").evaluateAll((images) => images.map((image) => image.getAttribute("src")));
+/** What the montage of `id` is: the nine best-known of their own films, as the embeds draw (`montagePosters`), at the card's poster size. */
+const ownMontage = (id: string, size: string) => Array.from({ length: 9 }, (_, index) => `https://image.tmdb.org/t/p/${size}${ownPoster(id, index)}`);
+
+test.describe("a portrait with no cut is torn over the montage of the person's own films, wherever the app draws it", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("in the pair hero and the person panel, for people with no cut at all", async ({ page }) => {
+    await page.goto(`${UNCUT}?view=timeline`);
+    for (const id of ["19303", "19302"]) {
+      const portrait = heroPortrait(page, id);
+      // A tear, not the flat colour: nine posters, the person's best-known films first.
+      await expect(portrait.locator("svg")).toHaveCount(1);
+      await expect.poll(() => montageOf(portrait)).toEqual(ownMontage(id, "w92"));
+    }
+
+    // The same person's panel, opened by their portrait, once the page is live (the gear's sheet opening is the proof).
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Settings", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "Settings", exact: true })).toBeHidden();
+    const bio = page.getByRole("dialog", { name: names["19302"], exact: true });
+    await page.locator("[data-hero-body]").getByRole("button", { name: `Details for ${names["19302"]}`, exact: true }).click();
+    await expect(bio).toBeVisible();
+    await expect.poll(() => montageOf(bio.locator("[data-treated-portrait]"))).toEqual(ownMontage("19302", "w154"));
+  });
+
+  test("in the Depth view's hero", async ({ page }) => {
+    await page.goto(`${UNCUT}?view=depth`);
+    for (const id of ["19303", "19302"]) {
+      await expect.poll(() => montageOf(heroPortrait(page, id))).toEqual(ownMontage(id, "w92"));
+    }
+  });
+
+  test("in the Quotes, for people whose photo is not the one they were cut from", async ({ page }) => {
+    // Anderson and Murray have Quotes, and a cut of a photo TMDB no longer has: their tear sits on the films the page has, not on the posters the cut file kept.
+    await page.goto(`${CHANGED}?view=clippings`);
+    await expect(deck(page)).toBeVisible();
+    for (const id of ["5655", "1532"]) {
+      await expect.poll(() => montageOf(quotesPortrait(page, id))).toEqual(ownMontage(id, "w185"));
     }
   });
 });

@@ -36,6 +36,7 @@ import { laneSummary } from "@/lib/lanes";
 import { outsidePeriodIds, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss, personSlots } from "@/lib/person-colors";
 import { postersLeftOut } from "@/lib/poster-cap";
+import { montagePosters } from "@/lib/portrait-treatment";
 import type { ShareInput } from "@/lib/share";
 import { sharedFilms, type PairShared } from "@/lib/shared";
 import { filmIdOf, openFilm, openPerson, personIdOf, type PanelTarget } from "@/lib/side-panel";
@@ -126,16 +127,19 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
     () => depthLayout(entries, people.length, today, { minorIds, pad: DEPTH.pad + HERO_ROOM_PX }),
     [entries, people.length, today, minorIds],
   );
+  // The posters of each person's own best-known films, all of them (not the ones the settings leave in the scene), as the embeds' are (`montagePosters`): the montage behind a portrait that has no cut.
+  const posters = useMemo(() => timelines.map(({ films }) => montagePosters(films)), [timelines]);
   // The people pill's rows. Adding and removing people stays in the Depth view (see `PeopleStagingProvider`).
   const pillPeople = useMemo(
     () =>
-      lanes.map(({ person, films }): PillPerson => ({
+      lanes.map(({ person, films }, index): PillPerson => ({
         person,
         slot: slots.get(person.id) ?? 0,
         roles: laneSummary(films, person, includeMinor).roles,
         filmCount: films.length,
+        posters: posters[index],
       })),
-    [lanes, slots, includeMinor],
+    [lanes, slots, includeMinor, posters],
   );
   const railFilms = useMemo(() => combinedMinimapFilms(entries, today), [entries, today]);
 
@@ -215,7 +219,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
   }, []);
 
   // The people pill's rows and the hero's names open the person panel, with the roles the pill gives them.
-  const personEntries = useMemo(() => pillPeople.map(({ person, roles }) => ({ person, roles })), [pillPeople]);
+  const personEntries = useMemo(() => pillPeople.map(({ person, roles, posters }) => ({ person, roles, posters })), [pillPeople]);
 
   // The shell hands focus back to the opener itself (see SidePanel); this only closes.
   const handleClose = useCallback(() => setPanel(null), []);

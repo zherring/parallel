@@ -93,6 +93,7 @@ function Portrait({ person, speaking, quiet }: { person: ClippingsVoice; speakin
             profilePath={person.profilePath}
             imageSize="w780"
             posterSize="w185"
+            filmPosters={person.posters}
             rounded={false}
             className="h-full w-full"
           />

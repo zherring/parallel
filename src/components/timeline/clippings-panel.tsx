@@ -27,7 +27,7 @@ interface ClippingsPanelProps {
 export function ClippingsPanel({ pair, critics, active, personPanel }: ClippingsPanelProps) {
   const searchParams = useSearchParams();
   const readingTitleId = useId();
-  const people = quoteExhibitPeople(pair, critics, personPanel?.entries.map((entry) => entry.person) ?? []);
+  const people = quoteExhibitPeople(pair, critics, personPanel?.entries.map(({ person, posters }) => ({ id: person.id, profilePath: person.profilePath, posters })) ?? []);
   const reading = critics?.reading ?? [];
   const entries = interleaveQuotes(pair?.clippings ?? [], critics?.critics ?? []);
 

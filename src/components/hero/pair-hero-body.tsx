@@ -94,7 +94,7 @@ export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, tog
       {/* Keep every line of the note beside the portrait stack, never wrapping underneath it. */}
       <div className="flex min-w-0 items-center gap-5 max-sm:items-start max-sm:gap-3.5">
         <ul className={cn("m-0 flex shrink-0 -space-x-5 list-none items-start p-1", people.length > 2 ? "max-sm:-space-x-8" : "max-sm:-space-x-4")}>
-          {people.map(({ person, slot }) => (
+          {people.map(({ person, slot, posters }) => (
             <li key={person.id} data-hero-portrait={person.id} className="relative inline-flex shrink-0 hover:z-10 focus-within:z-10">
               {/* The portrait opens the person's details, as the name does (and as the people pill's rows and the Quotes' names do). */}
               <PersonBio
@@ -108,6 +108,7 @@ export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, tog
                     name={person.name}
                     profilePath={person.profilePath}
                     ringColor={personColor(slot)}
+                    filmPosters={posters}
                     className="h-28 w-[4.75rem] max-sm:h-20 max-sm:w-14 max-sm:text-lg"
                   />
                 }
