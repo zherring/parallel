@@ -1,0 +1,77 @@
+{
+  "pair": ["Martin Scorsese", "Saul Bass"],
+  "tmdb_ids": [1032, 19460],
+  "clippings": [
+    {
+      "speaker": "Martin Scorsese",
+      "about": "Saul Bass",
+      "quote": "At the time I was having a problem putting in the word Goodfellas where I wanted it, because it was incorporated in the action. When he slams down the trunk and says “I want to be a gangster”, the lettering never seemed quite right. So I said, “The only man who can really work this out is a guy named Saul Bass.” He did – and then we kept him on to do Cape Fear.",
+      "film": "GoodFellas",
+      "said_year": 1994,
+      "publication": "Sight and Sound",
+      "via": "BFI",
+      "title": "Martin Scorsese on The Age of Innocence",
+      "date": "1994-02",
+      "url": "https://www.bfi.org.uk/sight-and-sound/interviews/martin-scorsese-age-innocence",
+      "context": "Ian Christie's interview with Scorsese on The Age of Innocence, recalling how he came to hire Bass.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Martin Scorsese",
+      "about": "Saul Bass",
+      "quote": "We just sent them a tape of the first 40 minutes that were edited. The opera sequence made it very clear in his mind what he wanted to do: opening on flowers and keeping text (which is from a book of etiquette of that period) superimposed over the images. And it was their idea to cut to the Faust overture.",
+      "film": "The Age of Innocence",
+      "said_year": 1994,
+      "publication": "Sight and Sound",
+      "via": "BFI",
+      "title": "Martin Scorsese on The Age of Innocence",
+      "date": "1994-02",
+      "url": "https://www.bfi.org.uk/sight-and-sound/interviews/martin-scorsese-age-innocence",
+      "context": "Asked how he worked with Saul and Elaine Bass on The Age of Innocence titles.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Martin Scorsese",
+      "about": "Saul Bass",
+      "quote": "Someone suggested Saul, and my reaction was: 'Do we dare?' … And so, when I showed him and Elaine [Bass' wife and design partner] Goodfellas, they understood what we were driving at right away: the speed, the flash, the sense of life soaring along and then jumping the tracks.",
+      "film": "GoodFellas",
+      "said_year": 2011,
+      "publication": "AnOther",
+      "via": null,
+      "title": "Martin Scorsese on Saul Bass",
+      "date": "2011-11-10",
+      "url": "https://www.anothermag.com/art-photography/1535/martin-scorsese-on-saul-bass",
+      "context": "Excerpt from Scorsese's foreword to Saul Bass: A Life in Film & Design (Laurence King, 2011).",
+      "secondhand": false
+    },
+    {
+      "speaker": "Saul Bass",
+      "about": "Martin Scorsese",
+      "quote": "It’s always a pleasure to work with Marty. We share the same vision, artistically. When it came to designing the titles, it struck me that we had to marry the speed of the picture - the film really flies by - with the brilliant way that Marty had used freeze-frame throughout the movie.",
+      "film": "GoodFellas",
+      "said_year": null,
+      "publication": "Hotdog",
+      "via": "As Luck Would Have It (Substack)",
+      "title": "The Making Of Goodfellas - An Oral History, Part Three",
+      "date": "2022-10-03",
+      "url": "https://richardluck.substack.com/p/the-making-of-goodfellas-an-oral-965",
+      "context": "Richard Luck's compiled oral history (a version first ran in Hotdog magazine); Bass died in 1996, so the line was said earlier and its original source is not named.",
+      "secondhand": true
+    },
+    {
+      "speaker": "Saul Bass",
+      "about": "Martin Scorsese",
+      "quote": "Were we interested in doing titles for Martin Scorsese? You bet your ass we were.",
+      "film": "GoodFellas",
+      "said_year": null,
+      "publication": "Art of the Title",
+      "via": null,
+      "title": "Goodfellas (1990)",
+      "date": "2011",
+      "url": "https://www.artofthetitle.com/title/goodfellas/",
+      "context": "Bass's response to Scorsese's approach, quoted in Pat Kirkham's book Saul Bass: A Life in Film and Design (2011), excerpted by Art of the Title.",
+      "secondhand": true
+    }
+  ],
+  "notes": "Bass direction is thin (he died in 1996) and both of his lines are secondhand; Fast Company foreword excerpt returned 403, and no open 1990s Bass interview on Scorsese turned up."
+}

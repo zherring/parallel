@@ -10365,5 +10365,467 @@
         "secondhand": false
       }
     ]
+  },
+  "1032+19460": {
+    "pair": [
+      "Martin Scorsese",
+      "Saul Bass"
+    ],
+    "tmdb_ids": [
+      1032,
+      19460
+    ],
+    "clippings": [
+      {
+        "id": "at-the-time-i-was-having",
+        "speaker": "Martin Scorsese",
+        "about": "Saul Bass",
+        "quote": "At the time I was having a problem putting in the word Goodfellas where I wanted it, because it was incorporated in the action. When he slams down the trunk and says ‘I want to be a gangster’, the lettering never seemed quite right. So I said, ‘The only man who can really work this out is a guy named Saul Bass.’ He did – and then we kept him on to do Cape Fear.",
+        "film": "GoodFellas",
+        "said_year": 1994,
+        "publication": "Sight and Sound",
+        "via": "BFI",
+        "title": "Martin Scorsese on The Age of Innocence",
+        "date": "1994-02",
+        "url": "https://www.bfi.org.uk/sight-and-sound/interviews/martin-scorsese-age-innocence",
+        "context": "Ian Christie's interview with Scorsese on The Age of Innocence, recalling how he came to hire Bass.",
+        "secondhand": false
+      },
+      {
+        "id": "we-just-sent-them-a-tape",
+        "speaker": "Martin Scorsese",
+        "about": "Saul Bass",
+        "quote": "We just sent them a tape of the first 40 minutes that were edited. The opera sequence made it very clear in his mind what he wanted to do: opening on flowers and keeping text (which is from a book of etiquette of that period) superimposed over the images. And it was their idea to cut to the Faust overture.",
+        "film": "The Age of Innocence",
+        "said_year": 1994,
+        "publication": "Sight and Sound",
+        "via": "BFI",
+        "title": "Martin Scorsese on The Age of Innocence",
+        "date": "1994-02",
+        "url": "https://www.bfi.org.uk/sight-and-sound/interviews/martin-scorsese-age-innocence",
+        "context": "Asked how he worked with Saul and Elaine Bass on The Age of Innocence titles.",
+        "secondhand": false
+      },
+      {
+        "id": "someone-suggested-saul-and-my-reaction",
+        "speaker": "Martin Scorsese",
+        "about": "Saul Bass",
+        "quote": "Someone suggested Saul, and my reaction was: 'Do we dare?' … And so, when I showed him and Elaine [Bass' wife and design partner] Goodfellas, they understood what we were driving at right away: the speed, the flash, the sense of life soaring along and then jumping the tracks.",
+        "film": "GoodFellas",
+        "said_year": 2011,
+        "publication": "AnOther",
+        "via": null,
+        "title": "Martin Scorsese on Saul Bass",
+        "date": "2011-11-10",
+        "url": "https://www.anothermag.com/art-photography/1535/martin-scorsese-on-saul-bass",
+        "context": "Excerpt from Scorsese's foreword to Saul Bass: A Life in Film & Design (Laurence King, 2011).",
+        "secondhand": false
+      },
+      {
+        "id": "its-always-a-pleasure-to-work",
+        "speaker": "Saul Bass",
+        "about": "Martin Scorsese",
+        "quote": "It’s always a pleasure to work with Marty. We share the same vision, artistically. When it came to designing the titles, it struck me that we had to marry the speed of the picture - the film really flies by - with the brilliant way that Marty had used freeze-frame throughout the movie.",
+        "film": "GoodFellas",
+        "said_year": null,
+        "publication": "Hotdog",
+        "via": "As Luck Would Have It (Substack)",
+        "title": "The Making Of Goodfellas - An Oral History, Part Three",
+        "date": "2022-10-03",
+        "url": "https://richardluck.substack.com/p/the-making-of-goodfellas-an-oral-965",
+        "context": "Richard Luck's compiled oral history (a version first ran in Hotdog magazine); Bass died in 1996, so the line was said earlier and its original source is not named.",
+        "secondhand": true
+      },
+      {
+        "id": "were-we-interested-in-doing-titles",
+        "speaker": "Saul Bass",
+        "about": "Martin Scorsese",
+        "quote": "Were we interested in doing titles for Martin Scorsese? You bet your ass we were.",
+        "film": "GoodFellas",
+        "said_year": null,
+        "publication": "Art of the Title",
+        "via": null,
+        "title": "Goodfellas (1990)",
+        "date": "2011",
+        "url": "https://www.artofthetitle.com/title/goodfellas/",
+        "context": "Bass's response to Scorsese's approach, quoted in Pat Kirkham's book Saul Bass: A Life in Film and Design (2011), excerpted by Art of the Title.",
+        "secondhand": true
+      }
+    ]
+  },
+  "13776+19460": {
+    "pair": [
+      "John Frankenheimer",
+      "Saul Bass"
+    ],
+    "tmdb_ids": [
+      13776,
+      19460
+    ],
+    "clippings": [
+      {
+        "id": "tampering-with-humanity-in-that-way",
+        "speaker": "Saul Bass",
+        "about": "John Frankenheimer",
+        "quote": "Tampering with humanity in that way is pretty scary, so in the title we broke apart, distorted and reconstituted the human face to symbolically set the stage for what was to come.",
+        "film": "Seconds",
+        "said_year": null,
+        "publication": "Saul Bass: A Life in Film and Design",
+        "via": "Art of the Title",
+        "title": "Seconds (1966)",
+        "date": "2011",
+        "url": "https://www.artofthetitle.com/title/seconds/",
+        "context": "Bass explaining his and Elaine Bass's distorted-face titles for Frankenheimer's Seconds, as quoted in Pat Kirkham's book (excerpted by Art of the Title).",
+        "secondhand": true
+      },
+      {
+        "id": "on-grand-prix-i-took-the",
+        "speaker": "Saul Bass",
+        "about": "John Frankenheimer",
+        "quote": "On Grand Prix I took the multiple image …. and carried it down the line quite a way. I think it is terrific at expressing muchness, but I suspect it's not capable of expressing deep feeling or contemplative...",
+        "film": "Grand Prix",
+        "said_year": null,
+        "publication": "Saul Bass: A Life in Film and Design",
+        "via": "Art of the Title",
+        "title": "Grand Prix (1966)",
+        "date": "2011",
+        "url": "https://www.artofthetitle.com/title/grand-prix/",
+        "context": "Asked a few years after 1966 about the split-screen montages he made for Frankenheimer's Grand Prix; quoted in Kirkham's book (p. 406), excerpted by Art of the Title, whose excerpt itself ends mid-sentence.",
+        "secondhand": true
+      }
+    ]
+  },
+  "40863+45400": {
+    "pair": [
+      "Joe Swanberg",
+      "Greta Gerwig"
+    ],
+    "tmdb_ids": [
+      40863,
+      45400
+    ],
+    "clippings": [
+      {
+        "id": "there-isnt-a-normal-dynamic-between",
+        "speaker": "Greta Gerwig",
+        "about": "Joe Swanberg",
+        "quote": "There isn’t a normal dynamic between us. Our entire relationship is based on work, and because of that, it’s sort of like we don’t know how to be any other way than completely intense and absorbed with one another. It’s never really been like, ‘Oh yeah, let’s just go grab coffee for an afternoon.’ It always ends up with, like, screaming accusations.",
+        "film": "Nights and Weekends",
+        "said_year": 2008,
+        "publication": "Vulture",
+        "via": null,
+        "title": "Mumblecore Muse Greta Gerwig on ‘Nights and Weekends’ and the Ugly Side of Movie Sex",
+        "date": "2008-10-10",
+        "url": "https://www.vulture.com/2008/10/mumblecore_muse_greta_gerwig_o.html",
+        "context": "Interview on the New York opening of Nights and Weekends, which the two co-wrote and co-directed.",
+        "secondhand": false
+      },
+      {
+        "id": "but-with-nights-and-weekends-and",
+        "speaker": "Greta Gerwig",
+        "about": "Joe Swanberg",
+        "quote": "But with Nights And Weekends and Hannah , the particular way that Joe [Swanberg] works, you can make the character who you want to make it. So those were the only two experiences that I really had free rein.",
+        "film": "Hannah Takes the Stairs",
+        "said_year": 2010,
+        "publication": "The A.V. Club",
+        "via": null,
+        "title": "Greta Gerwig",
+        "date": "2010-03-23",
+        "url": "https://www.avclub.com/greta-gerwig-1798219426",
+        "context": "Interview around Greenberg, contrasting scripted roles with her improvised work in Swanberg's films.",
+        "secondhand": false
+      },
+      {
+        "id": "on-hannah-i-really-relied-on",
+        "speaker": "Joe Swanberg",
+        "about": "Greta Gerwig",
+        "quote": "On ‘Hannah,’ I really relied on the actors to bring a lot of ideas and story elements to it, and as soon as I cast Greta (Gerwig), the movie changed to fit who Greta was and what she was going through at the time. Had it been a different actress, that movie would have been completely different.",
+        "film": "Hannah Takes the Stairs",
+        "said_year": 2008,
+        "publication": "Variety",
+        "via": null,
+        "title": "Interview with Joe Swanberg",
+        "date": "2008-03-06",
+        "url": "https://variety.com/2008/music/markets-festivals/interview-with-joe-swanberg-1117981936/",
+        "context": "Interview ahead of the SXSW premiere of Nights and Weekends.",
+        "secondhand": false
+      },
+      {
+        "id": "i-think-greta-gerwig-is-one",
+        "speaker": "Joe Swanberg",
+        "about": "Greta Gerwig",
+        "quote": "I think Greta [Gerwig] … is one of the most talented people working today. She’s got an amazing natural talent and also she’s been making movies for a few years now and is getting really good. We could talk about a scene where I wanted a certain kind of emotion from her and she could get there right away.",
+        "film": null,
+        "said_year": 2009,
+        "publication": "The Quietus",
+        "via": null,
+        "title": "Indie Auteur: A Conversation With Joe Swanberg, 'Mumblecore' Lynchpin",
+        "date": "2009-01-07",
+        "url": "https://thequietus.com/culture/film/hannah-takes-the-stairs/",
+        "context": "Interview ahead of UK screenings of Hannah Takes the Stairs and LOL at the ICA, on working with professional versus non-professional actors.",
+        "secondhand": false
+      },
+      {
+        "id": "i-started-thinking-of-it-more",
+        "speaker": "Joe Swanberg",
+        "about": "Greta Gerwig",
+        "quote": "I started thinking of it more like a filmmaker, like I did with Hannah Takes The Stairs . I fell into this mode where I was fascinated by her – giving her scenes and things to do. It’s addictive to watch her work because she’s so talented.",
+        "film": "Nights and Weekends",
+        "said_year": 2009,
+        "publication": "The Quietus",
+        "via": null,
+        "title": "Indie Auteur: A Conversation With Joe Swanberg, 'Mumblecore' Lynchpin",
+        "date": "2009-01-07",
+        "url": "https://thequietus.com/culture/film/hannah-takes-the-stairs/",
+        "context": "Asked why the second half of Nights and Weekends is told from the woman's perspective; a separate answer later in the same interview.",
+        "secondhand": false
+      }
+    ]
+  },
+  "45400+1075441": {
+    "pair": [
+      "Greta Gerwig",
+      "Sam Levy"
+    ],
+    "tmdb_ids": [
+      45400,
+      1075441
+    ],
+    "clippings": [
+      {
+        "id": "i-remember-just-asking-the-room",
+        "speaker": "Sam Levy",
+        "about": "Greta Gerwig",
+        "quote": "I remember just asking the room in passing, ‘Has anyone seen this video of this guy jumping from his capsule?’ And everyone just tuned out. Greta was the only one who said ‘Yes, I’ve seen that! It’s really amazing.’ And I thought to myself: ‘She gets it.’ We have a similar taste.",
+        "film": "Frances Ha",
+        "said_year": 2017,
+        "publication": "Vague Visages",
+        "via": null,
+        "title": "The Ideology of Kinko's: A Conversation with 'Lady Bird' Cinematographer Sam Levy",
+        "date": "2017-12-20",
+        "url": "https://vaguevisages.com/2017/12/20/ideology-kinkos-conversation-lady-bird-cinematographer-sam-levy/",
+        "context": "Levy recalls the first day he met Gerwig, at the start of prep for Frances Ha.",
+        "secondhand": false
+      },
+      {
+        "id": "greta-got-very-excited-when-we",
+        "speaker": "Sam Levy",
+        "about": "Greta Gerwig",
+        "quote": "Greta got very excited when we framed it up, because she said, ‘It’s like they’re sitting down, and they’re about to watch the movie with us.’ One of the things I love about working with Greta is that she’s not afraid to embrace a certain level of theatricality. Meaning, what you see in front of the camera is very precisely blocked out.",
+        "film": "Lady Bird",
+        "said_year": 2017,
+        "publication": "Vague Visages",
+        "via": null,
+        "title": "The Ideology of Kinko's: A Conversation with 'Lady Bird' Cinematographer Sam Levy",
+        "date": "2017-12-20",
+        "url": "https://vaguevisages.com/2017/12/20/ideology-kinkos-conversation-lady-bird-cinematographer-sam-levy/",
+        "context": "On the 'proscenium' framing Gerwig wanted, seen in the film's second shot of Lady Bird and her mother on a hotel bed.",
+        "secondhand": false
+      },
+      {
+        "id": "she-was-her-own-dramaturge-while",
+        "speaker": "Sam Levy",
+        "about": "Greta Gerwig",
+        "quote": "She was her own dramaturge while we were shooting, in addition to having written all of this great dialogue. She just created a wonderful environment on the set. What was great as her collaborator — and we had worked together a number of times, so we had a great shorthand — was that I could be instrumental in the blocking conversation.",
+        "film": "Lady Bird",
+        "said_year": 2017,
+        "publication": "The Film Stage",
+        "via": null,
+        "title": "'Lady Bird' Cinematographer Sam Levy on Greta Gerwig, Frank Ocean, and Éric Rohmer",
+        "date": "2017-11-01",
+        "url": "https://thefilmstage.com/lady-bird-cinematographer-sam-levy-on-greta-gerwig-frank-ocean-and-eric-rohmer/",
+        "context": "Levy on Gerwig directing the Lady Bird cast and his part in the blocking.",
+        "secondhand": false
+      },
+      {
+        "id": "one-thing-i-can-say-for",
+        "speaker": "Greta Gerwig",
+        "about": "Sam Levy",
+        "quote": "One thing I can say for certain is 'always hire people who are smarter than you are.' That quote came from the late, great cinematographer Harris Savides, by way of my director of photography, Sam Levy.",
+        "film": "Lady Bird",
+        "said_year": 2018,
+        "publication": "Female.com.au",
+        "via": null,
+        "title": "Greta Gerwig Lady Bird Interview",
+        "date": "2018-02",
+        "url": "https://www.female.com.au/greta-gerwig-lady-bird-interview.htm",
+        "context": "Asked what she learned directing her first solo film; published around the film's Australian release.",
+        "secondhand": false
+      },
+      {
+        "id": "sam-and-i-have-worked-together",
+        "speaker": "Greta Gerwig",
+        "about": "Sam Levy",
+        "quote": "Sam and I have worked together on Mistress America and Frances Ha, and I love his eye. We started talking about the film, probably a year before we started pre-production. Because we both live in New York, we’d get together and look at movies and photographs and paintings, and we spent hours storyboarding and setting the look and creating a shared visual language.",
+        "film": "Lady Bird",
+        "said_year": 2017,
+        "publication": "Script Magazine",
+        "via": null,
+        "title": "INTERVIEW: Greta Gerwig, Writer and Director of Lady Bird",
+        "date": "2017-11-27",
+        "url": "https://scriptmag.com/features/interview-greta-gerwig-writer-director-lady-bird",
+        "context": "Asked whether she worked closely with Levy to design all of Lady Bird's shots.",
+        "secondhand": false
+      },
+      {
+        "id": "i-didnt-want-the-film-to",
+        "speaker": "Greta Gerwig",
+        "about": "Sam Levy",
+        "quote": "I didn’t want [the film] to be intravenous, I wanted to sense the proscenium, to sense the frame, that it was this magic lightbox. We had all this time, because Sam and I both live in New York and we’re friends. I asked him to do this a year before we were in prep, so we had time to shot list, talk, and go to the movies and look at photography and look at paintings and talk about the philosophy of shooting.",
+        "film": "Lady Bird",
+        "said_year": 2017,
+        "publication": "IndieWire",
+        "via": null,
+        "title": "How Greta Gerwig's Brilliant Use of Colors Turned 'Lady Bird' Into an Emotional Nostalgia Trip",
+        "date": "2017-12-13",
+        "url": "https://www.indiewire.com/awards/industry/lady-bird-greta-gerwig-color-sam-levy-1201907175/",
+        "context": "Joint IndieWire interview with Gerwig, Levy and colorist Alex Bickel on Lady Bird's look.",
+        "secondhand": false
+      }
+    ]
+  },
+  "5656+45400": {
+    "pair": [
+      "Noah Baumbach",
+      "Greta Gerwig"
+    ],
+    "tmdb_ids": [
+      5656,
+      45400
+    ],
+    "clippings": [
+      {
+        "id": "we-kind-of-just-felt-very",
+        "speaker": "Noah Baumbach",
+        "about": "Greta Gerwig",
+        "quote": "We kind of just felt very in sync in writing it, to the point that we would even divvy up scenes and write them separately and then we’d send them back and forth and rework them together. But there was no danger in that because everything felt of the same piece — and I don’t know why that is except that we connected very strongly about the material and the character.",
+        "film": "Frances Ha",
+        "said_year": 2013,
+        "publication": "Flavorwire",
+        "via": null,
+        "title": "Flavorwire Interview: Greta Gerwig and Noah Baumbach on Creating ‘Frances Ha’ Together",
+        "date": "2013-05-16",
+        "url": "https://www.flavorwire.com/391777/flavorwire-interview-greta-gerwig-and-noah-baumbach-on-creating-frances-ha-together",
+        "context": "Joint interview on the release of Frances Ha, their first co-written script.",
+        "secondhand": false
+      },
+      {
+        "id": "and-im-so-happy-we-got",
+        "speaker": "Greta Gerwig",
+        "about": "Noah Baumbach",
+        "quote": "And I’m so happy we got to do it together, because it felt like a really natural collaboration and I didn’t feel like either one of our voices was compromised in it. You know, though he’s clearly the more accomplished of the two writers, he was never like, ‘Which one of us have an Academy Award nomination and which one of us doesn’t?!’ Although he could have said that.",
+        "film": "Frances Ha",
+        "said_year": 2013,
+        "publication": "Flavorwire",
+        "via": null,
+        "title": "Flavorwire Interview: Greta Gerwig and Noah Baumbach on Creating ‘Frances Ha’ Together",
+        "date": "2013-05-16",
+        "url": "https://www.flavorwire.com/391777/flavorwire-interview-greta-gerwig-and-noah-baumbach-on-creating-frances-ha-together",
+        "context": "Same Frances Ha interview, on co-writing with Baumbach after years of improvised films.",
+        "secondhand": false
+      },
+      {
+        "id": "one-thing-i-learned-from-my",
+        "speaker": "Greta Gerwig",
+        "about": "Noah Baumbach",
+        "quote": "One thing I learned from my experience writing scripts with Noah Baumbach for two movies, is that he’s relentless about trying to get it right on the page, because you only answer to yourself during that period of time, so you can really make it as perfect as possible.",
+        "film": "Lady Bird",
+        "said_year": 2017,
+        "publication": "Script Magazine",
+        "via": null,
+        "title": "INTERVIEW: Greta Gerwig, Writer and Director of Lady Bird",
+        "date": "2017-11-27",
+        "url": "https://scriptmag.com/features/interview-greta-gerwig-writer-director-lady-bird",
+        "context": "Interview about her solo directing debut, explaining why she nails the script before shooting.",
+        "secondhand": false
+      },
+      {
+        "id": "then-it-was-the-most-fun",
+        "speaker": "Noah Baumbach",
+        "about": "Greta Gerwig",
+        "quote": "Then it was the most fun I think either of us have ever had, right? And then at a certain point, I was like, ‘I think this is the best thing we’ve ever written.’ I know enough always just to follow what Greta says, so even in my bellyaching and revolting, I kind of knew, ‘Well if she really believes it, then there’s something there.’",
+        "film": "Barbie",
+        "said_year": 2023,
+        "publication": "Variety",
+        "via": null,
+        "title": "‘Barbie’ Co-Writer Noah Baumbach Initially Thought Film Was a ‘Terrible Idea,’ but Greta Gerwig ‘Signed Me Up’: ‘You’ve Gotta Get Us Out of This’",
+        "date": "2023-10-30",
+        "url": "https://variety.com/2023/film/news/barbie-noah-baumbach-greta-gerwig-terrible-idea-1235772481/",
+        "context": "WGA West Q&A moderated by Judd Apatow, Baumbach's first in-depth talk about Barbie after the strike.",
+        "secondhand": false
+      },
+      {
+        "id": "greta-will-go-into-some-monologue",
+        "speaker": "Noah Baumbach",
+        "about": "Greta Gerwig",
+        "quote": "Greta will go into some monologue mode, it's kind of almost physical. Like, she goes in and she just like-- and kind of like, (laugh) doing a thing and, like, you know, it's like Joe Cocker or something. (laugh) it's like -and then, she hands it over. And-- and it's great.",
+        "film": "Barbie",
+        "said_year": 2023,
+        "publication": "60 Minutes",
+        "via": "CBS News",
+        "title": "\"Barbie\" filmmaker Greta Gerwig says she \"still can't believe anybody let me do this\"",
+        "date": "2023-12-03",
+        "url": "https://www.cbsnews.com/news/barbie-filmmaker-greta-gerwig-60-minutes-transcript/",
+        "context": "60 Minutes transcript; Baumbach describing how Gerwig writes the soul-baring monologues in her films.",
+        "secondhand": false
+      },
+      {
+        "id": "we-hadnt-written-together-in-a",
+        "speaker": "Greta Gerwig",
+        "about": "Noah Baumbach",
+        "quote": "We hadn’t written together in a long time. Even when we’re not credited on each other’s stuff, we’re always looking at everything and giving feedback and talking all the time. But we hadn’t actually sat down and written something together. And in my heart, I felt, ‘It’s so fun to write together.’",
+        "film": "Barbie",
+        "said_year": 2023,
+        "publication": "IndieWire",
+        "via": null,
+        "title": "Greta Gerwig Explains the Exhilarating Freedom of Imagining Her Hit ‘Barbie’",
+        "date": "2023-12-05",
+        "url": "https://www.indiewire.com/features/interviews/greta-gerwig-freedom-indiewire-honors-interview-1234931987/",
+        "context": "IndieWire Honors interview on why she signed Baumbach up to co-write Barbie.",
+        "secondhand": false
+      }
+    ]
+  },
+  "834+19460": {
+    "pair": [
+      "Otto Preminger",
+      "Saul Bass"
+    ],
+    "tmdb_ids": [
+      834,
+      19460
+    ],
+    "clippings": [
+      {
+        "id": "i-happened-to-be-working-on",
+        "speaker": "Saul Bass",
+        "about": "Otto Preminger",
+        "quote": "I happened to be working on the symbols for Otto Preminger’s Carmen Jones and The Man With The Golden Arm and at some point, Otto and I just looked at each other and said, ‘Why not make it move?’ It was as simple as that.",
+        "film": "The Man with the Golden Arm",
+        "said_year": 1977,
+        "publication": "kottke.org",
+        "via": null,
+        "title": "Saul Bass on his approach to designing movie title sequences",
+        "date": "2015-10-26",
+        "url": "https://kottke.org/15/10/saul-bass-on-his-approach-to-designing-movie-title-sequences",
+        "context": "Excerpt from a 1977 interview of Bass by Herbert Yager, reproduced by Jason Kottke; Bass on how his moving title sequences began with Preminger.",
+        "secondhand": true
+      },
+      {
+        "id": "w-hen-otto-learned-that-his",
+        "speaker": "Saul Bass",
+        "about": "Otto Preminger",
+        "quote": "[w]hen Otto learned that his The Man with the Golden Arm was opening over closed drapes he made sure that there was a note attached to every print instructing the projectionist not to run the first reel until the curtains had been drawn back.",
+        "film": "The Man with the Golden Arm",
+        "said_year": null,
+        "publication": "NECSUS",
+        "via": null,
+        "title": "From Saul Bass to participatory culture: Opening title sequences in contemporary television series",
+        "date": "2016-07-11",
+        "url": "https://necsus-ejms.org/saul-bass-participatory-culture-opening-title-sequences-contemporary-tv-series/",
+        "context": "Valentina Re quotes Bass's recollection as cited from Pat Kirkham (1994, p. 16), on Preminger protecting the 1955 title sequence.",
+        "secondhand": true
+      }
+    ]
   }
 }

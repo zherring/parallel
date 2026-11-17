@@ -1,0 +1,35 @@
+{
+  "pair": ["Otto Preminger", "Saul Bass"],
+  "tmdb_ids": [834, 19460],
+  "clippings": [
+    {
+      "speaker": "Saul Bass",
+      "about": "Otto Preminger",
+      "quote": "I happened to be working on the symbols for Otto Preminger’s Carmen Jones and The Man With The Golden Arm and at some point, Otto and I just looked at each other and said, “Why not make it move?” It was as simple as that.",
+      "film": "The Man with the Golden Arm",
+      "said_year": 1977,
+      "publication": "kottke.org",
+      "via": null,
+      "title": "Saul Bass on his approach to designing movie title sequences",
+      "date": "2015-10-26",
+      "url": "https://kottke.org/15/10/saul-bass-on-his-approach-to-designing-movie-title-sequences",
+      "context": "Excerpt from a 1977 interview of Bass by Herbert Yager, reproduced by Jason Kottke; Bass on how his moving title sequences began with Preminger.",
+      "secondhand": true
+    },
+    {
+      "speaker": "Saul Bass",
+      "about": "Otto Preminger",
+      "quote": "[w]hen Otto learned that his The Man with the Golden Arm was opening over closed drapes he made sure that there was a note attached to every print instructing the projectionist not to run the first reel until the curtains had been drawn back.",
+      "film": "The Man with the Golden Arm",
+      "said_year": null,
+      "publication": "NECSUS",
+      "via": null,
+      "title": "From Saul Bass to participatory culture: Opening title sequences in contemporary television series",
+      "date": "2016-07-11",
+      "url": "https://necsus-ejms.org/saul-bass-participatory-culture-opening-title-sequences-contemporary-tv-series/",
+      "context": "Valentina Re quotes Bass's recollection as cited from Pat Kirkham (1994, p. 16), on Preminger protecting the 1955 title sequence.",
+      "secondhand": true
+    }
+  ],
+  "notes": "Very thin: no fetchable Preminger quote about Bass found (Ebert's 'Ottobiography' interview with a Bass anecdote and the Medium copy of the Yager interview both returned 403; Haskin's Film Quarterly interview is JSTOR-only). The 'jumped off the roof for Otto' line appears only on IMDb, unsourced, so it was skipped."
+}
