@@ -57,6 +57,9 @@ export function ClippingsPanel({ pair, critics, active, personPanel }: Clippings
       speakerId: side === null || !people ? null : people[side].id,
       quote: item.quote,
       contextChars: context.length,
+      // What the source line prints (see `PullQuote`): film, publication, year, "via", and the translation's note, with their separators.
+      sourceChars: (clipping?.film ? clipping.film.length + 3 : 0) + item.publication.length + (year === null ? 0 : 7) + 3
+        + (item.via ? item.via.length + 7 : 0) + (translated && original ? translated.length + 3 : 0),
       speaker,
       publication: item.publication,
       year,

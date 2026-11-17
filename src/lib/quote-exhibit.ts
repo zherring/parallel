@@ -25,6 +25,52 @@ export function nextExhibitIndex(index: number, count: number, direction: 1 | -1
   return count > 0 ? ((index + direction) % count + count) % count : 0;
 }
 
+/**
+ * Newsreader's advance widths in em by kind of character, fitted to the face over every quote and rounded up: the width of any
+ * quote comes out within about 7% of the real one (a capital is half as wide again as a lowercase letter, so a line of capitals
+ * is not set like a line of prose).
+ */
+const QUOTE_EM = { lower: 0.45, upper: 0.68, digit: 0.62, space: 0.31, other: 0.22 } as const;
+
+/** How wide `text` is on one line, in em of the quote's face. */
+export function quoteEm(text: string): number {
+  let width = 0;
+  for (const char of text) {
+    width += /\p{Ll}/u.test(char) ? QUOTE_EM.lower
+      : /\p{Lu}/u.test(char) ? QUOTE_EM.upper
+      : /\p{N}/u.test(char) ? QUOTE_EM.digit
+      : /\s/u.test(char) ? QUOTE_EM.space
+      : QUOTE_EM.other;
+  }
+  return width;
+}
+
+/** A word the browser will not break: the text between spaces, dashes, and hyphens before a letter. */
+const UNBREAKABLE_BREAKS = /[\s\u2013\u2014]+|-(?=\p{L})/u;
+
+/** What a quote's type is fitted from (see `.quote-exhibit-words`): lengths of its text, none of them measured in a browser. */
+export interface QuoteFit {
+  /** The quote with its marks, on one line, in em. */
+  em: number;
+  /** Its longest word, in em. */
+  word: number;
+  /** The line under it, in characters. */
+  context: number;
+  /** The source line under that, in characters. */
+  source: number;
+}
+
+export function quoteFit(quote: string, contextChars = 0, sourceChars = 0): QuoteFit {
+  const marked = `\u201C${quote}\u201D`;
+  const hundredths = (value: number) => Math.round(value * 100) / 100;
+  return {
+    em: hundredths(quoteEm(marked)),
+    word: hundredths(Math.max(0, ...marked.split(UNBREAKABLE_BREAKS).map(quoteEm))),
+    context: contextChars,
+    source: sourceChars,
+  };
+}
+
 /** Whether a focused text pane still has room to scroll in the direction of Space / Shift+Space. */
 export function quotePaneCanScroll(pane: { scrollTop: number; scrollHeight: number; clientHeight: number }, backwards: boolean): boolean {
   return backwards ? pane.scrollTop > 1 : pane.scrollHeight - pane.clientHeight - pane.scrollTop > 1;

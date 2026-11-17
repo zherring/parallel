@@ -5,7 +5,12 @@ const SCORSESE = "/p/1032-martin-scorsese+3661-thelma-schoonmaker";
 const ANDERSON = "/p/5655-wes-anderson+1532-bill-murray";
 const FIRST = "i-want-to-thank-first-of";
 const SECOND = "money-didnt-mean-anything-to-me";
-const people: Record<string, string> = { "1032": "Martin Scorsese", "3661": "Thelma Schoonmaker", "5655": "Wes Anderson", "1532": "Bill Murray", "488": "Steven Spielberg", "491": "John Williams" };
+const people: Record<string, string> = {
+  "1032": "Martin Scorsese", "3661": "Thelma Schoonmaker", "5655": "Wes Anderson", "1532": "Bill Murray", "488": "Steven Spielberg", "491": "John Williams",
+  // The pairs of the quotes that set the extremes of the fit (see `FIT_EXTREMES`).
+  "4185": "Emmanuel Lubezki", "11218": "Alfonso Cuarón", "2372": "Guillermo del Toro", "10828": "Ron Perlman",
+  "3098": "Nino Rota", "4415": "Federico Fellini", "2710": "James Cameron", "10205": "Sigourney Weaver",
+};
 /** The people TMDB has no photo of: their portrait is their initials. */
 const NO_PHOTO = new Set(["491"]);
 
@@ -514,19 +519,19 @@ test("linked quotes keep their original order; history and resizing retain the a
   await expect(deck(page)).toHaveAttribute("data-active-quote", SECOND);
 });
 
-test("a long quote never scrolls inside its slide: its type steps down to fit, the focused text pane hands Space to the deck, and switching views removes and restores the exhibition cleanly", async ({ page }) => {
+test("a long quote needs no scroller inside its slide: its type is fitted to the plate, the focused text pane hands Space to the deck, and switching views removes and restores the exhibition cleanly", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.setViewportSize({ width: 320, height: 568 });
+  await page.setViewportSize({ width: 375, height: 667 });
   await openExhibit(page, `${ANDERSON}?view=clippings&quote=when-i-read-rushmore-i-figured`);
   const quote = active(page).locator(".quote-exhibit-plate");
-  // The deck is the only scroller: the plate has none (the quote's type falls with its length, `--quote-fit` in quote-exhibit.css), so nothing of it overflows the plate and the plate sits whole in its slide.
-  await expect(quote).toHaveCSS("overflow-y", "visible");
+  // The deck is the only scroller that scrolls: the plate is one only for a room smaller than a quote can be read in (see `the plate scrolls ...` below), and here has nothing to scroll,
+  // since the quote's type is fitted to the room it leaves (`.quote-exhibit-words` in quote-exhibit.css), so nothing of it overflows the plate and the plate sits whole in its slide.
   expect(await quote.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(1);
   const slide = (await active(page).boundingBox())!;
   const plate = (await quote.boundingBox())!;
   expect(plate.y).toBeGreaterThanOrEqual(slide.y);
   expect(plate.y + plate.height).toBeLessThanOrEqual(slide.y + slide.height);
-  // This quote (and its context) is past the 220 characters a short phone sets at full size (15px), so it is set smaller.
+  // This quote (and its lines) is more than a short phone has room for at full size (15px), so it is set smaller.
   expect(await active(page).locator(".quote-exhibit-words").evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))).toBeLessThan(15);
   const quoteId = await deck(page).getAttribute("data-active-quote");
   // Tab from the deck still reaches the named text pane; click focus is not stolen by the outer scroller either.
@@ -565,6 +570,121 @@ test("a long quote never scrolls inside its slide: its type steps down to fit, t
   expect(returnedId).toBeTruthy();
   await page.keyboard.press("Space");
   await expect(deck(page)).not.toHaveAttribute("data-active-quote", returnedId!);
+});
+
+/**
+ * The full size of a quote's type, which a quote with room is set at (the CSS's `--quote-size`, restated here so that the test checks it, not itself):
+ * clamp(1.375rem, 2.1vw, 2rem) and at most 4% of the height from 48rem wide; a phone's clamp(1.125rem, 4.5vw, 1.375rem); 15px on a short phone.
+ */
+function fullSize(width: number, height: number) {
+  if (width >= 768) return Math.min(Math.min(Math.max(22, 0.021 * width), 32), 0.04 * height);
+  return height < 768 ? 15 : Math.min(Math.max(18, 0.045 * width), 22);
+}
+
+/**
+ * The plate of the active quote against the room its stage leaves it: whether any of it is outside the room (clipped, by the slide, or over the portraits or
+ * the toolbar), whether it needs to scroll, and whether its end is reachable when it does.
+ */
+async function plateFit(page: Page) {
+  return active(page).locator(".quote-exhibit-plate").evaluate((plate) => {
+    const stage = plate.closest(".quote-exhibit-stage")!;
+    const stageStyle = getComputedStyle(stage);
+    const room = stage.getBoundingClientRect();
+    const plateStyle = getComputedStyle(plate);
+    const rect = plate.getBoundingClientRect();
+    // The plate's padding (4px, where a focus ring is drawn) is taken back by its negative margin: what it takes of the room is inside that.
+    const outside = {
+      top: room.top + parseFloat(stageStyle.paddingTop) - (rect.top - parseFloat(plateStyle.marginTop)),
+      bottom: rect.bottom + parseFloat(plateStyle.marginBottom) - (room.bottom - parseFloat(stageStyle.paddingBottom)),
+      left: room.left + parseFloat(stageStyle.paddingLeft) - (rect.left - parseFloat(plateStyle.marginLeft)),
+      right: rect.right + parseFloat(plateStyle.marginRight) - (room.right - parseFloat(stageStyle.paddingRight)),
+    };
+    const words = plate.querySelector<HTMLElement>(".quote-exhibit-words")!;
+    const scrollable = plate.scrollHeight - plate.clientHeight > 1;
+    let reachable = true;
+    if (scrollable) {
+      plate.scrollTop = plate.scrollHeight;
+      const source = plate.querySelector(".quote-exhibit-source")!.getBoundingClientRect();
+      reachable = source.bottom <= plate.getBoundingClientRect().bottom + 0.5;
+      plate.scrollTop = 0;
+    }
+    return {
+      fontSize: Number.parseFloat(getComputedStyle(words).fontSize),
+      outside: Math.max(outside.top, outside.bottom, outside.left, outside.right),
+      wordsOverflow: words.scrollWidth - words.clientWidth,
+      scrollable,
+      reachable,
+    };
+  });
+}
+
+/**
+ * The quotes that set the extremes of the fit, each with its pair: the longest quote of all (556 characters); the shortest (24); the longest context line (a
+ * secondhand translation, with its original: 600+ characters, and the longest source line to go with it); and the longest word (30 characters).
+ */
+const FIT_EXTREMES = [
+  { what: "the longest quote", path: "/p/4185-emmanuel-lubezki+11218-alfonso-cuaron", id: "chivo-sometimes-makes-these-comments-and", short: false },
+  { what: "the shortest quote", path: "/p/2372-guillermo-del-toro+10828-ron-perlman", id: "ron-was-born-for-hellboy", short: true },
+  { what: "the longest context", path: "/p/3098-nino-rota+4415-federico-fellini", id: "if-i-hadnt-managed-to-replace", short: false },
+  { what: "the longest word", path: "/p/2710-james-cameron+10205-sigourney-weaver", id: "i-was-petrified-of-you-i", short: false },
+];
+const FIT_VIEWPORTS = [[390, 844], [375, 667], [320, 568], [1280, 720], [1686, 815]] as const;
+
+for (const { what, path, id, short } of FIT_EXTREMES) {
+  test(`${what} fits its plate at every size: the plate is inside its room, nothing is clipped, and a quote with room keeps its full size`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await openExhibit(page, `${path}?view=clippings&quote=${id}`);
+    for (const [width, height] of FIT_VIEWPORTS) {
+      await page.setViewportSize({ width, height });
+      await expect(deck(page)).toHaveAttribute("data-active-quote", id);
+      // The deck puts the quote back in view after a resize (`ResizeObserver`); measure when it is.
+      await expectSnap(page, await active(page).evaluate((element) => Array.from(element.parentElement!.children).indexOf(element)));
+      const fit = await plateFit(page);
+      const label = `${what} at ${width}x${height}`;
+      // Nothing is outside the room, to the pixel, and no word runs out of its line.
+      expect(fit.outside, label).toBeLessThanOrEqual(0.5);
+      expect(fit.wordsOverflow, label).toBeLessThanOrEqual(1);
+      // The plate holds all it has, with nothing to scroll, wherever there is room to set the quote at a size it can be read in. Below that (a phone as small as
+      // a 320x568 one, or 375x667 with the longest context line: a room of 200 to 300px for the share button, the quote, its context and its source), the quote
+      // is set at the floor, 11px, and the plate scrolls, to the end of its source, instead of clipping any of it.
+      if (width < 400 && height < 700) {
+        if (fit.scrollable) {
+          expect(fit.fontSize, label).toBeCloseTo(11, 1);
+          expect(fit.reachable, label).toBe(true);
+        }
+      } else {
+        expect(fit.scrollable, label).toBe(false);
+      }
+      if (short) {
+        // A quote with room is at the full size it always had (at 320x568 the room, 200px, is one in which the fit still reserves a worst-case line count for its context and source).
+        if (width !== 320) expect(fit.fontSize, label).toBeCloseTo(fullSize(width, height), 1);
+      } else if (id === "chivo-sometimes-makes-these-comments-and") {
+        expect(fit.fontSize, label).toBeLessThan(fullSize(width, height));
+      }
+    }
+  });
+}
+
+test("a long context at the smallest sizes scrolls its plate rather than clip it, and Space reads on through the plate before it moves the deck", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 320, height: 568 });
+  const { path, id } = FIT_EXTREMES[2];
+  await openExhibit(page, `${path}?view=clippings&quote=${id}`);
+  const plate = active(page).locator(".quote-exhibit-plate");
+  const fit = await plateFit(page);
+  // The context, the source and the share button take more of 200px than any size of the quote leaves it room beside, so the quote is at its floor and the plate scrolls.
+  expect(fit.scrollable).toBe(true);
+  expect(fit.reachable).toBe(true);
+  expect(fit.fontSize).toBeCloseTo(11, 1);
+  await page.keyboard.press("Tab");
+  await expect(plate).toBeFocused();
+  await page.keyboard.press("Space");
+  await expect(deck(page)).toHaveAttribute("data-active-quote", id);
+  await expect.poll(() => plate.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  // At its end, Space is the deck's again.
+  await plate.evaluate((element) => element.scrollTo({ top: element.scrollHeight, behavior: "instant" }));
+  await page.keyboard.press("Space");
+  await expect(deck(page)).not.toHaveAttribute("data-active-quote", id);
 });
 
 test("critics treat the portraits equally, and a person TMDB has no photo of is their initials", async ({ page }) => {

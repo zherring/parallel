@@ -8,6 +8,7 @@ import type { ClippingsVoice } from "@/lib/clippings";
 import { tmdbImage } from "@/lib/images";
 import { initials } from "@/lib/person-labels";
 import { personColor } from "@/lib/person-colors";
+import type { QuoteFit } from "@/lib/quote-exhibit";
 import { cn } from "./cn";
 import "./quote-exhibit.css";
 
@@ -54,12 +55,14 @@ export function QuoteExhibit({ people, speakerId, children }: Props) {
 }
 
 /** Only quote content moves. Imagery and image attribution belong to the stationary pane. */
-export function QuoteExhibitSlide({ children, label, chars }: { children: ReactNode; label: string; chars?: number }) {
-  // A quote's length steps its type down (see `.quote-exhibit-words`), so that every quote fits its slide without a scroller of its own.
-  const fitted = chars !== undefined;
+export function QuoteExhibitSlide({ children, label, fit }: { children: ReactNode; label: string; fit?: QuoteFit }) {
+  // A quote's type is sized from the room its stage leaves it and from the length of its text (see `.quote-exhibit-words`), so that every quote fits its slide without a scroller of its own.
+  const style = fit
+    ? ({ "--quote-em": fit.em, "--quote-word": fit.word, "--quote-ctx": fit.context, "--quote-src": fit.source } as CSSProperties)
+    : undefined;
   return (
-    <div className="quote-exhibit-stage" style={fitted ? ({ "--quote-chars": Math.max(1, chars) } as CSSProperties) : undefined}>
-      <div className={cn("quote-exhibit-plate", fitted && "quote-exhibit-plate-fitted")} tabIndex={0} role="group" aria-label={label}>
+    <div className="quote-exhibit-stage" style={style}>
+      <div className={cn("quote-exhibit-plate", fit && "quote-exhibit-plate-fitted")} tabIndex={0} role="group" aria-label={label}>
         <div className="quote-exhibit-quote">{children}</div>
       </div>
     </div>
