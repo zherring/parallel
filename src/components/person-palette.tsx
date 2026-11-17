@@ -1,13 +1,13 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { usePortraitMode, type PortraitMode } from "@/components/use-portrait-mode";
 import { portraitPersonHexes } from "@/lib/portrait-cuts";
 
 /**
- * Spike (zherring/spike-portraits): the page's person colours by slot when the portrait flag is on (a pair's `pairPortraitColors`, as the landing
- * page gives them), for the places that need a hex rather than `var(--person-N)`: the treated portraits' edge, flat background and montage tint.
- * The custom properties themselves are overridden where they are written (`personColorCss`). Null, the default, is the app as it is.
+ * A pair page's person colours by slot (a pair's `pairPortraitColors`, as the landing page gives them), for the places that need a hex rather than
+ * `var(--person-N)`: the portraits' edge, flat background and montage tint. The custom properties themselves are overridden where they are written
+ * (`personColorCss`). It is also the gate of the white "made together": on a pair's page a film made together is white; null, for one person or three and
+ * more, keeps the app's green for it and the `PERSON_COLORS` for the people.
  */
 const PersonPaletteContext = createContext<readonly string[] | null>(null);
 
@@ -15,19 +15,14 @@ export function PersonPaletteProvider({ hexes, children }: { hexes: readonly str
   return <PersonPaletteContext.Provider value={hexes}>{children}</PersonPaletteContext.Provider>;
 }
 
-/** The page's override of the person colours (see `PersonPaletteProvider`); null without the flag. */
+/** The page's override of the person colours (see `PersonPaletteProvider`); null for one person, or three and more. */
 export function usePersonPalette(): readonly string[] | null {
   return useContext(PersonPaletteContext);
 }
 
-/**
- * The override for these people (in the URL order) when the portrait flag is on, else null. From the ids alone, so the server and the
- * hydrating render agree; a flag remembered by the tab (not in the address) applies after hydration, as `usePortraitMode` does.
- * `serverMode` is the server's own gate, as `usePortraitMode`'s.
- */
-export function usePortraitPersonHexes(personIds: readonly number[], serverMode: PortraitMode | null = null): readonly string[] | null {
-  const mode = usePortraitMode(serverMode);
+/** The override for these people (in the URL order): a pair's, else null. From the ids alone, so the server and the hydrating render agree. */
+export function usePortraitPersonHexes(personIds: readonly number[]): readonly string[] | null {
   const key = personIds.join("+");
   // Keyed by the ids, not the array's identity.
-  return useMemo(() => (mode ? portraitPersonHexes(key.split("+").map(Number)) : null), [mode, key]);
+  return useMemo(() => portraitPersonHexes(key.split("+").map(Number)), [key]);
 }

@@ -1,6 +1,6 @@
 /**
- * Spike (zherring/spike-portraits): what the cut-paper treatment needs that both the app's `TreatedPortrait` and the preview cards (`og-portrait.ts`)
- * use, with nothing of the browser in it: the shape (a cut, else a tear), the montage's posters, the duotone, and the cookie the flag sets for the cards.
+ * What the cut-paper treatment needs that both the app's `TreatedPortrait` and the preview cards (`og-portrait.ts`) use, with nothing of the browser in it:
+ * the shape (a cut, else a tear), the montage's posters and the duotone.
  */
 
 import cuts from "@/lib/portrait-cuts.json";
@@ -12,12 +12,6 @@ import type { Film } from "@/lib/types";
 const CUTS = cuts as unknown as PortraitCuts;
 /** The test set's posters (`npm run portraits:testset`), so a test artist's tear sits on their own montage. */
 const TEST_POSTERS = new Map((testset as PortraitTestArtist[]).map((artist) => [artist.id, artist.posters]));
-
-/**
- * The cookie `usePortraitMode` sets alongside its tab memory, so the preview cards (drawn on the server, which cannot read the URL flag) follow it.
- * Read only outside production (see `og-portrait.ts`); `PORTRAIT_TREATMENT=1` turns the cards' treatment on anywhere.
- */
-export const PORTRAIT_COOKIE = "spike-portrait";
 
 export interface TreatmentShape {
   points: readonly CutPoint[];
@@ -92,7 +86,7 @@ const HEAD_BAND = 0.3;
 const FACE_DROP = 0.85;
 
 /**
- * Spike: the crop of a tile of aspect `aspect` (width / height) on the head of `shape`, centred across on the points of the cut's top `HEAD_BAND` (the head,
+ * The crop of a tile of aspect `aspect` (width / height) on the head of `shape`, centred across on the points of the cut's top `HEAD_BAND` (the head,
  * not the shoulders), kept inside the photo. A tile no wider than `HEAD_CROP_FULL_WIDTH_ASPECT` takes `HEAD_CROP_WIDTH` of the photo's width, its top a
  * little above the cut's. A wider tile is cropped tight: the photo's whole width, whatever it is, and so a height of only the tile's shape, which is
  * centred down on the middle of the face (`FACE_DROP`): the crown and the chin are cut by the tile where they do not fit.
@@ -133,7 +127,7 @@ export interface TileView {
 }
 
 /**
- * Spike: what a tile of aspect `aspect` (width / height) draws of `shape`. A cut shows the head (`headCrop`). A tear is the strip across the whole tile:
+ * What a tile of aspect `aspect` (width / height) draws of `shape`. A cut shows the head (`headCrop`). A tear is the strip across the whole tile:
  * the photo's width fills the tile (a tile narrower than the photo is cropped across instead), the strip's middle (the eyes to the mouth, where the
  * tear's band is) on the tile's middle, so the strip runs edge to edge, centred, with the montage above and below it. A short tile (a group's) cannot
  * take the strip's thickness and its tilt: the tilt is eased (down to none) until the torn edges' extremes fit `TEAR_TILE_MAX_SHARE` of the tile's

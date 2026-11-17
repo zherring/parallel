@@ -6,7 +6,6 @@ import { Portrait } from "@/components/portrait";
 import { SidePanel, useSlideOut } from "@/components/side-panel/side-panel";
 import { Spinner } from "@/components/spinner";
 import { TreatedPortrait } from "@/components/treated-portrait";
-import { usePortraitMode } from "@/components/use-portrait-mode";
 import { lifeLine, splitParagraphs } from "@/lib/biography";
 import { tmdbPersonUrl } from "@/lib/film-people";
 import { tmdbImage } from "@/lib/images";
@@ -62,17 +61,15 @@ export function PersonContent({
   // Their own timeline; nowhere new to go from the page that is already theirs alone.
   const onOwnPage = peopleInView.length === 1 && peopleInView[0].id === person.id;
   const soloHref = onOwnPage ? null : peopleHref([person]);
-  // Spike: `?portrait=on|color` cuts the photo out (see `TreatedPortrait`), in the person's colour: their slot on the page, the first one's for a
-  // person who is not on it (a film's cast). Without the flag, or with no photo, the panel's picture is as it was.
-  const portraitMode = usePortraitMode();
+  // The photo is cut out (see `TreatedPortrait`), in the person's colour: their slot on the page, the first one's for a person who is not on it (a film's
+  // cast). With no photo, the panel's picture is the plain `Portrait`.
   const slot = Math.max(0, peopleInView.findIndex((p) => p.id === person.id));
 
   return (
     <>
       <div className="flex gap-4">
-        {portraitMode && person.profilePath ? (
+        {person.profilePath ? (
           <TreatedPortrait
-            mode={portraitMode}
             personId={person.id}
             slot={slot}
             name={person.name}

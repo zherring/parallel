@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import PairEmbedPage, { metadata } from "@/app/embed/p/[people]/page";
 import { PAIR_SLUG } from "@/lib/test-people";
 
@@ -15,15 +15,6 @@ vi.mock("next/navigation", async (importOriginal) => ({
   redirect: vi.fn((to: string) => {
     throw new Error(`${REDIRECTED}${to}`);
   }),
-}));
-
-// `next/headers`: the spike's cookie (`ogPortraitTreatment`), which is read only outside production and only without `PORTRAIT_TREATMENT=1`.
-const jar = vi.hoisted(() => ({ value: undefined as string | undefined, reads: 0 }));
-vi.mock("next/headers", () => ({
-  cookies: async () => {
-    jar.reads += 1;
-    return { get: (name: string) => (name === "spike-portrait" && jar.value ? { name, value: jar.value } : undefined) };
-  },
 }));
 
 const props = (slug: string) => ({ params: Promise.resolve({ people: slug }) });
@@ -57,38 +48,12 @@ describe("the pair embed page", () => {
     expect((await thrown(() => PairEmbedPage(props("3151+6837"))))?.message).toBe(`${REDIRECTED}/embed/p/${PAIR_SLUG}`);
   });
 
-  describe("the treatment its first frame opens on (`serverPortraitMode`, the gate the share image follows)", () => {
-    beforeEach(() => {
-      jar.value = undefined;
-      jar.reads = 0;
-    });
-    afterEach(() => vi.unstubAllEnvs());
-    const modeOf = async () => ((await PairEmbedPage(props(PAIR_SLUG))) as { props: { serverPortraitMode: unknown } }).props.serverPortraitMode;
-
-    it("is the montage when PORTRAIT_TREATMENT=1, without reading the cookie, in production too", async () => {
-      vi.stubEnv("PORTRAIT_TREATMENT", "1");
-      vi.stubEnv("NODE_ENV", "production");
-      expect(await modeOf()).toBe("montage");
-      expect(jar.reads).toBe(0);
-    });
-
-    it("is none without it, and in production the cookie is not read or heeded", async () => {
-      vi.stubEnv("PORTRAIT_TREATMENT", "");
-      vi.stubEnv("NODE_ENV", "production");
-      jar.value = "color";
-      expect(await modeOf()).toBeNull();
-      expect(jar.reads).toBe(0);
-    });
-
-    it("is the cookie's mode outside production (what /dev/x-preview sets), and none for a cookie that is no mode", async () => {
-      vi.stubEnv("PORTRAIT_TREATMENT", "");
-      jar.value = "color";
-      expect(await modeOf()).toBe("color");
-      jar.value = "nonsense";
-      expect(await modeOf()).toBeNull();
-      jar.value = undefined;
-      expect(await modeOf()).toBeNull();
-    });
+  it("hands the pair's treated card, which the first frame draws, and none for one person (the timeline's own card)", async () => {
+    const pair = (await PairEmbedPage(props(PAIR_SLUG))) as { props: { treated: { names: string; posters: unknown[] } | null } };
+    expect(pair.props.treated?.names).toBe("Jack Lemmon & Walter Matthau");
+    expect(pair.props.treated?.posters.length).toBeGreaterThan(0);
+    const solo = (await PairEmbedPage(props("3151-jack-lemmon"))) as { props: { treated: unknown } };
+    expect(solo.props.treated).toBeNull();
   });
 
   it("is not for search engines to index", () => {

@@ -112,7 +112,7 @@ interface FilmPopoverProps {
   id: string;
   target: PopoverTarget;
   content: FilmCardContent;
-  /** Shared by every lane: the poster gets the green outline and glow of a lit film (none with the pair's palette, the portrait flag: the poster has no outline). */
+  /** Shared by every lane: the poster gets the green outline and glow of a lit film (none on a pair's page, its palette: the poster has no outline). */
   lit: boolean;
   /** A person's colour on the timeline (a CSS colour), drawn as a ring round their avatar in the card; none on a one-person page. */
   colorOf?: (personId: number) => string | undefined;
@@ -161,7 +161,7 @@ function RoleText({ row }: { row: CreditsRow }) {
  */
 export function FilmPopover({ id, target, content, lit, colorOf, today, bottomEdge, onDismiss, embed = false }: FilmPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
-  // Spike: with the pair's palette (the portrait flag) a film made together has no ring or glow on its poster here, in the timeline's card and the Depth view's alike.
+  // On a pair's page (its palette) a film made together has no ring or glow on its poster here, in the timeline's card and the Depth view's alike.
   const palette = usePersonPalette() !== null;
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
   const side = useRef<{ trigger: HTMLElement; placement: Placement["placement"] } | null>(null);

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {
-  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -17,7 +16,6 @@ import {
 import { TimelineLine } from "@/components/landing/hero-timeline";
 import { PAIR_WASH_A, PAIR_WASH_B, PAIR_WASH_IMAGE, pairWashTransition, registerPairWash, useReducedMotion } from "@/components/pair-wash";
 import { TreatedPortrait } from "@/components/treated-portrait";
-import { usePortraitMode } from "@/components/use-portrait-mode";
 import { pairPortraitColors } from "@/lib/portrait-cuts";
 import { KeycapButton } from "@/components/landing/keycap-button";
 import { TIMING, arrive, depart, float, nod } from "@/components/landing/hero-motion";
@@ -81,9 +79,9 @@ interface Item {
   dir: Dir;
   /** The `seq` of the transition in which this person stays and nods; 0 for none. */
   nod: number;
-  /** Spike (zherring/spike-portraits): a portrait's person, for the cut-out treatment. */
+  /** A portrait's person, for the cut-out treatment. */
   person?: HeroPerson;
-  /** Spike: the person beside them in the current scene, for the pair's colours (`pairPortraitColors`); kept up to date while they stay. */
+  /** The person beside them in the current scene, for the pair's colours (`pairPortraitColors`); kept up to date while they stay. */
   partner?: HeroPerson;
 }
 
@@ -204,15 +202,13 @@ const sceneHref = (scene: Scene) =>
 const subscribeNever = () => () => {};
 
 /**
- * Spike (zherring/spike-portraits): behind the portrait flag the hero's green gives way to the pair's colours (`PAIR_WASH_IMAGE`), the left
- * person's from the section's top left and the right person's from its bottom right. All of it is set on the section here, and only with the
- * flag on: without it the section, its classes and its style are as the server sent them.
+ * The hero's wash is the pair's colours (`PAIR_WASH_IMAGE`), the left person's from the section's top left and the right person's from its bottom
+ * right. It is set on the section here, once the collage is up: the section itself has no background until then.
  */
-function usePairWash(root: RefObject<HTMLDivElement | null>, colors: readonly [string, string] | null, reduced: boolean) {
-  const on = colors !== null;
+function usePairWash(root: RefObject<HTMLDivElement | null>, colors: readonly [string, string], reduced: boolean) {
   useEffect(() => {
     const section = root.current?.closest("section");
-    if (!on || !section) return;
+    if (!section) return;
     registerPairWash();
     const { style } = section;
     style.backgroundImage = PAIR_WASH_IMAGE;
@@ -220,12 +216,12 @@ function usePairWash(root: RefObject<HTMLDivElement | null>, colors: readonly [s
     return () => {
       for (const property of ["background-image", "transition", PAIR_WASH_A, PAIR_WASH_B]) style.removeProperty(property);
     };
-  }, [root, on, reduced]);
+  }, [root, reduced]);
 
-  const [a, b] = colors ?? [];
+  const [a, b] = colors;
   useEffect(() => {
     const section = root.current?.closest("section");
-    if (!section || !a || !b) return;
+    if (!section) return;
     section.style.setProperty(PAIR_WASH_A, a);
     section.style.setProperty(PAIR_WASH_B, b);
   }, [root, a, b]);
@@ -327,17 +323,15 @@ function PersonPhoto({ item }: { item: Item }) {
 }
 
 /**
- * Spike (zherring/spike-portraits): behind `?portrait=on|color` the card's photo is cut out (`TreatedPortrait`, colour by person from the dev
- * grid's palette, `pairPortraitColors`) over the duotoned montage; the card keeps its own corners, shadow, ring and name. Without the flag it is the photo.
+ * The card's photo is cut out (`TreatedPortrait`, colour by person from the dev grid's palette, `pairPortraitColors`) over the duotoned montage; the
+ * card keeps its own corners, shadow, ring and name. A person with no photo is the plain `PersonPhoto`.
  */
 function PersonFace({ item, slot }: { item: Item; slot: number }) {
-  const mode = usePortraitMode();
   const person = item.person;
-  if (!mode || !person?.profilePath) return <PersonPhoto item={item} />;
+  if (!person?.profilePath) return <PersonPhoto item={item} />;
   const [color] = pairPortraitColors(person.id, item.partner?.id ?? person.id);
   return (
     <TreatedPortrait
-      mode={mode}
       personId={person.id}
       slot={slot}
       color={color}
@@ -351,16 +345,14 @@ function PersonFace({ item, slot }: { item: Item; slot: number }) {
   );
 }
 
-/** Spike: `whiteRing` (the portrait flag) turns the hover ring white instead of green, against the pair's own colours. */
-function PersonCard({ item, slot, tilt, flip, whiteRing = false }: { item: Item; slot: number; tilt: number; flip: boolean; whiteRing?: boolean }) {
+/** A person's card: the hover ring is white, against the pair's own colours. */
+function PersonCard({ item, slot, tilt, flip }: { item: Item; slot: number; tilt: number; flip: boolean }) {
   return (
     <figure
       className="absolute inset-0 m-0 overflow-hidden rounded-[18px] bg-surface shadow-[0_1px_1px_rgb(0_0_0/0.5),0_10px_20px_-6px_rgb(0_0_0/0.55),0_30px_50px_-14px_rgb(0_0_0/0.7)]"
       style={{ rotate: `${tilt}deg` }}
     >
-      <Suspense fallback={<PersonPhoto item={item} />}>
-        <PersonFace item={item} slot={slot} />
-      </Suspense>
+      <PersonFace item={item} slot={slot} />
       <span aria-hidden="true" className="absolute inset-0 bg-linear-to-t from-black/80 via-black/5 to-transparent" />
       <figcaption
         className={`absolute inset-x-3.5 bottom-3.5 text-[15px] font-semibold leading-tight tracking-[0.015em] text-white [text-shadow:0_1px_10px_rgb(0_0_0/0.6)] max-sm:hidden ${flip ? "text-right" : ""}`}
@@ -369,19 +361,19 @@ function PersonCard({ item, slot, tilt, flip, whiteRing = false }: { item: Item;
       </figcaption>
       <span
         aria-hidden="true"
-        className={`absolute inset-0 rounded-[18px] ring-1 ring-inset ring-white/15 transition-shadow duration-300 group-hover:ring-2 ${whiteRing ? "group-hover:ring-white/70" : "group-hover:ring-accent-green/70"} group-focus-visible:ring-2 group-focus-visible:ring-focus`}
+        className={`absolute inset-0 rounded-[18px] ring-1 ring-inset ring-white/15 transition-shadow duration-300 group-hover:ring-2 group-hover:ring-white/70 group-focus-visible:ring-2 group-focus-visible:ring-focus`}
       />
     </figure>
   );
 }
 
-/** Spike: with the portrait flag (`whiteHover`) a shared film has no ring or green glow at rest (its drop shadow stays) and a white ring on hover, as the portrait cards do. */
-function PosterCard({ item, whiteHover = false }: { item: Item; whiteHover?: boolean }) {
+/** A shared film has no ring or glow at rest (its drop shadow stays) and a white ring on hover, as the portrait cards do. */
+function PosterCard({ item }: { item: Item }) {
   const { dx, dy, tilt } = item.place;
   return (
     <div
       title={item.text}
-      className={`absolute inset-0 overflow-hidden rounded-[6px] bg-surface ${whiteHover ? "shadow-[0_10px_18px_-6px_rgb(0_0_0/0.7)]" : "shadow-[0_0_0_1px_var(--lit),0_0_14px_-3px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)]"} transition-shadow duration-300 ${whiteHover ? "group-hover:shadow-[0_0_0_1.5px_#fff,0_0_20px_-2px_rgb(255_255_255/0.45),0_10px_18px_-6px_rgb(0_0_0/0.7)]" : "group-hover:shadow-[0_0_0_1.5px_var(--lit),0_0_20px_-2px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)]"} group-focus-visible:shadow-[0_0_0_2px_var(--focus),0_0_18px_-2px_var(--focus),0_10px_18px_-6px_rgb(0_0_0/0.7)]`}
+      className={`absolute inset-0 overflow-hidden rounded-[6px] bg-surface shadow-[0_10px_18px_-6px_rgb(0_0_0/0.7)] transition-shadow duration-300 group-hover:shadow-[0_0_0_1.5px_#fff,0_0_20px_-2px_rgb(255_255_255/0.45),0_10px_18px_-6px_rgb(0_0_0/0.7)] group-focus-visible:shadow-[0_0_0_2px_var(--focus),0_0_18px_-2px_var(--focus),0_10px_18px_-6px_rgb(0_0_0/0.7)]`}
       style={{ translate: `${dx}px ${dy}px`, rotate: `${tilt}deg` }}
     >
       <img
@@ -403,11 +395,11 @@ function PosterCard({ item, whiteHover = false }: { item: Item; whiteHover?: boo
  * width; padding and border are in em and the border's width is counter-scaled the same way. On
  * the narrowest phones there is no room beside the row, so it sits centred under it instead.
  */
-function MoreLabel({ item, whiteHover = false }: { item: Item; whiteHover?: boolean }) {
+function MoreLabel({ item }: { item: Item }) {
   return (
     <span
       aria-hidden="true"
-      className={`absolute left-0 top-0 -translate-y-1/2 translate-x-(--dx) whitespace-nowrap rounded-full border border-border bg-canvas px-[0.75em] py-[0.3em] font-medium leading-none tracking-[0.02em] text-muted transition-colors duration-300 ${whiteHover ? "group-hover:border-white" : "group-hover:border-accent-green/50"} group-hover:text-strong max-[359px]:left-(--under-left) max-[359px]:top-(--under-top) max-[359px]:-translate-x-1/2 max-[359px]:translate-y-0`}
+      className={`absolute left-0 top-0 -translate-y-1/2 translate-x-(--dx) whitespace-nowrap rounded-full border border-border bg-canvas px-[0.75em] py-[0.3em] font-medium leading-none tracking-[0.02em] text-muted transition-colors duration-300 group-hover:border-white group-hover:text-strong max-[359px]:left-(--under-left) max-[359px]:top-(--under-top) max-[359px]:-translate-x-1/2 max-[359px]:translate-y-0`}
       style={
         {
           "--dx": `${item.place.dx}px`,
@@ -438,15 +430,12 @@ function Stage({
   onGone,
   stageRef,
   className = "",
-  pairWash = false,
 }: {
   items: readonly Item[];
   reduced: boolean;
   onGone: (id: string) => void;
   stageRef?: RefObject<HTMLDivElement | null>;
   className?: string;
-  /** Spike: the section carries the pair's colours (`usePairWash`), so the green glow stays out. */
-  pairWash?: boolean;
 }) {
   const byType = (type: Item["type"], slot: number) =>
     items.filter((item) => item.type === type && item.slot === slot);
@@ -458,10 +447,7 @@ function Stage({
       className={`absolute left-0 top-0 origin-top-left scale-[var(--s)] ${className}`}
       style={{ width: STAGE.width, height: STAGE.height }}
     >
-      {/* Atmosphere: a soft green glow and a little grain, feathered so no edge shows. */}
-      {!pairWash && (
-        <div className="pointer-events-none absolute -left-32 -top-16 h-[640px] w-[640px] bg-[radial-gradient(closest-side,rgb(0_224_84/0.16),transparent)]" />
-      )}
+      {/* Atmosphere: a little grain, feathered so no edge shows (the colour is the section's pair wash, `usePairWash`). */}
       <div
         className="pointer-events-none absolute -left-24 -top-12 h-[560px] w-[560px] opacity-[0.07] [mask-image:radial-gradient(closest-side,#000_35%,transparent)]"
         style={{ backgroundImage: GRAIN }}
@@ -476,7 +462,7 @@ function Stage({
           <div data-drift="" data-kind="person" data-depth={slot === 0 ? 5 : -6} className="absolute inset-0">
             {byType("person", slot).map((item) => (
               <Motion key={item.id} item={item} reduced={reduced} onGone={onGone}>
-                <PersonCard item={item} slot={slot} tilt={place.tilt} flip={slot === 1} whiteRing={pairWash} />
+                <PersonCard item={item} slot={slot} tilt={place.tilt} flip={slot === 1} />
               </Motion>
             ))}
           </div>
@@ -493,7 +479,7 @@ function Stage({
           <div data-drift="" data-kind="poster" data-depth={POSTER_DEPTH[slot]} className="absolute inset-0">
             {byType("poster", slot).map((item) => (
               <Motion key={item.id} item={item} reduced={reduced} onGone={onGone}>
-                <PosterCard item={item} whiteHover={pairWash} />
+                <PosterCard item={item} />
               </Motion>
             ))}
           </div>
@@ -504,7 +490,7 @@ function Stage({
       <div className="absolute" style={{ left: MORE_LEFT, top: LINE_Y, zIndex: 30 }}>
         {byType("label", 0).map((item) => (
           <Motion key={item.id} item={item} reduced={reduced} onGone={onGone}>
-            <MoreLabel item={item} whiteHover={pairWash} />
+            <MoreLabel item={item} />
           </Motion>
         ))}
       </div>
@@ -673,10 +659,8 @@ function Collage({
   }, [root, reduced]);
 
   const { scene } = state;
-  // Spike: the left card's person (slot 0) takes the top left. Collage renders only in the browser, after hydration, so the flag is read here.
-  const portrait = usePortraitMode() !== null;
-  const washColors = portrait ? pairPortraitColors(scene.people[0].id, scene.people[1].id) : null;
-  usePairWash(root, washColors, reduced);
+  // The left card's person (slot 0) takes the top left.
+  usePairWash(root, pairPortraitColors(scene.people[0].id, scene.people[1].id), reduced);
 
   const navigate = (direction: NavDirection) => () => step(direction);
   // With a single pairing in the pool there is nowhere to step to.
@@ -710,7 +694,6 @@ function Collage({
           reduced={reduced}
           onGone={onGone}
           stageRef={stage}
-          pairWash={portrait}
           className={revealed ? "opacity-100 motion-safe:transition-opacity motion-safe:duration-500" : "opacity-0"}
         />
       </Link>

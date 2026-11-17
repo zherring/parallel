@@ -9,7 +9,7 @@ interface LaneAvatarsProps {
   /** Index of the lane most in view; gets the green ring. */
   activeIndex: number;
   onJump: (index: number) => void;
-  /** Spike: with the pair's palette (the portrait flag), the active ring is the person's colour (a CSS colour, by index) instead of the green. */
+  /** On a pair's page (its palette), the active ring is the person's colour (a CSS colour, by index) instead of the green. */
   ringColors?: readonly string[];
 }
 

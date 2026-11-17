@@ -108,7 +108,7 @@ function FilmCardImpl(props: FilmCardProps) {
   const restored = quiet && (emphasized || selected);
   const faded = quiet && !restored;
   const textSize = quiet ? "text-[10px] leading-[12px]" : "text-[11px] leading-[13px]";
-  // Spike: with the pair's palette (the portrait flag), a film of one person has no ring or glow (its dots carry the colour), and a film made
+  // On a pair's page (its palette), a film of one person has no ring or glow (its dots carry the colour), and a film made
   // together a plain white ring instead of the green one and its glow.
   const palette = usePersonPalette() !== null;
   const tinted = !palette && tone === "plain" && tint !== null && !dimmed;

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { PairEmbed } from "@/components/embed/pair-embed";
 import { buildOgCard } from "@/lib/og-card";
-import { ogPortraitTreatment } from "@/lib/og-portrait";
 import { buildTreatedPair } from "@/lib/og-treated";
 import { loadPeople } from "@/lib/people";
 import { pairEmbedPath } from "@/lib/player-cards";
@@ -20,8 +19,8 @@ type Props = { params: Promise<{ people: string }> };
 /**
  * The page X frames in a post for a link to a pair (`twitter:player` of `/p/<people>`): the pair's preview card, which opens up into their
  * timeline (see `PairEmbed`), with no site header, footer or search (`SiteChrome`). It is sent with the CSP that lets X frame it (`embedHeaders`, from
- * `next.config.ts`), and uses no cookie in production (the spike's `spike-portrait` cookie is read outside it: see `ogPortraitTreatment`). An unknown
- * person or a bad slug is a 404, and a spelling of the people other than the canonical one redirects to it, as on the pair page.
+ * `next.config.ts`), and uses no cookie. An unknown person or a bad slug is a 404, and a spelling of the people other than the canonical one redirects to it,
+ * as on the pair page.
  *
  * The card is the one of the pair's `opengraph-image` (`buildOgCard`, with no period, from the same films), so the page opens on the picture X showed.
  */
@@ -37,9 +36,6 @@ export default async function PairEmbedPage({ params }: Props) {
   const count = multi ? (shared > 0 ? shared : null) : timelines[0].films.filter((film) => !film.minor).length || null;
 
   const card = buildOgCard(timelines, today);
-  // Spike: the card the share image draws with the portrait flag on (the flag is the browser's to read, so it is always sent for a pair), and the server's own
-  // gate for it (`ogPortraitTreatment`: the one the share image follows, env first, so no cookie is read where it is set), so that the frame opens on the picture X showed.
-  const serverPortraitMode = await ogPortraitTreatment();
   return (
     <PairEmbed
       slug={canonical}
@@ -48,7 +44,6 @@ export default async function PairEmbedPage({ params }: Props) {
       card={card}
       count={count}
       treated={buildTreatedPair(card, timelines, today)}
-      serverPortraitMode={serverPortraitMode}
     />
   );
 }

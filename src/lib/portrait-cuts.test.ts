@@ -51,7 +51,7 @@ describe("portraitPersonHexes", () => {
     expect(portraitPersonHexes([1, 2, 3])).toBeNull();
   });
 
-  it("overrides the person custom properties and hexes only when given, so the page without the flag is unchanged", () => {
+  it("overrides the person custom properties and hexes only when given, so the page of one person, or three and more, is unchanged", () => {
     const hexes = portraitPersonHexes([5026, 7450])!;
     expect(personColorCss(null)).toBe(personColorCss());
     expect(personHex(0, null)).toBe(personHex(0));

@@ -388,7 +388,7 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
               className={cn("group pointer-events-auto absolute left-0 flex h-4 w-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center max-sm:w-5", MINIMAP_COLOR)}
               style={{ top: `${fraction * 100}%` }}
             >
-              {/* Spike: with the pair's palette (the portrait flag) a film made together is a white tick with no glow, as its ring in the scene is. */}
+              {/* On a pair's page (its palette) a film made together is a white tick with no glow, as its ring in the scene is. */}
               <span className={cn("h-1 w-3.5 rounded-full group-hover:w-4", palette ? "bg-white" : "bg-lit shadow-[0_0_8px_var(--lit-glow)]")} />
             </button>
           ))}

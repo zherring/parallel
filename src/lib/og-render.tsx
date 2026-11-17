@@ -23,11 +23,12 @@ import {
   type OgPoster,
 } from "@/lib/og-card";
 import { fetchImageDataUri } from "@/lib/og-image";
-import { loadOgTreatment, ogPersonHexes, ogPortraitTreatment, treatedHeadshotSvg, treatedTileSvg } from "@/lib/og-portrait";
+import { loadOgTreatment, treatedHeadshotSvg, treatedTileSvg } from "@/lib/og-portrait";
 import { TreatedPairCardView } from "@/lib/og-treated-render";
 import { TREATED_COLUMN, buildTreatedPair, treatedTile } from "@/lib/og-treated";
 import { OG, OG_SIZE, ogFonts, ogGlow, ogWordmark } from "@/lib/og-theme";
 import type { Period } from "@/lib/period";
+import { portraitPersonHexes } from "@/lib/portrait-cuts";
 import { todayIso } from "@/lib/released";
 import { montagePosters } from "@/lib/portrait-treatment";
 import type { PersonTimeline } from "@/lib/types";
@@ -118,7 +119,7 @@ function headshotCard(
         boxShadow: "0 14px 30px rgba(0, 0, 0, 0.6)",
       }}
     >
-      {/* Spike: the cut-paper treatment, one SVG of the card's size (see `og-portrait.ts`). */}
+      {/* The cut-paper treatment, one SVG of the card's size (see `og-portrait.ts`). */}
       {treated ? (
         <img src={treated} alt="" width={width - 4} height={height - 4} />
       ) : src ? (
@@ -240,12 +241,12 @@ export interface PairOgImageInput {
 }
 
 /**
- * Draws the 1200x630 preview card of a /p/ page, in the look of the app's own timeline. Top to bottom, centred
- * on the card: a row of cards, the headshots of the people (straight, rounded, overlapping, each with its name
- * small over the part of it that shows) on the left and the posters (overlapping, each a shared film's green ring
- * and glow) on the right; the lane, a line across the whole card with a small grey dot for every film and a green
- * node for each poster's film, placed by release date (see `OG_LANE_SCOPE` for which films); the years of the first
- * and last film under their green nodes; and the caption ("11 films over 20 years", its numbers in green). Shared
+ * Draws the 1200x630 preview card of a /p/ page. Two to four people are the treated card (`og-treated.ts`): their portraits in full colour down the left
+ * edge, the posters of the films they made together, an axis with a dot for every film (white for a shared one, grey for a person's own), the names and the
+ * count (`renderTreatedPairOgImage`). One person is the card of the app's own timeline (see `OgCardView`): a row of cards, the headshot (the cut-paper
+ * portrait) on the left and the posters (overlapping, each a green ring and glow) on the right; the lane, a line across the whole card with a small grey dot
+ * for every film and a green node for each poster's film, placed by release date (see `OG_LANE_SCOPE` for which films); the years of the first and last
+ * film under their green nodes; and the caption ("11 films over 20 years", its numbers in green). Shared
  * by the page's `opengraph-image` and the `/og` route that draws a card for a shared period. Every image is fetched up
  * front: the renderer throws on one it cannot load, and a missing headshot only means initials, a missing poster a
  * plain card with the title's first letter.
@@ -253,24 +254,20 @@ export interface PairOgImageInput {
 export async function renderPairOgImage({ timelines, period = null }: PairOgImageInput): Promise<ImageResponse> {
   const today = todayIso();
   const card = buildOgCard(timelines, today, period);
-  // Spike: off unless `PORTRAIT_TREATMENT=1` (or, outside production, the flag's cookie); null leaves the card as it was.
-  const treatment = await ogPortraitTreatment();
-  const hexes = ogPersonHexes(timelines.map(({ person }) => person.id), treatment);
-  // Spike: with the treatment on, a card of two to four people is the treated one (`og-treated.ts`; `hexes` is null for three and four: their colours are the palette's); one person keeps the card as it is.
-  const pair = treatment ? buildTreatedPair(card, timelines, today, period) : null;
-  if (treatment && pair) return renderTreatedPairOgImage({ timelines, card, pair, treatment, hexes });
+  // A pair's colours are its landing ones (`portraitPersonHexes`); null for one person, and for three and four, whose colours are the palette's.
+  const hexes = portraitPersonHexes(timelines.map(({ person }) => person.id));
+  const pair = buildTreatedPair(card, timelines, today, period);
+  if (pair) return renderTreatedPairOgImage({ timelines, card, pair, hexes });
   const [avatars, posterImages, fonts, treatments] = await Promise.all([
     Promise.all(card.people.map((person) => loadImage(person.profilePath))),
     Promise.all(card.posters.map((poster) => loadImage(poster.posterPath))),
     ogFonts(),
     // The card's people are the timelines', in the URL's order, which is also their colour's slot.
-    treatment ? Promise.all(timelines.map(({ person, films }, i) => loadOgTreatment(person.id, person.profilePath, i, treatment, hexes, montagePosters(films)))) : null,
+    Promise.all(timelines.map(({ person, films }, i) => loadOgTreatment(person.id, person.profilePath, i, hexes, montagePosters(films)))),
   ]);
   const hasLane = card.posters.length > 0;
   const fan = headshotFan(card.people.length);
-  const treated = treatments
-    ? treatments.map((t, i) => (t && avatars[i] ? treatedHeadshotSvg(t, avatars[i], fan.width - 4, fan.height - 4) : null))
-    : undefined;
+  const treated = treatments.map((t, i) => (t && avatars[i] ? treatedHeadshotSvg(t, avatars[i], fan.width - 4, fan.height - 4) : null));
   const place = composition(fan.height, hasLane, card.chip !== null);
   const fanLeft = hasLane
     ? Math.round(OG_FAN_ZONE.left + (OG_FAN_WIDTH - fan.totalWidth) / 2)
@@ -278,40 +275,33 @@ export async function renderPairOgImage({ timelines, period = null }: PairOgImag
 
   return new ImageResponse(
     <OgCardView card={card} avatars={avatars} posterImages={posterImages} hasLane={hasLane} place={place} fan={fan} fanLeft={fanLeft} treated={treated} />,
-    {
-      ...OG_SIZE,
-      fonts,
-      headers: {
-        // A treated card is a spike's preview: never cached, so turning the flag off shows the card as it is.
-        "Cache-Control": treated ? "no-store" : timelines.some((t) => t.shortsIncomplete) ? OG_PARTIAL_CACHE_CONTROL : OG_CACHE_CONTROL,
-      },
-    },
+    { ...OG_SIZE, fonts, headers: { "Cache-Control": cacheControl(timelines) } },
   );
 }
 
+/** How long a card is kept by whatever sits in front of the app: a day, but a minute for one drawn from a timeline whose short-film lookup was cut short (`shortsIncomplete`). */
+const cacheControl = (timelines: readonly PersonTimeline[]) => (timelines.some((t) => t.shortsIncomplete) ? OG_PARTIAL_CACHE_CONTROL : OG_CACHE_CONTROL);
+
 /**
- * Spike: the pair's card with the treatment on (see `og-treated.ts`): the people's portraits in full colour down the left edge, the posters of the films
- * they made together, an axis with a dot for every film (white for a shared one, grey for a person's own), the names and the count. Never cached,
- * as every treated card: turning the flag off shows the card as it is.
+ * The pair's treated card (see `og-treated.ts`): the people's portraits in full colour down the left edge, the posters of the films
+ * they made together, an axis with a dot for every film (white for a shared one, grey for a person's own), the names and the count.
  */
 async function renderTreatedPairOgImage({
   timelines,
   card,
   pair,
-  treatment,
   hexes,
 }: {
   timelines: PersonTimeline[];
   card: OgCard;
   pair: NonNullable<ReturnType<typeof buildTreatedPair>>;
-  treatment: NonNullable<Awaited<ReturnType<typeof ogPortraitTreatment>>>;
   hexes: readonly string[] | null;
 }): Promise<ImageResponse> {
   const [photos, posterImages, fonts, treatments] = await Promise.all([
     Promise.all(timelines.map(({ person }) => loadImage(person.profilePath))),
     Promise.all(pair.posters.map((poster) => loadImage(poster.posterPath))),
     ogFonts(),
-    Promise.all(timelines.map(({ person, films }, i) => loadOgTreatment(person.id, person.profilePath, i, treatment, hexes, montagePosters(films)))),
+    Promise.all(timelines.map(({ person, films }, i) => loadOgTreatment(person.id, person.profilePath, i, hexes, montagePosters(films)))),
   ]);
   const tile = treatedTile(timelines.length);
   const tiles = treatments.map((t, i) => {
@@ -327,7 +317,7 @@ async function renderTreatedPairOgImage({
         posterImages={posterImages}
       />
     ),
-    { ...OG_SIZE, fonts, headers: { "Cache-Control": "no-store" } },
+    { ...OG_SIZE, fonts, headers: { "Cache-Control": cacheControl(timelines) } },
   );
 }
 
@@ -339,7 +329,7 @@ interface CardProps {
   place: ReturnType<typeof composition>;
   fan: ReturnType<typeof headshotFan>;
   fanLeft: number;
-  /** Spike: per person, the treated headshot (an SVG data URI, see `og-portrait.ts`), or null for the photo as it is. */
+  /** Per person, the treated headshot (an SVG data URI, see `og-portrait.ts`), or null for the photo as it is. */
   treated?: (string | null)[];
 }
 

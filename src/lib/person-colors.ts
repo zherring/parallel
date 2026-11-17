@@ -45,7 +45,7 @@ export function personGlow(slot: number): string {
 
 /**
  * The slot's colour as a hex string, for the places that cannot read a custom property (the preview cards of `og-quote-render.tsx`).
- * `override` (spike: the portrait flag's `portraitPersonHexes`) replaces the first slots' colours.
+ * `override` (a pair's `portraitPersonHexes`) replaces the first slots' colours.
  */
 export function personHex(slot: number, override?: readonly string[] | null): string {
   return override?.[slot] ?? paletteEntry(slot).hex;
@@ -64,8 +64,8 @@ function glowOf(hex: string): string {
 
 /**
  * The palette as CSS custom properties on :root (`--person-1`, `--person-1-glow`, ...). They are
- * global, not set on the timeline, because the film's hover card is rendered in a portal on the body. `override` (spike: the portrait
- * flag's `portraitPersonHexes`) replaces the first slots' colours, so everything that reads the properties follows; without it the CSS is as it was.
+ * global, not set on the timeline, because the film's hover card is rendered in a portal on the body. `override` (a pair's `portraitPersonHexes`)
+ * replaces the first slots' colours, so everything that reads the properties follows; without it (one person, or three and more) the CSS is the app's own.
  * With the override it also names the colour of "made together" for CSS that cannot read the palette gate (`--row-flash`, the Table's row flash in
  * globals.css): white, where the app's is the green `--lit`.
  */

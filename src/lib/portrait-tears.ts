@@ -1,5 +1,5 @@
 /**
- * Spike (zherring/spike-portraits): the "tear", the fallback for a person with no cut (or whose cut was made from another photo). A jagged
+ * The "tear", the fallback for a person with no cut (or whose cut was made from another photo). A jagged
  * torn-paper strip across the face, frame edge to frame edge, after Gene Wilder's failed cut (3460 in portrait-cuts.json). Drawn through
  * `CutPortraitImage` like a cut, so the edge position, colour and width rule are the same; both side edges sit on the frame (x = 0 and 1), so
  * `cutEdgePath` leaves them open and only the torn top and bottom are stroked.

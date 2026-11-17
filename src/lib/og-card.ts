@@ -40,7 +40,7 @@ export interface OgCaption {
 }
 
 export interface OgPerson {
-  /** TMDB person id (spike: the key of the cut-paper treatment, see `PairPoster`). */
+  /** TMDB person id (the key of the cut-paper treatment, see `PairPoster`). */
   id: number;
   /** Full name, for alt text. */
   name: string;

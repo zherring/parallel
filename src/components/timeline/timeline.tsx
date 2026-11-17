@@ -187,7 +187,7 @@ const COMBINED_PERSON: PersonSummary = {
 };
 
 const LIT_GLOW = { filter: "drop-shadow(0 0 3px var(--lit-glow))" };
-/** Spike: with the pair's palette (the portrait flag) the films made together are white, with no glow, where the app's are green (`--lit`). */
+/** On a pair's page (its palette) the films made together are white, with no glow, where the app's are green (`--lit`). */
 const MADE_TOGETHER_WHITE = "#fff";
 /** Opacity of the connections the legend is not pointing at. */
 const DIMMED = 0.2;
@@ -1077,7 +1077,7 @@ export function Timeline({
             {highlightLane !== null && boxes[highlightLane] && (
               <div
                 aria-hidden
-                // Spike: with the pair's palette the lane's ring and tint are its person's colour, not the green.
+                // On a pair's page (its palette) the lane's ring and tint are its person's colour, not the green.
                 className={cn("pointer-events-none absolute inset-x-0 z-[35]", !palette && "bg-lit/5 ring-2 ring-inset ring-lit")}
                 style={{
                   top: boxes[highlightLane].top,

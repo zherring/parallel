@@ -554,7 +554,7 @@ export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible 
             {/* Only while two or more people are on the track: with one left, nothing is made together on screen. */}
             {people.length > 1 && visibleCount > 1 && (
               <p data-fade className="flex items-center gap-1.5 px-2 pb-2 pt-1 text-xs text-muted">
-                {/* A small poster in the ring the films made together have in the scene: a crisp green edge, no glow (white, with the pair's palette: the portrait flag). */}
+                {/* A small poster in the ring the films made together have in the scene: a crisp edge, no glow (white on a pair's page, its palette; green otherwise). */}
                 <span aria-hidden className={cn("h-3.5 w-2.5 shrink-0 rounded-[2px] border-2", palette ? "border-white" : "border-lit")} />
                 {palette ? "White: made together by everyone shown" : "Green: made together by everyone shown"}
               </p>

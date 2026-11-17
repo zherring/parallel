@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { TreatedPortrait } from "@/components/treated-portrait";
-import type { PortraitMode } from "@/components/use-portrait-mode";
 import { PERSON_COLORS, personHex } from "@/lib/person-colors";
 import { STROKE_MAX_PX, STROKE_PER_WIDTH, strokeForWidth as rule } from "@/lib/portrait-cuts";
 
@@ -110,7 +109,7 @@ function Tuner({ artists }: { artists: TunerArtist[] }) {
   const [picks, setPicksState] = useState<Picks>(readPicks);
   const [selected, setSelected] = useState<SizeKey | "all">("hero");
   const [artistId, setArtistId] = useState(artists.some((a) => a.id === 5026) ? 5026 : (artists[0]?.id ?? 0));
-  const [mode, setMode] = useState<PortraitMode>("montage");
+  const [look, setLook] = useState<"montage" | "color">("montage");
   // Colour, and (TreatedPortrait's default) inside: the owner's picks.
   const [outline, setOutline] = useState<"white" | "color">("color");
   const [slot, setSlot] = useState(0);
@@ -165,7 +164,7 @@ function Tuner({ artists }: { artists: TunerArtist[] }) {
     return (
       <TreatedPortrait
         key={`${artist.id}-${s.key}`}
-        mode={mode}
+        flat={look === "color"}
         personId={artist.id}
         slot={slot}
         name={artist.name}
@@ -221,7 +220,7 @@ function Tuner({ artists }: { artists: TunerArtist[] }) {
       </Row>
       <Row label="Look">
         {(["montage", "color"] as const).map((m) => (
-          <Pill key={m} on={mode === m} onClick={() => setMode(m)}>
+          <Pill key={m} on={look === m} onClick={() => setLook(m)}>
             {m === "montage" ? "Montage" : "Color"}
           </Pill>
         ))}

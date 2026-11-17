@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
 import type { PillPerson } from "@/components/depth/people-pill";
 import { TreatedPortrait } from "@/components/treated-portrait";
-import { usePortraitMode } from "@/components/use-portrait-mode";
 import { cn } from "@/components/timeline/cn";
 import { PersonBio } from "@/components/timeline/person-bio";
 import { splitCitations } from "@/lib/citations";
@@ -45,8 +44,6 @@ interface PairHeroBodyProps {
 export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, together, onChip, onOpenPerson, className }: PairHeroBodyProps) {
   // How many chips were on the line when "+N more" was pressed (null: it has not been): the focus goes to the next one, the first it added.
   const [opened, setOpened] = useState<number | null>(null);
-  // Spike: `?portrait=on|color` cuts the portraits out (see `TreatedPortrait`); without it they are as they were.
-  const portraitMode = usePortraitMode();
   const expanded = opened !== null;
   // How many chips fit the line, measured in the browser before the first paint it is seen in, and again whenever the line or the chips change size. Until then (the server's markup, and
   // the first render that matches it) the line is laid out by CSS alone: three chips from `sm` up, one on a phone, so that what the measure settles on is nearly always what was already there.
@@ -106,7 +103,6 @@ export function PairHeroBody({ people, note, quoteHref, onQuoteClick, chips, tog
                 portraitClassName="rounded-(--bar-radius) shadow-[0_6px_14px_-6px_rgb(0_0_0/0.7)]"
                 portrait={
                   <TreatedPortrait
-                    mode={portraitMode}
                     personId={person.id}
                     slot={slot}
                     name={person.name}

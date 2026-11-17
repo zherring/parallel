@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { QuoteEmbed } from "@/components/embed/quote-embed";
-import { ogPortraitTreatment } from "@/lib/og-portrait";
 import { montagePosters } from "@/lib/portrait-treatment";
 import { loadPeople } from "@/lib/people";
 import { embedPath, findQuoteIndex } from "@/lib/quote-embed";
@@ -19,9 +18,8 @@ type Props = { params: Promise<{ people: string; id: string }> };
 /**
  * The page X frames in a post for a link to one quote (`twitter:player` of `/p/<people>/q/<id>`): that quote, large, with the
  * pair's other quotes to step through, and no site header, footer or search (`SiteChrome`). It is sent with the CSP that lets
- * X frame it (`embedHeaders`, from `next.config.ts`), and uses no cookie in production (the spike's `spike-portrait` cookie is read outside it: see
- * `ogPortraitTreatment`). A quote the pair does not have is a 404, and a spelling of the people other than the canonical one redirects to it, as on the
- * pair page.
+ * X frame it (`embedHeaders`, from `next.config.ts`), and uses no cookie. A quote the pair does not have is a 404, and a spelling of the people other than
+ * the canonical one redirects to it, as on the pair page.
  */
 export default async function QuoteEmbedPage({ params }: Props) {
   const { people, id } = await params;
@@ -31,9 +29,6 @@ export default async function QuoteEmbedPage({ params }: Props) {
   if (start < 0) notFound();
   if (!isCanonical) redirect(embedPath(canonical, quotes[start].id));
 
-  // Spike: the server's own gate for the treated card (`ogPortraitTreatment`, the one the quote's share image follows), so the frame opens on the picture X showed.
-  const serverPortraitMode = await ogPortraitTreatment();
-
   return (
     <QuoteEmbed
       slug={canonical}
@@ -42,7 +37,6 @@ export default async function QuoteEmbedPage({ params }: Props) {
       start={start}
       variant="frame"
       people={timelines.map(({ person, films }) => ({ id: person.id, name: person.name, profilePath: person.profilePath, posters: montagePosters(films) }))}
-      serverPortraitMode={serverPortraitMode}
     />
   );
 }

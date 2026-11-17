@@ -4,7 +4,6 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import { useQuoteGlowStyle } from "@/components/pair-wash";
 import { usePersonPalette } from "@/components/person-palette";
 import { TreatedPortrait } from "@/components/treated-portrait";
-import { usePortraitMode } from "@/components/use-portrait-mode";
 import type { ClippingsVoice } from "@/lib/clippings";
 import { tmdbImage } from "@/lib/images";
 import { initials } from "@/lib/person-labels";
@@ -20,8 +19,8 @@ interface Props {
 
 /** A stationary image pane beside the scrolling quote pane. */
 export function QuoteExhibit({ people, speakerId, children }: Props) {
-  // Spike: with the portrait flag (the page's palette, `PersonPaletteProvider`), the quote pane is lit from below in the speaker's colour, easing
-  // to the next speaker's as the deck moves; a critic's quote glows the muted grey of its marks. Without the flag there is no wash layer at all.
+  // With the page's palette (`PersonPaletteProvider`: a pair's), the quote pane is lit from below in the speaker's colour, easing
+  // to the next speaker's as the deck moves; a critic's quote glows the muted grey of its marks. Without a palette there is no wash layer at all.
   const palette = usePersonPalette();
   const speaker = people.find((person) => person.id === speakerId);
   const glowColor = palette ? (speaker ? (palette[speaker.slot] ?? null) : "var(--text-muted)") : null;
@@ -70,10 +69,8 @@ export function QuoteExhibitSlide({ children, label, chars }: { children: ReactN
 function Portrait({ person, speaking, quiet }: { person: ClippingsVoice; speaking: boolean; quiet: boolean }) {
   const src = tmdbImage(person.profilePath, "w780");
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  // Spike: `?portrait=on|color` cuts the portrait out (see `TreatedPortrait`) at full panel size, or tears it for a person with no cut; without
-  // the flag, or for a person with no photo, the panel is as it was.
-  const portraitMode = usePortraitMode();
-  const treated = portraitMode !== null && Boolean(person.profilePath);
+  // The portrait is cut out (see `TreatedPortrait`) at full panel size, or torn for a person with no cut; a person with no photo is their initials.
+  const treated = Boolean(person.profilePath);
   return (
     <div
       className={cn("quote-exhibit-portrait", quiet && "quote-exhibit-quiet")}
@@ -87,7 +84,6 @@ function Portrait({ person, speaking, quiet }: { person: ClippingsVoice; speakin
       {treated ? (
         <span className="quote-exhibit-treated">
           <TreatedPortrait
-            mode={portraitMode}
             personId={person.id}
             slot={person.slot}
             name={person.name}

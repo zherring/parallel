@@ -22,7 +22,7 @@ import { OG, ogWordmark } from "@/lib/og-theme";
 import type { OgPoster } from "@/lib/og-card";
 
 /**
- * Spike (zherring/spike-portraits): the pair's treated share card as a view, on the grid of `og-treated.ts`: the two portraits down the left edge, the
+ * The pair's share card as a view, on the grid of `og-treated.ts`: the two portraits down the left edge, the
  * posters of the films they made together, the axis under them, the names and the count centred under the axis, the wordmark in the corner. Like `OgCardView`, it
  * takes everything already fetched (the portraits as SVG data URIs, the posters as data URIs) since the renderer throws on an image it cannot load.
  * The embed's first frame (`pair-poster.tsx`) draws the same card in HTML; keep the two in step.

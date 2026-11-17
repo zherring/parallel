@@ -1,69 +1,39 @@
-import { cookies } from "next/headers";
 import { tmdbImage } from "@/lib/images";
 import { fetchImageDataUri } from "@/lib/og-image";
 import { personHex } from "@/lib/person-colors";
-import { cutEdgePath, polygonPoints, portraitPersonHexes, strokeForWidth } from "@/lib/portrait-cuts";
-import { PORTRAIT_COOKIE, duotoneMatrix, tileView, treatmentShape, type PhotoCrop, type TreatmentShape } from "@/lib/portrait-treatment";
+import { cutEdgePath, polygonPoints, strokeForWidth } from "@/lib/portrait-cuts";
+import { duotoneMatrix, tileView, treatmentShape, type PhotoCrop, type TreatmentShape } from "@/lib/portrait-treatment";
 
 /**
- * Spike (zherring/spike-portraits): the cut-paper treatment on the preview cards (the PNGs of `ImageResponse`). The renderer (Satori, then Resvg)
- * cannot clip an HTML image to a polygon, but it draws an SVG image through Resvg, which does clip paths, filters and embedded images: so a
- * treated headshot is one SVG, as a data URI, holding the montage (duotoned), the photo clipped to the cut and the edge inside it, all embedded.
+ * The cut-paper treatment on the preview cards (the PNGs of `ImageResponse`). The renderer (Satori, then Resvg) cannot clip an HTML image to a polygon, but
+ * it draws an SVG image through Resvg, which does clip paths, filters and embedded images: so a treated headshot is one SVG, as a data URI, holding the
+ * montage (duotoned), the photo clipped to the cut and the edge inside it, all embedded.
  *
- * Off unless asked for, so the cards are as they were: `PORTRAIT_TREATMENT=1` turns it on (any environment), and outside production the
- * `spike-portrait` cookie does too, which `usePortraitMode` sets with `?portrait=on` (so /dev/x-preview shows it after a visit with the flag).
- *
- * The X embed pages (`/embed/p/...`, `/embed/q/...`) ask the same function, so that their server-rendered first frame is the treatment the PNG showed
- * (`serverPortraitMode`). The environment is checked first, and production never reads the cookie, so the production path needs no request data.
+ * The X embed pages (`/embed/p/...`, `/embed/q/...`) draw the same cards as HTML, so that their first frame is the picture the PNG showed.
  */
-export type OgTreatmentMode = "montage" | "color";
-
-export async function ogPortraitTreatment(): Promise<OgTreatmentMode | null> {
-  if (process.env.PORTRAIT_TREATMENT === "1") return "montage";
-  if (process.env.NODE_ENV === "production") return null;
-  try {
-    const value = (await cookies()).get(PORTRAIT_COOKIE)?.value;
-    return value === "montage" || value === "color" ? value : null;
-  } catch {
-    // Outside a request (a unit test): no cookie, no treatment.
-    return null;
-  }
-}
 
 /** What a treated headshot needs, fetched up front as the rest of the card's images are. */
 export interface OgTreatment {
   shape: TreatmentShape;
   hex: string;
-  /** The montage's posters as data URIs; empty for the flat colour. */
+  /** The montage's posters as data URIs; empty for a person with none (the flat colour). */
   posters: string[];
 }
 
 /**
- * The person colours of a card whose treatment is on, by slot (the URL order): a pair's landing colours (`portraitPersonHexes`), as the page
- * gives them with the flag, so a shared link's card matches the page. Null when the treatment is off, or for one person or three and more.
- */
-export function ogPersonHexes(personIds: readonly number[], mode: OgTreatmentMode | null): readonly string[] | null {
-  return mode ? portraitPersonHexes(personIds) : null;
-}
-
-/**
- * The treatment of the person in `slot` (their colour: `hexes`'s, the override of `ogPersonHexes`, else the palette's), or null when they have no photo (initials,
- * as today). `filmPosters` (`montagePosters` of their films) is the montage behind their tear, when they have no cut.
+ * The treatment of the person in `slot` (their colour: `hexes`'s, a pair's landing colours (`portraitPersonHexes`), else the palette's), or null when they have no photo
+ * (initials). `filmPosters` (`montagePosters` of their films) is the montage behind their tear, when they have no cut.
  */
 export async function loadOgTreatment(
   personId: number,
   profilePath: string | null,
   slot: number,
-  mode: OgTreatmentMode,
   hexes?: readonly string[] | null,
   filmPosters: readonly string[] = [],
 ): Promise<OgTreatment | null> {
   if (!profilePath) return null;
   const shape = treatmentShape(personId, profilePath, filmPosters);
-  const posters =
-    mode === "montage"
-      ? (await Promise.all(shape.posters.slice(0, 9).map((path) => fetchImageDataUri(tmdbImage(path, "w154") ?? "")))).filter((uri): uri is string => uri !== null)
-      : [];
+  const posters = (await Promise.all(shape.posters.slice(0, 9).map((path) => fetchImageDataUri(tmdbImage(path, "w154") ?? "")))).filter((uri): uri is string => uri !== null);
   return { shape, hex: personHex(slot, hexes), posters };
 }
 
@@ -86,7 +56,7 @@ export function treatedTileSvg(treatment: OgTreatment, photo: string, width: num
  * The treated headshot as an SVG data URI of `width` x `height` px: the photo (`photo`, a data URI) covers the box as the app's `slice` does, cut
  * along the polygon, with the edge inside the cut in the person's colour at the app's width rule (`strokeForWidth`), over the 3 x 3 montage or the flat colour.
  *
- * Spike, for the tiles layout: with `crop`, that box of the photo (`headCrop`) covers the box instead, the montage as it is; with `grey`, all of it is
+ * For the tiles layout: with `crop`, that box of the photo (`headCrop`) covers the box instead, the montage as it is; with `grey`, all of it is
  * greyed and dimmed as the Quotes view does to the one not speaking.
  */
 export function treatedHeadshotSvg(

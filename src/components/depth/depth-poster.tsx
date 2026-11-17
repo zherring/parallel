@@ -81,7 +81,7 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
   // One person made it: their colour rings the poster. Several people making a film that is not out yet: neutral.
   const ring = coloured && !shared && slots.length === 1 ? slots[0] : null;
   const ringColor = ring === null ? null : personColor(ring);
-  // Spike: with the pair's palette (the portrait flag), a film of one person has no ring or glow (its dots carry the colour), and a film made
+  // On a pair's page (its palette), a film of one person has no ring or glow (its dots carry the colour), and a film made
   // together a plain white ring instead of the green one. The placeholder fill keeps its colour.
   const palette = usePersonPalette() !== null;
   const drawnRing = palette ? null : ring;
@@ -186,7 +186,7 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
               "group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-focus",
             )}
             // The ring only: the glow and the shadows are under the card (globals.css), so a ring and a shadow never paint over each other.
-            // The fill is what shows until the image has arrived: the surface, tinted with the person's colour (green for a film made together; with the pair's palette
+            // The fill is what shows until the image has arrived: the surface, tinted with the person's colour (green for a film made together; on a pair's page
             // it is the plain surface, a dark grey, as the white ring does the marking).
             style={{
               backgroundColor: placeholderFill(shared ? (palette ? null : "var(--lit)") : ringColor),

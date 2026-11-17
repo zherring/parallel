@@ -19,8 +19,7 @@ import { yearFraction } from "@/lib/timeline-layout";
 import type { PersonTimeline } from "@/lib/types";
 
 /**
- * Spike (zherring/spike-portraits): the layout of the treated share cards (the pair's and the quote's), when the portrait flag is on, and what the
- * pair's is made of. Pure, with nothing of the server in it, so the PNG (`og-render.tsx`, `og-quote-render.tsx`) and the embeds' first frame
+ * The layout of the share cards (the pair's and the quote's) and what the pair's is made of. Pure, with nothing of the server in it, so the PNG (`og-render.tsx`, `og-quote-render.tsx`) and the embeds' first frame
  * (`pair-poster.tsx`, `quote-embed.tsx`) place the same parts from the same numbers, in the card's own 1200 x 630 pixels.
  *
  * One grid for both cards. The portraits (two, or up to four on a group's page: `treatedTile`) are one column down the left edge, full height, bleeding off the top, the left and the bottom. The rest of

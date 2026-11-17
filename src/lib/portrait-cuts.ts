@@ -1,6 +1,6 @@
 /**
- * Spike (zherring/spike-portraits): "cut-paper" polygons around TMDB portraits, for the /dev/portraits contact sheet and /dev/portraits/grid only.
- * portrait-cuts.json is written by `npm run portraits:cut` (scripts/portraits/cut.ts); nothing in the real pages reads it.
+ * "Cut-paper" polygons around TMDB portraits: what the app's portraits (`TreatedPortrait`) and the preview cards (`og-portrait.ts`) are cut along, and what the
+ * /dev/portraits labs show. portrait-cuts.json is written by `npm run portraits:cut` (scripts/portraits/cut.ts).
  */
 
 import { EXAMPLE_PAIRINGS } from "@/lib/examples";
@@ -84,7 +84,7 @@ export const CUT_STROKE_WHITE = "#fff";
 
 /**
  * Seven saturated, screen-print-poster colors that sit well together on a near-black page (the dev grid's, the landing page's, and the pair
- * pages' with the flag on). No green: the app's green means "together" (the films they share, the logo, the hover ring), never one person.
+ * pages'). No green: the app's green means "together" (the films they share, the logo, the hover ring), never one person.
  */
 export const PORTRAIT_PALETTE: readonly string[] = ["#E63B2E", "#F2C230", "#2E5EAA", "#F28C28", "#1F9E89", "#E5487D", "#6B4BA1"];
 
@@ -106,9 +106,9 @@ export function pairPortraitColors(firstId: number, secondId: number): [string, 
 }
 
 /**
- * Spike: the person colours of a page with the portrait flag on, by slot (the URL order): a pair's `pairPortraitColors`, so the pair page, its
- * embeds and its preview cards match the landing page. Null for one person or three and more, who keep `PERSON_COLORS`. From the ids alone, so
- * the server and the hydrating render agree.
+ * The person colours of a page, by slot (the URL order): a pair's `pairPortraitColors`, so the pair page, its embeds and its preview cards match the
+ * landing page. Null for one person or three and more, who keep `PERSON_COLORS` and, with them, the app's green for the films made together. From the
+ * ids alone, so the server and the hydrating render agree.
  */
 export function portraitPersonHexes(personIds: readonly number[]): readonly [string, string] | null {
   return personIds.length === 2 ? pairPortraitColors(personIds[0], personIds[1]) : null;

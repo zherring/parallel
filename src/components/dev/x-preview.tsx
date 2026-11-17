@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/components/timeline/cn";
-import { usePortraitMode } from "@/components/use-portrait-mode";
 import {
   DESKTOP_WIDTHS,
   PANEL_HEIGHTS,
@@ -57,9 +56,6 @@ function PostShell({ children, wide }: { children: React.ReactNode; wide: number
   );
 }
 
-/** `url` with `name=value` added to its query. */
-const withParam = (url: string, name: string, value: string) => `${url}${url.includes("?") ? "&" : "?"}${name}=${value}`;
-
 export function XPreview({ origin, target, input, meta, error }: XPreviewProps) {
   const [mode, setMode] = useState<"desktop" | "mobile">("desktop");
   const [width, setWidth] = useState<number>(DESKTOP_WIDTHS[1]);
@@ -72,18 +68,8 @@ export function XPreview({ origin, target, input, meta, error }: XPreviewProps) 
   const [swappedFor, setSwappedFor] = useState<string | null>(null);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
 
-  // Spike: `?portrait=on` here saves the flag (the cookie the PNG reads, the tab memory the frame reads) before the card and the frame load: they wait
-  // a frame after mounting, and the card's URL carries the mode so it is not the untreated one from the browser's cache.
-  const portraitMode = usePortraitMode();
-  const [flagSaved, setFlagSaved] = useState(false);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setFlagSaved(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
-  const held = portraitMode !== null && !flagSaved;
-  const player = useMemo(() => (held ? "" : withMotion(onOrigin(meta?.player ?? null, origin) ?? "", reduced)), [held, meta?.player, origin, reduced]);
-  const sharedImage = onOrigin(meta?.image ?? null, origin);
-  const image = held ? null : portraitMode && sharedImage ? withParam(sharedImage, "portrait", portraitMode) : sharedImage;
+  const player = useMemo(() => withMotion(onOrigin(meta?.player ?? null, origin) ?? "", reduced), [meta?.player, origin, reduced]);
+  const image = onOrigin(meta?.image ?? null, origin);
   const problems = meta ? previewProblems(meta) : [];
   const sandboxAttribute = sandbox === "strict" ? STRICT_SANDBOX : undefined;
   const aspect = (meta?.playerHeight ?? 630) / (meta?.playerWidth ?? 1200);

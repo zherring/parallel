@@ -1,6 +1,5 @@
 import type { CSSProperties } from "react";
 import { TreatedPortrait } from "@/components/treated-portrait";
-import { usePortraitMode, type PortraitMode } from "@/components/use-portrait-mode";
 import { tmdbImage } from "@/lib/images";
 import {
   CHIP,
@@ -47,13 +46,13 @@ import {
 } from "@/lib/og-treated";
 
 /**
- * The pair's preview card (the 1200 x 630 PNG of `/p/<people>/opengraph-image`, drawn by `OgCardView` in `og-render.tsx`) rebuilt as HTML and CSS,
- * so that its parts can move. It is the first frame of the pair embed: X shows the PNG as the poster until the frame loads, and the frame
+ * The preview card (the 1200 x 630 PNG of `/p/<people>/opengraph-image`) rebuilt as HTML and CSS, so that its parts can move: a pair's (`TreatedPairPoster`, the PNG
+ * of `renderTreatedPairOgImage`) or, for one person, the card of the app's own timeline (`PlainPairPoster`, the PNG of `OgCardView` in `og-render.tsx`). It is the first frame of the pair embed: X shows the PNG as the poster until the frame loads, and the frame
  * opens on the same picture, so the hand-off is not seen. Everything is placed by the same functions that place the PNG's (`composition`,
  * `headshotFan`, `posterRow`, `yearLabelXs`, from `og-card.ts`) from the same `OgCard`, in the PNG's own pixels, which `--px` turns into the
  * frame's size: the stage is 1200 x 630 and is fitted into the frame, centred, as a picture would be.
  *
- * Keep the look of the two in step: the colours, type and shadows below are `OgCardView`'s (and `og-theme.ts`'s, which a client file cannot import:
+ * Keep the look of the two in step: the colours, type and shadows of `PlainPairPoster` are `OgCardView`'s (and `og-theme.ts`'s, which a client file cannot import:
  * it reads the fonts from disk). The parts the animation moves carry `data-part` (wordmark, lane, node, poster, years, chip, caption, accent). The headshots (`person`)
  * are not moved or drawn over at any point: they stay as the PNG draws them, and nothing sits behind them or around them but the card's own canvas.
  */
@@ -112,7 +111,6 @@ function Headshot({
   left,
   top,
   fontSize,
-  portraitMode,
 }: {
   person: OgPerson;
   index: number;
@@ -121,8 +119,6 @@ function Headshot({
   left: number;
   top: number;
   fontSize: number;
-  /** Spike: the cut-paper treatment, as the PNG draws it when its flag is on (`og-portrait.ts`): the frame's mode (`PairPoster`). */
-  portraitMode: PortraitMode | null;
 }) {
   const src = tmdbImage(person.profilePath, "w342");
   return (
@@ -139,9 +135,8 @@ function Headshot({
         boxShadow: `0 ${px(14)} ${px(30)} rgba(0, 0, 0, 0.6)`,
       })}
     >
-      {src && portraitMode ? (
+      {src ? (
         <TreatedPortrait
-          mode={portraitMode}
           personId={person.id}
           slot={index}
           name={person.name}
@@ -151,8 +146,6 @@ function Headshot({
           rounded={false}
           className="h-full w-full"
         />
-      ) : src ? (
-        <img src={src} alt="" decoding="async" draggable={false} style={{ ...cover, objectPosition: "50% 18%" }} />
       ) : (
         <div
           style={{
@@ -225,37 +218,15 @@ function Poster({ poster, left, top }: { poster: OgPoster; left: number; top: nu
 
 /**
  * The card, in the frame's pixels: put it in an element that is a size container (`container-type: size`) and set `--px` on it to `POSTER_PX`.
- * `aria-hidden` is the caller's to set (the card is a picture of what the page below it says). With the portrait flag on and the pair's treated card
- * (`treated`, from `buildTreatedPair`), it is that card (`TreatedPairPoster`), as the PNG is.
- *
- * The flag is the address's, else the tab's, else `serverPortraitMode` (the server's own gate, which the PNG follows: see `usePortraitMode`), so that the
- * server-rendered card is already the PNG's and the frame does not open on the plain one when the PNG was treated.
+ * `aria-hidden` is the caller's to set (the card is a picture of what the page below it says). For a pair it is the treated card (`treated`, from
+ * `buildTreatedPair`: `TreatedPairPoster`), as the PNG is; for one person (`treated` null) it is the timeline's own card (`PlainPairPoster`).
  */
-export function PairPoster({
-  card,
-  treated = null,
-  serverPortraitMode = null,
-}: {
-  card: OgCard;
-  treated?: TreatedPair | null;
-  serverPortraitMode?: PortraitMode | null;
-}) {
-  // Spike: the cut-paper treatment, as the PNG draws it when its flag is on (`og-portrait.ts`).
-  const portraitMode = usePortraitMode(serverPortraitMode);
-  if (portraitMode && treated && card.people.length >= 2) return <TreatedPairPoster card={card} treated={treated} mode={portraitMode} />;
-  return <PlainPairPoster card={card} portraitMode={portraitMode} />;
+export function PairPoster({ card, treated = null }: { card: OgCard; treated?: TreatedPair | null }) {
+  return treated ? <TreatedPairPoster card={card} treated={treated} /> : <PlainPairPoster card={card} />;
 }
 
-/**
- * Whether the frame's first frame is the treated card (`PairPoster` draws it): the same test, for the parts of the frame around the card that follow it (the
- * embed's "Open in Parallel" is not drawn over the treated card, as the PNG has none).
- */
-export function useTreatedFirstFrame(card: OgCard, treated: TreatedPair | null, serverPortraitMode: PortraitMode | null): boolean {
-  const portraitMode = usePortraitMode(serverPortraitMode);
-  return portraitMode !== null && treated !== null && card.people.length >= 2;
-}
-
-function PlainPairPoster({ card, portraitMode }: { card: OgCard; portraitMode: PortraitMode | null }) {
+/** One person's card: the app's own timeline, the headshot (cut out), the posters of their films on the lane, the years and the count (`OgCardView`). */
+function PlainPairPoster({ card }: { card: OgCard }) {
   const hasLane = card.posters.length > 0;
   const fan = headshotFan(card.people.length);
   const place = composition(fan.height, hasLane, card.chip !== null);
@@ -353,7 +324,6 @@ function PlainPairPoster({ card, portraitMode }: { card: OgCard; portraitMode: P
           left={fanLeft + fan.cards[i].left}
           top={place.headshotTop}
           fontSize={card.overlayFontSize}
-          portraitMode={portraitMode}
         />
       ))}
 
@@ -386,11 +356,11 @@ const AXIS_RGB = "136, 153, 170";
 const AXIS_ALPHA = 0.7;
 
 /**
- * Spike: the pair's treated card (`TreatedPairCardView`, in `og-treated-render.tsx`) rebuilt as HTML, on the same grid and from the same numbers
+ * The pair's treated card (`TreatedPairCardView`, in `og-treated-render.tsx`) rebuilt as HTML, on the same grid and from the same numbers
  * (`og-treated.ts`): both portraits in colour down the left edge, the posters of their shared films, the axis, the names and the count (centred on the column) and the wordmark. The
  * parts the sequence moves carry the plain card's names: `poster`, `node` (a shared film's white dot) and `accent` (the count's numbers).
  */
-function TreatedPairPoster({ card, treated, mode }: { card: OgCard; treated: TreatedPair; mode: PortraitMode }) {
+function TreatedPairPoster({ card, treated }: { card: OgCard; treated: TreatedPair }) {
   const place = treatedPairLayout();
   const lefts = treatedPosterLefts(treated.posters.length);
   const tile = treatedTile(card.people.length);
@@ -421,7 +391,6 @@ function TreatedPairPoster({ card, treated, mode }: { card: OgCard; treated: Tre
         >
           {person.profilePath ? (
             <TreatedPortrait
-              mode={mode}
               personId={person.id}
               slot={i}
               name={person.name}

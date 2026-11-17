@@ -154,7 +154,7 @@ body:has([data-people-bar]) > header {
 
 /*
  * A film that a chip of the pair hero brought into view in the Table (src/components/timeline/reveal-film-row.ts) is lit for a moment: the green of the films made together,
- * fading out. Reduced motion: lit for the same time, without the fade. With the portrait flag the page's palette sets `--row-flash` (`personColorCss`): the
+ * fading out. Reduced motion: lit for the same time, without the fade. On a pair's page the page's palette sets `--row-flash` (`personColorCss`): the
  * flash is white, as the films made together are.
  */
 @keyframes film-row-flash {

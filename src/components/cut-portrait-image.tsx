@@ -18,7 +18,7 @@ interface Props {
 }
 
 /**
- * Spike (zherring/spike-portraits): the clipped photo and its cut edge, inside the caller's `<svg>` (which must sit in a size container, see
+ * The clipped photo and its cut edge, inside the caller's `<svg>` (which must sit in a size container, see
  * `STROKE_CSS`). The edge is the open path of `cutEdgePath` (the frame's edges left out) in all three positions:
  * - center: a plain stroke over the photo, straddling the polygon;
  * - outside: a stroke of twice the width under the photo, whose clipped edge hides the inner half;

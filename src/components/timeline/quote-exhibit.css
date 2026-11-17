@@ -65,7 +65,7 @@ body:has([data-quote-exhibit-deck]) > footer {
   padding: 4.5rem clamp(2rem, 4vw, 5rem);
 }
 
-/* Spike (portrait flag only): the quote pane's glow from below in the speaker's colour (`useQuoteGlowStyle`), under the quotes; the toolbar lets it show through. */
+/* The quote pane's glow from below in the speaker's colour (`useQuoteGlowStyle`), under the quotes; the toolbar lets it show through. */
 .quote-exhibit-wash {
   position: absolute;
   inset: 0 0 0 50%;
@@ -126,7 +126,7 @@ body:has([data-quote-exhibit-deck]) > footer {
   filter: grayscale(1) brightness(0.72);
 }
 
-/* Spike (?portrait=): the cut-out portrait fills the panel. */
+/* The cut-out portrait fills the panel. */
 .quote-exhibit-treated {
   position: absolute;
   inset: 0;

@@ -3,10 +3,9 @@
 import { useEffect, useSyncExternalStore, type CSSProperties } from "react";
 
 /**
- * Spike (zherring/spike-portraits): a pair's two colours as a soft background, the first washing in from the element's top left and the second
- * from its bottom right, at the strength of the quote embed's old wash. The two colours are registered `<color>` custom properties, so a change
- * (the next pair on the landing hero, the other speaker's quote) eases from one pair of colours to the next; where registration is missing
- * they change at once, as they do when the visitor asks for less motion. Only behind the portrait flag: without it nothing here is set.
+ * A pair's two colours as a soft background, the first washing in from the element's top left and the second from its bottom right. The two
+ * colours are registered `<color>` custom properties, so a change (the next pair on the landing hero, the other speaker's quote) eases from one pair of
+ * colours to the next; where registration is missing they change at once, as they do when the visitor asks for less motion.
  */
 export const PAIR_WASH_A = "--pair-wash-a";
 export const PAIR_WASH_B = "--pair-wash-b";
@@ -18,7 +17,7 @@ export const PAIR_WASH_IMAGE = [
 ].join(", ");
 
 let registered = false;
-/** Registers the two colours (once, and only once something asks for the wash: behind the flag). */
+/** Registers the two colours (once, and only once something asks for the wash). */
 export function registerPairWash() {
   if (registered) return;
   registered = true;
@@ -66,15 +65,7 @@ function useWashStyle(colors: readonly string[] | null, image: string, names: re
   } as CSSProperties;
 }
 
-/**
- * The wash as an element's style, for an element React renders: `colors` is [top left, bottom right], or null (no flag) for no style at all.
- * Callers pass null on the server and in the hydrating render (the flag is read with `usePortraitMode`), so the markup matches.
- */
-export function usePairWashStyle(colors: readonly [string, string] | null): CSSProperties | undefined {
-  return useWashStyle(colors, PAIR_WASH_IMAGE, [PAIR_WASH_A, PAIR_WASH_B]);
-}
-
-/** The quotes' glow (`QUOTE_GLOW_IMAGE`) as an element's style: `color` is the speaker's, or null (no flag) for no style at all. */
+/** The quotes' glow (`QUOTE_GLOW_IMAGE`) as an element's style: `color` is the speaker's, or null for no style at all. */
 export function useQuoteGlowStyle(color: string | null): CSSProperties | undefined {
   return useWashStyle(color === null ? null : [color], QUOTE_GLOW_IMAGE, [PAIR_WASH_A]);
 }

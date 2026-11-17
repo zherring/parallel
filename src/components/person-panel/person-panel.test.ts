@@ -53,9 +53,10 @@ describe("PersonContent", () => {
     expect(html).toContain("Read more on TMDB");
   });
 
-  it("shows the initials under the photo, and alone when TMDB has no photo", () => {
-    expect(content()).toContain("https://image.tmdb.org/t/p/w342/abc.jpg");
-    expect(content()).toContain(">DV<");
+  it("shows the photo cut out (the treated portrait), and the initials alone when TMDB has no photo", () => {
+    const html = content();
+    expect(html).toContain("https://image.tmdb.org/t/p/w342/abc.jpg");
+    expect(html).toContain("data-treated-portrait");
     const bare = content({ profilePath: null });
     expect(bare).toContain(">DV<");
     expect(bare).not.toContain("<img");

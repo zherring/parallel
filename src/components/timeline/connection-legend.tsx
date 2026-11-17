@@ -31,7 +31,7 @@ function wordsOf(entry: LegendEntry, laneCount: number): string {
  * connection and dims the others; pressing it keeps the highlight (for touch and keyboard).
  */
 export function ConnectionLegend({ entries, names, laneCount, activeKey, pinnedKey, onPreview, onTogglePin }: ConnectionLegendProps) {
-  // Spike: with the pair's palette (the portrait flag) the films everyone shares are white, with no glow, where the app's are green.
+  // On a pair's page (its palette) the films everyone shares are white, with no glow, where the app's are green.
   const palette = usePersonPalette() !== null;
   if (entries.length === 0) return null;
   return (
