@@ -1,5 +1,6 @@
 "use client";
 
+import { usePersonPalette } from "@/components/person-palette";
 import { slotColor, type LegendEntry } from "@/lib/connections";
 import { cn } from "./cn";
 
@@ -30,6 +31,8 @@ function wordsOf(entry: LegendEntry, laneCount: number): string {
  * connection and dims the others; pressing it keeps the highlight (for touch and keyboard).
  */
 export function ConnectionLegend({ entries, names, laneCount, activeKey, pinnedKey, onPreview, onTogglePin }: ConnectionLegendProps) {
+  // Spike: with the pair's palette (the portrait flag) the films everyone shares are white, with no glow, where the app's are green.
+  const palette = usePersonPalette() !== null;
   if (entries.length === 0) return null;
   return (
     <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-2">
@@ -60,8 +63,8 @@ export function ConnectionLegend({ entries, names, laneCount, activeKey, pinnedK
                   aria-hidden
                   className="size-2.5 shrink-0 rounded-full"
                   style={{
-                    backgroundColor: entry.slot === null ? "var(--lit)" : slotColor(entry.slot),
-                    boxShadow: entry.slot === null ? "0 0 6px var(--lit-glow)" : undefined,
+                    backgroundColor: entry.slot === null ? (palette ? "#fff" : "var(--lit)") : slotColor(entry.slot),
+                    boxShadow: entry.slot === null && !palette ? "0 0 6px var(--lit-glow)" : undefined,
                   }}
                 />
                 <span className="text-strong">

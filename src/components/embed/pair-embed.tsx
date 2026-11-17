@@ -350,7 +350,8 @@ export function PairEmbed({ slug, timelines, today, card, count, treated = null,
             </p>
             {count !== null && (
               <p className="truncate text-muted" style={{ fontSize: size(10, 1.1) }}>
-                <span className="text-lit">
+                {/* Spike: white with the pair's palette (the portrait flag), where the app's films made together are green. */}
+                <span className={paletteHexes ? "text-white" : "text-lit"}>
                   <CountUp to={count} start={counted} />
                 </span>{" "}
                 {count === 1 ? "film" : "films"}
@@ -398,22 +399,25 @@ export function PairEmbed({ slug, timelines, today, card, count, treated = null,
               } as CSSProperties
             }
           >
-            <Timeline
-              ref={timelineRef}
-              active
-              embed
-              embedRows={rows}
-              hitScale={1 / fit}
-              lanes={lanes}
-              combined={multi}
-              showAll={false}
-              people={people}
-              includeMinor={false}
-              today={today}
-              selectedId={null}
-              onSelect={() => {}}
-              onOpenPerson={() => {}}
-            />
+            {/* Spike: with the portrait flag the timeline runs on the pair's palette, as the page's does (`PeopleView`): the same hexes as the first frame's. */}
+            <PersonPaletteProvider hexes={paletteHexes}>
+              <Timeline
+                ref={timelineRef}
+                active
+                embed
+                embedRows={rows}
+                hitScale={1 / fit}
+                lanes={lanes}
+                combined={multi}
+                showAll={false}
+                people={people}
+                includeMinor={false}
+                today={today}
+                selectedId={null}
+                onSelect={() => {}}
+                onOpenPerson={() => {}}
+              />
+            </PersonPaletteProvider>
           </div>
         </div>
       )}

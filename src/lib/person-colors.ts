@@ -66,12 +66,15 @@ function glowOf(hex: string): string {
  * The palette as CSS custom properties on :root (`--person-1`, `--person-1-glow`, ...). They are
  * global, not set on the timeline, because the film's hover card is rendered in a portal on the body. `override` (spike: the portrait
  * flag's `portraitPersonHexes`) replaces the first slots' colours, so everything that reads the properties follows; without it the CSS is as it was.
+ * With the override it also names the colour of "made together" for CSS that cannot read the palette gate (`--row-flash`, the Table's row flash in
+ * globals.css): white, where the app's is the green `--lit`.
  */
 export function personColorCss(override?: readonly string[] | null): string {
   const declarations = PERSON_COLORS.map(({ hex }, i) => {
     const color = override?.[i] ?? hex;
     return `--person-${i + 1}:${color};--person-${i + 1}-glow:${glowOf(color)};`;
   });
+  if (override) declarations.push("--row-flash:#fff;");
   return `:root{${declarations.join("")}}`;
 }
 

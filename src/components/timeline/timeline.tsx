@@ -15,6 +15,7 @@ import {
   type PointerEvent,
   type Ref,
 } from "react";
+import { usePersonPalette } from "@/components/person-palette";
 import { combineLanes, combinedMinimapFilms, describeCombined } from "@/lib/combined-track";
 import { connectionKey, connectionLegend, slotColor } from "@/lib/connections";
 import { filmCardContent } from "@/lib/film-credits";
@@ -186,8 +187,15 @@ const COMBINED_PERSON: PersonSummary = {
 };
 
 const LIT_GLOW = { filter: "drop-shadow(0 0 3px var(--lit-glow))" };
+/** Spike: with the pair's palette (the portrait flag) the films made together are white, with no glow, where the app's are green (`--lit`). */
+const MADE_TOGETHER_WHITE = "#fff";
 /** Opacity of the connections the legend is not pointing at. */
 const DIMMED = 0.2;
+
+/** The ring and the faint tint over the lane just jumped to, in its person's colour (`color`, a CSS colour): what `bg-lit/5 ring-2 ring-inset ring-lit` is in green. */
+function highlightLaneStyle(color: string) {
+  return { backgroundColor: `color-mix(in srgb, ${color} 5%, transparent)`, boxShadow: `inset 0 0 0 2px ${color}` };
+}
 
 /** The element of a delegated pointer or focus event that stands for a film (a card or a node), if any. */
 function filmElement(target: EventTarget | null): HTMLElement | null {
@@ -302,6 +310,7 @@ export function Timeline({
   const soloPage = people.length === 1;
   // Person colours: on a page of several people, whatever number of them is visible.
   const colored = people.length > 1;
+  const palette = usePersonPalette() !== null;
   // Films outside the period the page was opened on or the brush chose: shared or not, their cards, connectors and nodes fade.
   const outsideIds = useMemo(() => outsidePeriodIds(lanes.flatMap((lane) => lane.films), period), [lanes, period]);
 
@@ -934,7 +943,10 @@ export function Timeline({
                     y2={c.y2}
                     strokeWidth={strokeWidth}
                     opacity={(activeKey !== null && activeKey !== key) || outsideIds.has(c.filmId) ? DIMMED : 1}
-                    style={{ stroke: c.kind === "all" ? "var(--lit)" : slotColor(c.slot ?? 0), ...(c.kind === "all" ? LIT_GLOW : undefined) }}
+                    style={{
+                      stroke: c.kind === "all" ? (palette ? MADE_TOGETHER_WHITE : "var(--lit)") : slotColor(c.slot ?? 0),
+                      ...(c.kind === "all" && !palette ? LIT_GLOW : undefined),
+                    }}
                   />
                 );
               })}
@@ -956,10 +968,12 @@ export function Timeline({
                           stroke={tone === "plain" ? undefined : "var(--bg)"}
                           strokeWidth={tone === "plain" ? undefined : 1.5}
                           style={{
-                            ...(tone === "lit" ? LIT_GLOW : undefined),
+                            ...(tone === "lit" && !palette ? LIT_GLOW : undefined),
                             fill:
                               tone === "lit"
-                                ? "var(--lit)"
+                                ? palette
+                                  ? MADE_TOGETHER_WHITE
+                                  : "var(--lit)"
                                 : (layout.accents.get(film.id) ?? tint?.color ?? "var(--text-muted)"),
                           }}
                         />
@@ -1063,8 +1077,13 @@ export function Timeline({
             {highlightLane !== null && boxes[highlightLane] && (
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-x-0 z-[35] bg-lit/5 ring-2 ring-inset ring-lit"
-                style={{ top: boxes[highlightLane].top, height: boxes[highlightLane].height }}
+                // Spike: with the pair's palette the lane's ring and tint are its person's colour, not the green.
+                className={cn("pointer-events-none absolute inset-x-0 z-[35]", !palette && "bg-lit/5 ring-2 ring-inset ring-lit")}
+                style={{
+                  top: boxes[highlightLane].top,
+                  height: boxes[highlightLane].height,
+                  ...(palette ? highlightLaneStyle(personColor(slots.get(trackLanes[highlightLane].person.id) ?? 0)) : undefined),
+                }}
               />
             )}
 
@@ -1136,7 +1155,12 @@ export function Timeline({
           brush={onPeriodChange ? { span: periodSpan, period, years: periodYears, onChange: onPeriodChange } : undefined}
           leading={
             multi && !isCombined ? (
-              <LaneAvatars people={lanes.map((lane) => lane.person)} activeIndex={activeLane} onJump={jumpToLane} />
+              <LaneAvatars
+                people={lanes.map((lane) => lane.person)}
+                activeIndex={activeLane}
+                onJump={jumpToLane}
+                ringColors={palette ? lanes.map((lane) => personColor(slots.get(lane.person.id) ?? 0)) : undefined}
+              />
             ) : null
           }
         >

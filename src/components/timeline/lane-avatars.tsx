@@ -9,6 +9,8 @@ interface LaneAvatarsProps {
   /** Index of the lane most in view; gets the green ring. */
   activeIndex: number;
   onJump: (index: number) => void;
+  /** Spike: with the pair's palette (the portrait flag), the active ring is the person's colour (a CSS colour, by index) instead of the green. */
+  ringColors?: readonly string[];
 }
 
 /**
@@ -16,7 +18,7 @@ interface LaneAvatarsProps {
  * beside the minimap. Each one scrolls its person's lane to the top (and the timeline rings it
  * briefly); the lane most in view has the green ring and `aria-current`.
  */
-export function LaneAvatars({ people, activeIndex, onJump }: LaneAvatarsProps) {
+export function LaneAvatars({ people, activeIndex, onJump, ringColors }: LaneAvatarsProps) {
   return (
     <div
       role="group"
@@ -26,6 +28,7 @@ export function LaneAvatars({ people, activeIndex, onJump }: LaneAvatarsProps) {
     >
       {people.map((person, index) => {
         const active = index === activeIndex;
+        const ringColor = active ? ringColors?.[index] : undefined;
         return (
           <button
             key={person.id}
@@ -36,8 +39,11 @@ export function LaneAvatars({ people, activeIndex, onJump }: LaneAvatarsProps) {
             onClick={() => onJump(index)}
             className={cn(
               "relative flex cursor-pointer rounded-full ring-2 hover:z-10 focus-visible:z-10",
-              active ? "z-10 ring-lit" : "ring-canvas hover:ring-muted",
+              active && "z-10",
+              active && !ringColor && "ring-lit",
+              !active && "ring-canvas hover:ring-muted",
             )}
+            style={ringColor ? { boxShadow: `0 0 0 2px ${ringColor}` } : undefined}
           >
             <PersonAvatar name={person.name} profilePath={person.profilePath} size={32} className="max-sm:size-7!" />
           </button>

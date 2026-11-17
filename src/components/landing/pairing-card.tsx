@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { PairingCount } from "@/components/landing/pairing-count";
 import { PairingFace } from "@/components/landing/pairing-face";
 import type { ExampleCardData } from "@/lib/example-cards";
 import { joinNames } from "@/lib/format";
@@ -47,9 +48,7 @@ export function PairingCard({ card, photos = true }: Props) {
         <h3 className="text-lg font-semibold leading-snug text-strong">{joinNames(names)}</h3>
         <p className="text-sm leading-relaxed text-body">{card.blurb}</p>
       </div>
-      <p className="text-sm font-medium text-accent-green">
-        <span className="tabular-nums">{card.sharedCount}</span> {card.sharedCount === 1 ? "film" : "films"} together
-      </p>
+      <PairingCount count={card.sharedCount} />
     </PairingCardFrame>
   );
 }
