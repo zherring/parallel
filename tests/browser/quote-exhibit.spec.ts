@@ -6,6 +6,8 @@ const ANDERSON = "/p/5655-wes-anderson+1532-bill-murray";
 const FIRST = "i-want-to-thank-first-of";
 const SECOND = "money-didnt-mean-anything-to-me";
 const people: Record<string, string> = { "1032": "Martin Scorsese", "3661": "Thelma Schoonmaker", "5655": "Wes Anderson", "1532": "Bill Murray", "488": "Steven Spielberg", "491": "John Williams" };
+/** The people TMDB has no photo of: their portrait is their initials. */
+const NO_PHOTO = new Set(["491"]);
 
 test.beforeEach(async ({ page, next }) => {
   await page.route("https://image.tmdb.org/**", (route) => route.fulfill({ contentType: "image/png", body: PIXEL }));
@@ -14,7 +16,7 @@ test.beforeEach(async ({ page, next }) => {
     if (url.hostname !== "api.themoviedb.org") return "abort";
     const match = url.pathname.match(/^\/3\/person\/(\d+)(\/movie_credits)?$/);
     if (match && people[match[1]]) {
-      if (!match[2]) return Response.json({ id: Number(match[1]), name: people[match[1]], profile_path: `/portrait-${match[1]}.jpg`, biography: "A biography for the Quotes study." });
+      if (!match[2]) return Response.json({ id: Number(match[1]), name: people[match[1]], profile_path: NO_PHOTO.has(match[1]) ? null : `/portrait-${match[1]}.jpg`, biography: "A biography for the Quotes study." });
       return Response.json({ cast: [{ id: 1, title: "A Shared Film", release_date: "1998-01-01", poster_path: null, vote_count: 100, order: 0, character: "Lead" }], crew: [] });
     }
     if (url.pathname === "/3/discover/movie") return Response.json({ total_pages: 1, results: [] });
@@ -483,7 +485,7 @@ test("linked quotes keep their original order; history and resizing retain the a
   await openExhibit(page, `${ANDERSON}?view=clippings&quote=${quoteId}`);
   await expect(active(page).locator("blockquote")).toContainText("When I read Rushmore");
   await expect(backdrop(page).locator('[data-portrait-person="1532"]')).toHaveAttribute("data-speaking", "true");
-  await expect(backdrop(page).locator('[data-portrait-person="5655"] img')).toHaveCSS("filter", "grayscale(1) brightness(0.72)");
+  await expect(backdrop(page).locator('[data-portrait-person="5655"] .quote-exhibit-treated')).toHaveCSS("filter", "grayscale(1) brightness(0.72)");
   await expect(active(page).locator(".quote-exhibit-plate")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   const ids = await deck(page).locator("[data-quote-slide]").evaluateAll((elements) => elements.map((element) => element.getAttribute("data-quote-slide")));
   await active(page).getByRole("button", { name: "Share this quote by Bill Murray", exact: true }).click();
@@ -558,18 +560,18 @@ test("long quotes remain scrollable inside a slide, and switching views removes 
   await expect(deck(page)).not.toHaveAttribute("data-active-quote", returnedId!);
 });
 
-test("critics treat the portraits equally, and broken portraits fall back to initials", async ({ page }) => {
+test("critics treat the portraits equally, and a person TMDB has no photo of is their initials", async ({ page }) => {
   await openExhibit(page, "/p/488-steven-spielberg+491-john-williams?view=clippings&quote=critic-knowing-the-family-issues-of-spielbergs");
   await expect(active(page).locator("blockquote")).toContainText("Knowing the family issues");
   await expect(backdrop(page).locator('[data-speaking="true"], [data-quiet="true"]')).toHaveCount(0);
   await expect(backdrop(page).getByRole("img", { name: "Steven Spielberg", exact: true })).toBeVisible();
-
-  await page.route("https://image.tmdb.org/**", (route) => route.abort());
-  await openExhibit(page);
   await expect(deck(page).locator("[data-quote-exhibit]")).toHaveAttribute("data-quote-exhibit", "portraits");
   await expect(deck(page).locator(".quote-exhibit-credit")).toContainText("Portraits via TMDB");
-  await expect(backdrop(page).locator('[data-portrait-person="1032"] img')).toHaveCount(0);
-  await expect(backdrop(page).locator('[data-portrait-person="1032"]')).toContainText("MS");
+  // The one with a photo is cut out; the one with none is the plain initials, with no picture of any kind.
+  await expect(backdrop(page).locator('[data-portrait-person="488"] .quote-exhibit-treated')).toHaveCount(1);
+  await expect(backdrop(page).locator('[data-portrait-person="491"] .quote-exhibit-treated')).toHaveCount(0);
+  await expect(backdrop(page).locator('[data-portrait-person="491"] img')).toHaveCount(0);
+  await expect(backdrop(page).locator('[data-portrait-person="491"]')).toContainText("JW");
 });
 
 test("one image and credit stay stationary while quotes move, and portrait changes reuse the same images", async ({ page }) => {
@@ -577,9 +579,9 @@ test("one image and credit stay stationary while quotes move, and portrait chang
   await openExhibit(page);
   await page.evaluate(() => document.fonts.ready);
   await expect(backdrop(page)).toHaveCount(1);
-  await expect(backdrop(page).locator("img")).toHaveCount(2);
+  await expect(backdrop(page).locator(".quote-exhibit-treated")).toHaveCount(2);
   expect(await backdrop(page).evaluate((element) => element.closest(".quote-exhibit-scroller") === null)).toBe(true);
-  const image = backdrop(page).locator("img").first();
+  const image = backdrop(page).locator(".quote-exhibit-treated").first();
   const originalImage = (await image.elementHandle())!;
   const imageBox = await image.boundingBox();
   const credit = deck(page).locator(".quote-exhibit-credit");
@@ -603,10 +605,10 @@ test("one image and credit stay stationary while quotes move, and portrait chang
   });
   await expect(deck(page)).toHaveAttribute("data-active-quote", SECOND);
   await expectSnap(page, 1);
-  expect(await originalImage.evaluate((element) => element === document.querySelector(".quote-exhibit-portrait img"))).toBe(true);
+  expect(await originalImage.evaluate((element) => element === document.querySelector(".quote-exhibit-portrait .quote-exhibit-treated"))).toBe(true);
   expect(await image.boundingBox()).toEqual(imageBox);
 
-  const portraits = backdrop(page).locator(".quote-exhibit-portrait img");
+  const portraits = backdrop(page).locator(".quote-exhibit-portrait .quote-exhibit-treated");
   await expect(portraits).toHaveCount(2);
   const originals = await portraits.elementHandles();
   const boxes = await portraits.evaluateAll((images) => images.map((element) => element.getBoundingClientRect().toJSON()));
@@ -616,7 +618,7 @@ test("one image and credit stay stationary while quotes move, and portrait chang
     history.replaceState(null, "", `${location.pathname}?${params}`);
   });
   await expect(backdrop(page).locator('[data-portrait-person="1032"]')).toHaveAttribute("data-speaking", "true");
-  await expect(backdrop(page).locator('[data-portrait-person="3661"] img')).toHaveCSS("filter", "grayscale(1) brightness(0.72)");
+  await expect(backdrop(page).locator('[data-portrait-person="3661"] .quote-exhibit-treated')).toHaveCSS("filter", "grayscale(1) brightness(0.72)");
   for (const original of originals) expect(await original.evaluate((element) => element.isConnected)).toBe(true);
   expect(await portraits.evaluateAll((images) => images.map((element) => element.getBoundingClientRect().toJSON()))).toEqual(boxes);
   await expect(backdrop(page)).toHaveCount(1);

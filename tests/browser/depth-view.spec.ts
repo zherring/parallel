@@ -1,6 +1,7 @@
 import { test, expect, MINOR_FILM_COUNT, PEOPLE_PATH, PIXEL, collapseHero, switcher, viewLink } from "./fixtures";
 import type { Page } from "next/experimental/testmode/playwright";
 import { collabStep, layerFactor, tierOf, xSpec } from "../../src/lib/depth-layout";
+import { portraitPersonHexes } from "../../src/lib/portrait-cuts";
 
 // Activate the server-side fetch fixtures before any test navigates to a people page.
 test.beforeEach(async ({ next }) => { void next; });
@@ -16,6 +17,11 @@ const WORST_REST = 0.32;
 
 /** The first of the fixture's shared films (2000-01-01): the scene opens with it in the middle of the screen. */
 const FIRST_SHARED = /^Scroll Film 100, 2000\./;
+
+/** The fixture pair's colours (`PEOPLE_PATH`), by slot: a pair's own palette, not the app's blue and amber. */
+const PAIR_HEXES = portraitPersonHexes([90000001, 90000002])!;
+/** A "#rrggbb" as 0 to 255 channels. */
+const hexChannels = (hex: string) => [1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16));
 
 /** The page background (`--bg`, #14181c) as 0 to 255 channels: what every poster's shadow is made of. */
 const BG_RGB = [20, 24, 28];
@@ -236,8 +242,8 @@ test("the films made together float in front: larger, with their own shadow, and
     "preserve-3d",
     "preserve-3d",
   ]);
-  // The shadows hang from the card's ::before: no green glow, but an outline outside the ring and layers of the page's background colour
-  // (contact, tight, mid, a deep one thrown down, a wide pool all round), the heaviest in the scene. Green is only the crisp 2px ring on the poster.
+  // The shadows hang from the card's ::before: no glow, but an outline outside the ring and layers of the page's background colour
+  // (contact, tight, mid, a deep one thrown down, a wide pool all round), the heaviest in the scene. White is only the crisp 2px ring on the poster.
   const shadow = (selector: string, pseudo = "::before") =>
     region.locator(selector).first().evaluate((card, which) => getComputedStyle(card, which).boxShadow, pseudo);
   const collabShadow = await shadow("[data-poster-card][data-collab]");
@@ -257,7 +263,7 @@ test("the films made together float in front: larger, with their own shadow, and
   for (const layer of liftLayers) expect(layer.rgb).toEqual(BG_RGB);
   const strength = (layers: { alpha: number }[]) => layers.reduce((sum, layer) => sum + layer.alpha, 0);
   expect(strength(liftLayers)).toBeGreaterThan(strength(collabLayers));
-  await expect(poster.locator("[data-poster-card] > span").first()).toHaveCSS("box-shadow", "rgb(0, 224, 84) 0px 0px 0px 2px");
+  await expect(poster.locator("[data-poster-card] > span").first()).toHaveCSS("box-shadow", "rgb(255, 255, 255) 0px 0px 0px 2px");
   // Every poster behind has the layered drop shadow too: a tight contact shadow and a soft ambient one, fainter than a collaboration's.
   const behindShadow = await shadow("[data-poster-card]:not([data-collab])");
   expect(behindShadow).toContain("0px 1px 2px");
@@ -1402,11 +1408,11 @@ test("the open pill is the app's usual search field, boxed, with the close butto
   const search = pillSearch(page);
   await expect(search).toBeVisible();
 
-  // The card is the people and the key to the green: no field.
+  // The card is the people and the key to the white: no field.
   await expect(card.getByRole("combobox")).toHaveCount(0);
   await expect(card.locator("input")).toHaveCount(0);
   await expect(page.getByRole("combobox")).toHaveCount(1);
-  await expect(card.getByText("Green: made together by everyone shown", { exact: true })).toBeVisible();
+  await expect(card.getByText("White: made together by everyone shown", { exact: true })).toBeVisible();
 
   // The field is the flat page's own: a box with a border, a surface fill, the bar's radius (6px), the search icon and the placeholder.
   const box = search.locator("xpath=ancestor::div[@data-search-box][1]");
@@ -2018,7 +2024,7 @@ test("while the pill is open the bar's other controls step aside: nothing is und
   await expect(settingsGear(page)).toBeVisible();
 });
 
-test("until its image arrives a poster is the dark surface tinted with its person's colour (green for a film made together), and the image arrives without moving anything", async ({ page }) => {
+test("until its image arrives a poster is the dark surface tinted with its person's colour (a film made together stays the plain surface: its white ring marks it), and the image arrives without moving anything", async ({ page }) => {
   // Every poster image is held back until the test lets go: the connection is as slow as it gets.
   let release: () => void = () => {};
   const gate = new Promise<void>((resolve) => {
@@ -2062,18 +2068,17 @@ test("until its image arrives a poster is the dark surface tinted with its perso
     expect(waiting.length).toBeGreaterThan(4);
     expect(waiting.some((poster) => poster.loaded)).toBe(false);
 
-    // The surface is #202830 (32, 40, 48); each kind of poster is tinted a little towards its colour and no more.
+    // The surface is #202830 (32, 40, 48); a film made together is that and no more (its white ring is the mark), and each person's is tinted a little towards their colour and no more.
     const fillOf = (layer: number) => waiting.find((poster) => poster.layer === layer)!.fill;
     const collab = fillOf(0);
-    expect(collab.g).toBeGreaterThan(collab.r + 25);
-    expect(collab.g).toBeGreaterThan(collab.b + 8);
-    const first = fillOf(1);
-    expect(first.b).toBeGreaterThan(first.r + 15);
-    const second = fillOf(2);
-    expect(second.r).toBeGreaterThan(second.b + 3);
-    for (const { r, g, b } of [collab, first, second]) {
+    expect([collab.r, collab.g, collab.b]).toEqual([32, 40, 48]);
+    for (const [layer, hex] of [[1, PAIR_HEXES[0]], [2, PAIR_HEXES[1]]] as const) {
+      const { r, g, b } = fillOf(layer);
       expect(Math.max(Math.abs(r - 32), Math.abs(g - 40), Math.abs(b - 48))).toBeLessThan(45);
       expect([r, g, b]).not.toEqual([32, 40, 48]);
+      // The tint moves each channel the way the person's colour lies from the surface.
+      const [hr, hg, hb] = hexChannels(hex);
+      expect((r - 32) * (hr - 32) + (g - 40) * (hg - 40) + (b - 48) * (hb - 48), `layer ${layer} is tinted towards ${hex}`).toBeGreaterThan(0);
     }
 
     // The images arrive: no poster has moved or changed size.
