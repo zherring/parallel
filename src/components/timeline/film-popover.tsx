@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { PersonAvatar } from "@/components/person-avatar";
+import { usePersonPalette } from "@/components/person-palette";
 import type { CreditsRow, FilmCardContent } from "@/lib/film-credits";
 import { tmdbImage } from "@/lib/images";
 import { placePopover, type Placement } from "@/lib/popover-position";
@@ -111,7 +112,7 @@ interface FilmPopoverProps {
   id: string;
   target: PopoverTarget;
   content: FilmCardContent;
-  /** Shared by every lane: the poster gets the green outline and glow of a lit film. */
+  /** Shared by every lane: the poster gets the green outline and glow of a lit film (none on a pair's page, its palette: the poster has no outline). */
   lit: boolean;
   /** A person's colour on the timeline (a CSS colour), drawn as a ring round their avatar in the card; none on a one-person page. */
   colorOf?: (personId: number) => string | undefined;
@@ -160,6 +161,8 @@ function RoleText({ row }: { row: CreditsRow }) {
  */
 export function FilmPopover({ id, target, content, lit, colorOf, today, bottomEdge, onDismiss, embed = false }: FilmPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
+  // On a pair's page (its palette) a film made together has no ring or glow on its poster here, in the timeline's card and the Depth view's alike.
+  const palette = usePersonPalette() !== null;
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
   const side = useRef<{ trigger: HTMLElement; placement: Placement["placement"] } | null>(null);
   const animated = useRef(false);
@@ -220,7 +223,7 @@ export function FilmPopover({ id, target, content, lit, colorOf, today, bottomEd
         className={cn(
           "relative h-[210px] w-[140px] shrink-0 overflow-hidden rounded-md bg-canvas",
           embed && "[@media(max-height:440px)]:h-[138px] [@media(max-height:440px)]:w-[92px]",
-          lit ? "shadow-lit" : "border border-strong/20",
+          lit ? !palette && "shadow-lit" : "border border-strong/20",
         )}
       >
         {poster ? (

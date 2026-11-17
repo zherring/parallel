@@ -5,7 +5,14 @@ const SCORSESE = "/p/1032-martin-scorsese+3661-thelma-schoonmaker";
 const ANDERSON = "/p/5655-wes-anderson+1532-bill-murray";
 const FIRST = "i-want-to-thank-first-of";
 const SECOND = "money-didnt-mean-anything-to-me";
-const people: Record<string, string> = { "1032": "Martin Scorsese", "3661": "Thelma Schoonmaker", "5655": "Wes Anderson", "1532": "Bill Murray", "488": "Steven Spielberg", "491": "John Williams" };
+const people: Record<string, string> = {
+  "1032": "Martin Scorsese", "3661": "Thelma Schoonmaker", "5655": "Wes Anderson", "1532": "Bill Murray", "488": "Steven Spielberg", "491": "John Williams",
+  // The pairs of the quotes that set the extremes of the fit (see `FIT_EXTREMES`).
+  "4185": "Emmanuel Lubezki", "11218": "Alfonso Cuarón", "2372": "Guillermo del Toro", "10828": "Ron Perlman",
+  "3098": "Nino Rota", "4415": "Federico Fellini", "2710": "James Cameron", "10205": "Sigourney Weaver",
+};
+/** The people TMDB has no photo of: their portrait is their initials. */
+const NO_PHOTO = new Set(["491"]);
 
 test.beforeEach(async ({ page, next }) => {
   await page.route("https://image.tmdb.org/**", (route) => route.fulfill({ contentType: "image/png", body: PIXEL }));
@@ -14,7 +21,7 @@ test.beforeEach(async ({ page, next }) => {
     if (url.hostname !== "api.themoviedb.org") return "abort";
     const match = url.pathname.match(/^\/3\/person\/(\d+)(\/movie_credits)?$/);
     if (match && people[match[1]]) {
-      if (!match[2]) return Response.json({ id: Number(match[1]), name: people[match[1]], profile_path: `/portrait-${match[1]}.jpg`, biography: "A biography for the Quotes study." });
+      if (!match[2]) return Response.json({ id: Number(match[1]), name: people[match[1]], profile_path: NO_PHOTO.has(match[1]) ? null : `/portrait-${match[1]}.jpg`, biography: "A biography for the Quotes study." });
       return Response.json({ cast: [{ id: 1, title: "A Shared Film", release_date: "1998-01-01", poster_path: null, vote_count: 100, order: 0, character: "Lead" }], crew: [] });
     }
     if (url.pathname === "/3/discover/movie") return Response.json({ total_pages: 1, results: [] });
@@ -483,7 +490,7 @@ test("linked quotes keep their original order; history and resizing retain the a
   await openExhibit(page, `${ANDERSON}?view=clippings&quote=${quoteId}`);
   await expect(active(page).locator("blockquote")).toContainText("When I read Rushmore");
   await expect(backdrop(page).locator('[data-portrait-person="1532"]')).toHaveAttribute("data-speaking", "true");
-  await expect(backdrop(page).locator('[data-portrait-person="5655"] img')).toHaveCSS("filter", "grayscale(1) brightness(0.72)");
+  await expect(backdrop(page).locator('[data-portrait-person="5655"] .quote-exhibit-treated')).toHaveCSS("filter", "grayscale(1) brightness(0.72)");
   await expect(active(page).locator(".quote-exhibit-plate")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   const ids = await deck(page).locator("[data-quote-slide]").evaluateAll((elements) => elements.map((element) => element.getAttribute("data-quote-slide")));
   await active(page).getByRole("button", { name: "Share this quote by Bill Murray", exact: true }).click();
@@ -512,27 +519,34 @@ test("linked quotes keep their original order; history and resizing retain the a
   await expect(deck(page)).toHaveAttribute("data-active-quote", SECOND);
 });
 
-test("long quotes remain scrollable inside a slide, and switching views removes and restores the exhibition cleanly", async ({ page }) => {
+test("a long quote needs no scroller inside its slide: its type is fitted to the plate, the focused text pane hands Space to the deck, and switching views removes and restores the exhibition cleanly", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.setViewportSize({ width: 320, height: 568 });
+  await page.setViewportSize({ width: 375, height: 667 });
   await openExhibit(page, `${ANDERSON}?view=clippings&quote=when-i-read-rushmore-i-figured`);
   const quote = active(page).locator(".quote-exhibit-plate");
-  expect(await quote.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  // The deck is the only scroller that scrolls: the plate is one only for a room smaller than a quote can be read in (see `the plate scrolls ...` below), and here has nothing to scroll,
+  // since the quote's type is fitted to the room it leaves (`.quote-exhibit-words` in quote-exhibit.css), so nothing of it overflows the plate and the plate sits whole in its slide.
+  expect(await quote.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(1);
+  const slide = (await active(page).boundingBox())!;
+  const plate = (await quote.boundingBox())!;
+  expect(plate.y).toBeGreaterThanOrEqual(slide.y);
+  expect(plate.y + plate.height).toBeLessThanOrEqual(slide.y + slide.height);
+  // This quote (and its lines) is more than a short phone has room for at full size (15px), so it is set smaller.
+  expect(await active(page).locator(".quote-exhibit-words").evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))).toBeLessThan(15);
   const quoteId = await deck(page).getAttribute("data-active-quote");
-  // Tab from the deck reaches the named text pane; click focus is not stolen by the outer scroller either.
+  // Tab from the deck still reaches the named text pane; click focus is not stolen by the outer scroller either.
   await page.keyboard.press("Tab");
   await expect(quote).toBeFocused();
   await expect(quote).toHaveAttribute("aria-label", /Quote \d+ text/);
+  // With nothing in the pane to scroll, Space is the deck's: it goes to the next quote and the focus goes back to the deck's scroller.
   await page.keyboard.press("Space");
-  await expect.poll(() => quote.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  await expect(deck(page)).toHaveAttribute("data-active-quote", quoteId!);
+  await expect(deck(page)).not.toHaveAttribute("data-active-quote", quoteId!);
+  await expect(scroller(page)).toBeFocused();
   await page.keyboard.press("Shift+Space");
-  await expect.poll(() => quote.evaluate((element) => element.scrollTop)).toBe(0);
   await expect(deck(page)).toHaveAttribute("data-active-quote", quoteId!);
   await quote.click({ position: { x: 3, y: 3 } });
   await expect(quote).toBeFocused();
-  await quote.evaluate((element) => element.scrollTo({ top: element.scrollHeight, behavior: "instant" }));
-  expect(await quote.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  expect(await quote.evaluate((element) => element.scrollTop)).toBe(0);
   await expectSnap(page, await active(page).evaluate((element) => Array.from(element.parentElement!.children).indexOf(element)));
   await page.keyboard.press("Space");
   await expect(deck(page)).not.toHaveAttribute("data-active-quote", quoteId!);
@@ -558,17 +572,141 @@ test("long quotes remain scrollable inside a slide, and switching views removes 
   await expect(deck(page)).not.toHaveAttribute("data-active-quote", returnedId!);
 });
 
-test("critics treat the portraits equally, and broken portraits fall back to initials", async ({ page }) => {
+/**
+ * The full size of a quote's type, which a quote with room is set at (the CSS's `--quote-size`, restated here so that the test checks it, not itself):
+ * clamp(1.375rem, 2.1vw, 2rem) and at most 4% of the height from 48rem wide; a phone's clamp(1.125rem, 4.5vw, 1.375rem); 15px on a short phone.
+ */
+function fullSize(width: number, height: number) {
+  if (width >= 768) return Math.min(Math.min(Math.max(22, 0.021 * width), 32), 0.04 * height);
+  return height < 768 ? 15 : Math.min(Math.max(18, 0.045 * width), 22);
+}
+
+/**
+ * The plate of the active quote against the room its stage leaves it: whether any of it is outside the room (clipped, by the slide, or over the portraits or
+ * the toolbar), whether it needs to scroll, and whether its end is reachable when it does.
+ */
+async function plateFit(page: Page) {
+  return active(page).locator(".quote-exhibit-plate").evaluate((plate) => {
+    const stage = plate.closest(".quote-exhibit-stage")!;
+    const stageStyle = getComputedStyle(stage);
+    const room = stage.getBoundingClientRect();
+    const plateStyle = getComputedStyle(plate);
+    const rect = plate.getBoundingClientRect();
+    // The plate's padding (4px, where a focus ring is drawn) is taken back by its negative margin: what it takes of the room is inside that.
+    const outside = {
+      top: room.top + parseFloat(stageStyle.paddingTop) - (rect.top - parseFloat(plateStyle.marginTop)),
+      bottom: rect.bottom + parseFloat(plateStyle.marginBottom) - (room.bottom - parseFloat(stageStyle.paddingBottom)),
+      left: room.left + parseFloat(stageStyle.paddingLeft) - (rect.left - parseFloat(plateStyle.marginLeft)),
+      right: rect.right + parseFloat(plateStyle.marginRight) - (room.right - parseFloat(stageStyle.paddingRight)),
+    };
+    const words = plate.querySelector<HTMLElement>(".quote-exhibit-words")!;
+    const scrollable = plate.scrollHeight - plate.clientHeight > 1;
+    let reachable = true;
+    if (scrollable) {
+      plate.scrollTop = plate.scrollHeight;
+      const source = plate.querySelector(".quote-exhibit-source")!.getBoundingClientRect();
+      reachable = source.bottom <= plate.getBoundingClientRect().bottom + 0.5;
+      plate.scrollTop = 0;
+    }
+    return {
+      fontSize: Number.parseFloat(getComputedStyle(words).fontSize),
+      outside: Math.max(outside.top, outside.bottom, outside.left, outside.right),
+      wordsOverflow: words.scrollWidth - words.clientWidth,
+      scrollable,
+      reachable,
+    };
+  });
+}
+
+/**
+ * The quotes that set the extremes of the fit, each with its pair: the longest quote of all (556 characters); the shortest (24); the longest context line (a
+ * secondhand translation, with its original: 600+ characters, and the longest source line to go with it); and the longest word (30 characters).
+ */
+const FIT_EXTREMES = [
+  { what: "the longest quote", path: "/p/4185-emmanuel-lubezki+11218-alfonso-cuaron", id: "chivo-sometimes-makes-these-comments-and", short: false },
+  { what: "the shortest quote", path: "/p/2372-guillermo-del-toro+10828-ron-perlman", id: "ron-was-born-for-hellboy", short: true },
+  { what: "the longest context", path: "/p/3098-nino-rota+4415-federico-fellini", id: "if-i-hadnt-managed-to-replace", short: false },
+  { what: "the longest word", path: "/p/2710-james-cameron+10205-sigourney-weaver", id: "i-was-petrified-of-you-i", short: false },
+];
+const FIT_VIEWPORTS = [[390, 844], [375, 667], [320, 568], [1280, 720], [1686, 815]] as const;
+
+for (const { what, path, id, short } of FIT_EXTREMES) {
+  test(`${what} fits its plate at every size: the plate is inside its room, nothing is clipped, and a quote with room keeps its full size`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await openExhibit(page, `${path}?view=clippings&quote=${id}`);
+    for (const [width, height] of FIT_VIEWPORTS) {
+      await page.setViewportSize({ width, height });
+      await expect(deck(page)).toHaveAttribute("data-active-quote", id);
+      // The deck puts the quote back in view after a resize (`ResizeObserver`); measure when it is.
+      await expectSnap(page, await active(page).evaluate((element) => Array.from(element.parentElement!.children).indexOf(element)));
+      const fit = await plateFit(page);
+      const label = `${what} at ${width}x${height}`;
+      // Nothing is outside the room, to the pixel, and no word runs out of its line.
+      expect(fit.outside, label).toBeLessThanOrEqual(0.5);
+      expect(fit.wordsOverflow, label).toBeLessThanOrEqual(1);
+      // The plate holds all it has, with nothing to scroll, wherever there is room to set the quote at a size it can be read in. Below that (a phone as small as
+      // a 320x568 one, or 375x667 with the longest context line: a room of 200 to 300px for the share button, the quote, its context and its source), the quote
+      // is set at the floor, 11px, and the plate scrolls, to the end of its source, instead of clipping any of it.
+      if (width < 400 && height < 700) {
+        if (fit.scrollable) {
+          expect(fit.fontSize, label).toBeCloseTo(11, 1);
+          expect(fit.reachable, label).toBe(true);
+        }
+      } else {
+        expect(fit.scrollable, label).toBe(false);
+      }
+      if (short) {
+        // A quote with room is at the full size it always had (at 320x568 the room, 200px, is one in which the fit still reserves a worst-case line count for its context and source).
+        if (width !== 320) expect(fit.fontSize, label).toBeCloseTo(fullSize(width, height), 1);
+      } else if (id === "chivo-sometimes-makes-these-comments-and") {
+        expect(fit.fontSize, label).toBeLessThan(fullSize(width, height));
+      }
+    }
+  });
+}
+
+test("a long context at the smallest sizes scrolls its plate rather than clip it, and Space reads on through the plate before it moves the deck", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 320, height: 568 });
+  const { path, id } = FIT_EXTREMES[2];
+  await openExhibit(page, `${path}?view=clippings&quote=${id}`);
+  const plate = active(page).locator(".quote-exhibit-plate");
+  const fit = await plateFit(page);
+  // The context, the source and the share button take more of 200px than any size of the quote leaves it room beside, so the quote is at its floor and the plate scrolls.
+  expect(fit.scrollable).toBe(true);
+  expect(fit.reachable).toBe(true);
+  expect(fit.fontSize).toBeCloseTo(11, 1);
+  await page.keyboard.press("Tab");
+  await expect(plate).toBeFocused();
+  await page.keyboard.press("Space");
+  await expect(deck(page)).toHaveAttribute("data-active-quote", id);
+  await expect.poll(() => plate.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  // At its end, Space is the deck's again.
+  await plate.evaluate((element) => element.scrollTo({ top: element.scrollHeight, behavior: "instant" }));
+  await page.keyboard.press("Space");
+  await expect(deck(page)).not.toHaveAttribute("data-active-quote", id);
+});
+
+test("critics treat the portraits equally, a person TMDB has no photo of is their initials, and so is one whose photo is broken", async ({ page }) => {
   await openExhibit(page, "/p/488-steven-spielberg+491-john-williams?view=clippings&quote=critic-knowing-the-family-issues-of-spielbergs");
   await expect(active(page).locator("blockquote")).toContainText("Knowing the family issues");
   await expect(backdrop(page).locator('[data-speaking="true"], [data-quiet="true"]')).toHaveCount(0);
   await expect(backdrop(page).getByRole("img", { name: "Steven Spielberg", exact: true })).toBeVisible();
+  await expect(deck(page).locator("[data-quote-exhibit]")).toHaveAttribute("data-quote-exhibit", "portraits");
+  await expect(deck(page).locator(".quote-exhibit-credit")).toContainText("Portraits via TMDB");
+  // The one with a photo is cut out; the one with none is the plain initials, with no picture of any kind.
+  await expect(backdrop(page).locator('[data-portrait-person="488"] .quote-exhibit-treated')).toHaveCount(1);
+  await expect(backdrop(page).locator('[data-portrait-person="491"] .quote-exhibit-treated')).toHaveCount(0);
+  await expect(backdrop(page).locator('[data-portrait-person="491"] img')).toHaveCount(0);
+  await expect(backdrop(page).locator('[data-portrait-person="491"]')).toContainText("JW");
 
+  // A photo that is there but cannot be loaded falls back to the initials too (on the person's colour), not to an empty plate.
   await page.route("https://image.tmdb.org/**", (route) => route.abort());
   await openExhibit(page);
   await expect(deck(page).locator("[data-quote-exhibit]")).toHaveAttribute("data-quote-exhibit", "portraits");
-  await expect(deck(page).locator(".quote-exhibit-credit")).toContainText("Portraits via TMDB");
+  await expect(backdrop(page).locator('[data-portrait-person="1032"] [data-treated-failed]')).toHaveCount(1);
   await expect(backdrop(page).locator('[data-portrait-person="1032"] img')).toHaveCount(0);
+  await expect(backdrop(page).locator('[data-portrait-person="1032"] [data-treated-initials]')).toBeVisible();
   await expect(backdrop(page).locator('[data-portrait-person="1032"]')).toContainText("MS");
 });
 
@@ -577,9 +715,9 @@ test("one image and credit stay stationary while quotes move, and portrait chang
   await openExhibit(page);
   await page.evaluate(() => document.fonts.ready);
   await expect(backdrop(page)).toHaveCount(1);
-  await expect(backdrop(page).locator("img")).toHaveCount(2);
+  await expect(backdrop(page).locator(".quote-exhibit-treated")).toHaveCount(2);
   expect(await backdrop(page).evaluate((element) => element.closest(".quote-exhibit-scroller") === null)).toBe(true);
-  const image = backdrop(page).locator("img").first();
+  const image = backdrop(page).locator(".quote-exhibit-treated").first();
   const originalImage = (await image.elementHandle())!;
   const imageBox = await image.boundingBox();
   const credit = deck(page).locator(".quote-exhibit-credit");
@@ -603,10 +741,10 @@ test("one image and credit stay stationary while quotes move, and portrait chang
   });
   await expect(deck(page)).toHaveAttribute("data-active-quote", SECOND);
   await expectSnap(page, 1);
-  expect(await originalImage.evaluate((element) => element === document.querySelector(".quote-exhibit-portrait img"))).toBe(true);
+  expect(await originalImage.evaluate((element) => element === document.querySelector(".quote-exhibit-portrait .quote-exhibit-treated"))).toBe(true);
   expect(await image.boundingBox()).toEqual(imageBox);
 
-  const portraits = backdrop(page).locator(".quote-exhibit-portrait img");
+  const portraits = backdrop(page).locator(".quote-exhibit-portrait .quote-exhibit-treated");
   await expect(portraits).toHaveCount(2);
   const originals = await portraits.elementHandles();
   const boxes = await portraits.evaluateAll((images) => images.map((element) => element.getBoundingClientRect().toJSON()));
@@ -616,7 +754,7 @@ test("one image and credit stay stationary while quotes move, and portrait chang
     history.replaceState(null, "", `${location.pathname}?${params}`);
   });
   await expect(backdrop(page).locator('[data-portrait-person="1032"]')).toHaveAttribute("data-speaking", "true");
-  await expect(backdrop(page).locator('[data-portrait-person="3661"] img')).toHaveCSS("filter", "grayscale(1) brightness(0.72)");
+  await expect(backdrop(page).locator('[data-portrait-person="3661"] .quote-exhibit-treated')).toHaveCSS("filter", "grayscale(1) brightness(0.72)");
   for (const original of originals) expect(await original.evaluate((element) => element.isConnected)).toBe(true);
   expect(await portraits.evaluateAll((images) => images.map((element) => element.getBoundingClientRect().toJSON()))).toEqual(boxes);
   await expect(backdrop(page)).toHaveCount(1);

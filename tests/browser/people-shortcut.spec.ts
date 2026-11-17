@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "next/experimental/testmode/playwright";
+import { portraitPersonHexes } from "../../src/lib/portrait-cuts";
 import { bar, collapseHero, heroState, scene } from "./fixtures";
 
 // ⌘K (Command+K on a Mac, Control+K elsewhere) opens the full-screen people search on every view of a `/p/` page, whether the pair hero is expanded or collapsed
@@ -84,11 +85,13 @@ test("⌘K opens a full-screen people search on a page too short to scroll, with
   await expect(dialog.getByRole("button", { name: "Quiet Beta", exact: true })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Remove Quiet Alpha", exact: true })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Remove Quiet Beta", exact: true })).toBeVisible();
-  // Each person's portrait is ringed in their colour (the pill's blue and amber).
+  // Each person's portrait is ringed in their colour (the pair's own palette, `portraitPersonHexes`).
   const heads = dialog.locator("[data-row-head] > button > span");
   await expect(heads).toHaveCount(2);
-  await expect(heads.nth(0)).toHaveCSS("box-shadow", /rgb\(111, 155, 209\)/);
-  await expect(heads.nth(1)).toHaveCSS("box-shadow", /rgb\(208, 168, 69\)/);
+  const rgbOf = (hex: string) => new RegExp(`rgb\\(${[1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16)).join(", ")}\\)`);
+  const [first, second] = portraitPersonHexes([90000021, 90000022])!;
+  await expect(heads.nth(0)).toHaveCSS("box-shadow", rgbOf(first));
+  await expect(heads.nth(1)).toHaveCSS("box-shadow", rgbOf(second));
   // The rest of the page is out of reach while it is open (the bar, with its gear, is inert), and gives way to it again after.
   const barInert = () => page.evaluate(() => document.querySelector("[data-people-bar]")?.closest("[inert]") !== null);
   expect(await barInert()).toBe(true);

@@ -14,6 +14,9 @@ import {
   type RefObject,
 } from "react";
 import { TimelineLine } from "@/components/landing/hero-timeline";
+import { PAIR_WASH_A, PAIR_WASH_B, PAIR_WASH_IMAGE, pairWashTransition, registerPairWash, useReducedMotion } from "@/components/pair-wash";
+import { TreatedPortrait } from "@/components/treated-portrait";
+import { pairPortraitColors } from "@/lib/portrait-cuts";
 import { KeycapButton } from "@/components/landing/keycap-button";
 import { TIMING, arrive, depart, float, nod } from "@/components/landing/hero-motion";
 import { personImageUrl, posterImageUrl, preloadScene, useHeroRotation } from "@/components/landing/use-hero-rotation";
@@ -40,6 +43,7 @@ import {
   moreFilms,
   pickFirstScene,
   type HeroPairing,
+  type HeroPerson,
   type Scene,
   type Transition,
 } from "@/lib/hero-scenes";
@@ -75,6 +79,10 @@ interface Item {
   dir: Dir;
   /** The `seq` of the transition in which this person stays and nods; 0 for none. */
   nod: number;
+  /** A portrait's person, for the cut-out treatment. */
+  person?: HeroPerson;
+  /** The person beside them in the current scene, for the pair's colours (`pairPortraitColors`); kept up to date while they stay. */
+  partner?: HeroPerson;
 }
 
 interface State {
@@ -95,6 +103,8 @@ const personItem = (scene: Scene, slot: 0 | 1, id: string, phase: Phase, delay: 
   delay,
   dir,
   nod: 0,
+  person: scene.people[slot],
+  partner: scene.people[slot === 0 ? 1 : 0],
 });
 
 const posterItem = (pairing: HeroPairing, slot: number, id: string, phase: Phase, delay: number, dir: Dir = 1): Item => ({
@@ -155,7 +165,9 @@ function applyTransition(state: State, transition: Transition, dir: Dir): State 
     if (item.type === "label") return sameMore ? item : { ...item, phase: "leaving", delay: 0, dir };
     if (item.type === "person") {
       if (transition.changed.includes(item.slot as 0 | 1)) return { ...item, phase: "leaving", delay: 0, dir };
-      return transition.stayed === item.slot ? { ...item, nod: seq } : item;
+      const partner = item.partner?.id === scene.people[item.slot === 0 ? 1 : 0].id ? item.partner : scene.people[item.slot === 0 ? 1 : 0];
+      if (transition.stayed === item.slot) return { ...item, nod: seq, partner };
+      return partner === item.partner ? item : { ...item, partner };
     }
     if (samePoster(item.slot)) return item;
     return { ...item, phase: "leaving", delay: item.slot * TIMING.posterLeaveStagger, dir };
@@ -187,16 +199,33 @@ function sceneLabel(scene: Scene): string {
 const sceneHref = (scene: Scene) =>
   `/p/${buildPeopleSlug(scene.people.map(({ id, name }) => ({ id, name })))}`;
 
-const REDUCED_QUERY = "(prefers-reduced-motion: reduce)";
-function subscribeReduced(onChange: () => void) {
-  const query = window.matchMedia(REDUCED_QUERY);
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
-}
-const useReducedMotion = () =>
-  useSyncExternalStore(subscribeReduced, () => window.matchMedia(REDUCED_QUERY).matches, () => false);
-
 const subscribeNever = () => () => {};
+
+/**
+ * The hero's wash is the pair's colours (`PAIR_WASH_IMAGE`), the left person's from the section's top left and the right person's from its bottom
+ * right. It is set on the section here, once the collage is up: the section itself has no background until then.
+ */
+function usePairWash(root: RefObject<HTMLDivElement | null>, colors: readonly [string, string], reduced: boolean) {
+  useEffect(() => {
+    const section = root.current?.closest("section");
+    if (!section) return;
+    registerPairWash();
+    const { style } = section;
+    style.backgroundImage = PAIR_WASH_IMAGE;
+    style.transition = pairWashTransition(reduced);
+    return () => {
+      for (const property of ["background-image", "transition", PAIR_WASH_A, PAIR_WASH_B]) style.removeProperty(property);
+    };
+  }, [root, reduced]);
+
+  const [a, b] = colors;
+  useEffect(() => {
+    const section = root.current?.closest("section");
+    if (!section) return;
+    section.style.setProperty(PAIR_WASH_A, a);
+    section.style.setProperty(PAIR_WASH_B, b);
+  }, [root, a, b]);
+}
 
 /** The pairing the last visit of this browser session opened on, so the next one differs. */
 const LAST_FIRST_KEY = "parallel:hero-first";
@@ -279,21 +308,51 @@ function Motion({
   );
 }
 
-function PersonCard({ item, tilt, flip }: { item: Item; tilt: number; flip: boolean }) {
+function PersonPhoto({ item }: { item: Item }) {
+  return (
+    <img
+      src={item.src}
+      alt=""
+      width={STAGE.personSize.width}
+      height={STAGE.personSize.height}
+      decoding="async"
+      draggable={false}
+      className="absolute inset-0 size-full select-none object-cover [object-position:50%_20%]"
+    />
+  );
+}
+
+/**
+ * The card's photo is cut out (`TreatedPortrait`, colour by person from the dev grid's palette, `pairPortraitColors`) over the duotoned montage; the
+ * card keeps its own corners, shadow, ring and name. A person with no photo is the plain `PersonPhoto`.
+ */
+function PersonFace({ item, slot }: { item: Item; slot: number }) {
+  const person = item.person;
+  if (!person?.profilePath) return <PersonPhoto item={item} />;
+  const [color] = pairPortraitColors(person.id, item.partner?.id ?? person.id);
+  return (
+    <TreatedPortrait
+      personId={person.id}
+      slot={slot}
+      color={color}
+      name={person.name}
+      profilePath={person.profilePath}
+      imageSize="w342"
+      posterSize="w154"
+      rounded={false}
+      className="absolute! inset-0 size-full"
+    />
+  );
+}
+
+/** A person's card: the hover ring is white, against the pair's own colours. */
+function PersonCard({ item, slot, tilt, flip }: { item: Item; slot: number; tilt: number; flip: boolean }) {
   return (
     <figure
       className="absolute inset-0 m-0 overflow-hidden rounded-[18px] bg-surface shadow-[0_1px_1px_rgb(0_0_0/0.5),0_10px_20px_-6px_rgb(0_0_0/0.55),0_30px_50px_-14px_rgb(0_0_0/0.7)]"
       style={{ rotate: `${tilt}deg` }}
     >
-      <img
-        src={item.src}
-        alt=""
-        width={STAGE.personSize.width}
-        height={STAGE.personSize.height}
-        decoding="async"
-        draggable={false}
-        className="absolute inset-0 size-full select-none object-cover [object-position:50%_20%]"
-      />
+      <PersonFace item={item} slot={slot} />
       <span aria-hidden="true" className="absolute inset-0 bg-linear-to-t from-black/80 via-black/5 to-transparent" />
       <figcaption
         className={`absolute inset-x-3.5 bottom-3.5 text-[15px] font-semibold leading-tight tracking-[0.015em] text-white [text-shadow:0_1px_10px_rgb(0_0_0/0.6)] max-sm:hidden ${flip ? "text-right" : ""}`}
@@ -302,18 +361,19 @@ function PersonCard({ item, tilt, flip }: { item: Item; tilt: number; flip: bool
       </figcaption>
       <span
         aria-hidden="true"
-        className="absolute inset-0 rounded-[18px] ring-1 ring-inset ring-white/15 transition-shadow duration-300 group-hover:ring-2 group-hover:ring-accent-green/70 group-focus-visible:ring-2 group-focus-visible:ring-focus"
+        className={`absolute inset-0 rounded-[18px] ring-1 ring-inset ring-white/15 transition-shadow duration-300 group-hover:ring-2 group-hover:ring-white/70 group-focus-visible:ring-2 group-focus-visible:ring-focus`}
       />
     </figure>
   );
 }
 
+/** A shared film has no ring or glow at rest (its drop shadow stays) and a white ring on hover, as the portrait cards do. */
 function PosterCard({ item }: { item: Item }) {
   const { dx, dy, tilt } = item.place;
   return (
     <div
       title={item.text}
-      className="absolute inset-0 overflow-hidden rounded-[6px] bg-surface shadow-[0_0_0_1px_var(--lit),0_0_14px_-3px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)] transition-shadow duration-300 group-hover:shadow-[0_0_0_1.5px_var(--lit),0_0_20px_-2px_var(--lit-glow),0_10px_18px_-6px_rgb(0_0_0/0.7)] group-focus-visible:shadow-[0_0_0_2px_var(--focus),0_0_18px_-2px_var(--focus),0_10px_18px_-6px_rgb(0_0_0/0.7)]"
+      className={`absolute inset-0 overflow-hidden rounded-[6px] bg-surface shadow-[0_10px_18px_-6px_rgb(0_0_0/0.7)] transition-shadow duration-300 group-hover:shadow-[0_0_0_1.5px_#fff,0_0_20px_-2px_rgb(255_255_255/0.45),0_10px_18px_-6px_rgb(0_0_0/0.7)] group-focus-visible:shadow-[0_0_0_2px_var(--focus),0_0_18px_-2px_var(--focus),0_10px_18px_-6px_rgb(0_0_0/0.7)]`}
       style={{ translate: `${dx}px ${dy}px`, rotate: `${tilt}deg` }}
     >
       <img
@@ -339,7 +399,7 @@ function MoreLabel({ item }: { item: Item }) {
   return (
     <span
       aria-hidden="true"
-      className="absolute left-0 top-0 -translate-y-1/2 translate-x-(--dx) whitespace-nowrap rounded-full border border-border bg-canvas px-[0.75em] py-[0.3em] font-medium leading-none tracking-[0.02em] text-muted transition-colors duration-300 group-hover:border-accent-green/50 group-hover:text-strong max-[359px]:left-(--under-left) max-[359px]:top-(--under-top) max-[359px]:-translate-x-1/2 max-[359px]:translate-y-0"
+      className={`absolute left-0 top-0 -translate-y-1/2 translate-x-(--dx) whitespace-nowrap rounded-full border border-border bg-canvas px-[0.75em] py-[0.3em] font-medium leading-none tracking-[0.02em] text-muted transition-colors duration-300 group-hover:border-white group-hover:text-strong max-[359px]:left-(--under-left) max-[359px]:top-(--under-top) max-[359px]:-translate-x-1/2 max-[359px]:translate-y-0`}
       style={
         {
           "--dx": `${item.place.dx}px`,
@@ -387,8 +447,7 @@ function Stage({
       className={`absolute left-0 top-0 origin-top-left scale-[var(--s)] ${className}`}
       style={{ width: STAGE.width, height: STAGE.height }}
     >
-      {/* Atmosphere: a soft green glow and a little grain, feathered so no edge shows. */}
-      <div className="pointer-events-none absolute -left-32 -top-16 h-[640px] w-[640px] bg-[radial-gradient(closest-side,rgb(0_224_84/0.16),transparent)]" />
+      {/* Atmosphere: a little grain, feathered so no edge shows (the colour is the section's pair wash, `usePairWash`). */}
       <div
         className="pointer-events-none absolute -left-24 -top-12 h-[560px] w-[560px] opacity-[0.07] [mask-image:radial-gradient(closest-side,#000_35%,transparent)]"
         style={{ backgroundImage: GRAIN }}
@@ -403,7 +462,7 @@ function Stage({
           <div data-drift="" data-kind="person" data-depth={slot === 0 ? 5 : -6} className="absolute inset-0">
             {byType("person", slot).map((item) => (
               <Motion key={item.id} item={item} reduced={reduced} onGone={onGone}>
-                <PersonCard item={item} tilt={place.tilt} flip={slot === 1} />
+                <PersonCard item={item} slot={slot} tilt={place.tilt} flip={slot === 1} />
               </Motion>
             ))}
           </div>
@@ -600,6 +659,9 @@ function Collage({
   }, [root, reduced]);
 
   const { scene } = state;
+  // The left card's person (slot 0) takes the top left.
+  usePairWash(root, pairPortraitColors(scene.people[0].id, scene.people[1].id), reduced);
+
   const navigate = (direction: NavDirection) => () => step(direction);
   // With a single pairing in the pool there is nowhere to step to.
   const canStep = pool.length > 1;

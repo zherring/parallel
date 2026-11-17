@@ -6,6 +6,7 @@ import { EMBED_AVATAR_LINK, EMBED_BUTTON, EXTERNAL, EmbedWordmark, OpenInParalle
 import { PairPoster, POSTER_PX } from "@/components/embed/pair-poster";
 import { springEasing } from "@/components/landing/hero-motion";
 import { PersonAvatar } from "@/components/person-avatar";
+import { PersonPaletteProvider, usePortraitPersonHexes } from "@/components/person-palette";
 import { cn } from "@/components/timeline/cn";
 import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
 import { drawnScale } from "@/lib/drawn-scale";
@@ -13,6 +14,7 @@ import { EMBED_AVATAR_PX, EMBED_INSET_PX } from "@/lib/embed-insets";
 import { joinNames } from "@/lib/format";
 import { peopleHref } from "@/lib/lanes";
 import { captionText, type OgCard } from "@/lib/og-card";
+import type { TreatedPair } from "@/lib/og-treated";
 import { personColor, personColorCss } from "@/lib/person-colors";
 import { embedRowsFor, embedTrackHeight } from "@/lib/timeline-layout";
 import type { PersonTimeline } from "@/lib/types";
@@ -27,6 +29,8 @@ interface PairEmbedProps {
   card: OgCard;
   /** The films they made together ("11 films together"), or one person's films; null when there is no number to say. */
   count: number | null;
+  /** The treated card of two to four people (`buildTreatedPair`), which the first frame draws instead of `card`; null for one person. */
+  treated?: TreatedPair | null;
 }
 
 /** The sequence's beats, in milliseconds. The first frame is held (`HOLD`) so that the picture X showed is seen as it was before it moves. */
@@ -138,7 +142,7 @@ const onTheServer = () => false;
  * and pans sideways only. The people's names and
  * pictures lead to their pages (a bio is the person's own page, which opens in a new tab: X sandboxes the frame, so nothing here navigates it or needs a cookie or a request).
  */
-export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProps) {
+export function PairEmbed({ slug, timelines, today, card, count, treated = null }: PairEmbedProps) {
   const [phase, setPhase] = useState<"poster" | "timeline">("poster");
   /** Counts up with each Replay; the sequence runs once for each. */
   const [run, setRun] = useState(0);
@@ -154,6 +158,8 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
   const timelineRef = useRef<TimelineHandle>(null);
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
+  // The people's colours (`portraitPersonHexes`), as the page and its card have them.
+  const paletteHexes = usePortraitPersonHexes(timelines.map((t) => t.person.id));
   const multi = timelines.length > 1;
   // Three or four people crowd the bar in a narrow frame (the panel X opens over a phone): there the wordmark gives way to the people (the way to the site is
   // still the pill's). Two fit with the wordmark down to a very small phone, and then it goes too. On the smallest phones (under 22rem) the people's
@@ -296,6 +302,8 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
   const barHeight = `calc(${INSET_TOP} + var(--bar-row))`;
   const timelineVisible = phase === "timeline";
   const pairHref = `/p/${slug}`;
+  // The treated first frame is the PNG's picture, which has no "Open in Parallel": the pill is not over it, and comes with the timeline.
+  const treatedFirstFrame = treated !== null;
 
   return (
     <div
@@ -304,7 +312,7 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
       style={{ ...FRAME_STYLE, "--px": POSTER_PX } as CSSProperties}
     >
       {/* The palette's custom properties: the page's own view sets them (see `PeopleView`), and a frame has no page. */}
-      <style>{personColorCss()}</style>
+      <style>{personColorCss(paletteHexes)}</style>
       <h1 className="sr-only">{summary ? `${names}: ${summary}` : names}</h1>
 
       {/* The bar over both (first in the page, so that the way to the page is the first stop of the keyboard, not the last after every film): the people and their count on the left once the timeline is up, and always, on the right, the way to the page. */}
@@ -336,7 +344,8 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
             </p>
             {count !== null && (
               <p className="truncate text-muted" style={{ fontSize: size(10, 1.1) }}>
-                <span className="text-lit">
+                {/* White on a pair's page (its palette), where the app's films made together are otherwise green. */}
+                <span className={paletteHexes ? "text-white" : "text-lit"}>
                   <CountUp to={count} start={counted} />
                 </span>{" "}
                 {count === 1 ? "film" : "films"}
@@ -351,13 +360,15 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
               <RotateCcw aria-hidden="true" className="size-1/2" />
             </button>
           )}
-          <OpenInParallel href={pairHref} external />
+          {(timelineVisible || !treatedFirstFrame) && <OpenInParallel href={pairHref} external />}
         </div>
       </div>
 
       {/* The first frame: the preview card, the picture X shows until this page loads. It is a picture of what the timeline then says. */}
       <div ref={posterRef} aria-hidden="true" inert={timelineVisible} className={cn("absolute inset-0 transition-opacity duration-300 motion-reduce:duration-300", timelineVisible && "opacity-0")}>
-        <PairPoster card={card} />
+        <PersonPaletteProvider hexes={paletteHexes}>
+          <PairPoster card={card} treated={treated} />
+        </PersonPaletteProvider>
       </div>
 
       {/* The timeline, under a bar of its own: built in the browser only, and shown when the card has given way to it. It is laid out `1 / fit` as large as the room it
@@ -382,22 +393,25 @@ export function PairEmbed({ slug, timelines, today, card, count }: PairEmbedProp
               } as CSSProperties
             }
           >
-            <Timeline
-              ref={timelineRef}
-              active
-              embed
-              embedRows={rows}
-              hitScale={1 / fit}
-              lanes={lanes}
-              combined={multi}
-              showAll={false}
-              people={people}
-              includeMinor={false}
-              today={today}
-              selectedId={null}
-              onSelect={() => {}}
-              onOpenPerson={() => {}}
-            />
+            {/* The timeline runs on the pair's palette, as the page's does (`PeopleView`): the same hexes as the first frame's. */}
+            <PersonPaletteProvider hexes={paletteHexes}>
+              <Timeline
+                ref={timelineRef}
+                active
+                embed
+                embedRows={rows}
+                hitScale={1 / fit}
+                lanes={lanes}
+                combined={multi}
+                showAll={false}
+                people={people}
+                includeMinor={false}
+                today={today}
+                selectedId={null}
+                onSelect={() => {}}
+                onOpenPerson={() => {}}
+              />
+            </PersonPaletteProvider>
           </div>
         </div>
       )}

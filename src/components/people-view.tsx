@@ -10,6 +10,7 @@ import { usePairHero } from "@/components/hero/use-pair-hero";
 import { PageHeadline } from "@/components/page-headline";
 import { PeopleBar } from "@/components/people-bar";
 import { PeopleStagingProvider } from "@/components/people-staging";
+import { PersonPaletteProvider, usePersonPalette, usePortraitPersonHexes } from "@/components/person-palette";
 import { PersonPanel } from "@/components/person-panel/person-panel";
 import { rememberOpener } from "@/components/side-panel/side-panel";
 import { FilmsSection } from "@/components/timeline/films-section";
@@ -33,6 +34,7 @@ import { laneSummary } from "@/lib/lanes";
 import { quoteHref, type HeroNote } from "@/lib/pair-hero";
 import { periodLabel, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss } from "@/lib/person-colors";
+import { montagePosters } from "@/lib/portrait-treatment";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import type { ShareInput } from "@/lib/share";
 import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms, type PairShared } from "@/lib/shared";
@@ -66,10 +68,14 @@ export function PeopleView(props: Props) {
   // A different set of people is a different page: start over (zoom, selection, scroll, and the people staged while a panel was open).
   const key = props.timelines.map((t) => t.person.id).join("+");
   const people = useMemo(() => props.timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [props.timelines]);
+  // Two to four people take the page's colours (`portraitPersonHexes`: a pair, the landing page's); one person keeps the palette as it is (null).
+  const paletteHexes = usePortraitPersonHexes(props.timelines.map((t) => t.person.id));
   return (
-    <PeopleStagingProvider key={key} people={people} carry={carryCurrentView}>
-      <PeopleViewInner key={key} {...props} />
-    </PeopleStagingProvider>
+    <PersonPaletteProvider hexes={paletteHexes}>
+      <PeopleStagingProvider key={key} people={people} carry={carryCurrentView}>
+        <PeopleViewInner key={key} {...props} />
+      </PeopleStagingProvider>
+    </PersonPaletteProvider>
   );
 }
 
@@ -92,10 +98,13 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
   const multi = timelines.length > 1;
-  // The Clippings tab draws each speaker in the colour and with the headshot the page gives them, resolved by TMDB id.
+  const paletteHexes = usePersonPalette();
+  // The posters of each person's own best-known films, all of them (not the ones the toggles leave on the timeline), as the embeds' are (`montagePosters`): the montage behind a portrait that has no cut.
+  const posters = useMemo(() => timelines.map(({ films }) => montagePosters(films)), [timelines]);
+  // The Clippings tab draws each speaker in the colour and with the headshot the page gives them, resolved by TMDB id, and on the montage of their films where they have no cut.
   const voicedClippings = useMemo(
-    () => (clippings ? voiceClippings(clippings, timelines.map((t) => t.person)) : null),
-    [clippings, timelines],
+    () => (clippings ? voiceClippings(clippings, timelines.map(({ person }, index) => ({ id: person.id, profilePath: person.profilePath, posters: posters[index] }))) : null),
+    [clippings, timelines, posters],
   );
   // Lanes are parked (see `LANES_ENABLED`): whatever track mode is held, the flat timeline is the one combined track.
   const shownTrackMode = effectiveTrackMode(trackMode);
@@ -152,9 +161,10 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         slot: index,
         roles: laneSummary(films, person, includeMinor).roles,
         filmCount: films.length,
+        posters: posters[index],
         visible: !hiddenIds.has(person.id),
       })),
-    [lanes, includeMinor, hiddenIds],
+    [lanes, includeMinor, hiddenIds, posters],
   );
 
   // Hiding someone changes the axis (it spans the films shown): keep the year in the middle where it is.
@@ -187,7 +197,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   // The names in the Clippings tab, the hero and the people pill's rows open the same person panel, with the same roles.
   const personPanel: PersonPanelAccess = useMemo(
     () => ({
-      entries: pillPeople.map(({ person, roles }) => ({ person, roles })),
+      entries: pillPeople.map(({ person, roles, posters }) => ({ person, roles, posters })),
       open: handleOpenPerson,
     }),
     [pillPeople, handleOpenPerson],
@@ -359,7 +369,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         {/* Only the Table has an in-page masthead; Quotes keeps the compact bar and its own full-screen layout. */}
         {view === "table" && <div className="pb-2 pt-0.5">{heroBody}</div>}
         {/* The combined timeline's colours, as custom properties (src/lib/person-colors.ts): the hover card is in a portal. */}
-        {multi && <style>{personColorCss()}</style>}
+        {multi && <style>{personColorCss(paletteHexes)}</style>}
 
         {multi ? (
           <Together

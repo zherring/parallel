@@ -52,6 +52,11 @@ describe("the embed page", () => {
     expect((await thrown(() => QuoteEmbedPage(props("3151+6837", "short-one"))))?.message).toBe(`${REDIRECTED}/embed/q/${PAIR_SLUG}/short-one`);
   });
 
+  it("hands the frame the pair's people in the order of the slug, for the portraits of the quote card", async () => {
+    const page = (await QuoteEmbedPage(props(PAIR_SLUG, "short-one"))) as { props: { people: { id: number; name: string; posters: unknown[] }[] } };
+    expect(page.props.people.map((p) => p.name)).toEqual(["Jack Lemmon", "Walter Matthau"]);
+  });
+
   it("is not for search engines to index", () => {
     expect(metadata.robots).toEqual({ index: false, follow: false });
   });

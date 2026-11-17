@@ -8,6 +8,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import { PanelShownProvider } from "@/components/landing/panel-shown";
 import { hashForTab, nextTabIndex, scrollEdges, tabFromHash } from "@/lib/tabs";
 
 export interface GenreTab {
@@ -24,7 +25,7 @@ interface Props {
   idBase: string;
   /** Accessible name of the tab list. */
   label: string;
-  /** The first one is the default. Every panel is rendered; only the selected one is visible. */
+  /** The first one is the default. Every panel is rendered; only the selected one is visible. What is only for a panel's visitors waits for it to be shown (`WhenPanelShown`). */
   tabs: GenreTab[];
 }
 
@@ -57,7 +58,8 @@ const panelId = (idBase: string, id: string) => `${idBase}-panel-${id}`;
 /**
  * Pill tabs (WAI-ARIA tabs pattern, automatic activation) whose panels are all in the markup, so
  * every link stays crawlable and works before JavaScript runs. Hidden panels are display:none, so
- * their lazy images do not load until the panel is shown.
+ * their lazy images do not load until the panel is shown; and what is heavy in a panel and only for its visitors (the cards' faces) is not drawn at all until
+ * it has been shown (`WhenPanelShown`), so the server's markup does not carry nine posters and an SVG for every face of every panel.
  */
 export function GenreTabs({ idBase, label, tabs }: Props) {
   const ids = tabs.map((tab) => tab.id);
@@ -65,6 +67,10 @@ export function GenreTabs({ idBase, label, tabs }: Props) {
   const hash = useSyncExternalStore(subscribe, getHash, getServerHash);
   const selected = tabFromHash(hash, ids, fallback);
   const selectedIndex = ids.indexOf(selected);
+  // The panels that have been shown stay drawn when another one is chosen, so going back to one does not draw its faces again. Adjusted during the render,
+  // not in an effect, so a panel's first render as the selected one already has them.
+  const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set());
+  if (!shown.has(selected)) setShown(new Set(shown).add(selected));
 
   const stripRef = useRef<HTMLDivElement>(null);
   const tabListRef = useRef<HTMLDivElement>(null);
@@ -180,7 +186,7 @@ export function GenreTabs({ idBase, label, tabs }: Props) {
           hidden={tab.id !== selected}
           className="pt-5"
         >
-          {tab.panel}
+          <PanelShownProvider value={tab.id === selected || shown.has(tab.id)}>{tab.panel}</PanelShownProvider>
         </div>
       ))}
     </div>

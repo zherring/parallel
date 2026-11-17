@@ -16,6 +16,7 @@ import { rememberOpener } from "@/components/side-panel/side-panel";
 import { scrollBehavior } from "@/components/timeline/scroll-behavior";
 import { PageHeadline } from "@/components/page-headline";
 import { PeopleStagingProvider } from "@/components/people-staging";
+import { PersonPaletteProvider, usePersonPalette, usePortraitPersonHexes } from "@/components/person-palette";
 import type { ExportList } from "@/components/timeline/export-button";
 import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
 import { useUrlPeriod } from "@/components/timeline/use-period";
@@ -35,6 +36,7 @@ import { laneSummary } from "@/lib/lanes";
 import { outsidePeriodIds, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss, personSlots } from "@/lib/person-colors";
 import { postersLeftOut } from "@/lib/poster-cap";
+import { montagePosters } from "@/lib/portrait-treatment";
 import type { ShareInput } from "@/lib/share";
 import { sharedFilms, type PairShared } from "@/lib/shared";
 import { filmIdOf, openFilm, openPerson, personIdOf, type PanelTarget } from "@/lib/side-panel";
@@ -72,10 +74,14 @@ export function DepthView(props: Props) {
   const key = props.timelines.map((t) => t.person.id).join("+");
   const people = useMemo(() => props.timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [props.timelines]);
   // Staged changes to the people lead to the Films view of the final people (`view=depth`, always named), as the pill's links always did.
+  // Two to four people take the page's colours (`portraitPersonHexes`: a pair, the landing page's); one person keeps the palette as it is (null).
+  const paletteHexes = usePortraitPersonHexes(props.timelines.map((t) => t.person.id));
   return (
-    <PeopleStagingProvider key={key} people={people} carry={withDepth}>
-      <DepthViewInner key={key} {...props} />
-    </PeopleStagingProvider>
+    <PersonPaletteProvider hexes={paletteHexes}>
+      <PeopleStagingProvider key={key} people={people} carry={withDepth}>
+        <DepthViewInner key={key} {...props} />
+      </PeopleStagingProvider>
+    </PersonPaletteProvider>
   );
 }
 
@@ -97,6 +103,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
   }, []);
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
+  const paletteHexes = usePersonPalette();
   // Minor credits are left out unless the settings include them; with them in, a film that is minor for everyone who has it is a background poster.
   const lanes = useMemo(
     () => timelines.map(({ person, films }) => ({ person, films: includeMinor ? films : films.filter((film) => !film.minor) })),
@@ -120,16 +127,19 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
     () => depthLayout(entries, people.length, today, { minorIds, pad: DEPTH.pad + HERO_ROOM_PX }),
     [entries, people.length, today, minorIds],
   );
+  // The posters of each person's own best-known films, all of them (not the ones the settings leave in the scene), as the embeds' are (`montagePosters`): the montage behind a portrait that has no cut.
+  const posters = useMemo(() => timelines.map(({ films }) => montagePosters(films)), [timelines]);
   // The people pill's rows. Adding and removing people stays in the Depth view (see `PeopleStagingProvider`).
   const pillPeople = useMemo(
     () =>
-      lanes.map(({ person, films }): PillPerson => ({
+      lanes.map(({ person, films }, index): PillPerson => ({
         person,
         slot: slots.get(person.id) ?? 0,
         roles: laneSummary(films, person, includeMinor).roles,
         filmCount: films.length,
+        posters: posters[index],
       })),
-    [lanes, slots, includeMinor],
+    [lanes, slots, includeMinor, posters],
   );
   const railFilms = useMemo(() => combinedMinimapFilms(entries, today), [entries, today]);
 
@@ -209,7 +219,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
   }, []);
 
   // The people pill's rows and the hero's names open the person panel, with the roles the pill gives them.
-  const personEntries = useMemo(() => pillPeople.map(({ person, roles }) => ({ person, roles })), [pillPeople]);
+  const personEntries = useMemo(() => pillPeople.map(({ person, roles, posters }) => ({ person, roles, posters })), [pillPeople]);
 
   // The shell hands focus back to the opener itself (see SidePanel); this only closes.
   const handleClose = useCallback(() => setPanel(null), []);
@@ -266,7 +276,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
   return (
     <>
       {/* The palette as custom properties (src/lib/person-colors.ts): the hover card and the panel are in portals. */}
-      <style>{personColorCss()}</style>
+      <style>{personColorCss(paletteHexes)}</style>
       {/* First in the tab order, as the site's header was; fixed chrome is a sibling of the scroller, never inside it. */}
       <DepthChrome
         people={pillPeople}

@@ -154,11 +154,12 @@ body:has([data-people-bar]) > header {
 
 /*
  * A film that a chip of the pair hero brought into view in the Table (src/components/timeline/reveal-film-row.ts) is lit for a moment: the green of the films made together,
- * fading out. Reduced motion: lit for the same time, without the fade.
+ * fading out. Reduced motion: lit for the same time, without the fade. On a pair's page the page's palette sets `--row-flash` (`personColorCss`): the
+ * flash is white, as the films made together are.
  */
 @keyframes film-row-flash {
   from {
-    background-color: color-mix(in srgb, var(--lit) 24%, transparent);
+    background-color: color-mix(in srgb, var(--row-flash, var(--lit)) 24%, transparent);
   }
   to {
     background-color: transparent;
@@ -170,7 +171,7 @@ body:has([data-people-bar]) > header {
 @media (prefers-reduced-motion: reduce) {
   [data-flash] {
     animation: none;
-    background-color: color-mix(in srgb, var(--lit) 18%, transparent);
+    background-color: color-mix(in srgb, var(--row-flash, var(--lit)) 18%, transparent);
   }
 }
 
