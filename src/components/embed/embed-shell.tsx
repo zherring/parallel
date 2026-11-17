@@ -35,7 +35,7 @@ export const EMBED_PILL = `${HIT_AREA} inline-flex shrink-0 items-center gap-1.5
 export const EMBED_AVATAR_LINK = "relative inline-flex rounded-full no-underline before:absolute before:-inset-1.5";
 
 /** The wordmark as a link to `href` (a new tab when `external`): how the frame leads to more of the site. */
-export function EmbedWordmark({ href, title, label, external }: { href: string; title: string; label: string; external: boolean }) {
+export function EmbedWordmark({ href, title, label, external, fontSize = embedSize(15, 2.04) }: { href: string; title: string; label: string; external: boolean; fontSize?: string }) {
   return (
     <a
       href={href}
@@ -43,7 +43,7 @@ export function EmbedWordmark({ href, title, label, external }: { href: string; 
       title={title}
       aria-label={label}
       className="inline-flex shrink-0 items-center gap-2 no-underline"
-      style={{ fontSize: embedSize(15, 2.04) }}
+      style={{ fontSize }}
     >
       <Wordmark className="leading-none" />
     </a>

@@ -78,6 +78,8 @@ export interface ClippingsVoice extends ClippingsPerson {
   profilePath: string | null;
   /** Palette slot: the person's position in the page's own people order (the URL), not in `pair`. */
   slot: number;
+  /** The posters of their own best-known films (`montagePosters`): the montage behind their portrait's tear, where they have no cut. Only where the page has their films. */
+  posters?: readonly string[];
 }
 
 /** `PairClippings` with each person a voice: what the page hands the tab once it knows who is who on the page. */

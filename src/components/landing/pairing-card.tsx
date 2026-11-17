@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { PersonAvatar } from "@/components/person-avatar";
+import { PairingCount } from "@/components/landing/pairing-count";
+import { PairingFace } from "@/components/landing/pairing-face";
 import type { ExampleCardData } from "@/lib/example-cards";
 import { joinNames } from "@/lib/format";
 
@@ -23,15 +24,8 @@ export function PairingCardFrame({ href, people, photos = true, children }: Fram
       className="group flex h-full flex-col gap-4 rounded-lg border border-border bg-surface p-5 no-underline transition-colors hover:border-accent-green/70"
     >
       <div className="flex -space-x-4" aria-hidden="true">
-        {people.map((person) => (
-          <PersonAvatar
-            key={person.id}
-            name={person.name}
-            profilePath={photos ? person.profilePath : null}
-            size={64}
-            imageSize="w185"
-            className="ring-4 ring-surface"
-          />
+        {people.map((person, slot) => (
+          <PairingFace key={person.id} person={person} slot={slot} partnerId={people[1 - slot]?.id ?? person.id} photos={photos} />
         ))}
       </div>
       {children}
@@ -53,9 +47,7 @@ export function PairingCard({ card, photos = true }: Props) {
         <h3 className="text-lg font-semibold leading-snug text-strong">{joinNames(names)}</h3>
         <p className="text-sm leading-relaxed text-body">{card.blurb}</p>
       </div>
-      <p className="text-sm font-medium text-accent-green">
-        <span className="tabular-nums">{card.sharedCount}</span> {card.sharedCount === 1 ? "film" : "films"} together
-      </p>
+      <PairingCount count={card.sharedCount} />
     </PairingCardFrame>
   );
 }

@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { QuoteEmbed } from "@/components/embed/quote-embed";
 import { criticAbout } from "@/lib/critics-view";
 import { loadPeople } from "@/lib/people";
+import { montagePosters } from "@/lib/portrait-treatment";
 import { quotePlayer } from "@/lib/player-cards";
 import { findQuoteIndex, quoteInPairPath, quotePath } from "@/lib/quote-embed";
 import { pairQuotes } from "@/lib/quote-embed-data";
@@ -53,7 +54,7 @@ export default async function QuotePage({ params }: Props) {
   const pair = criticAbout(timelines.map((t) => t.person));
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-14">
-      <QuoteEmbed slug={canonical} pair={pair} quotes={quotes} start={start} variant="card" />
+      <QuoteEmbed slug={canonical} pair={pair} quotes={quotes} start={start} variant="card" people={timelines.map(({ person, films }) => ({ id: person.id, name: person.name, profilePath: person.profilePath, posters: montagePosters(films) }))} />
       <p className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted">
         <Link href={quoteInPairPath(canonical, quotes[start].id)} className="underline decoration-border underline-offset-4 hover:decoration-strong">
           Every quote on {pair}

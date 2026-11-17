@@ -23,9 +23,14 @@ import {
   type OgPoster,
 } from "@/lib/og-card";
 import { fetchImageDataUri } from "@/lib/og-image";
+import { loadOgTreatment, treatedHeadshotSvg, treatedTileSvg } from "@/lib/og-portrait";
+import { TreatedPairCardView } from "@/lib/og-treated-render";
+import { TREATED_COLUMN, buildTreatedPair, treatedTile } from "@/lib/og-treated";
 import { OG, OG_SIZE, ogFonts, ogGlow, ogWordmark } from "@/lib/og-theme";
 import type { Period } from "@/lib/period";
+import { portraitPersonHexes } from "@/lib/portrait-cuts";
 import { todayIso } from "@/lib/released";
+import { montagePosters } from "@/lib/portrait-treatment";
 import type { PersonTimeline } from "@/lib/types";
 
 /**
@@ -86,7 +91,16 @@ function initialsOnCard(person: OgPerson) {
  * A person's headshot card: a straight rounded card with the name small over the bottom of it, left-aligned in the part
  * of the card that shows (the first card is on top and shows all of it; the others start where the card before them ends).
  */
-function headshotCard(person: OgPerson, src: string | null, fan: { width: number; height: number }, placed: HeadshotCard, left: number, top: number, fontSize: number) {
+function headshotCard(
+  person: OgPerson,
+  src: string | null,
+  fan: { width: number; height: number },
+  placed: HeadshotCard,
+  left: number,
+  top: number,
+  fontSize: number,
+  treated: string | null = null,
+) {
   const { width, height } = fan;
   return (
     <div
@@ -105,7 +119,10 @@ function headshotCard(person: OgPerson, src: string | null, fan: { width: number
         boxShadow: "0 14px 30px rgba(0, 0, 0, 0.6)",
       }}
     >
-      {src ? (
+      {/* The cut-paper treatment, one SVG of the card's size (see `og-portrait.ts`). */}
+      {treated ? (
+        <img src={treated} alt="" width={width - 4} height={height - 4} />
+      ) : src ? (
         <img src={src} alt="" width={width - 4} height={height - 4} style={{ objectFit: "cover", objectPosition: "50% 18%" }} />
       ) : (
         initialsOnCard(person)
@@ -224,39 +241,83 @@ export interface PairOgImageInput {
 }
 
 /**
- * Draws the 1200x630 preview card of a /p/ page, in the look of the app's own timeline. Top to bottom, centred
- * on the card: a row of cards, the headshots of the people (straight, rounded, overlapping, each with its name
- * small over the part of it that shows) on the left and the posters (overlapping, each a shared film's green ring
- * and glow) on the right; the lane, a line across the whole card with a small grey dot for every film and a green
- * node for each poster's film, placed by release date (see `OG_LANE_SCOPE` for which films); the years of the first
- * and last film under their green nodes; and the caption ("11 films over 20 years", its numbers in green). Shared
+ * Draws the 1200x630 preview card of a /p/ page. Two to four people are the treated card (`og-treated.ts`): their portraits in full colour down the left
+ * edge, the posters of the films they made together, an axis with a dot for every film (white for a shared one, grey for a person's own), the names and the
+ * count (`renderTreatedPairOgImage`). One person is the card of the app's own timeline (see `OgCardView`): a row of cards, the headshot (the cut-paper
+ * portrait) on the left and the posters (overlapping, each a green ring and glow) on the right; the lane, a line across the whole card with a small grey dot
+ * for every film and a green node for each poster's film, placed by release date (see `OG_LANE_SCOPE` for which films); the years of the first and last
+ * film under their green nodes; and the caption ("11 films over 20 years", its numbers in green). Shared
  * by the page's `opengraph-image` and the `/og` route that draws a card for a shared period. Every image is fetched up
  * front: the renderer throws on one it cannot load, and a missing headshot only means initials, a missing poster a
  * plain card with the title's first letter.
  */
 export async function renderPairOgImage({ timelines, period = null }: PairOgImageInput): Promise<ImageResponse> {
-  const card = buildOgCard(timelines, todayIso(), period);
-  const [avatars, posterImages, fonts] = await Promise.all([
+  const today = todayIso();
+  const card = buildOgCard(timelines, today, period);
+  // A pair's colours are its landing ones, three's and four's the palette's (`portraitPersonHexes`); null for one person.
+  const hexes = portraitPersonHexes(timelines.map(({ person }) => person.id));
+  const pair = buildTreatedPair(card, timelines, today, period);
+  if (pair) return renderTreatedPairOgImage({ timelines, card, pair, hexes });
+  const [avatars, posterImages, fonts, treatments] = await Promise.all([
     Promise.all(card.people.map((person) => loadImage(person.profilePath))),
     Promise.all(card.posters.map((poster) => loadImage(poster.posterPath))),
     ogFonts(),
+    // The card's people are the timelines', in the URL's order, which is also their colour's slot.
+    Promise.all(timelines.map(({ person, films }, i) => loadOgTreatment(person.id, person.profilePath, i, hexes, montagePosters(films)))),
   ]);
   const hasLane = card.posters.length > 0;
   const fan = headshotFan(card.people.length);
+  const treated = treatments.map((t, i) => (t && avatars[i] ? treatedHeadshotSvg(t, avatars[i], fan.width - 4, fan.height - 4) : null));
   const place = composition(fan.height, hasLane, card.chip !== null);
   const fanLeft = hasLane
     ? Math.round(OG_FAN_ZONE.left + (OG_FAN_WIDTH - fan.totalWidth) / 2)
     : Math.round((OG_SIZE.width - fan.totalWidth) / 2);
 
   return new ImageResponse(
-    <OgCardView card={card} avatars={avatars} posterImages={posterImages} hasLane={hasLane} place={place} fan={fan} fanLeft={fanLeft} />,
-    {
-      ...OG_SIZE,
-      fonts,
-      headers: {
-        "Cache-Control": timelines.some((t) => t.shortsIncomplete) ? OG_PARTIAL_CACHE_CONTROL : OG_CACHE_CONTROL,
-      },
-    },
+    <OgCardView card={card} avatars={avatars} posterImages={posterImages} hasLane={hasLane} place={place} fan={fan} fanLeft={fanLeft} treated={treated} />,
+    { ...OG_SIZE, fonts, headers: { "Cache-Control": cacheControl(timelines) } },
+  );
+}
+
+/** How long a card is kept by whatever sits in front of the app: a day, but a minute for one drawn from a timeline whose short-film lookup was cut short (`shortsIncomplete`). */
+const cacheControl = (timelines: readonly PersonTimeline[]) => (timelines.some((t) => t.shortsIncomplete) ? OG_PARTIAL_CACHE_CONTROL : OG_CACHE_CONTROL);
+
+/**
+ * The pair's treated card (see `og-treated.ts`): the people's portraits in full colour down the left edge, the posters of the films
+ * they made together, an axis with a dot for every film (white for a shared one, grey for a person's own), the names and the count.
+ */
+async function renderTreatedPairOgImage({
+  timelines,
+  card,
+  pair,
+  hexes,
+}: {
+  timelines: PersonTimeline[];
+  card: OgCard;
+  pair: NonNullable<ReturnType<typeof buildTreatedPair>>;
+  hexes: readonly string[] | null;
+}): Promise<ImageResponse> {
+  const [photos, posterImages, fonts, treatments] = await Promise.all([
+    Promise.all(timelines.map(({ person }) => loadImage(person.profilePath))),
+    Promise.all(pair.posters.map((poster) => loadImage(poster.posterPath))),
+    ogFonts(),
+    Promise.all(timelines.map(({ person, films }, i) => loadOgTreatment(person.id, person.profilePath, i, hexes, montagePosters(films)))),
+  ]);
+  const tile = treatedTile(timelines.length);
+  const tiles = treatments.map((t, i) => {
+    const photo = photos[i];
+    return t && photo ? treatedTileSvg(t, photo, TREATED_COLUMN, tile.height) : null;
+  });
+  return new ImageResponse(
+    (
+      <TreatedPairCardView
+        pair={pair}
+        tiles={tiles}
+        people={card.people.map(({ name, initials }) => ({ name, initials }))}
+        posterImages={posterImages}
+      />
+    ),
+    { ...OG_SIZE, fonts, headers: { "Cache-Control": cacheControl(timelines) } },
   );
 }
 
@@ -268,9 +329,11 @@ interface CardProps {
   place: ReturnType<typeof composition>;
   fan: ReturnType<typeof headshotFan>;
   fanLeft: number;
+  /** Per person, the treated headshot (an SVG data URI, see `og-portrait.ts`), or null for the photo as it is. */
+  treated?: (string | null)[];
 }
 
-export function OgCardView({ card, avatars, posterImages, hasLane, place, fan, fanLeft }: CardProps) {
+export function OgCardView({ card, avatars, posterImages, hasLane, place, fan, fanLeft, treated }: CardProps) {
   const lefts = posterRow(card.posters.length);
   const laneY = place.laneY ?? 0;
   // The year labels go under the first and the last green node.
@@ -351,7 +414,7 @@ export function OgCardView({ card, avatars, posterImages, hasLane, place, fan, f
 
       {/* The headshots rest on the lane: the first person on top, and each card's bottom hangs below the lane's line. */}
       {[...card.people.keys()].reverse().map((i) =>
-        headshotCard(card.people[i], avatars[i], fan, fan.cards[i], fanLeft + fan.cards[i].left, place.headshotTop, card.overlayFontSize),
+        headshotCard(card.people[i], avatars[i], fan, fan.cards[i], fanLeft + fan.cards[i].left, place.headshotTop, card.overlayFontSize, treated?.[i] ?? null),
       )}
 
       {card.chip && place.chipTop !== null && (

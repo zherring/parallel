@@ -48,6 +48,14 @@ describe("the pair embed page", () => {
     expect((await thrown(() => PairEmbedPage(props("3151+6837"))))?.message).toBe(`${REDIRECTED}/embed/p/${PAIR_SLUG}`);
   });
 
+  it("hands the pair's treated card, which the first frame draws, and none for one person (the timeline's own card)", async () => {
+    const pair = (await PairEmbedPage(props(PAIR_SLUG))) as { props: { treated: { names: string; posters: unknown[] } | null } };
+    expect(pair.props.treated?.names).toBe("Jack Lemmon & Walter Matthau");
+    expect(pair.props.treated?.posters.length).toBeGreaterThan(0);
+    const solo = (await PairEmbedPage(props("3151-jack-lemmon"))) as { props: { treated: unknown } };
+    expect(solo.props.treated).toBeNull();
+  });
+
   it("is not for search engines to index", () => {
     expect(metadata.robots).toEqual({ index: false, follow: false });
   });

@@ -9,7 +9,7 @@ body:has([data-quote-exhibit-deck]) > footer {
 }
 
 .quote-exhibit-deck {
-  --quote-pane-bg: color-mix(in srgb, var(--bg) 55%, var(--surface));
+  --quote-pane-bg: color-mix(in srgb, var(--bg) 90%, var(--surface));
   position: fixed;
   inset: 0;
   z-index: 20;
@@ -58,11 +58,40 @@ body:has([data-quote-exhibit-deck]) > footer {
 }
 
 .quote-exhibit-stage {
+  /* The stage's content box, the room a quote has whatever the viewport, is what the quote's type is fitted to (see the end of this file): `cqw` and `cqh`
+     read it. It is a size container, which is fine because its size comes from its slide (100% of it), never from the quote in it. */
+  container-type: size;
+  /* The plate's settings, as numbers the fit reads and the rules below set from, so the two cannot disagree: the full size of the quote's type and its
+     line height, then the lines under it (the share button, the context, the source) with the gap above each. The media queries change these. */
+  --quote-plate: 32rem;
+  --quote-size: min(clamp(1.375rem, 2.1vw, 2rem), 4dvh);
+  --quote-line: 1.35;
+  --quote-actions-gap: 1rem;
+  --quote-ctx-size: 0.8125rem;
+  --quote-ctx-line: 1.8;
+  --quote-ctx-gap: 1.75rem;
+  --quote-src-size: 0.6875rem;
+  --quote-src-line: 1.7;
+  --quote-src-gap: 0.65rem;
+  --quote-src-flow: 0.25rem;
+  --quote-fit-chars: 330;
   display: grid;
   align-items: center;
   width: 50%;
   margin-left: 50%;
-  padding: 6rem clamp(2rem, 4vw, 5rem);
+  padding: 4.5rem clamp(2rem, 4vw, 5rem);
+}
+
+/* The quote pane's glow from below in the speaker's colour (`useQuoteGlowStyle`), under the quotes; the toolbar lets it show through. */
+.quote-exhibit-wash {
+  position: absolute;
+  inset: 0 0 0 50%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.quote-exhibit:has(> .quote-exhibit-wash) .quote-exhibit-toolbar {
+  background: transparent;
 }
 
 .quote-exhibit-media {
@@ -100,7 +129,7 @@ body:has([data-quote-exhibit-deck]) > footer {
   background: color-mix(in srgb, var(--voice-color) 8%, var(--surface));
 }
 
-.quote-exhibit-portrait img {
+.quote-exhibit-portrait > img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -109,8 +138,16 @@ body:has([data-quote-exhibit-deck]) > footer {
   object-position: 50% 32%;
 }
 
-.quote-exhibit-quiet img {
+.quote-exhibit-quiet > img,
+.quote-exhibit-quiet > .quote-exhibit-treated {
   filter: grayscale(1) brightness(0.72);
+}
+
+/* The cut-out portrait fills the panel. */
+.quote-exhibit-treated {
+  position: absolute;
+  inset: 0;
+  display: flex;
 }
 
 .quote-exhibit-quiet {
@@ -150,13 +187,18 @@ body:has([data-quote-exhibit-deck]) > footer {
 }
 
 .quote-exhibit-plate {
-  width: min(100%, 32rem);
+  width: min(100%, var(--quote-plate));
   max-height: calc(100dvh - 12rem);
   margin-inline: auto;
   overflow-y: auto;
   scrollbar-width: thin;
-  /* Long quotes scroll within their slide rather than being clipped. */
   overscroll-behavior-y: auto;
+}
+
+/* A quote never scrolls inside its slide (the deck is the only scroller): its type is fitted to the room instead (`.quote-exhibit-words`). */
+.quote-exhibit-plate-fitted {
+  max-height: none;
+  overflow: visible;
 }
 
 .quote-exhibit-plate:focus-visible {
@@ -172,20 +214,30 @@ body:has([data-quote-exhibit-deck]) > footer {
 .quote-exhibit-actions {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 1rem;
+  margin-bottom: var(--quote-actions-gap);
 }
 
 .quote-exhibit-words {
   color: var(--text-quote);
-  font-size: clamp(1.375rem, 2.1vw, 2rem);
-  line-height: 1.35;
+  /* The full size, for a browser that cannot do the maths below. */
+  font-size: var(--quote-size, clamp(1.375rem, 2.1vw, 2rem));
+  line-height: var(--quote-line, 1.35);
+}
+
+/* A browser with sqrt() but not the container units (Safari before 16) sets the size by the quote's length alone: up to --quote-fit-chars characters (the
+   quote and half its context) keep the full size, past that the size falls with the square root of the length. */
+@supports (font-size: calc(1px * sqrt(4))) {
+  .quote-exhibit-words {
+    --quote-fit: min(1, sqrt(var(--quote-fit-chars, 330) / max(1, calc(var(--quote-em, 0) / 0.415 + var(--quote-ctx, 0) / 2))));
+    font-size: calc(var(--quote-size, clamp(1.375rem, 2.1vw, 2rem)) * var(--quote-fit));
+  }
 }
 
 .quote-exhibit-context {
-  margin-top: 1.75rem;
+  margin-top: var(--quote-ctx-gap);
   color: var(--text);
-  font-size: 0.8125rem;
-  line-height: 1.8;
+  font-size: var(--quote-ctx-size);
+  line-height: var(--quote-ctx-line);
 }
 
 .quote-exhibit-person-link {
@@ -204,11 +256,11 @@ body:has([data-quote-exhibit-deck]) > footer {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.25rem;
-  margin-top: 0.65rem;
+  gap: var(--quote-src-flow);
+  margin-top: var(--quote-src-gap);
   color: var(--text-muted);
-  font-size: 0.6875rem;
-  line-height: 1.7;
+  font-size: var(--quote-src-size);
+  line-height: var(--quote-src-line);
 }
 
 .quote-exhibit-toolbar {
@@ -315,6 +367,10 @@ body:has([data-quote-exhibit-deck]) > footer {
     --image-pane-height: calc(var(--image-top) + var(--image-height));
   }
 
+  .quote-exhibit-wash {
+    inset: var(--image-pane-height) 0 0;
+  }
+
   .quote-exhibit-media {
     inset: 0 0 auto;
     grid-template-rows: minmax(0, 1fr);
@@ -338,6 +394,12 @@ body:has([data-quote-exhibit-deck]) > footer {
   }
 
   .quote-exhibit-stage {
+    --quote-size: clamp(1.125rem, 4.5vw, 1.375rem);
+    --quote-line: 1.4;
+    --quote-actions-gap: 0.25rem;
+    --quote-ctx-size: 0.75rem;
+    --quote-ctx-line: 1.7;
+    --quote-ctx-gap: 1.25rem;
     align-items: start;
     width: 100%;
     margin-left: 0;
@@ -348,19 +410,8 @@ body:has([data-quote-exhibit-deck]) > footer {
     max-height: calc(100dvh - var(--image-pane-height) - 5rem);
   }
 
-  .quote-exhibit-words {
-    font-size: clamp(1.125rem, 4.5vw, 1.375rem);
-    line-height: 1.4;
-  }
-
-  .quote-exhibit-actions {
-    margin-bottom: 0.25rem;
-  }
-
-  .quote-exhibit-context {
-    margin-top: 1.25rem;
-    font-size: 0.75rem;
-    line-height: 1.7;
+  .quote-exhibit-plate-fitted {
+    max-height: none;
   }
 
   .quote-exhibit-toolbar {
@@ -379,21 +430,78 @@ body:has([data-quote-exhibit-deck]) > footer {
   .quote-exhibit-plate {
     max-height: calc(100dvh - var(--image-pane-height) - 7rem);
   }
+
+  .quote-exhibit-plate-fitted {
+    max-height: none;
+  }
 }
 
-@media (width < 48rem) and (height < 40rem) {
-  .quote-exhibit-words {
-    font-size: 1rem;
+@media (width < 48rem) and (height < 48rem) {
+  .quote-exhibit-stage {
+    --quote-size: 0.9375rem;
+    --quote-fit-chars: 220;
+    --quote-ctx-size: 0.6875rem;
+    --quote-ctx-line: 1.6;
+    --quote-ctx-gap: 0.875rem;
+    --quote-src-size: 0.625rem;
+    --quote-src-gap: 0.5rem;
+  }
+}
+
+/*
+ * The quote's type, fitted to its room so that the whole plate (the share button, the quote, the context and the source) cannot overflow it, at any
+ * viewport and for any quote, with nothing measured in the browser.
+ *
+ * The room is the stage's content box, W wide and H high (`cqw`, `cqh`). The quote's lines are L high at size s. A quote of `--quote-em` em on one line
+ * (`quoteEm` sums the real advance widths of its letters by kind of character) wraps to at most em*s / (U*W) + 1 of them, U being how much of each line a
+ * quote fills (0.75: of 632 quotes at widths from 230px to 512px and sizes up to 32px, in Chromium, WebKit and Firefox, the tallest quote filled 0.93 of the
+ * room this leaves it). So the quote takes at most L*s * (1 + em*s / (U*W)). What is under it, the share button, the context and the source, takes its
+ * gaps and the lines its text wraps to: its length (`--quote-ctx`, `--quote-src`, in characters) at the width of a glyph of 0.62em for the context
+ * (Inter's widest wrapping of the 632 contexts, at 230px to 512px, needed 0.575) and 0.85em for the source (its parts wrap as units, a row gap apart; 0.77
+ * needed), over W, and one more line for a line that falls short. The rest of H is R, and the quote fits when
+ *
+ *     L*s * (1 + em*s / (U*W)) <= R      <=>      s <= 2R / (L + sqrt(L^2 + 4*k*R)),   k = em*L / (U*W)
+ *
+ * The longest word must also fit a line: s <= W / `--quote-word` (em). The size is never above today's full size (`--quote-size`), so a quote with room
+ * looks as it did.
+ *
+ * A room too small for the quote at FLOOR (11px) is one where no size fits the quote and what is under it: the quote stays at FLOOR, and the plate, which has
+ * the room for its height, scrolls if its content (by the arithmetic above, often not) is taller, so nothing is clipped. That is the only scroller there is.
+ *
+ * CSS can't divide one length by another, so each is turned into the number of its pixels with tan(atan2(length, 1px)), and the result is multiplied
+ * back by 1px. Chrome 120, Safari 15.4 and Firefox 118 all do this arithmetic (sqrt() is the newest of it), and the container units need Chrome 105,
+ * Safari 16 and Firefox 110. A browser without them keeps the rule above.
+ */
+@supports (font-size: calc(1px * sqrt(tan(atan2(1cqw, 1px))))) {
+  .quote-exhibit-plate-fitted {
+    /* The plate has the room, no more: it scrolls only when what is in it is taller, which the fit below leaves to a room smaller than the quote's FLOOR.
+       Its padding, 4px, is where a focus ring (2px, 2px away) of the share button or a link at its edge is drawn, as a scroller clips it otherwise; the
+       negative margin takes the same 4px back, so the plate fills the room, and its content the width, it did without. */
+    box-sizing: border-box;
+    width: calc(min(100%, var(--quote-plate)) + 8px);
+    max-height: calc(100cqh + 8px);
+    margin: -4px;
+    padding: 4px;
+    justify-self: center;
+    overflow-y: auto;
   }
 
-  .quote-exhibit-context {
-    margin-top: 0.875rem;
-    font-size: 0.6875rem;
-    line-height: 1.6;
-  }
-
-  .quote-exhibit-source {
-    margin-top: 0.5rem;
-    font-size: 0.625rem;
+  .quote-exhibit-plate-fitted .quote-exhibit-words {
+    /* Pixels, as plain numbers. */
+    --fit-width: tan(atan2(min(100cqw, var(--quote-plate)), 1px));
+    --fit-ctx-size: tan(atan2(var(--quote-ctx-size), 1px));
+    --fit-src-size: tan(atan2(var(--quote-src-size), 1px));
+    --fit-src-flow: tan(atan2(var(--quote-src-flow), 1px));
+    /* What is under the quote: the share button (2.25rem) and the gaps, and the lines of the context and of the source. */
+    --fit-under: calc(
+      tan(atan2(2.25rem + var(--quote-actions-gap) + var(--quote-ctx-gap) + var(--quote-src-gap), 1px))
+      + var(--fit-ctx-size) * var(--quote-ctx-line) * (1 + var(--quote-ctx) * 0.62 * var(--fit-ctx-size) / var(--fit-width))
+      + (var(--fit-src-size) * var(--quote-src-line) + var(--fit-src-flow)) * (1 + var(--quote-src) * 0.85 * var(--fit-src-size) / var(--fit-width))
+    );
+    --fit-room: max(0, calc(tan(atan2(100cqh, 1px)) - var(--fit-under)));
+    --fit-k: calc(var(--quote-em) * var(--quote-line) / (0.75 * var(--fit-width)));
+    --fit-size: calc(2 * var(--fit-room) / (var(--quote-line) + sqrt(var(--quote-line) * var(--quote-line) + 4 * var(--fit-k) * var(--fit-room))));
+    --fit-word: calc(var(--fit-width) / var(--quote-word));
+    font-size: calc(1px * min(tan(atan2(var(--quote-size), 1px)), var(--fit-word), max(11, var(--fit-size))));
   }
 }

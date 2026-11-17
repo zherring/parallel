@@ -2,6 +2,10 @@ import type { Locator, Page } from "next/experimental/testmode/playwright";
 import { FILM_COUNT, HEADLINE, NAMES, PAIR, expect, test } from "./almodovar";
 import { bar, collapseHero, heroBody, heroState, quotesLink, scene, switcher } from "./fixtures";
 import { getHeroNote } from "../../src/lib/pair-hero-note";
+import { portraitPersonHexes } from "../../src/lib/portrait-cuts";
+
+/** "#rrggbb" as the computed colour: "rgb(r, g, b)". */
+const rgbOf = (hex: string) => `rgb(${[1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16)).join(", ")})`;
 
 /**
  * The pair hero at the top of every view of a `/p/` page: the names joined with ×, a line of roles and the film count, a portrait each, a note (the pair's first
@@ -136,9 +140,10 @@ test.describe("at 1440px wide", () => {
         expect(entry.height).toBeLessThanOrEqual(120);
         expect(entry.radius).toBe("6px");
       }
-      // The first person's blue, the second's amber (the colour key of the pill, the timeline and the Quotes).
-      expect(look[0].ring).toContain("rgb(111, 155, 209)");
-      expect(look[1].ring).toContain("rgb(208, 168, 69)");
+      // The first person's colour, then the second's: the pair's own palette (`portraitPersonHexes`), the colour key of the pill, the timeline and the Quotes.
+      const [first, second] = portraitPersonHexes([309, 955])!;
+      expect(look[0].ring).toContain(rgbOf(first));
+      expect(look[1].ring).toContain(rgbOf(second));
 
       // The note: the pair's first quote, in italics, and who said it about whom, a link to that quote in the Quotes.
       const note = heroBody(page).locator('[data-hero-note="quote"]');

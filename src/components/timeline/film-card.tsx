@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { usePersonPalette } from "@/components/person-palette";
 import { tmdbImage } from "@/lib/images";
 import type { PersonTint } from "@/lib/person-colors";
 import { CARD_HEIGHT, POSTER_HEIGHT, QUIET_POSTER_HEIGHT, QUIET_RESTORE_SCALE, cardWidthOf } from "@/lib/timeline-layout";
@@ -107,7 +108,10 @@ function FilmCardImpl(props: FilmCardProps) {
   const restored = quiet && (emphasized || selected);
   const faded = quiet && !restored;
   const textSize = quiet ? "text-[10px] leading-[12px]" : "text-[11px] leading-[13px]";
-  const tinted = tone === "plain" && tint !== null && !dimmed;
+  // On a pair's page (its palette), a film of one person has no ring or glow (its dots carry the colour), and a film made
+  // together a plain white ring instead of the green one and its glow.
+  const palette = usePersonPalette() !== null;
+  const tinted = !palette && tone === "plain" && tint !== null && !dimmed;
   const boxShadow =
     tinted && !emphasized
       ? `0 0 0 2px ${tint.color}, 0 0 22px ${tint.glow}`
@@ -159,7 +163,7 @@ function FilmCardImpl(props: FilmCardProps) {
             className={cn(
               "relative block overflow-hidden rounded-[4px] transition-shadow duration-150 motion-reduce:transition-none",
               quiet ? "bg-canvas" : "bg-surface",
-              tone === "lit" && !dimmed && (emphasized ? "shadow-[0_0_0_2px_var(--lit),0_0_32px_6px_var(--lit-glow)]" : "shadow-lit"),
+              tone === "lit" && !dimmed && (palette ? "shadow-[0_0_0_2px_#fff]" : emphasized ? "shadow-[0_0_0_2px_var(--lit),0_0_32px_6px_var(--lit-glow)]" : "shadow-lit"),
               tone !== "lit" && emphasized && "ring-2 ring-strong/80",
               selected && "outline outline-2 outline-offset-2 outline-strong",
             )}

@@ -276,6 +276,12 @@ describe("clippingVoices", () => {
     expect(voices[1].profilePath).toBeNull();
   });
 
+  it("carries the page's posters for the montage behind a portrait with no cut, matched by id, and none where the page has none", () => {
+    const voices = clippingVoices(people, [williams, { ...spielberg, posters: ["/a.jpg", "/b.jpg"] }]);
+    expect(voices[0].posters).toEqual(["/a.jpg", "/b.jpg"]);
+    expect("posters" in voices[1]).toBe(false);
+  });
+
   it("falls back to the data's position for a person the page does not have", () => {
     const voices = clippingVoices(people, [spielberg]);
     expect(voices[0]).toMatchObject({ id: 488, slot: 0 });

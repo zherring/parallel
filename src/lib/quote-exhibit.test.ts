@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { exhibitSpaceAction, nextExhibitIndex, quoteExhibitAttributedContext, quoteExhibitContextParts, quoteExhibitPeople, quoteExhibitQuoteSearch, quotePaneCanScroll } from "./quote-exhibit";
+import { exhibitSpaceAction, nextExhibitIndex, quoteEm, quoteExhibitAttributedContext, quoteExhibitContextParts, quoteExhibitPeople, quoteExhibitQuoteSearch, quoteFit, quotePaneCanScroll } from "./quote-exhibit";
 import type { PairCritics } from "./critics";
 
 describe("the Quotes deck", () => {
@@ -106,5 +106,31 @@ describe("people links in exhibition prose", () => {
     expect(quoteExhibitContextParts("No names here.", people)).toEqual([{ text: "No names here.", person: null }]);
     expect(quoteExhibitContextParts("No people.", [])).toEqual([{ text: "No people.", person: null }]);
     expect(quoteExhibitContextParts("", people)).toEqual([]);
+  });
+});
+
+describe("the lengths a quote's type is fitted from", () => {
+  it("counts a capital as wider than a lowercase letter, so a line of capitals is not mistaken for prose", () => {
+    expect(quoteEm("ABCDE")).toBeGreaterThan(quoteEm("abcde") * 1.4);
+    expect(quoteEm("")).toBe(0);
+  });
+
+  it("is within 8% of the width Newsreader sets a quote in (measured in a browser: 11.68em for the one below, 143.3em for the whole of a quote in capitals)", () => {
+    const measured = 11.678;
+    expect(Math.abs(quoteFit("Ron was born for Hellboy").em / measured - 1)).toBeLessThan(0.08);
+    expect(quoteFit("I AM VERY ANXIOUS FOR YOU TO DO THE MUSIC ON TORN CURTAIN STOP").em).toBeGreaterThan(quoteFit("i am very anxious for you to do the music on torn curtain stop").em * 1.25);
+  });
+
+  it("takes the quote's marks into its width, and the longest word the browser will not break into its longest", () => {
+    expect(quoteFit("one").em).toBeCloseTo(quoteEm("\u201Cone\u201D"), 5);
+    // Spaces, dashes and a hyphen before a letter are where a line may break; a hyphen before a digit is not. The last word keeps the closing mark.
+    expect(quoteFit("a well-known \u2014 bit of 1990-95").word).toBeCloseTo(quoteEm("1990-95\u201D"), 5);
+    expect(quoteFit("so unbreakable \u2013 and so").word).toBeCloseTo(quoteEm("unbreakable"), 5);
+    expect(quoteFit("").word).toBeGreaterThan(0);
+  });
+
+  it("carries the lengths of the lines under the quote, which share its slide, as they are", () => {
+    expect(quoteFit("A quote", 140, 60)).toMatchObject({ context: 140, source: 60 });
+    expect(quoteFit("A quote")).toMatchObject({ context: 0, source: 0 });
   });
 });

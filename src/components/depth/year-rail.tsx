@@ -11,6 +11,7 @@ import {
   type PointerEvent,
   type RefObject,
 } from "react";
+import { usePersonPalette } from "@/components/person-palette";
 import { cn } from "@/components/timeline/cn";
 import { MINIMAP_COLOR, syncMinimapColors } from "@/components/timeline/minimap-colors";
 import { scrollBehavior } from "@/components/timeline/scroll-behavior";
@@ -65,6 +66,7 @@ interface YearRailProps {
  * It is a sibling of the scroller, never inside it: perspective would turn its `fixed` into `absolute`.
  */
 export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, ticks }: YearRailProps) {
+  const palette = usePersonPalette() !== null;
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const windowRef = useRef<HTMLDivElement>(null);
@@ -386,7 +388,8 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
               className={cn("group pointer-events-auto absolute left-0 flex h-4 w-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center max-sm:w-5", MINIMAP_COLOR)}
               style={{ top: `${fraction * 100}%` }}
             >
-              <span className="h-1 w-3.5 rounded-full bg-lit shadow-[0_0_8px_var(--lit-glow)] group-hover:w-4" />
+              {/* On a pair's page (its palette) a film made together is a white tick with no glow, as its ring in the scene is. */}
+              <span className={cn("h-1 w-3.5 rounded-full group-hover:w-4", palette ? "bg-white" : "bg-lit shadow-[0_0_8px_var(--lit-glow)]")} />
             </button>
           ))}
         </div>
