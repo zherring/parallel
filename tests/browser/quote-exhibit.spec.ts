@@ -687,7 +687,7 @@ test("a long context at the smallest sizes scrolls its plate rather than clip it
   await expect(deck(page)).not.toHaveAttribute("data-active-quote", id);
 });
 
-test("critics treat the portraits equally, and a person TMDB has no photo of is their initials", async ({ page }) => {
+test("critics treat the portraits equally, a person TMDB has no photo of is their initials, and so is one whose photo is broken", async ({ page }) => {
   await openExhibit(page, "/p/488-steven-spielberg+491-john-williams?view=clippings&quote=critic-knowing-the-family-issues-of-spielbergs");
   await expect(active(page).locator("blockquote")).toContainText("Knowing the family issues");
   await expect(backdrop(page).locator('[data-speaking="true"], [data-quiet="true"]')).toHaveCount(0);
@@ -699,6 +699,15 @@ test("critics treat the portraits equally, and a person TMDB has no photo of is 
   await expect(backdrop(page).locator('[data-portrait-person="491"] .quote-exhibit-treated')).toHaveCount(0);
   await expect(backdrop(page).locator('[data-portrait-person="491"] img')).toHaveCount(0);
   await expect(backdrop(page).locator('[data-portrait-person="491"]')).toContainText("JW");
+
+  // A photo that is there but cannot be loaded falls back to the initials too (on the person's colour), not to an empty plate.
+  await page.route("https://image.tmdb.org/**", (route) => route.abort());
+  await openExhibit(page);
+  await expect(deck(page).locator("[data-quote-exhibit]")).toHaveAttribute("data-quote-exhibit", "portraits");
+  await expect(backdrop(page).locator('[data-portrait-person="1032"] [data-treated-failed]')).toHaveCount(1);
+  await expect(backdrop(page).locator('[data-portrait-person="1032"] img')).toHaveCount(0);
+  await expect(backdrop(page).locator('[data-portrait-person="1032"] [data-treated-initials]')).toBeVisible();
+  await expect(backdrop(page).locator('[data-portrait-person="1032"]')).toContainText("MS");
 });
 
 test("one image and credit stay stationary while quotes move, and portrait changes reuse the same images", async ({ page }) => {

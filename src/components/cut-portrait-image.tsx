@@ -15,6 +15,8 @@ interface Props {
   /** Tuning override: the visible line's width in screen px (or a CSS length), instead of the rule. */
   strokePx?: number | string;
   edgePosition?: EdgePosition;
+  /** The photo could not be loaded (a 404, a blocked or broken file): what the caller draws instead. Called once per failure, from the probe or the `<image>`, whichever sees it. */
+  onError?: () => void;
 }
 
 /**
@@ -23,9 +25,9 @@ interface Props {
  * - center: a plain stroke over the photo, straddling the polygon;
  * - outside: a stroke of twice the width under the photo, whose clipped edge hides the inner half;
  * - inside: a stroke of twice the width over the photo, clipped by the same polygon, so only the inner half shows.
- * The edge waits for the photo to load, so outside mode never shows its doubled stroke uncovered.
+ * The edge waits for the photo to load, so outside mode never shows its doubled stroke uncovered. A photo that fails to load is reported (`onError`), not left as an empty clip.
  */
-export function CutPortraitImage({ src, points, w, h, clipId, strokeColor, strokePx, edgePosition = "center" }: Props) {
+export function CutPortraitImage({ src, points, w, h, clipId, strokeColor, strokePx, edgePosition = "center", onError }: Props) {
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   // `onLoad` misses a photo that finished before hydration, and SVG `<image>` has no `complete`: an HTML image of the same URL (from the
   // cache when it is) tells either way.
@@ -34,17 +36,22 @@ export function CutPortraitImage({ src, points, w, h, clipId, strokeColor, strok
     let live = true;
     const probe = new Image();
     probe.onload = () => live && setLoadedSrc(src);
+    // A request that failed before hydration is not seen by the `<image>`'s own `onError`, so the probe asks again.
+    probe.onerror = () => live && onError?.();
     probe.src = src;
     return () => {
       live = false;
       probe.onload = null;
+      probe.onerror = null;
     };
+    // `onError` is the caller's setter of the failed url: a new function each render must not run the probe again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
 
   const clip = `url(#${clipId})`;
   const loaded = src !== null && loadedSrc === src;
   const edge = loaded ? <path d={cutEdgePath(points, w, h)} {...cutEdgeStroke(strokeColor, strokePx, edgePosition)} /> : null;
-  const image = src ? <image href={src} width={w} height={h} preserveAspectRatio="none" clipPath={clip} onLoad={() => setLoadedSrc(src)} /> : null;
+  const image = src ? <image href={src} width={w} height={h} preserveAspectRatio="none" clipPath={clip} onLoad={() => setLoadedSrc(src)} onError={onError} /> : null;
   if (edgePosition === "outside") {
     return (
       <>
