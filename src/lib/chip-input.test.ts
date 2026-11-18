@@ -159,21 +159,19 @@ describe("commitTarget", () => {
 });
 
 describe("decideKey: Tab (chips mode)", () => {
-  it("commits the highlighted suggestion", () => {
+  it("moves focus without committing the highlighted suggestion", () => {
     expect(decideKey(chipsCtx({ activeIndex: 1 }), key("Tab"))).toEqual({
-      type: "commit",
-      index: 1,
-      source: "highlighted",
+      type: "none",
     });
   });
 
-  it("commits the top suggestion when nothing is highlighted", () => {
-    expect(decideKey(chipsCtx(), key("Tab"))).toEqual({ type: "commit", index: 0, source: "top" });
+  it("moves focus without committing the top suggestion", () => {
+    expect(decideKey(chipsCtx(), key("Tab"))).toEqual({ type: "none" });
   });
 
-  it("skips disabled suggestions when taking the top one", () => {
+  it("moves focus when the first suggestion is disabled", () => {
     const ctx = chipsCtx({ disabled: [true, false, false] });
-    expect(decideKey(ctx, key("Tab"))).toEqual({ type: "commit", index: 1, source: "top" });
+    expect(decideKey(ctx, key("Tab"))).toEqual({ type: "none" });
   });
 
   it("moves focus normally when every suggestion is disabled", () => {
@@ -218,19 +216,14 @@ describe("decideKey: Tab (chips mode)", () => {
     expect(decideKey(chipsCtx(), key("Tab", { isComposing: true }))).toEqual({ type: "none" });
   });
 
-  it("only intercepts when it commits: every non-commit result is 'none'", () => {
-    // Exhaustive over the state that matters: whenever Tab is not "commit" it is "none".
+  it("never intercepts Tab for any result-list state", () => {
     for (const listVisible of [true, false]) {
       for (const fresh of [true, false]) {
         for (const disabled of [[], [true], [false], [true, false]]) {
           for (const activeIndex of [-1, 0, 1]) {
             const ctx = chipsCtx({ listVisible, fresh, disabled, activeIndex });
             const action = decideKey(ctx, key("Tab"));
-            expect(["none", "commit"]).toContain(action.type);
-            if (action.type === "commit") {
-              expect(listVisible && fresh).toBe(true);
-              expect(disabled[action.index]).toBe(false);
-            }
+            expect(action).toEqual({ type: "none" });
           }
         }
       }
@@ -431,7 +424,7 @@ describe("decideKey: navigate mode is unchanged", () => {
 });
 
 describe("a whole session, driven by the key rules", () => {
-  it("adds four people with Tab/Enter, refuses a fifth, then goes", () => {
+  it("adds four people with Enter, refuses a fifth, then goes", () => {
     let chips: ChipPerson[] = [];
     const queue = [spielberg, lucas, williams, ford, hamill];
 
@@ -442,13 +435,13 @@ describe("a whole session, driven by the key rules", () => {
         // The suggestion list shows `next` first; once full every row is disabled.
         disabled: [full],
       });
-      const action = decideKey(ctx, key("Tab"));
+      const action = decideKey(ctx, key("Enter"));
       if (action.type === "commit") {
         const outcome = addChip(chips, next);
         expect(outcome.ok).toBe(true);
         chips = outcome.chips;
       } else {
-        // The 5th person is not committable, so Tab is left alone and the chips do not change.
+        // The 5th person is not committable, so the chips do not change.
         expect(action).toEqual({ type: "none" });
         expect(addChip(chips, next)).toMatchObject({ ok: false, reason: "full" });
       }
@@ -496,8 +489,9 @@ describe("copy", () => {
   });
 
   it("explains the keys to screen readers without a hard-to-follow 'trap'", () => {
-    expect(CHIPS_HINT).toMatch(/Tab or Enter/);
-    expect(CHIPS_HINT).toMatch(/Shift plus Tab always does/);
+    expect(CHIPS_HINT).toMatch(/press Enter to choose/);
+    expect(CHIPS_HINT).toMatch(/Tab moves through All, Artists, Pairings, then results without selecting/);
+    expect(CHIPS_HINT).toMatch(/category activates on focus/);
   });
 });
 

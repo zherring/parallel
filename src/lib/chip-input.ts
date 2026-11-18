@@ -110,7 +110,7 @@ export type KeyAction =
   /** Show the panel (ArrowDown / ArrowUp while it is hidden). */
   | { type: "open" }
   | { type: "move"; direction: Move }
-  /** Pick suggestion `index`: add a chip (chips mode) or navigate to it (navigate mode). */
+  /** Enter picks suggestion `index`: add a chip (chips mode) or navigate to it (navigate mode). */
   | { type: "commit"; index: number; source: "highlighted" | "top" }
   /** Open the timeline built from the chips. */
   | { type: "submit" }
@@ -142,10 +142,8 @@ export function commitTarget(
  * What a keydown does. The component maps the action to state changes and calls
  * `preventDefault()` for every action except "none"; a "none" leaves the browser alone.
  *
- * Focus rule for Tab: it is only ever intercepted when it commits a suggestion (chips mode, plain
- * Tab, a selectable suggestion on screen). With the list closed, with nothing selectable, or with
- * any modifier (Shift+Tab goes backwards), Tab is "none" and focus moves like it does anywhere
- * else, so keyboard users are never trapped in the field.
+ * Tab always belongs to the browser: it moves from the field to category tabs/results or the
+ * next control, without committing a suggestion. Enter is the only commit key.
  */
 export function decideKey(ctx: KeyContext, input: KeyInput): KeyAction {
   const chips = ctx.mode === "chips";
@@ -166,10 +164,7 @@ export function decideKey(ctx: KeyContext, input: KeyInput): KeyAction {
     }
 
     case "Tab": {
-      if (!chips) return NONE;
-      if (input.shiftKey || input.altKey || input.ctrlKey || input.metaKey) return NONE;
-      const target = commitTarget(ctx);
-      return target ? { type: "commit", ...target } : NONE;
+      return NONE;
     }
 
     case "Enter": {
@@ -255,7 +250,7 @@ export function placeholderCopy({ mode, size, peopleInViewCount, chipCount }: Pl
 
 /** Screen-reader instructions for the field (referenced by aria-describedby in chips mode). */
 export const CHIPS_HINT =
-  `Type a name, then press Tab or Enter to add the highlighted match, or the first one if none is highlighted. ` +
-  `Related pairings appear below people before anyone is selected; choosing a pairing opens its timeline. ` +
+  `Type a name, then press Enter to choose the highlighted match, or the first one if none is highlighted. ` +
+  `For an obvious match, related pairings appear immediately after that person, with More artists below. Choosing a pairing opens its timeline. ` +
   `Up to ${MAX_PEOPLE} people. With the field empty, Enter shows the timeline and Backspace removes the last person. ` +
-  `When there is nothing to add, Tab moves on as usual, and Shift plus Tab always does.`;
+  `Tab moves through All, Artists, Pairings, then results without selecting anything. Each category activates on focus. Left and Right also change category, and Down reaches results. Shift plus Tab moves backwards.`;
