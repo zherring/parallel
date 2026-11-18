@@ -9,6 +9,8 @@ import { tmdbImage } from "@/lib/images";
 import { MAX_PEOPLE, addState } from "@/lib/people-nav";
 import type { FilmDetails } from "@/lib/types";
 import { FilmTabs } from "./film-tabs";
+import { FilmMetricsRows } from "@/components/timeline/film-metrics-rows";
+import { useFilmMetrics } from "@/components/timeline/use-film-metrics";
 
 interface Props {
   film: FilmDetails;
@@ -32,6 +34,7 @@ export function FilmContent({ film, titleId, peopleInView, added, full, onToggle
   const addedIds = new Set(added.map((person) => person.id));
   const poster = tmdbImage(film.posterPath, "w342");
   const meta = filmMetaLine(film);
+  const metrics = useFilmMetrics(film.id, true, 0);
 
   function row(person: PersonRow, inTimelineGroup = false) {
     const state = addState(peopleInView, person.id);
@@ -111,6 +114,9 @@ export function FilmContent({ film, titleId, peopleInView, added, full, onToggle
       </div>
 
       {film.overview && <p className="mt-5 text-sm leading-relaxed text-body">{film.overview}</p>}
+      <div className="mt-5 rounded-lg border border-border bg-surface p-3 empty:hidden">
+        <FilmMetricsRows state={metrics} today={new Date().toISOString().slice(0, 10)} />
+      </div>
 
       {/* What adding someone does while this is open: the page changes when it closes. A live region, always there, so that it is spoken as it fills. */}
       <p

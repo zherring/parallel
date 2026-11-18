@@ -74,7 +74,9 @@ async function openPage(page: Page) {
     w.__pushes = [];
     const push = history.pushState.bind(history);
     history.pushState = (data, unused, url) => {
-      w.__pushes.push(String(url));
+      // A slide-out panel now adds its own entry so Back closes it (see side panels); only a
+      // navigation of the page itself counts here.
+      if (!(data as { parallelPanelTarget?: unknown } | null)?.parallelPanelTarget) w.__pushes.push(String(url));
       return push(data, unused, url);
     };
   });

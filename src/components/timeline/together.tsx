@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import type { VoicedClippings } from "@/lib/clippings";
 import type { PairCritics } from "@/lib/critics";
 import type { TableRow } from "@/lib/film-rows";
+import { MAX_PEOPLE } from "@/lib/people-nav";
+import type { View } from "@/lib/films-view";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import type { PairShared } from "@/lib/shared";
 import type { PersonRef } from "@/lib/lanes";
@@ -36,6 +38,8 @@ interface TogetherProps {
   critics?: PairCritics | null;
   /** The page's people and the opener for them, for the names in the Clippings tab (see `FilmsSection`). */
   personPanel?: PersonPanelAccess;
+  /** The view the server read from the address bar (see `FilmsSection`). */
+  initialView?: View;
 }
 
 const joinNames = (names: string[]) => new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(names);
@@ -54,9 +58,12 @@ export function Together({
   clippings,
   critics,
   personPanel,
+  initialView,
 }: TogetherProps) {
   const nameById = new Map(people.map((p) => [p.id, p.name]));
   const names = people.map((p) => p.name);
+  const pairFilmCount = pairwise.reduce((total, pair) => total + pair.films.length, 0);
+  const atCap = people.length >= MAX_PEOPLE;
 
   return (
     <FilmsSection
@@ -69,18 +76,29 @@ export function Together({
       note={note}
       timeline={timeline}
       empty={
-        <>
-          No films together found on TMDB. Try adding a collaborator in a nearby role, such as the cinematographer,
-          editor or a co-star.
-          {minorExtra > 0 && ` Turning on "${MINOR_TOGGLE_LABEL}" would add ${minorExtra}.`}
-          {upcomingExtra > 0 &&
-            ` ${upcomingExtra} announced ${upcomingExtra === 1 ? "film they share is" : "films they share are"} not out yet and will count once ${upcomingExtra === 1 ? "it is" : "they are"} released.`}
-        </>
+        atCap ? (
+          <>
+            No film features all {MAX_PEOPLE} people.
+            {pairFilmCount > 0 &&
+              ` ${pairFilmCount} ${pairFilmCount === 1 ? "film is" : "films are"} shared by smaller groups; see “By pair” below.`}
+            {minorExtra > 0 && ` Turning on "${MINOR_TOGGLE_LABEL}" would add ${minorExtra}.`}
+            {" "}Remove someone to add another person.
+          </>
+        ) : (
+          <>
+            No films together found on TMDB. Try adding a collaborator in a nearby role, such as the cinematographer,
+            editor or a co-star.
+            {minorExtra > 0 && ` Turning on "${MINOR_TOGGLE_LABEL}" would add ${minorExtra}.`}
+            {upcomingExtra > 0 &&
+              ` ${upcomingExtra} announced ${upcomingExtra === 1 ? "film they share is" : "films they share are"} not out yet and will count once ${upcomingExtra === 1 ? "it is" : "they are"} released.`}
+          </>
+        )
       }
       onSelect={onSelect}
       clippings={clippings}
       critics={critics}
       personPanel={personPanel}
+      initialView={initialView}
     >
       {pairwise.length > 0 && (
         <details className="mt-6 rounded-lg border border-border bg-surface">
@@ -102,8 +120,9 @@ export function Together({
                         <time dateTime={film.releaseDate} className="mr-2 tabular-nums text-muted">
                           {film.year}
                         </time>
-                        <a href={tmdbMovieUrl(film.id)} className={linkClass}>
+                        <a href={tmdbMovieUrl(film.id)} target="_blank" rel="noreferrer" className={linkClass}>
                           {film.title}
+                          <span className="sr-only"> (opens on TMDB in a new tab)</span>
                         </a>{" "}
                         <button
                           type="button"

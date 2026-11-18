@@ -56,6 +56,11 @@ export function peekFilmMetrics(id: number): FilmMetricsLookup | undefined {
   return undefined;
 }
 
+/** Forgets remembered failures so an explicit Retry can ask again immediately. Successful data stays cached. */
+export function forgetFilmMetricFailures(ids: readonly number[]): void {
+  for (const id of ids) failedAt.delete(id);
+}
+
 async function fetchMetrics(id: number, controller: AbortController): Promise<FilmMetricsLookup> {
   try {
     return remember(id, await getJson<FilmMetrics>(`/api/film-metrics/${id}`, controller.signal));

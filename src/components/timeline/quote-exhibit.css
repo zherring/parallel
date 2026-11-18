@@ -12,6 +12,8 @@ body:has([data-quote-exhibit-deck]) > footer {
   --quote-pane-bg: color-mix(in srgb, var(--bg) 90%, var(--surface));
   position: fixed;
   inset: 0;
+  /* The reserved scrollbar gutter is not part of a full-screen deck: it spans the whole window. */
+  width: 100vw;
   z-index: 20;
   height: 100dvh;
   isolation: isolate;

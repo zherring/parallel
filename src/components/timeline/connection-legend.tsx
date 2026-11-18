@@ -1,5 +1,6 @@
 "use client";
 
+import { Pin } from "lucide-react";
 import { usePersonPalette } from "@/components/person-palette";
 import { slotColor, type LegendEntry } from "@/lib/connections";
 import { cn } from "./cn";
@@ -13,7 +14,7 @@ interface ConnectionLegendProps {
   activeKey: string | null;
   pinnedKey: string | null;
   onPreview: (key: string | null) => void;
-  onTogglePin: (key: string) => void;
+  onTogglePin: (key: string, label: string) => void;
 }
 
 const NUMBER_WORDS = ["", "one", "two", "three", "four", "five"];
@@ -24,11 +25,23 @@ function wordsOf(entry: LegendEntry, laneCount: number): string {
   return entry.slot === null ? `All ${total}` : `Three of ${total}`;
 }
 
+/** What a chip is called in the live region when it is pinned: "Fincher and Pitt, 3 films". */
+function spokenOf(entry: LegendEntry, names: string[], laneCount: number): string {
+  const count = `${entry.count} ${entry.count === 1 ? "film" : "films"}`;
+  if (entry.lanes) return pairChipName(names, entry.lanes, entry.count);
+  if (entry.groups?.length) {
+    const groups = entry.groups.map((lanes) => lanes.map((lane) => names[lane]).join(", ")).join("; ");
+    return `Three of ${NUMBER_WORDS[laneCount] ?? laneCount} (${groups}), ${count}`;
+  }
+  return `${wordsOf(entry, laneCount)}, ${count}`;
+}
+
 /**
  * The key to the colours of the lines when three or more people are on screen: green for the
  * films everyone shares, one colour per pair for the rest. Each chip names its pair in text, so
- * the colour is never the only way to tell. Hovering or focusing a chip lights that kind of
- * connection and dims the others; pressing it keeps the highlight (for touch and keyboard).
+ * the colour is never the only way to tell. Hovering or focusing a chip previews that kind of
+ * connection with a border; pressing it keeps the highlight with a tinted fill and a pin, so a
+ * pinned chip never looks like one that is merely under the pointer.
  */
 export function ConnectionLegend({ entries, names, laneCount, activeKey, pinnedKey, onPreview, onTogglePin }: ConnectionLegendProps) {
   // On a pair's page (its palette) the films everyone shares are white, with no glow, where the app's are green.
@@ -43,20 +56,26 @@ export function ConnectionLegend({ entries, names, laneCount, activeKey, pinnedK
         {entries.map((entry) => {
           const pinned = pinnedKey === entry.key;
           const active = activeKey === entry.key;
+          const label = spokenOf(entry, names, laneCount);
           return (
             <li key={entry.key}>
               <button
                 type="button"
                 aria-pressed={pinned}
-                aria-label={entry.lanes ? pairChipName(names, entry.lanes, entry.count) : undefined}
-                onClick={() => onTogglePin(entry.key)}
+                aria-label={label}
+                title={pinned ? `${label}. Pinned; press to unpin.` : `${label}. Press to pin.`}
+                onClick={() => onTogglePin(entry.key, label)}
                 onPointerEnter={(event) => event.pointerType !== "touch" && onPreview(entry.key)}
                 onPointerLeave={() => onPreview(null)}
                 onFocus={() => onPreview(entry.key)}
                 onBlur={() => onPreview(null)}
                 className={cn(
-                  "inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-surface px-2.5 py-1 text-xs leading-none text-body hover:text-strong",
-                  active || pinned ? "border-strong/60 text-strong" : "border-border hover:border-muted",
+                  "inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full border px-3 py-2 text-xs leading-none hover:text-strong",
+                  pinned
+                    ? "border-strong bg-strong/15 text-strong"
+                    : active
+                      ? "border-strong/70 bg-surface text-strong"
+                      : "border-border bg-surface text-body hover:border-muted",
                 )}
               >
                 <span
@@ -75,6 +94,7 @@ export function ConnectionLegend({ entries, names, laneCount, activeKey, pinnedK
                   {entry.count}
                   <span className="sr-only"> {entry.count === 1 ? "film" : "films"}</span>
                 </span>
+                {pinned && <Pin aria-hidden className="size-3 shrink-0 text-strong" />}
               </button>
             </li>
           );

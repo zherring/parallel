@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Clapperboard } from "lucide-react";
 
 interface PortraitProps {
   /** The photo, or null when TMDB has none. */
@@ -29,6 +30,11 @@ export function Portrait({ src, alt, fallback }: PortraitProps) {
           className="absolute inset-0 flex select-none items-center justify-center text-3xl font-medium text-muted"
         >
           {fallback}
+        </span>
+      )}
+      {!fallback && (!src || src === failed) && (
+        <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center text-muted">
+          <Clapperboard className="size-8" />
         </span>
       )}
       {src && src !== failed && (

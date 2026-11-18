@@ -48,7 +48,7 @@ const getServerHash = () => "";
 
 function writeHash(hash: string) {
   const { pathname, search } = window.location;
-  window.history.replaceState(null, "", `${pathname}${search}${hash}`);
+  window.history.pushState(null, "", `${pathname}${search}${hash}`);
   for (const notify of listeners) notify();
 }
 
@@ -76,6 +76,12 @@ export function GenreTabs({ idBase, label, tabs }: Props) {
   const tabListRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [edges, setEdges] = useState({ start: false, end: false });
+
+  useEffect(() => {
+    const wanted = hashForTab(selected, fallback);
+    if (hash && hash !== wanted) window.history.replaceState(null, "", `${location.pathname}${location.search}${wanted}`);
+    document.title = selected === fallback ? "Parallel — Filmographies & Film Collaborations" : `${tabs[selectedIndex]?.label ?? "Featured"} film collaborations | Parallel`;
+  }, [fallback, hash, selected, selectedIndex, tabs]);
 
   // Fade the strip's edges only where more pills continue past them.
   useEffect(() => {

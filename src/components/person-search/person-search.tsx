@@ -4,6 +4,7 @@ import { ArrowRight, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useEffect,
+  useEffectEvent,
   useId,
   useRef,
   useState,
@@ -80,6 +81,8 @@ export interface PersonSearchProps {
    * opens from the chips, with Enter on an empty field or the Go button.
    */
   mode?: SearchMode;
+  /** Keep the chips in this tab's session, so returning to the page restores what was being built (the landing hero only). */
+  persistChips?: boolean;
   /** The field's accessible name. Defaults to "Search people"; a field whose visible label is gone names its job ("Add a person"). */
   ariaLabel?: string;
   /**
@@ -120,6 +123,7 @@ const NO_PEOPLE: { id: number; name: string }[] = [];
 
 /** Results per normalized query for this tab, so backspacing does not spend rate limit. */
 const resultCache = new Map<string, PeopleSearchResponse>();
+const HERO_CHIPS_KEY = "parallel:hero-people";
 
 function remember(query: string, results: PeopleSearchResponse) {
   resultCache.delete(query);
@@ -131,6 +135,7 @@ function remember(query: string, results: PeopleSearchResponse) {
 interface SearchData extends PeopleSearchResponse {
   query: string;
   error: ApiErrorKind | null;
+  retryAfterSeconds: number | null;
 }
 
 export function PersonSearch({
@@ -138,6 +143,7 @@ export function PersonSearch({
   size = "compact",
   autoFocus = false,
   mode = "navigate",
+  persistChips = false,
   ariaLabel = "Search people",
   suggestFor,
   wideMenu = false,
@@ -150,6 +156,7 @@ export function PersonSearch({
   const resultsRef = useRef<HTMLUListElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const announcementId = useRef(0);
+  const pendingEnter = useRef<string | null>(null);
   const baseId = useId();
   const listId = `${baseId}-listbox`;
   const hintId = `${baseId}-hint`;
@@ -162,6 +169,7 @@ export function PersonSearch({
   const [category, setCategory] = useState<SearchCategory>("all");
   const [data, setData] = useState<SearchData | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [retryAfter, setRetryAfter] = useState(0);
   const [chips, setChips] = useState<ChipPerson[]>([]);
   const [announcement, setAnnouncement] = useState<{ id: number; text: string } | null>(null);
   const [isNavigating, startNavigation] = useTransition();
@@ -171,6 +179,20 @@ export function PersonSearch({
 
   const hero = size === "hero";
   const chipsMode = mode === "chips";
+
+  useEffect(() => {
+    if (!chipsMode || !hero || !persistChips) return;
+    let saved: ChipPerson[] = [];
+    try {
+      const parsed = JSON.parse(sessionStorage.getItem(HERO_CHIPS_KEY) ?? "[]") as ChipPerson[];
+      if (Array.isArray(parsed)) saved = parsed.slice(0, MAX_PEOPLE);
+    } catch {
+      sessionStorage.removeItem(HERO_CHIPS_KEY);
+    }
+    if (saved.length === 0) return;
+    const frame = requestAnimationFrame(() => setChips(saved));
+    return () => cancelAnimationFrame(frame);
+  }, [chipsMode, hero, persistChips]);
   // Who counts as "already added": the chips in chips mode, the people on the page otherwise.
   const added = chipsMode ? chips : peopleInView;
   const q = normalizeQuery(query);
@@ -225,7 +247,7 @@ export function PersonSearch({
     const timer = setTimeout(async () => {
       const cached = resultCache.get(q);
       if (cached) {
-        setData({ query: q, ...cached, error: null });
+        setData({ query: q, ...cached, error: null, retryAfterSeconds: null });
         return;
       }
       try {
@@ -237,11 +259,13 @@ export function PersonSearch({
         if (controller.signal.aborted) return;
         const response = { results: body.results, pairings: body.pairings ?? [] };
         remember(q, response);
-        setData({ query: q, ...response, error: null });
+        setData({ query: q, ...response, error: null, retryAfterSeconds: null });
       } catch (error) {
         if (controller.signal.aborted || isAbortError(error)) return;
         const kind = error instanceof ApiClientError ? error.kind : "server";
-        setData({ query: q, results: [], pairings: [], error: kind });
+        const wait = error instanceof ApiClientError ? (error.retryAfterSeconds ?? 0) : 0;
+        setRetryAfter(wait);
+        setData({ query: q, results: [], pairings: [], error: kind, retryAfterSeconds: wait || null });
       }
     }, DEBOUNCE_MS);
 
@@ -252,12 +276,25 @@ export function PersonSearch({
   }, [q, attempt]);
 
   useEffect(() => {
+    if (retryAfter <= 0) return;
+    const timer = window.setInterval(() => setRetryAfter((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [retryAfter]);
+
+  useEffect(() => {
     if (autoFocus) inputRef.current?.focus({ preventScroll: true });
   }, [autoFocus]);
 
   useEffect(() => {
     if (activeId) document.getElementById(activeId)?.scrollIntoView({ block: "nearest" });
   }, [activeId]);
+
+  useEffect(() => {
+    if (!hero || !showPanel) return;
+    const field = inputRef.current;
+    if (!field || field.getBoundingClientRect().bottom < window.innerHeight - 120) return;
+    field.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [hero, showPanel]);
 
   function move(direction: Move) {
     setActiveIndex((current) => moveActive(disabledFlags, current, direction));
@@ -280,6 +317,7 @@ export function PersonSearch({
       return;
     }
     setChips(outcome.chips);
+    if (hero && persistChips) sessionStorage.setItem(HERO_CHIPS_KEY, JSON.stringify(outcome.chips));
     setCategory("all");
     setQuery("");
     setOpen(false);
@@ -291,6 +329,7 @@ export function PersonSearch({
   function removePerson(outcome: { chips: ChipPerson[]; removed: ChipPerson | null }) {
     if (!outcome.removed) return;
     setChips(outcome.chips);
+    if (hero && persistChips) sessionStorage.setItem(HERO_CHIPS_KEY, JSON.stringify(outcome.chips));
     announce(removedMessage(outcome.removed.name, outcome.chips.length));
     inputRef.current?.focus({ preventScroll: true });
   }
@@ -351,7 +390,25 @@ export function PersonSearch({
     });
   }
 
+  const commitPending = useEffectEvent(() => {
+    if (pendingEnter.current !== q || !fresh || failure) return;
+    pendingEnter.current = null;
+    const next = commitTarget(keyContext);
+    if (next !== null) selectOption(options[next.index]);
+    else announce(`No selectable match for ${q}.`);
+  });
+  useEffect(() => {
+    const frame = requestAnimationFrame(commitPending);
+    return () => cancelAnimationFrame(frame);
+  }, [fresh, failure, q]);
+
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === "Enter" && loading && q) {
+      event.preventDefault();
+      pendingEnter.current = q;
+      announce(`Searching for ${q}. The first selectable match will be chosen when it arrives.`);
+      return;
+    }
     // The "popup wanted" flag is set by focus alone, so an empty field that shows nothing still counts as open to
     // `decideKey` and would swallow this Escape; the owner gets it instead.
     if (event.key === "Escape" && onIdleEscape && !query && !showPanel) {
@@ -374,6 +431,10 @@ export function PersonSearch({
     if (action.type === "none") {
       // Enter on a name when there is no room left: say why nothing happened.
       if (chipsMode && event.key === "Enter" && full && q) announce(refusedMessage("full", ""));
+      else if (event.key === "Enter" && q) {
+        const duplicate = options.find((option) => !("href" in option) && normalizeQuery(option.name) === q && addState(added, option.id) === "in-view");
+        if (duplicate && !("href" in duplicate)) announce(`${duplicate.name} is already added.`);
+      }
       return;
     }
     event.preventDefault();
@@ -452,6 +513,8 @@ export function PersonSearch({
         if (event.currentTarget.contains(event.relatedTarget)) return;
         setOpen(false);
         setActiveIndex(-1);
+        pendingEnter.current = null;
+        if (data?.error) setData(null);
       }}
     >
       <div
@@ -501,8 +564,8 @@ export function PersonSearch({
               type="text"
               role="combobox"
               aria-label={ariaLabel}
-              aria-expanded={listVisible}
-              aria-controls={listVisible ? listId : undefined}
+              aria-expanded={showPanel}
+              aria-controls={showPanel ? listId : undefined}
               aria-activedescendant={activeId}
               aria-autocomplete="list"
               aria-haspopup="listbox"
@@ -672,12 +735,14 @@ export function PersonSearch({
                 <button
                   type="button"
                   onClick={() => {
+                    if (retryAfter > 0) return;
                     setData(null);
                     setAttempt((n) => n + 1);
                   }}
-                  className="shrink-0 rounded-md border border-border px-3 py-1.5 font-medium text-strong hover:bg-border"
+                  aria-disabled={retryAfter > 0 || undefined}
+                  className="min-h-11 shrink-0 rounded-md border border-border px-3 font-medium text-strong hover:bg-border aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
                 >
-                  Try again
+                  {retryAfter > 0 ? `Try again in ${retryAfter}s` : "Try again"}
                 </button>
               </div>
             )}
@@ -711,6 +776,15 @@ export function PersonSearch({
                     </span>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {onSuggestions && collaborators.status === "error" && (
+              <div role="alert" className="px-3 py-3 text-body">
+                <p>Frequent collaborators are unavailable. You can still type a name.</p>
+                <button type="button" onClick={collaborators.retry} className="mt-2 min-h-11 rounded-md border border-border px-3 font-medium text-strong hover:bg-border">
+                  Try again
+                </button>
               </div>
             )}
 

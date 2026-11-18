@@ -246,7 +246,7 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
       ref={rootRef}
       data-side-panel
       inert={closing || undefined}
-      className={closing ? "pointer-events-none fixed inset-0 z-50" : "fixed inset-0 z-50"}
+      className={closing ? "pointer-events-none fixed inset-0 z-50 w-screen" : "fixed inset-0 z-50 w-screen"}
     >
       <div
         ref={backdropRef}

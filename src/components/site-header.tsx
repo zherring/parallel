@@ -8,7 +8,7 @@ import { Wordmark } from "@/components/wordmark";
  */
 export function SiteHeader() {
   return (
-    <header className="border-b border-border">
+    <header className="sticky top-0 z-50 border-b border-border bg-canvas/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center gap-x-4 px-4 py-2 sm:min-h-12 sm:py-1.5">
         <HomeLink className="shrink-0 no-underline">
           <Wordmark className="text-2xl" />

@@ -20,6 +20,7 @@ import { fitMenu, type MenuFit } from "@/lib/popover-position";
 import { inPeriod, periodLabel, resolvePeriod, searchWithPeriod, spanOfYears, type Period } from "@/lib/period";
 import { shareLinks, type ShareInput } from "@/lib/share";
 import { SITE_URL } from "@/lib/site-url";
+import { useLiveSearch } from "@/lib/use-live-search";
 import { scrollBehavior } from "./scroll-behavior";
 import { OPEN_SHARE_EVENT } from "./share-event";
 import { useUrlPeriod } from "./use-period";
@@ -108,6 +109,7 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
   // The server renders the links for the configured site URL; once mounted they point at the
   // origin the visitor is actually on (localhost, the Railway URL, the custom domain).
   const origin = useSyncExternalStore(noSubscription, clientOrigin, serverOrigin);
+  const currentSearch = useLiveSearch();
   const canShare = useSyncExternalStore(noSubscription, clientCanShare, serverCanShare);
   const canImage = useSyncExternalStore(noSubscription, clientCanCopyImage, serverCanCopyImage);
   const pathname = usePathname();
@@ -127,7 +129,7 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
   const choose = (next: Period) => setPeriod(resolvePeriod(next, span));
 
   const periodText = period ? periodLabel(period) : undefined;
-  const url = `${origin}${pathname}${period ? searchWithPeriod("", period) : ""}`;
+  const url = `${origin}${pathname}${searchWithPeriod(currentSearch, period)}`;
   // The count in the text is the films of the period; 0 stays 0 (nothing is shared, so the text names no films).
   const count = period && input.count > 0 ? years.filter((year) => inPeriod(year, period)).length : input.count;
   const links = shareLinks({ ...input, count, period: periodText }, url);
@@ -144,6 +146,7 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
       // The menu's height as its content has it (what it would be uncapped): its scrollable height and its borders.
       const natural = menu.scrollHeight + (menu.offsetHeight - menu.clientHeight);
       const next = fitMenu(button.getBoundingClientRect(), natural, window.innerHeight, { gap: MENU_GAP, margin: MENU_GAP });
+      setSide(menuSide(button));
       setFit((previous) => (previous?.up === next.up && previous.maxHeight === next.maxHeight ? previous : next));
     };
     place();
@@ -165,12 +168,6 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
     () => Array.from(menuRef.current?.querySelectorAll<HTMLElement>('select, [role="menuitem"]') ?? []),
     [],
   );
-  /** The items alone: where focus goes when the menu opens. */
-  const items = useCallback(
-    () => Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []),
-    [],
-  );
-
   const close = useCallback((returnFocus: boolean) => {
     setOpen(false);
     if (returnFocus) buttonRef.current?.focus();
@@ -179,9 +176,9 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
   // Move focus into the menu once it is visible.
   useEffect(() => {
     if (!open) return;
-    const list = items();
+    const list = stops();
     list[focusOnOpen.current === "last" ? list.length - 1 : 0]?.focus();
-  }, [open, items]);
+  }, [open, stops]);
 
   // The period label under the timeline has a Share button: it asks for this menu to open (and brings the button into view).
   useEffect(() => {
@@ -220,7 +217,7 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
     event.preventDefault();
     focusOnOpen.current = event.key === "ArrowUp" ? "last" : "first";
     if (open) {
-      const list = items();
+      const list = stops();
       list[event.key === "ArrowUp" ? list.length - 1 : 0]?.focus();
     } else {
       setSide(menuSide(buttonRef.current));
@@ -240,10 +237,9 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
     }
     // A select keeps its own keys: arrows, Home, End and typing change the year, Tab moves between the selects.
     if ((event.target as HTMLElement).closest("select")) return;
-    if (event.key === "Tab") {
-      // Let Tab continue from the button, as if the menu had never been in the way.
-      buttonRef.current?.focus();
-      setOpen(false);
+    if (event.key === " " && (event.target as HTMLElement).matches('a[role="menuitem"]')) {
+      event.preventDefault();
+      (event.target as HTMLAnchorElement).click();
       return;
     }
 
@@ -370,12 +366,13 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
                 ))}
               </select>
             </div>
+            <p role="status" aria-live="polite" className="sr-only">Sharing {periodLabel(shown)}</p>
           </div>
         )}
         <div role="menu" aria-labelledby={buttonId}>
           <a
             role="menuitem"
-            tabIndex={-1}
+            tabIndex={0}
             href={links.x}
             target="_blank"
             rel="noopener noreferrer"
@@ -386,7 +383,7 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
           </a>
           <a
             role="menuitem"
-            tabIndex={-1}
+            tabIndex={0}
             href={links.bluesky}
             target="_blank"
             rel="noopener noreferrer"
@@ -395,13 +392,13 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
           >
             Post on Bluesky<span className="sr-only"> (opens in a new tab)</span>
           </a>
-          <button role="menuitem" tabIndex={-1} type="button" className={itemClass} onClick={copyLink}>
+          <button role="menuitem" tabIndex={0} type="button" className={itemClass} onClick={copyLink}>
             Copy link
           </button>
           {canImage && (
             <button
               role="menuitem"
-              tabIndex={-1}
+              tabIndex={0}
               type="button"
               className={itemClass}
               aria-disabled={copying || undefined}
@@ -411,7 +408,7 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
             </button>
           )}
           {canShare && (
-            <button role="menuitem" tabIndex={-1} type="button" className={itemClass} onClick={nativeShare}>
+            <button role="menuitem" tabIndex={0} type="button" className={itemClass} onClick={nativeShare}>
               More...
             </button>
           )}

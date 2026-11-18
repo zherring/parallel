@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PillPerson } from "@/components/depth/people-pill";
 import { FilmPanel } from "@/components/film-panel/film-panel";
 import { PairHeroBody } from "@/components/hero/pair-hero-body";
@@ -21,7 +21,6 @@ import { revealFilmRow } from "@/components/timeline/reveal-film-row";
 import { useViewTab } from "@/components/timeline/use-view-tab";
 import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
 import { Together } from "@/components/timeline/together";
-import { cardFilms } from "@/lib/card-films";
 import type { PairClippings } from "@/lib/clippings";
 import { voiceClippings } from "@/lib/clippings-view";
 import { toggleHidden } from "@/lib/combined-track";
@@ -29,13 +28,15 @@ import type { PairCritics } from "@/lib/critics";
 import { pageViewHref } from "@/lib/depth-url";
 import { effectiveTrackMode } from "@/lib/film-prefs";
 import { personRows, sharedRows } from "@/lib/film-rows";
-import { carryView, hasClippingsTab, quoteIdsOf, showingMessage, type PageView } from "@/lib/films-view";
+import { carryView, hasClippingsTab, quoteIdsOf, showingMessage, type PageView, type View } from "@/lib/films-view";
 import { laneSummary } from "@/lib/lanes";
 import { quoteHref, type HeroNote } from "@/lib/pair-hero";
 import { periodLabel, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss } from "@/lib/person-colors";
+import { peopleTitle, periodTitle } from "@/lib/seo";
 import { montagePosters } from "@/lib/portrait-treatment";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
+import { useLiveSearch } from "@/lib/use-live-search";
 import type { ShareInput } from "@/lib/share";
 import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms, type PairShared } from "@/lib/shared";
 import { filmIdOf, openFilm, openPerson, personIdOf, type PanelTarget, type PersonPanelAccess } from "@/lib/side-panel";
@@ -59,6 +60,8 @@ interface Props {
   critics: PairCritics | null;
   /** What the pair hero says beside the portraits (the pair's first quote, a curated description or its blurb), worked out on the server; null for none. */
   heroNote: HeroNote | null;
+  /** The flat view (Timeline, Table or Quotes) the server read from the address bar: the first paint shows it rather than flashing the Timeline. */
+  initialView: View;
 }
 
 /** The flat page keeps the view the visitor is on (Timeline, Table; Films is another page) in the address that staged changes to the people lead to: read from the address bar when they are applied. */
@@ -79,17 +82,18 @@ export function PeopleView(props: Props) {
   );
 }
 
-function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critics, heroNote }: Props) {
+function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critics, heroNote, initialView }: Props) {
   const pathname = usePathname();
-  const search = useSearchParams().toString();
+  const search = useLiveSearch();
   // The display preferences are shared with the Depth view (`?view=depth`), which a visitor moves to and from: see `useFilmPrefs`.
   const [{ includeMinor, showAll, trackMode }, setPrefs] = useFilmPrefs(timelines.map((t) => t.person.id).join("+"));
   // The one slide-out panel: a film's details or a person's, never both.
   const [panel, setPanel] = useState<PanelTarget | null>(null);
+  const panelRef = useRef<PanelTarget | null>(null);
   const timelineRef = useRef<TimelineHandle>(null);
   const clippingsTab = hasClippingsTab(clippings, critics);
   const quoteIds = useMemo(() => quoteIdsOf(clippings, critics), [clippings, critics]);
-  const [view, setView] = useViewTab(clippingsTab, quoteIds);
+  const [view, setView] = useViewTab(clippingsTab, quoteIds, initialView);
   /** Counts up each time the visitor chooses a view: the films section brings the page back to its top (see `FilmsSection`). */
   const [revealTick, setRevealTick] = useState(0);
   const [urlPeriod, setPeriod] = useUrlPeriod();
@@ -136,7 +140,14 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   // The films the table lists (and the headline counts, and Export writes): the films the people share, or one person's films. The table's state
   // is held here, not in the section, so that Export (in the page bar's gear) writes them in the order the table is sorted in right now.
   const rows = useMemo(() => (multi ? sharedRows(sharedNow, people) : soloRows), [multi, sharedNow, people, soloRows]);
-  const table = useFilmsTable(rows, today);
+  const filmYears = useMemo(() => rows.map((film) => film.year), [rows]);
+  const periodSpan = useMemo(() => spanOfYears(filmYears), [filmYears]);
+  const period = useMemo(() => resolvePeriod(urlPeriod, periodSpan), [urlPeriod, periodSpan]);
+  const tableRows = useMemo(
+    () => (period ? rows.filter((film) => film.year >= period.from && film.year <= period.to) : rows),
+    [period, rows],
+  );
+  const table = useFilmsTable(tableRows, today);
 
   const lanes: LaneData[] = useMemo(
     () =>
@@ -177,47 +188,85 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   );
   // Filtering can change the axis; keep the year in the middle before updating either view.
   const handleIncludeMinorChange = useCallback((next: boolean) => {
+    // Turning minor credits on can extend the career years backwards, and the old scroll position would
+    // otherwise leave the visitor at the far end of a newly longer axis. Land at the first year instead.
+    if (next) {
+      setPrefs({ includeMinor: true });
+      requestAnimationFrame(() => timelineRef.current?.scrollToStart());
+      return;
+    }
     timelineRef.current?.rememberCenter();
-    setPrefs({ includeMinor: next });
+    setPrefs({ includeMinor: false });
   }, [setPrefs]);
   const handleShowAllChange = useCallback((next: boolean) => setPrefs({ showAll: next }), [setPrefs]);
 
   // The film's card, node or row that was pressed is the opener the panel hands focus back to (see `rememberOpener`): the track is a scroller that takes focus
   // in Safari, which does not focus a pressed button.
+  const openPanel = useCallback((target: PanelTarget) => {
+    if (panelRef.current === null) {
+      window.history.pushState({ ...window.history.state, parallelPanelTarget: target }, "", window.location.href);
+    } else {
+      window.history.replaceState({ ...window.history.state, parallelPanelTarget: target }, "", window.location.href);
+    }
+    panelRef.current = target;
+    setPanel(target);
+  }, []);
+
+  useEffect(() => {
+    const onPopState = (event: PopStateEvent) => {
+      const target = (event.state?.parallelPanelTarget ?? null) as PanelTarget | null;
+      panelRef.current = target;
+      setPanel(target);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
   const handleSelect = useCallback((id: number, trigger?: HTMLElement) => {
     rememberOpener(trigger ?? null);
-    setPanel(openFilm(id));
-  }, []);
+    openPanel(openFilm(id));
+  }, [openPanel]);
 
   const handleOpenPerson = useCallback((id: number, trigger?: Element | null) => {
     rememberOpener(trigger ?? null);
-    setPanel(openPerson(id));
-  }, []);
+    openPanel(openPerson(id));
+  }, [openPanel]);
 
   // The names in the Clippings tab, the hero and the people pill's rows open the same person panel, with the same roles.
+  const personEntries = useMemo(
+    () => pillPeople.map(({ person, roles, posters }) => ({ person, roles, posters })),
+    [pillPeople],
+  );
   const personPanel: PersonPanelAccess = useMemo(
     () => ({
-      entries: pillPeople.map(({ person, roles, posters }) => ({ person, roles, posters })),
+      entries: personEntries,
       open: handleOpenPerson,
     }),
-    [pillPeople, handleOpenPerson],
+    [personEntries, handleOpenPerson],
   );
 
   // The shell hands focus back to the opener itself (see SidePanel); this only closes.
-  const handleClose = useCallback(() => setPanel(null), []);
+  const handleClose = useCallback(() => {
+    // Keep the history entry (Back still closes an open panel), but mark it as no longer showing one.
+    // Going back here would make Next re-render the route and drop what is staged in the panel.
+    if (window.history.state?.parallelPanelTarget) {
+      const rest = { ...(window.history.state as Record<string, unknown>) };
+      delete rest.parallelPanelTarget;
+      window.history.replaceState(rest, "", window.location.href);
+    }
+    panelRef.current = null;
+    setPanel(null);
+  }, []);
 
-  // The years of the films a shared link is about (the ones its preview card shows): the Share menu's Period
-  // choices, and what the page's own `?from=&to=` is resolved against, so the server and the browser agree.
-  const filmYears = useMemo(() => cardFilms(timelines, today).films.map((film) => film.year), [timelines, today]);
-  const periodSpan = useMemo(() => spanOfYears(filmYears), [filmYears]);
-  const period = useMemo(() => resolvePeriod(urlPeriod, periodSpan), [urlPeriod, periodSpan]);
-
-  // The link opens the default view, so the share text counts the non-minor films, not what the toggle shows.
-  const soloFilmCount = timelines[0].films.filter((film) => !film.minor).length;
   const share = useMemo<ShareInput>(
-    () => ({ people, count: multi ? shared.length : soloFilmCount, years: filmYears }),
-    [people, multi, shared.length, soloFilmCount, filmYears],
+    () => ({ people, count: rows.length, years: filmYears }),
+    [people, rows.length, filmYears],
   );
+
+  useEffect(() => {
+    const base = peopleTitle(people.map((person) => person.name));
+    document.title = `${period ? periodTitle(base, period) : base} | Parallel`;
+  }, [people, period]);
 
   // The page bar's views are links to this page's addresses (the period kept): the Timeline, Table and Clippings are panels of this page, which the
   // bar chooses in place with a plain click; Focus (the same page on `?view=depth`) is another render of it, so a link that navigates.
@@ -353,7 +402,11 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         onShowAllChange={handleShowAllChange}
         includeMinor={includeMinor}
         onIncludeMinorChange={handleIncludeMinorChange}
-        settingsMessage={showingMessage(multi ? sharedNow.length : soloRows.length, multi)}
+        settingsMessage={showingMessage(
+          multi ? sharedNow.length : soloRows.length,
+          multi,
+          multi ? pairwiseNow.reduce((total, pair) => total + pair.films.length, 0) : 0,
+        )}
         share={share}
         exportList={exportList}
         backdrop
@@ -363,7 +416,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         the table does; the server renders the default, the checkbox off, so the first client render matches). The page's content starts under the bar
         (about 4rem tall, over the top of the page).
       */}
-      <PageHeadline people={people} count={rows.length} />
+      <PageHeadline people={people} count={tableRows.length} />
       {/* As wide as the page, with the bar's own gutter (12px): the Timeline spans it, and the Table and Quotes keep a reading column (see `FilmsSection`). Its top is under the bar (4.5rem), or under the title of the expanded hero when that wraps to more lines (see `PeopleBar`). */}
       <div className="w-full min-w-0 px-3 pb-8 pt-[max(4.5rem,var(--people-bar-top,0px))]">
         {/* Only the Table has an in-page masthead; Quotes keeps the compact bar and its own full-screen layout. */}
@@ -374,7 +427,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
         {multi ? (
           <Together
             people={people}
-            rows={rows}
+            rows={tableRows}
             table={table}
             revealTick={revealTick}
             pairwise={pairwiseNow}
@@ -386,12 +439,13 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
             clippings={voicedClippings}
             critics={critics}
             personPanel={personPanel}
+            initialView={initialView}
           />
         ) : (
           <FilmsSection
             headingId="films"
             together={false}
-            rows={rows}
+            rows={tableRows}
             caption={`Films ${people[0].name} worked on`}
             table={table}
             revealTick={revealTick}
@@ -404,12 +458,13 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
             }
             timeline={timeline}
             onSelect={handleSelect}
+            initialView={initialView}
           />
         )}
       </div>
       <FilmPanel filmId={filmIdOf(panel)} peopleInView={people} onClose={handleClose} />
       <PersonPanel
-        entry={personPanel.entries.find((entry) => entry.person.id === personIdOf(panel)) ?? null}
+        entry={personEntries.find((entry) => entry.person.id === personIdOf(panel)) ?? null}
         peopleInView={people}
         onClose={handleClose}
       />

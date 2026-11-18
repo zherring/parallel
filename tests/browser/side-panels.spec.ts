@@ -115,6 +115,16 @@ async function expectPageFree(page: Page) {
 
 for (const panel of cases) {
   test.describe(`${panel.name} panel`, () => {
+    test("Back closes it and leaves the page where it was", async ({ page }) => {
+      await openPage(page);
+      const before = page.url();
+      const { trigger, dialog } = await openPanel(page, panel);
+      await page.goBack();
+      await expect(dialog).toBeHidden();
+      await expect(page).toHaveURL(before);
+      await expect(trigger).toBeFocused();
+    });
+
     test("opens from its trigger onto the scroll container, which takes the keys", async ({ page }) => {
       await openPage(page);
       const { dialog, scroller } = await openPanel(page, panel);

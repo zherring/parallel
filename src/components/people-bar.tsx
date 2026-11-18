@@ -232,7 +232,7 @@ function PeopleBarBox({
       data-hero={expanded ? "expanded" : "collapsed"}
       data-hero-placement={overlay ? "band" : "page"}
       // The bar's controls are all `--bar-h` tall (the root's, see globals.css), so they line up.
-      className="group/bar pointer-events-none fixed inset-x-0 top-0 z-30 flex flex-col px-3 pt-3"
+      className="group/bar pointer-events-none fixed inset-x-0 top-0 z-30 flex w-screen flex-col px-3 pt-3"
       onWheel={overlay && expanded && hero.onWheel ? (event) => hero.onWheel?.(event.deltaX, event.deltaY) : undefined}
     >
       {backdrop && (

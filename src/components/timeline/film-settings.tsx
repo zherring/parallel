@@ -25,15 +25,15 @@ export function FilmSettingsOptions({
   const [announced, setAnnounced] = useState(false);
   return (
     <div className="space-y-3">
-      <label className="flex cursor-pointer items-start gap-2.5">
-        <input type="checkbox" aria-label="Show all films" aria-describedby={posterHintId} checked={showAll} onChange={(event) => onShowAllChange(event.target.checked)} className="mt-0.5 size-4 shrink-0 cursor-pointer accent-accent-green" />
+      <label className="flex min-h-11 cursor-pointer items-start gap-2.5 py-1">
+        <input type="checkbox" aria-label="Show all films" aria-describedby={posterHintId} checked={showAll} onChange={(event) => onShowAllChange(event.target.checked)} className="mt-0.5 size-5 shrink-0 cursor-pointer accent-accent-green" />
         <span>
           <span className="text-strong">Show all films</span>
           <span id={posterHintId} className="mt-0.5 block text-xs text-muted">Give every film a poster, adding rows as needed.</span>
         </span>
       </label>
-      <label className="flex cursor-pointer items-start gap-2.5">
-        <input type="checkbox" checked={includeMinor} onChange={(event) => { setAnnounced(true); onIncludeMinorChange(event.target.checked); }} className="mt-0.5 size-4 shrink-0 cursor-pointer accent-accent-green" />
+      <label className="flex min-h-11 cursor-pointer items-start gap-2.5 py-1">
+        <input type="checkbox" checked={includeMinor} onChange={(event) => { setAnnounced(true); onIncludeMinorChange(event.target.checked); }} className="mt-0.5 size-5 shrink-0 cursor-pointer accent-accent-green" />
         <span>{MINOR_TOGGLE_LABEL}</span>
       </label>
       <p role="status" aria-live="polite" className="min-h-4 text-xs text-muted">{announced ? message : ""}</p>

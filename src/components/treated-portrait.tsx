@@ -9,7 +9,7 @@ import { initials } from "@/lib/person-labels";
 import { PERSON_COLORS } from "@/lib/person-colors";
 import { CutPortraitImage } from "@/components/cut-portrait-image";
 import { CARD_RADIUS_RATIO, STROKE_CSS, polygonPoints, type EdgePosition } from "@/lib/portrait-cuts";
-import { duotoneMatrix, tileView, treatmentShape } from "@/lib/portrait-treatment";
+import { tileView, treatmentShape } from "@/lib/portrait-treatment";
 
 interface Props {
   /** TMDB person id, the key of `portrait-cuts.json`. */
@@ -97,10 +97,11 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
         ) : (
           <>
             {montage && (
-              <span className="absolute inset-0 grid grid-cols-3 grid-rows-3" style={{ filter: `url(#duo-${id})` }}>
+              <span className="absolute inset-0 grid grid-cols-3 grid-rows-3 grayscale brightness-[.38] contrast-125">
                 {posters.slice(0, 9).map((path) => (
                   <img key={path} src={tmdbImage(path, posterSize)!} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                 ))}
+                <span aria-hidden className="pointer-events-none absolute inset-0 opacity-45 mix-blend-color" style={{ backgroundColor: hex }} />
               </span>
             )}
             <svg viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`} preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full">
@@ -108,7 +109,6 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
                 <clipPath id={`clip-${id}`}>
                   <polygon points={polygonPoints(points, w, h)} />
                 </clipPath>
-                {montage && <Duotone id={`duo-${id}`} tint={hex} />}
               </defs>
               <CutPortraitImage src={src} points={points} w={w} h={h} clipId={`clip-${id}`} strokeColor={outlineColor ? hex : undefined} strokePx={strokePx} edgePosition={edgePosition} onError={() => setFailedSrc(src)} />
             </svg>
@@ -145,14 +145,5 @@ function FailedPhoto({ src, name }: { src: string; name: string }) {
         />
       )}
     </>
-  );
-}
-
-/** Near-black to a dark version of the person's colour, by luminance (as the dev grid's montage). */
-function Duotone({ id, tint }: { id: string; tint: string }) {
-  return (
-    <filter id={id} colorInterpolationFilters="sRGB">
-      <feColorMatrix type="matrix" values={duotoneMatrix(tint)} />
-    </filter>
   );
 }

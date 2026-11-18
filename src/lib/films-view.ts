@@ -195,14 +195,24 @@ export function searchWithView(search: string, view: View): string {
  * travel, since the films it ordered are not the films of the new page.
  */
 export function carryView(href: string, currentSearch: string): string {
-  const named = new URLSearchParams(currentSearch).get(VIEW_PARAM);
+  const current = new URLSearchParams(currentSearch);
+  const named = current.get(VIEW_PARAM);
   const parsed = parseView(currentSearch);
   const carried = named === DEPTH_VIEW ? DEPTH_VIEW : parsed === "timeline" && named !== "timeline" ? null : parsed;
-  if (carried === null || carried === "clippings") return href;
   const hash = href.indexOf("#");
   const path = hash === -1 ? href : href.slice(0, hash);
   const rest = hash === -1 ? "" : href.slice(hash);
-  return `${path}${path.includes("?") ? "&" : "?"}${VIEW_PARAM}=${carried}${rest}`;
+  const join = path.includes("?") ? "&" : "?";
+  const kept = new URLSearchParams();
+  if (carried !== null && carried !== "clippings") kept.set(VIEW_PARAM, carried);
+  // These controls describe how the destination should be presented, not the identity of its old
+  // film list. Every destination supports the same sort keys and period contract.
+  for (const name of [SORT_PARAM, DIR_PARAM, "from", "to"] as const) {
+    const value = current.get(name);
+    if (value) kept.set(name, value);
+  }
+  const query = kept.toString();
+  return query ? `${path}${join}${query}${rest}` : href;
 }
 
 /**
@@ -253,7 +263,16 @@ export function headlineCount(count: number): string | null {
  * What the checkbox under the panels says, politely, after it is toggled: its effect (more or
  * fewer films, in the lanes and the table) is usually above the fold.
  */
-export function showingMessage(count: number, together: boolean): string {
-  if (count === 0) return together ? "No films together to show" : "No films to show";
-  return `Showing ${filmCountLabel(count)}${together ? " together" : ""}`;
+export function showingMessage(count: number, together: boolean, smallerGroups = 0): string {
+  if (count === 0) {
+    if (together && smallerGroups > 0) {
+      return `No film features everyone; ${filmCountLabel(smallerGroups)} ${smallerGroups === 1 ? "is" : "are"} shared by smaller groups`;
+    }
+    return together ? "No films together to show" : "No films to show";
+  }
+  const togetherPart = together ? " together" : "";
+  if (together && smallerGroups > 0) {
+    return `Showing ${filmCountLabel(count)}${togetherPart} and ${filmCountLabel(smallerGroups)} in smaller groups`;
+  }
+  return `Showing ${filmCountLabel(count)}${togetherPart}`;
 }

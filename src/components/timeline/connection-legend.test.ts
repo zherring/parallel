@@ -39,8 +39,10 @@ describe("ConnectionLegend chips", () => {
     expect(html).toContain('aria-label="Fincher and Pitt, 2 films"');
   });
 
-  it("leaves the all-lanes and three-lane chips to be named by their text", () => {
-    expect(html.match(/aria-label=/g)).toHaveLength(1);
+  it("names every chip for assistive technology, including the all-lanes and three-lane ones", () => {
+    expect(html.match(/aria-label=/g)).toHaveLength(3);
+    expect(html).toContain('aria-label="All four, 4 films"');
+    expect(html).toContain('aria-label="Three of four, 1 film"');
     expect(html).toContain("All four");
     expect(html).toContain("Three of four");
   });

@@ -355,7 +355,7 @@ function PersonCard({ item, slot, tilt, flip }: { item: Item; slot: number; tilt
       <PersonFace item={item} slot={slot} />
       <span aria-hidden="true" className="absolute inset-0 bg-linear-to-t from-black/80 via-black/5 to-transparent" />
       <figcaption
-        className={`absolute inset-x-3.5 bottom-3.5 text-[15px] font-semibold leading-tight tracking-[0.015em] text-white [text-shadow:0_1px_10px_rgb(0_0_0/0.6)] max-sm:hidden ${flip ? "text-right" : ""}`}
+        className={`absolute inset-x-2 bottom-2 text-[11px] font-semibold leading-tight tracking-[0.015em] text-white [text-shadow:0_1px_10px_rgb(0_0_0/0.8)] sm:inset-x-3.5 sm:bottom-3.5 sm:text-[15px] ${flip ? "text-right" : ""}`}
       >
         {item.text}
       </figcaption>

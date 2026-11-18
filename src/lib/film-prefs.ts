@@ -5,8 +5,9 @@
  * chosen in one has to be there when the visitor moves to the other. Pure, so the rules are testable: `use-film-prefs`
  * holds the value in the browser.
  *
- * The preferences belong to a set of people, as they always did (a different set of people is a different page: it starts
- * over, as the zoom, the selection and the scroll do), so what is held is the preferences and the set they were chosen for.
+ * The preferences follow the visitor while they add or remove people: "include minor credits" and "show all films" describe
+ * how they want to read a page, not a property of one film list. The key is still recorded (it names the set last changed), but
+ * a different set of people no longer resets what was chosen.
  */
 
 /** One track for everyone, or one lane each (the timeline as it was). */
@@ -53,13 +54,16 @@ export const NO_HELD_PREFS: HeldPrefs = { key: "", prefs: DEFAULT_FILM_PREFS };
 
 /** The preferences of the page `key`: what was chosen on it, else the defaults. */
 export function prefsFor(held: HeldPrefs, key: string): FilmPrefs {
-  return held.key === key ? held.prefs : DEFAULT_FILM_PREFS;
+  // Display preferences follow the visitor while they add or remove a person. The key still names
+  // the page that last changed them, but a navigation no longer silently unticks minor credits or
+  // restores a capped poster layout.
+  void key;
+  return held.key === "" ? DEFAULT_FILM_PREFS : held.prefs;
 }
 
 /**
  * `held` after `patch` is applied to the page `key`'s preferences. Returns the very same object when nothing changes (so a
- * store can tell: a page whose preferences are the defaults needs nothing held), and starts from the defaults when `held`
- * is for another page.
+ * store can tell: a page whose preferences are the defaults needs nothing held).
  */
 export function updatePrefs(held: HeldPrefs, key: string, patch: Partial<FilmPrefs>): HeldPrefs {
   const base = prefsFor(held, key);

@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { parsePeriodParams, searchWithPeriod, type Period, type RawPeriod } from "@/lib/period";
+import { notifyLocationChange } from "@/lib/use-live-search";
 
 // A shared period lives in the URL (`?from=1978&to=1993`, see `lib/period`) and is the one place
 // it is kept: the minimap's brush, the Share menu's year selects, the "Show full career" link and
@@ -53,6 +54,7 @@ export function useUrlPeriod(): readonly [RawPeriod, (next: Period | null) => vo
     written = { path: pathname, key: keyOf(next) };
     window.history.replaceState(null, "", `${pathname}${searchWithPeriod(current, next)}${hash}`);
     for (const notify of listeners) notify();
+    notifyLocationChange();
   }, []);
 
   return [period, setPeriod];

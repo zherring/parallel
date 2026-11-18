@@ -6,6 +6,7 @@ export class ApiClientError extends Error {
   constructor(
     readonly kind: ApiErrorKind,
     readonly status?: number,
+    readonly retryAfterSeconds?: number,
   ) {
     super(`API request failed (${kind}${status ? ` ${status}` : ""})`);
     this.name = "ApiClientError";
@@ -34,7 +35,13 @@ export async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> 
     if (isAbortError(error)) throw error;
     throw new ApiClientError("network");
   }
-  if (!res.ok) throw new ApiClientError(errorKindForStatus(res.status), res.status);
+  if (!res.ok) {
+    const raw = res.headers.get("retry-after");
+    const seconds = raw ? Number(raw) : Number.NaN;
+    const dateSeconds = raw && !Number.isFinite(seconds) ? Math.ceil((Date.parse(raw) - Date.now()) / 1000) : Number.NaN;
+    const retryAfter = Number.isFinite(seconds) ? Math.max(0, seconds) : Number.isFinite(dateSeconds) ? Math.max(0, dateSeconds) : undefined;
+    throw new ApiClientError(errorKindForStatus(res.status), res.status, retryAfter);
+  }
   try {
     return (await res.json()) as T;
   } catch (error) {
