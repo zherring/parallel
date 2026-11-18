@@ -1,6 +1,15 @@
 @import "tailwindcss";
 
 /*
+ * A `/p/` page switches between full-screen views (no page scrollbar) and the Table (one): reserve
+ * the gutter there so the content does not jump sideways. Embeds and the landing page have no such
+ * switch and keep the whole frame.
+ */
+html:has([data-people-bar]) {
+  scrollbar-gutter: stable;
+}
+
+/*
  * Palette inspired by Letterboxd's dark UI. Background, body/strong text, panel
  * and border were sampled from letterboxd.com; the accent colors are the
  * brand-bright values. text-muted is lighter than Letterboxd's own muted gray

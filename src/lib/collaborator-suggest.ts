@@ -24,7 +24,7 @@ export const SKELETON_ROWS = 4;
  * ready    - there are suggestions
  * hidden   - there is nothing to suggest, or the request failed: the field behaves as if the feature were off
  */
-export type SuggestionsStatus = "idle" | "loading" | "ready" | "hidden";
+export type SuggestionsStatus = "idle" | "loading" | "ready" | "hidden" | "error";
 
 /** Which list the dropdown shows: the suggestions, or the field's usual search results (and messages). */
 export type PanelSection = "suggestions" | "search";
@@ -38,7 +38,7 @@ export type PanelSection = "suggestions" | "search";
  */
 export function panelSection(enabled: boolean, query: string, status: SuggestionsStatus): PanelSection {
   if (!enabled || query !== "") return "search";
-  return status === "loading" || status === "ready" ? "suggestions" : "search";
+  return status === "loading" || status === "ready" || status === "error" ? "suggestions" : "search";
 }
 
 /** The suggestions the dropdown lists: the best ones, in the order the API ranked them. */
@@ -60,6 +60,7 @@ export function suggestionTitle(s: Pick<CollaboratorSuggestion, "titles">): stri
 /** The live-region text when the suggestions open: how many there are (or that they are on their way). */
 export function suggestionsAnnouncement(status: SuggestionsStatus, count: number): string {
   if (status === "loading") return "Loading frequent collaborators";
+  if (status === "error") return "Frequent collaborators are unavailable. You can retry or type a name.";
   if (status !== "ready" || count === 0) return "";
   return `${count} frequent ${count === 1 ? "collaborator" : "collaborators"}`;
 }

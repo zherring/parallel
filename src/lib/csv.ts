@@ -37,7 +37,10 @@ export const CSV_HEADER = [
 ] as const;
 
 function cell(value: string): string {
-  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  // Spreadsheet programs execute cells beginning with these characters as formulas. A leading
+  // apostrophe is Excel/Sheets' text marker; ordinary values stay unchanged.
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
 const text = (value: number): string => String(Math.round(value));

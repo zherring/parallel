@@ -89,6 +89,23 @@ describe("filmsToCsv shape", () => {
     expect(parse(csv).slice(1).map((row) => row[0])).toEqual(["Later", "Earlier", "Middle"]);
   });
 
+  it("keeps a title that a spreadsheet would run as a formula as text", () => {
+    const rows = parse(
+      filmsToCsv([
+        film(1, "+1", 2013),
+        film(2, "=HYPERLINK(\"https://example.com\")", 2020),
+        film(3, "-1", 2014),
+        film(4, "@SUM(A1:A2)", 2015),
+      ]),
+    );
+    expect(rows[1][0]).toBe("'+1");
+    expect(rows[2][0]).toBe("'=HYPERLINK(\"https://example.com\")");
+    expect(rows[3][0]).toBe("'-1");
+    expect(rows[4][0]).toBe("'@SUM(A1:A2)");
+    // A title that merely contains a plus sign is unchanged.
+    expect(parse(filmsToCsv([film(5, "2 + 1", 2016)]))[1][0]).toBe("2 + 1");
+  });
+
   it("quotes titles with commas, quotes and newlines", () => {
     const csv = filmsToCsv([film(1, "Hello, World", 2000), film(2, 'The "Best" Film', 2001), film(3, "Line one\nLine two", 2002)]);
     expect(csv).toContain('"Hello, World",2000');

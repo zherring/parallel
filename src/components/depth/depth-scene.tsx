@@ -244,7 +244,7 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
         onPointerOut={handlePointerOut}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        className="fixed inset-0 z-10 cursor-grab overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none] [perspective-origin:50%_50%] [perspective:1000px] focus-visible:outline-offset-[-3px] data-[panning]:select-none [&[data-panning]_*]:cursor-grabbing!"
+        className="fixed inset-0 z-10 w-screen cursor-grab overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:none] [perspective-origin:50%_50%] [perspective:1000px] focus-visible:outline-offset-[-3px] data-[panning]:select-none [&[data-panning]_*]:cursor-grabbing!"
       >
         <div data-depth-track className="pointer-events-none relative w-full [transform-style:preserve-3d]" style={{ height: trackHeight }}>
           {layers.map((group) => (

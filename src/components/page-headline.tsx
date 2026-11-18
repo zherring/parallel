@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import { headlineCount } from "@/lib/films-view";
 import { pageHeading } from "@/lib/short-name";
 
@@ -15,10 +18,12 @@ interface PageHeadlineProps {
  * Not in the Depth view's scroller: nothing in there is placed by the scene (see `DepthScene`), so it is a sibling of it.
  */
 export function PageHeadline({ people, count }: PageHeadlineProps) {
+  const ref = useRef<HTMLHeadingElement>(null);
+  useEffect(() => ref.current?.focus({ preventScroll: true }), []);
   const heading = pageHeading(people);
   const films = headlineCount(count);
   return (
-    <h1 className="sr-only">
+    <h1 ref={ref} tabIndex={-1} className="sr-only">
       {heading.text}
       {films && `, ${films}`}
     </h1>

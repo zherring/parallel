@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   DEFAULT_SORT,
   DIR_PARAM,
@@ -15,6 +15,8 @@ import {
   type SortState,
 } from "@/lib/films-table";
 import type { TableRow } from "@/lib/film-rows";
+import { VIEW_PARAM } from "@/lib/films-view";
+import { notifyLocationChange } from "@/lib/use-live-search";
 import { useFilmMetricsBatch, type FilmMetricsBatch } from "./use-film-metrics-batch";
 import { useNearViewport } from "./use-near-viewport";
 
@@ -49,11 +51,20 @@ function writeSortToUrl(sort: SortState) {
   if (params) {
     url.searchParams.set(SORT_PARAM, params.sort);
     url.searchParams.set(DIR_PARAM, params.dir);
+    // A sort belongs to the Table. Saying so keeps a legacy sorted link (no `view`) on the Table
+    // when the visitor changes the sort, instead of flipping it to the Timeline under the cursor.
+    url.searchParams.set(VIEW_PARAM, "table");
   } else {
+    const wasTable =
+      url.searchParams.get(VIEW_PARAM) === "table" ||
+      url.searchParams.has(SORT_PARAM) ||
+      url.searchParams.has(DIR_PARAM);
     url.searchParams.delete(SORT_PARAM);
     url.searchParams.delete(DIR_PARAM);
+    if (wasTable) url.searchParams.set(VIEW_PARAM, "table");
   }
   window.history.replaceState(null, "", url);
+  notifyLocationChange();
 }
 
 /**
@@ -80,6 +91,16 @@ export function useFilmsTable(films: TableRow[], today: string): FilmsTableModel
   const ids = useMemo(() => films.map((film) => film.id), [films]);
   const metrics = useFilmMetricsBatch(ids, near || asked || isMetricSortKey(sort.key));
   const metricsUnavailable = metrics.status === "failed";
+
+  useEffect(() => {
+    if (!metricsUnavailable || !isMetricSortKey(sort.key)) return;
+    writeSortToUrl(DEFAULT_SORT);
+    const frame = requestAnimationFrame(() => {
+      setChosen(DEFAULT_SORT);
+      setAnnouncement("Ratings, box office and awards could not be loaded. Sorted by year instead.");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [metricsUnavailable, sort.key]);
 
   const rows = useMemo(() => sortFilms(films, sort, metrics.metrics, today), [films, sort, metrics.metrics, today]);
 

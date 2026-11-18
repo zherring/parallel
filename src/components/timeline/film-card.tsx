@@ -1,4 +1,5 @@
-import { memo } from "react";
+import { memo, useState } from "react";
+import { Clapperboard } from "lucide-react";
 import { usePersonPalette } from "@/components/person-palette";
 import { tmdbImage } from "@/lib/images";
 import type { PersonTint } from "@/lib/person-colors";
@@ -102,6 +103,7 @@ function FilmCardImpl(props: FilmCardProps) {
     onSelect,
   } = props;
   const src = tmdbImage(posterPath, "w185");
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const width = cardWidthOf(quiet);
   const posterHeight = quiet ? QUIET_POSTER_HEIGHT : POSTER_HEIGHT;
   // A quiet card is hovered, focused or open: back to full size and brightness, above its neighbours.
@@ -173,7 +175,7 @@ function FilmCardImpl(props: FilmCardProps) {
               className="block size-full transition-opacity duration-150 motion-reduce:transition-none"
               style={{ opacity: faded ? QUIET_OPACITY : 1 }}
             >
-              {src ? (
+              {src && src !== failedSrc ? (
                 <img
                   src={src}
                   alt=""
@@ -182,6 +184,7 @@ function FilmCardImpl(props: FilmCardProps) {
                   loading="lazy"
                   decoding="async"
                   draggable={false}
+                  onError={() => setFailedSrc(src)}
                   className="h-full w-full object-cover"
                 />
               ) : (
@@ -189,7 +192,7 @@ function FilmCardImpl(props: FilmCardProps) {
                   aria-hidden
                   className="flex h-full w-full items-center justify-center p-1.5 text-center text-[10px] font-medium leading-tight text-muted"
                 >
-                  <span className="line-clamp-5 break-words">{title}</span>
+                  <Clapperboard aria-hidden="true" className="size-5" />
                 </span>
               )}
             </span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Clapperboard } from "lucide-react";
 import { createPortal } from "react-dom";
 import { PersonAvatar } from "@/components/person-avatar";
 import { usePersonPalette } from "@/components/person-palette";
@@ -167,6 +168,7 @@ export function FilmPopover({ id, target, content, lit, colorOf, today, bottomEd
   const side = useRef<{ trigger: HTMLElement; placement: Placement["placement"] } | null>(null);
   const animated = useRef(false);
   const poster = tmdbImage(content.posterPath, "w342");
+  const [failedPoster, setFailedPoster] = useState<string | null>(null);
   const metrics = useFilmMetrics(content.filmId, place !== null && !embed);
 
   // Measure the card and its trigger, then place it before the first paint. It runs again when the
@@ -226,11 +228,11 @@ export function FilmPopover({ id, target, content, lit, colorOf, today, bottomEd
           lit ? !palette && "shadow-lit" : "border border-strong/20",
         )}
       >
-        {poster ? (
-          <img src={poster} alt="" width={140} height={210} decoding="async" draggable={false} className="size-full object-cover" />
+        {poster && poster !== failedPoster ? (
+          <img src={poster} alt="" width={140} height={210} decoding="async" draggable={false} onError={() => setFailedPoster(poster)} className="size-full object-cover" />
         ) : (
-          <span className="flex size-full items-center justify-center p-2 text-center text-xs font-medium leading-tight text-muted">
-            <span className="line-clamp-6 break-words">{content.title}</span>
+          <span className="flex size-full items-center justify-center text-muted">
+            <Clapperboard aria-hidden="true" className="size-7" />
           </span>
         )}
       </div>
@@ -252,7 +254,8 @@ export function FilmPopover({ id, target, content, lit, colorOf, today, bottomEd
                   ringColor={colorOf?.(row.personId)}
                 />
                 <p className="min-w-0 pt-1 text-sm leading-snug">
-                  <span className="sr-only">{row.name}: </span>
+                  <span className="font-medium text-strong">{row.name}</span>
+                  <span aria-hidden className="text-muted"> · </span>
                   <RoleText row={row} />
                 </p>
               </li>

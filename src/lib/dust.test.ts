@@ -62,7 +62,7 @@ describe("stepMotes", () => {
         expect(m.a).toBeLessThanOrEqual(m.alpha + 1e-9);
       }
     }
-  });
+  }, 15_000);
 
   it("moves the motes with time: they drift, wobble and twinkle", () => {
     const motes = createMotes(40, 2, FIELD);

@@ -165,6 +165,7 @@ export function FilmMetricsRows({ state, today }: { state: FilmMetricsState; tod
   }, [status]);
 
   if (state.status === "pending") return <Skeleton />;
+  if (state.status === "failed") return <p className="text-xs text-accent-orange">Metrics unavailable</p>;
   if (!display || (!display.revenue && !display.rating && !display.awards)) return null;
 
   return (

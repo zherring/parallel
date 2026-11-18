@@ -294,27 +294,27 @@ describe("carryView", () => {
     expect(carryView(href, "?view=table")).toBe(`${href}?view=table`);
   });
 
-  it("carries the table of a sorted link, without the sort", () => {
-    expect(carryView(href, "?sort=box-office&dir=desc")).toBe(`${href}?view=table`);
-    expect(carryView(href, "?view=table&sort=rating&dir=desc")).toBe(`${href}?view=table`);
+  it("carries the table and its sort of a sorted link", () => {
+    expect(carryView(href, "?sort=box-office&dir=desc")).toBe(`${href}?view=table&sort=box-office&dir=desc`);
+    expect(carryView(href, "?view=table&sort=rating&dir=desc")).toBe(`${href}?view=table&sort=rating&dir=desc`);
   });
 
-  it("adds view=depth when the page being left is the Depth view, without the sort", () => {
+  it("adds view=depth when the page being left is the Depth view, keeping the period and sort controls", () => {
     expect(carryView(href, "?view=depth")).toBe(`${href}?view=depth`);
-    expect(carryView(href, "?view=depth&from=1990&to=2000")).toBe(`${href}?view=depth`);
-    expect(carryView(href, "?view=depth&sort=rating&dir=desc")).toBe(`${href}?view=depth`);
+    expect(carryView(href, "?view=depth&from=1990&to=2000")).toBe(`${href}?view=depth&from=1990&to=2000`);
+    expect(carryView(href, "?view=depth&sort=rating&dir=desc")).toBe(`${href}?view=depth&sort=rating&dir=desc`);
     expect(carryView(`${href}#x`, "?view=depth")).toBe(`${href}?view=depth#x`);
   });
 
-  it("carries the timeline when the address names it, as every link to it does: on a phone a plain address would open Films", () => {
+  it("carries the timeline and its period when the address names it, as every link to it does: on a phone a plain address would open Films", () => {
     expect(carryView(href, "?view=timeline")).toBe(`${href}?view=timeline`);
-    expect(carryView(href, "?view=timeline&from=1990&to=2000")).toBe(`${href}?view=timeline`);
-    expect(carryView(href, "?view=timeline&sort=rating&dir=desc")).toBe(`${href}?view=timeline`);
+    expect(carryView(href, "?view=timeline&from=1990&to=2000")).toBe(`${href}?view=timeline&from=1990&to=2000`);
+    expect(carryView(href, "?view=timeline&sort=rating&dir=desc")).toBe(`${href}?view=timeline&sort=rating&dir=desc`);
   });
 
-  it("leaves the href plain for a plain address, which opens the same view on the same device", () => {
+  it("keeps a period chosen on an address that names no view", () => {
     expect(carryView(href, "")).toBe(href);
-    expect(carryView(href, "?from=1990&to=2000")).toBe(href);
+    expect(carryView(href, "?from=1990&to=2000")).toBe(`${href}?from=1990&to=2000`);
   });
 
   it("leaves the quotes behind", () => {

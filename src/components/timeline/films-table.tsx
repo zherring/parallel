@@ -90,8 +90,9 @@ const FilmRow = memo(function FilmRow({ film, state, today, onSelect }: RowProps
             <FilmThumb film={film} width={40} height={60} />
           </button>
           <div className="min-w-0">
-            <a href={tmdbMovieUrl(film.id)} className={linkClass}>
+            <a href={tmdbMovieUrl(film.id)} target="_blank" rel="noreferrer" className={linkClass}>
               {film.title}
+              <span className="sr-only"> (opens on TMDB in a new tab)</span>
             </a>
             {upcoming && <UpcomingTag />}
             {/* Below lg there is no room for a Credits column: the credits sit under the title instead. */}
@@ -165,8 +166,9 @@ const FilmCard = memo(function FilmCard({ film, state, today, onSelect }: RowPro
       </button>
       <div className="min-w-0 flex-1">
         <p className="break-words">
-          <a href={tmdbMovieUrl(film.id)} className={linkClass}>
+          <a href={tmdbMovieUrl(film.id)} target="_blank" rel="noreferrer" className={linkClass}>
             {film.title}
+            <span className="sr-only"> (opens on TMDB in a new tab)</span>
           </a>{" "}
           <time dateTime={film.releaseDate} className="tabular-nums text-muted">
             {film.year}
@@ -227,6 +229,7 @@ function SortHeader({ column, sort, unavailable, onSort }: SortHeaderProps) {
         type="button"
         onClick={() => onSort(column)}
         aria-disabled={blocked || undefined}
+        aria-describedby={blocked ? "film-metrics-error" : undefined}
         title={blocked ? UNAVAILABLE_HINT : undefined}
         className={cn(
           `group -mx-1 inline-flex cursor-pointer items-center gap-1 whitespace-nowrap rounded px-1 py-0.5 ${HEADER_TEXT}`,
@@ -299,6 +302,15 @@ export function FilmsTable({ caption, table, onSelect }: FilmsTableProps) {
       <p role="status" aria-live="polite" className="sr-only">
         {announcement}
       </p>
+
+      {metricsUnavailable && (
+        <div id="film-metrics-error" role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent-orange/60 bg-surface px-3 py-2 text-sm text-body">
+          <p>Ratings, box office and awards could not be loaded.</p>
+          <button type="button" onClick={metrics.retry} className="min-h-11 rounded-md border border-border px-4 font-semibold text-strong hover:border-muted">
+            Try again
+          </button>
+        </div>
+      )}
 
       <div className="hidden overflow-x-auto rounded-lg border border-border bg-surface sm:block">
         <table aria-busy={metrics.status === "loading" || undefined} className="w-full border-collapse text-left text-sm">

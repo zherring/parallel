@@ -51,6 +51,8 @@ export interface LegendEntry {
   lanes: [number, number] | null;
   /** Films of this kind on screen. */
   count: number;
+  /** For the group slot, each set of three or more lanes it covers, sorted by lane. */
+  groups?: [number, number, number][];
 }
 
 /** Key of a connector, shared by the legend chips and the lines they emphasise. */
@@ -73,10 +75,23 @@ export function connectionLegend(
     const entry = byKey.get(key);
     if (entry) {
       entry.count += 1;
+      if (slot === GROUP_SLOT && lanes.length === 3) {
+        const group = [...lanes].sort((a, b) => a - b) as [number, number, number];
+        const seen = entry.groups ?? [];
+        if (!seen.some((other) => other.every((lane, index) => lane === group[index]))) entry.groups = [...seen, group];
+      }
       continue;
     }
     const pair = slot !== null && slot < PAIR_SLOTS && lanes.length === 2 ? ([lanes[0], lanes[1]] as [number, number]) : null;
-    byKey.set(key, { key, slot, lanes: pair, count: 1 });
+    byKey.set(key, {
+      key,
+      slot,
+      lanes: pair,
+      count: 1,
+      ...(slot === GROUP_SLOT && lanes.length === 3
+        ? { groups: [[...lanes].sort((a, b) => a - b) as [number, number, number]] }
+        : {}),
+    });
   }
   const rank = (entry: LegendEntry) => (entry.slot === null ? -1 : entry.slot);
   return [...byKey.values()].sort((a, b) => rank(a) - rank(b));

@@ -48,6 +48,8 @@ interface FilmsSectionProps {
   critics?: PairCritics | null;
   /** The page's people and the opener for them: the names in the Clippings tab each open their details (see `ClippingsPanel`). */
   personPanel?: PersonPanelAccess;
+  /** The view the server read from the address bar, so the first paint is the right panel instead of flashing the Timeline. */
+  initialView?: View;
   /** More content under the table, in the Table tab (the "By pair" lists). */
   children?: ReactNode;
 }
@@ -79,10 +81,11 @@ export function FilmsSection({
   clippings = null,
   critics = null,
   personPanel,
+  initialView,
   children,
 }: FilmsSectionProps) {
   const clippingsTab = hasClippingsTab(clippings, critics);
-  const [view] = useViewTab(clippingsTab, quoteIdsOf(clippings, critics));
+  const [view] = useViewTab(clippingsTab, quoteIdsOf(clippings, critics), initialView);
   const sectionRef = useRef<HTMLElement>(null);
 
   // Switching from far down a long table: the new panel starts at the top of the section, so bring that back into view (under the
@@ -115,7 +118,7 @@ export function FilmsSection({
         data-fullscreen-panel
         // The Timeline is the whole screen, as the Depth view's scene is: fixed, edge to edge, under the page bar that is over its top. Its own layers (its
         // controls are `z-[65]` and above) stay in its own stacking context, under the bar, as they are under everything else outside it.
-        className="fixed inset-0 z-10 isolate"
+        className="fixed inset-0 z-10 isolate w-screen"
       >
         {timeline}
         {/*
@@ -138,7 +141,8 @@ export function FilmsSection({
       </div>
 
       <div id={viewPanelId(headingId, "table")} hidden={hidden("table")} className={cn("mt-2", COLUMN)}>
-        {rows.length === 0 ? <p className="text-sm text-muted">There are no films to list.</p> : <FilmsTable caption={caption} table={table} onSelect={onSelect} />}
+        {note && <div className="mb-3 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-body">{note}</div>}
+        {rows.length > 0 && <FilmsTable caption={caption} table={table} onSelect={onSelect} />}
         {children}
       </div>
 

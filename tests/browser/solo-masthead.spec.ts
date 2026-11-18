@@ -464,7 +464,7 @@ test.describe("at 390px wide, before the page is live", () => {
   test.use({ viewport: { width: 390, height: 844 }, javaScriptEnabled: false });
 
   test("the page the server sends already has the phone's line: one chip and '+N more', on one line, and the count is right", async ({ page }) => {
-    await page.goto(`${LONG}?view=table`);
+    await page.goto(`${LONG}?view=timeline`);
     const line = await chipLine(page);
     expect(line).toMatchObject({ chips: 1, mores: 1, moreCount: LONG_COUNT - 1, tops: [expect.any(Number)], cutOff: false, scrolls: false, pageScrolls: false });
     expect(line.kept[0]).toBeGreaterThanOrEqual(10);

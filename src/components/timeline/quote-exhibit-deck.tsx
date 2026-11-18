@@ -8,6 +8,7 @@ import { parseQuoteId } from "@/lib/clippings-view";
 import type { ReadingItem } from "@/lib/critics";
 import { INTERACTIVE_SELECTOR, OVERLAY_SELECTOR } from "@/lib/interaction-target";
 import { exhibitSpaceAction, nextExhibitIndex, quoteExhibitQuoteSearch, quoteFit, quotePaneCanScroll } from "@/lib/quote-exhibit";
+import { notifyLocationChange } from "@/lib/use-live-search";
 import { QuoteLibraryPanel, type QuoteLibraryView } from "./quote-library-panel";
 import { quoteElementId } from "./pull-quote";
 import { QuoteExhibit, QuoteExhibitSlide } from "./quote-exhibit";
@@ -42,6 +43,8 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
   const [current, setCurrent] = useState(initial);
   const currentRef = useRef(initial);
   const motionTarget = useRef<number | null>(null);
+  const resizeHeight = useRef(0);
+  const staleTop = useRef<number | null>(null);
   const initialized = useRef(false);
   const slideKey = slides.map((slide) => slide.id).join("+");
   // What each quote's type is fitted from: its text's width, and how much of the slide's height the lines under it take.
@@ -55,7 +58,10 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
     const { pathname, search, hash } = window.location;
     const next = quoteExhibitQuoteSearch(search, slide.id);
     // Let Next copy its private history state and notify useSearchParams; passing history.state bypasses that integration.
-    if (next !== search) window.history.replaceState(null, "", `${pathname}${next}${hash}`);
+    if (next !== search) {
+      window.history.replaceState(null, "", `${pathname}${next}${hash}`);
+      notifyLocationChange();
+    }
   }, [slides]);
 
   const goTo = useCallback((index: number, behavior: ScrollBehavior = scrollBehavior()) => {
@@ -86,7 +92,14 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
     const scroller = scrollerRef.current!;
     scroller.focus({ preventScroll: true });
     const observer = new ResizeObserver(() => {
-      scroller.scrollTo({ top: currentRef.current * scroller.clientHeight, behavior: "instant" });
+      const height = scroller.clientHeight;
+      if (!height || height === resizeHeight.current) return;
+      resizeHeight.current = height;
+      const target = currentRef.current * height;
+      // WebKit can report the offset from before the relayout as a scroll. Remember it exactly:
+      // that one event is ignored, while any other position (a jump or a swipe) still publishes.
+      staleTop.current = Math.abs(scroller.scrollTop - target) > 1 ? scroller.scrollTop : null;
+      scroller.scrollTo({ top: target, behavior: "instant" });
     });
     observer.observe(scroller);
     return () => observer.disconnect();
@@ -112,6 +125,10 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
 
   function onScroll() {
     const scroller = scrollerRef.current!;
+    if (staleTop.current !== null) {
+      if (Math.abs(scroller.scrollTop - staleTop.current) <= 1) return;
+      staleTop.current = null;
+    }
     if (motionTarget.current !== null) {
       if (Math.abs(scroller.scrollTop - motionTarget.current * scroller.clientHeight) > 1) return;
       motionTarget.current = null;

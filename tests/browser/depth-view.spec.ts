@@ -1913,7 +1913,7 @@ test("a setting made in the gear is there on the flat page, and the other way ro
   await expect(minorToggle(page)).not.toBeChecked();
 });
 
-test("a different set of people starts over with the settings off", async ({ page }) => {
+test("a different set of people keeps the display settings chosen", async ({ page }) => {
   await mockSearch(page);
   await openDepth(page);
   await settingsGear(page).click();
@@ -1928,7 +1928,7 @@ test("a different set of people starts over with the settings off", async ({ pag
   await expect(page).toHaveURL(/scroll-gamma\?view=depth/);
   await expect(scene(page)).toBeVisible();
   await settingsGear(page).click();
-  await expect(minorToggle(page)).not.toBeChecked();
+  await expect(minorToggle(page)).toBeChecked();
 });
 
 test("a page of one person has the same switcher, and nothing about lanes", async ({ page }) => {
@@ -2007,7 +2007,8 @@ for (const width of [640, 768, 1024, 1440]) {
     // Left to right: home, people, then the view control and the gear, clear of the rail; and the page does not scroll sideways.
     const order = ["home", "pill", "switcher", "gear", "rail"].map((name) => boxes.get(name)!.x);
     expect(order).toEqual([...order].sort((a, b) => a - b));
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+    // The reserved scrollbar gutter is not content: what matters is that nothing overflows to the right.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   });
 }
 
@@ -2186,7 +2187,8 @@ test.describe("on a phone", () => {
     expect(sheetBox.x).toBeGreaterThanOrEqual(0);
     expect(sheetBox.x + sheetBox.width).toBeLessThanOrEqual(railBox.x);
     expect(sheetBox.y + sheetBox.height).toBeLessThanOrEqual(844);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+    // The reserved scrollbar gutter is not content: what matters is that nothing overflows to the right.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 
     // A tap on Table goes to the table (the flat page's views are in its sheet on a phone too: there is no switcher on the bar to look for).
     await views.getByRole("link", { name: "Table", exact: true }).tap();
@@ -2221,7 +2223,8 @@ test.describe("on a phone", () => {
     }
     expect(Math.round(fieldBox.x)).toBe(Math.round(capsuleBox.x));
     expect(Math.round(cardBox.x)).toBe(Math.round(capsuleBox.x));
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+    // The reserved scrollbar gutter is not content: what matters is that nothing overflows to the right.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
     await page.keyboard.press("Escape");
     await expect(peopleCard(page)).toBeHidden();
     await expect(barHome).toBeVisible();
@@ -2335,7 +2338,8 @@ test.describe("on a phone", () => {
       expect(box.left).toBeGreaterThanOrEqual(0);
       expect(box.right).toBeLessThanOrEqual(box.rail + 0.5);
     }
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+    // The reserved scrollbar gutter is not content: what matters is that nothing overflows to the right.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
     // `Title, Year` under the poster, near-black highlights, clear of every other film's poster and labels, on a phone too.
     await expectLabelsClear(page);
   });

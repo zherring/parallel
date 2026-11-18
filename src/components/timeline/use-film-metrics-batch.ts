@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { loadFilmMetricsBatch, peekFilmMetrics } from "@/lib/film-metrics-store";
+import { forgetFilmMetricFailures, loadFilmMetricsBatch, peekFilmMetrics } from "@/lib/film-metrics-store";
 import type { FilmMetrics } from "@/lib/types";
 import type { FilmMetricsState } from "./use-film-metrics";
 
@@ -19,6 +19,8 @@ export interface FilmMetricsBatch {
   metrics: ReadonlyMap<number, FilmMetrics | null>;
   /** One film's state in the hover card's terms: pending, failed or ready. */
   stateFor: (id: number) => FilmMetricsState;
+  /** Forget the failed batch and request it again. */
+  retry: () => void;
 }
 
 const NONE: ReadonlyMap<number, FilmMetrics | null> = new Map();
@@ -35,6 +37,7 @@ const FAILED: FilmMetricsState = { status: "failed" };
  */
 export function useFilmMetricsBatch(ids: readonly number[], enabled: boolean): FilmMetricsBatch {
   const [fetched, setFetched] = useState<ReadonlyMap<number, FilmMetrics | null>>(NONE);
+  const [attempt, setAttempt] = useState(0);
 
   const metrics = useMemo(() => {
     const settled = new Map<number, FilmMetrics | null>();
@@ -67,7 +70,7 @@ export function useFilmMetricsBatch(ids: readonly number[], enabled: boolean): F
       () => {}, // aborted: the list changed or the table went away
     );
     return () => controller.abort();
-  }, [ids, enabled, metrics]);
+  }, [ids, enabled, metrics, attempt]);
 
   const status = useMemo((): FilmMetricsBatchStatus => {
     if (ids.length === 0) return "ready";
@@ -88,5 +91,15 @@ export function useFilmMetricsBatch(ids: readonly number[], enabled: boolean): F
     return (id: number): FilmMetricsState => states.get(id) ?? PENDING;
   }, [metrics]);
 
-  return { status, metrics, stateFor };
+  const retry = () => {
+    forgetFilmMetricFailures(ids);
+    setFetched((previous) => {
+      const next = new Map(previous);
+      for (const id of ids) if (next.get(id) === null) next.delete(id);
+      return next;
+    });
+    setAttempt((value) => value + 1);
+  };
+
+  return { status, metrics, stateFor, retry };
 }

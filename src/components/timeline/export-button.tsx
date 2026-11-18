@@ -58,7 +58,8 @@ export function ExportButton({ films, today, names, onStatus, className }: Expor
     }
     setExporting(false);
 
-    const blob = new Blob([filmsToCsv(films, { metrics, today })], { type: "text/csv;charset=utf-8" });
+    // Excel otherwise guesses a legacy encoding for CSV and corrupts accented titles.
+    const blob = new Blob(["\uFEFF", filmsToCsv(films, { metrics, today })], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -79,10 +80,10 @@ export function ExportButton({ films, today, names, onStatus, className }: Expor
       type="button"
       className={`${secondaryClass} ${className ?? ""}`}
       onClick={exportCsv}
-      disabled={films.length === 0 || exporting}
+      aria-disabled={films.length === 0 || exporting}
       aria-busy={exporting || undefined}
-      aria-label="Export List as CSV"
-      title="Export List as CSV"
+      aria-label={films.length === 0 ? "Export List as CSV (there are no films to export)" : "Export List as CSV"}
+      title={films.length === 0 ? "There are no films to export" : "Export List as CSV"}
     >
       {exporting ? (
         <LoaderCircle aria-hidden="true" className="size-4 shrink-0 motion-safe:animate-spin" />

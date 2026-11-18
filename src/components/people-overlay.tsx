@@ -137,7 +137,7 @@ function PeopleDialog({ people, onOpenPerson, opener, onClose }: Omit<PeopleOver
       aria-label="People"
       tabIndex={-1}
       onKeyDown={(event) => trapTab(event, rootRef.current)}
-      className="fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-canvas outline-none"
+      className="fixed inset-0 z-40 w-screen overflow-y-auto overscroll-contain bg-canvas outline-none"
     >
       <div className="mx-auto w-full max-w-xl px-4 pb-10 pt-[max(1.5rem,12dvh)]">
         <div className="flex items-start gap-2">

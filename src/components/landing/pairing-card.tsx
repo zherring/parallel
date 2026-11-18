@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { PairingCount } from "@/components/landing/pairing-count";
 import { PairingFace } from "@/components/landing/pairing-face";
+import { PairingPending } from "@/components/landing/pairing-pending";
 import type { ExampleCardData } from "@/lib/example-cards";
 import { joinNames } from "@/lib/format";
 
@@ -21,8 +22,9 @@ export function PairingCardFrame({ href, people, photos = true, children }: Fram
     <Link
       href={href}
       prefetch={false}
-      className="group flex h-full flex-col gap-4 rounded-lg border border-border bg-surface p-5 no-underline transition-colors hover:border-accent-green/70"
+      className="group relative flex h-full flex-col gap-4 rounded-lg border border-border bg-surface p-5 no-underline transition-colors hover:border-accent-green/70"
     >
+      <PairingPending />
       <div className="flex -space-x-4" aria-hidden="true">
         {people.map((person, slot) => (
           <PairingFace key={person.id} person={person} slot={slot} partnerId={people[1 - slot]?.id ?? person.id} photos={photos} />

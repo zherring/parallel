@@ -28,7 +28,7 @@ import { personColor, personGlow, personSlots, type PersonTint } from "@/lib/per
 import { isReleased } from "@/lib/released";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import { nodeOnlyIds, rovingIndex, tabStopId } from "@/lib/roving";
-import { shortName } from "@/lib/short-name";
+import { headingNames } from "@/lib/short-name";
 import {
   AXIS_HEIGHT,
   DEFAULT_ZOOM,
@@ -94,6 +94,8 @@ export interface TimelineHandle {
   rememberCenter: () => void;
   /** The track's scroller (null until it is mounted): what the pair hero watches to collapse, and what a wheel over its band is passed on to. */
   getScroller: () => HTMLElement | null;
+  /** Puts the first year of the career at the left edge: what turning minor credits on asks, since the axis can grow backwards. */
+  scrollToStart: () => void;
   /**
    * Scrolls the track so that the film is in the middle (smoothly unless the visitor asked for less motion), and returns its card, or its node when
    * it has no card, for the caller to focus; null when the film is not on the track (its person's eye is off) and nothing moved.
@@ -173,7 +175,7 @@ const HIGHLIGHT_MS = 1000;
 const SETTLE_MS = 160;
 
 const buttonClass =
-  "inline-flex size-9 items-center justify-center rounded-md border border-border bg-surface text-strong hover:border-muted disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border";
+  "inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border bg-surface text-strong hover:border-muted aria-disabled:cursor-not-allowed aria-disabled:opacity-40";
 
 /** Stands for the one track of the combined timeline where a lane's person goes. */
 const COMBINED_PERSON: PersonSummary = {
@@ -250,6 +252,7 @@ export function Timeline({
   // The kind of connection (a legend chip's key) the lines emphasise: hovered or focused, or pressed to keep.
   const [previewKey, setPreviewKey] = useState<string | null>(null);
   const [pinnedKey, setPinnedKey] = useState<string | null>(null);
+  const [pinAnnouncement, setPinAnnouncement] = useState("");
 
   // Lane most in view (green ring on its top-bar avatar) and the lane just jumped to (ring on the lane).
   const [activeLane, setActiveLane] = useState(0);
@@ -340,7 +343,8 @@ export function Timeline({
     const connectors = buildConnectors(connectorLanes, today);
     const membership = filmMembership(connectorLanes, today);
     // The kind of connection, the colour and the screen-reader note of each film shown in more than one lane.
-    const names = trackLanes.map((lane) => shortName(lane.person.name, lane.person.id));
+    // The same disambiguation as the page heading: two Coens keep their full names, so "Coen × Coen" can never stand for one person twice.
+    const names = headingNames(trackLanes.map((lane) => lane.person), true);
     const keys = new Map<number, string>();
     const accents = new Map<number, string>();
     const notes = new Map<number, string>();
@@ -591,6 +595,9 @@ export function Timeline({
     else if (lastSeen.current) pendingCenter.current = centerYear(lastSeen.current.left, lastSeen.current.viewport, scale);
   };
   const getScroller = () => scrollerRef.current;
+  const scrollToStart = () => {
+    scrollerRef.current?.scrollTo({ left: 0, behavior: scrollBehavior() });
+  };
   const revealFilm = (filmId: number): HTMLElement | null => {
     const scroller = scrollerRef.current;
     if (!scroller || !active) return null;
@@ -600,7 +607,7 @@ export function Timeline({
     target.scrollIntoView({ behavior: scrollBehavior(), block: "center", inline: "center" });
     return target;
   };
-  useImperativeHandle(ref, () => ({ rememberCenter, getScroller, revealFilm }));
+  useImperativeHandle(ref, () => ({ rememberCenter, getScroller, revealFilm, scrollToStart }));
 
   useLayoutEffect(() => {
     if (!active) return; // a hidden scroller has no width: the queued year waits until it is shown
@@ -654,6 +661,16 @@ export function Timeline({
     if (next === pxPerYear) return;
     rememberCenter();
     setPxPerYear(next);
+  };
+
+  const fitCareer = () => {
+    const viewport = viewportTrackWidth();
+    const years = Math.max(1, scale.axisEndYear - scale.axisStartYear);
+    const next = Math.min(DEFAULT_ZOOM, Math.max(8, (viewport - scale.pad * 2) / years));
+    setPxPerYear(next);
+    requestAnimationFrame(() => {
+      if (scrollerRef.current) scrollerRef.current.scrollLeft = 0;
+    });
   };
 
   // ---- hover, focus and keyboard ------------------------------------------
@@ -737,6 +754,21 @@ export function Timeline({
   // Left/Right/Home/End move between the nodes of a lane; Enter and Space press the button as usual.
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.key === "+" || event.key === "=") {
+      event.preventDefault();
+      zoom("in");
+      return;
+    }
+    if (event.key === "-") {
+      event.preventDefault();
+      zoom("out");
+      return;
+    }
+    if (event.key === "0") {
+      event.preventDefault();
+      setPxPerYear(DEFAULT_ZOOM);
+      return;
+    }
     const target = event.target;
     if (!(target instanceof HTMLElement) || !target.hasAttribute("data-film-node")) return;
     const nodes = [...event.currentTarget.querySelectorAll<HTMLElement>(`[data-film-node][data-lane="${target.dataset.lane}"]`)];
@@ -761,6 +793,23 @@ export function Timeline({
   // The kind of connection the lines emphasise now; ignored when the toggles left nothing of that kind.
   const wanted = previewKey ?? pinnedKey;
   const activeKey = wanted !== null && layout.legend.some((entry) => entry.key === wanted) ? wanted : null;
+
+  // A pinned kind can disappear when a person's eye or the minor toggle changes the films: clear it rather
+  // than keep a hidden pin that would return unannounced, and say so.
+  useEffect(() => {
+    if (pinnedKey === null || layout.legend.some((entry) => entry.key === pinnedKey)) return;
+    const frame = requestAnimationFrame(() => {
+      setPinnedKey(null);
+      setPinAnnouncement("That connection is no longer on the timeline. Showing every connection.");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [layout.legend, pinnedKey]);
+
+  const togglePin = (key: string, label: string) => {
+    const next = pinnedKey === key ? null : key;
+    setPinnedKey(next);
+    setPinAnnouncement(next === null ? "Showing every connection." : `Highlighting ${label}.`);
+  };
 
   const firstDecade = Math.ceil(scale.axisStartYear / 10) * 10;
   const gridStyle = {
@@ -843,8 +892,11 @@ export function Timeline({
               activeKey={activeKey}
               pinnedKey={pinnedKey}
               onPreview={setPreviewKey}
-              onTogglePin={(key) => setPinnedKey((prev) => (prev === key ? null : key))}
+              onTogglePin={togglePin}
             />
+            <p role="status" aria-live="polite" className="sr-only">
+              {pinAnnouncement}
+            </p>
           </div>
         )}
         {/*
@@ -1169,27 +1221,31 @@ export function Timeline({
               type="button"
               className={buttonClass}
               aria-label="Zoom out"
-              disabled={pxPerYear <= MIN_ZOOM}
+              aria-disabled={pxPerYear <= MIN_ZOOM}
               onClick={() => zoom("out")}
+              title="Zoom out (−)"
             >
               <svg aria-hidden viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
                 <path d="M3.5 8h9" />
               </svg>
             </button>
-            <span aria-live="polite" className="w-12 text-center text-xs tabular-nums text-muted max-sm:sr-only">
-              <span className="sr-only">Zoom </span>
-              {zoomPercent}%
-            </span>
+            <button type="button" onClick={() => setPxPerYear(DEFAULT_ZOOM)} title="Reset zoom to 100%" className="min-h-11 min-w-12 rounded text-center text-xs tabular-nums text-muted hover:text-strong max-sm:sr-only">
+              <span className="sr-only">Reset zoom. Current zoom </span>{zoomPercent}%
+            </button>
             <button
               type="button"
               className={buttonClass}
               aria-label="Zoom in"
-              disabled={pxPerYear >= MAX_ZOOM}
+              aria-disabled={pxPerYear >= MAX_ZOOM}
               onClick={() => zoom("in")}
+              title="Zoom in (+)"
             >
               <svg aria-hidden viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
                 <path d="M3.5 8h9M8 3.5v9" />
               </svg>
+            </button>
+            <button type="button" onClick={fitCareer} className="min-h-11 rounded-md border border-border bg-surface px-3 text-xs font-semibold text-strong hover:border-muted" title="Fit the whole career in view">
+              Fit
             </button>
           </div>
         </MinimapBar>

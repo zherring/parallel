@@ -6,7 +6,8 @@ import type { CollaboratorSuggestion, CollaboratorSuggestions } from "@/lib/type
 
 export type CollaboratorsState =
   | { status: "idle" | "loading" | "hidden" }
-  | { status: "ready"; results: CollaboratorSuggestion[] };
+  | { status: "ready"; results: CollaboratorSuggestion[] }
+  | { status: "error"; retry: () => void };
 
 const CACHE_LIMIT = 20;
 
@@ -28,26 +29,35 @@ function remember(personId: number, results: CollaboratorSuggestion[]) {
  */
 export function useCollaborators(personId: number | null, enabled: boolean): CollaboratorsState {
   // The answer for one person; an answer for another person is stale and ignored.
-  const [data, setData] = useState<{ personId: number; results: CollaboratorSuggestion[] } | null>(null);
+  const [data, setData] = useState<{ personId: number; results?: CollaboratorSuggestion[]; error?: true } | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (personId === null || !enabled || cache.has(personId)) return;
     const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort("timeout"), 12_000);
     getJson<CollaboratorSuggestions>(`/api/collaborators/${personId}`, controller.signal).then(
       (body) => {
+        window.clearTimeout(timeout);
         if (controller.signal.aborted) return;
         remember(personId, body.results);
         setData({ personId, results: body.results });
       },
       (error: unknown) => {
-        if (controller.signal.aborted || isAbortError(error)) return;
-        setData({ personId, results: [] });
+        window.clearTimeout(timeout);
+        if (controller.signal.aborted && controller.signal.reason !== "timeout") return;
+        if (isAbortError(error) && controller.signal.reason !== "timeout") return;
+        setData({ personId, error: true });
       },
     );
-    return () => controller.abort();
-  }, [personId, enabled]);
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [personId, enabled, attempt]);
 
   if (personId === null) return { status: "idle" };
+  if (data?.personId === personId && data.error) return { status: "error", retry: () => { setData(null); setAttempt((value) => value + 1); } };
   const results = cache.get(personId) ?? (data?.personId === personId ? data.results : undefined);
   if (results === undefined) return { status: enabled ? "loading" : "idle" };
   return results.length > 0 ? { status: "ready", results } : { status: "hidden" };

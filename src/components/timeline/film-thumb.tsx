@@ -1,3 +1,7 @@
+"use client";
+
+import { Clapperboard } from "lucide-react";
+import { useState } from "react";
 import { tmdbImage } from "@/lib/images";
 import type { SharedFilm } from "@/lib/types";
 
@@ -12,8 +16,9 @@ export function FilmThumb({
   height: number;
 }) {
   const src = tmdbImage(film.posterPath, "w92");
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const box = { width, height };
-  return src ? (
+  return src && src !== failedSrc ? (
     <img
       src={src}
       alt=""
@@ -21,6 +26,7 @@ export function FilmThumb({
       height={height}
       loading="lazy"
       decoding="async"
+      onError={() => setFailedSrc(src)}
       className="rounded-[4px] border border-strong/20 object-cover"
       style={box}
     />
@@ -28,9 +34,9 @@ export function FilmThumb({
     <span
       aria-hidden
       style={box}
-      className="flex items-center justify-center rounded-[4px] border border-border bg-canvas p-1 text-center text-[9px] leading-tight text-muted"
+      className="flex items-center justify-center rounded-[4px] border border-border bg-canvas text-muted"
     >
-      <span className="line-clamp-4 break-words">{film.title}</span>
+      <Clapperboard aria-hidden="true" className="size-4" />
     </span>
   );
 }

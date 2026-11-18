@@ -10,10 +10,10 @@ describe("prefsFor", () => {
     expect(prefsFor(NO_HELD_PREFS, PAGE)).toBe(DEFAULT_FILM_PREFS);
   });
 
-  it("is what was chosen on that page, and the defaults for any other", () => {
+  it("keeps what was chosen when a person is added or removed", () => {
     const held = updatePrefs(NO_HELD_PREFS, PAGE, { includeMinor: true });
     expect(prefsFor(held, PAGE).includeMinor).toBe(true);
-    expect(prefsFor(held, OTHER)).toBe(DEFAULT_FILM_PREFS);
+    expect(prefsFor(held, OTHER).includeMinor).toBe(true);
   });
 });
 
@@ -33,11 +33,11 @@ describe("updatePrefs", () => {
     expect(updatePrefs(NO_HELD_PREFS, PAGE, { showAll: true })).toBe(NO_HELD_PREFS);
   });
 
-  it("starts a different page over from the defaults, forgetting the first page's choices", () => {
+  it("applies a change for the new set of people without dropping the choices made for the old one", () => {
     const held = updatePrefs(NO_HELD_PREFS, PAGE, { includeMinor: true, showAll: false, trackMode: "separate" });
-    const other = updatePrefs(held, OTHER, { showAll: false });
-    expect(prefsFor(other, OTHER)).toEqual({ includeMinor: false, showAll: false, trackMode: "combined" });
-    expect(prefsFor(other, PAGE)).toBe(DEFAULT_FILM_PREFS);
+    const other = updatePrefs(held, OTHER, { showAll: true });
+    expect(prefsFor(other, OTHER)).toEqual({ includeMinor: true, showAll: true, trackMode: "separate" });
+    expect(prefsFor(other, PAGE)).toEqual({ includeMinor: true, showAll: true, trackMode: "separate" });
   });
 
   it("does not hold a page's defaults for a page another one is held for", () => {

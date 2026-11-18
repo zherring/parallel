@@ -288,7 +288,7 @@ export function YearRail({ scrollerRef, scrollerId, scale, trackHeight, shared, 
       data-depth-rail
       data-scrubbing={scrubbing ? "" : undefined}
       // Only the track takes pointer events: the gaps above, below and beside it are the scene's.
-      className="group/rail pointer-events-none fixed inset-y-0 right-0 z-20 w-[3.75rem] max-sm:w-7"
+      className="group/rail pointer-events-none fixed inset-y-0 right-[calc(-1*(100vw-100%))] z-20 w-[3.75rem] max-sm:w-7"
     >
       <div
         ref={trackRef}
