@@ -13,6 +13,8 @@ import {
 } from "react";
 import { useCollaborators } from "@/components/collaborators/use-collaborators";
 import { PersonAvatar } from "@/components/person-avatar";
+import { SearchCategoryTabs } from "@/components/person-search/search-category-tabs";
+import { SearchResultOption } from "@/components/person-search/search-result-option";
 import { Spinner } from "@/components/spinner";
 import {
   ApiClientError,
@@ -61,8 +63,7 @@ import {
   extendedPeopleHref,
   isTimelineFull,
 } from "@/lib/people-nav";
-import { filmCountLabel } from "@/lib/format";
-import { departmentLabel } from "@/lib/person-labels";
+import { searchSections, type SearchCategory } from "@/lib/search-sections";
 import type { PairingSearchResult, PeopleSearchResponse, PersonSearchResult } from "@/lib/types";
 
 export interface PersonSearchProps {
@@ -146,17 +147,19 @@ export function PersonSearch({
 }: PersonSearchProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLUListElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const announcementId = useRef(0);
   const baseId = useId();
   const listId = `${baseId}-listbox`;
   const hintId = `${baseId}-hint`;
   const groupLabelId = `${baseId}-group`;
-  const pairingsLabelId = `${baseId}-pairings`;
   const optionId = (index: number) => `${baseId}-option-${index}`;
 
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [category, setCategory] = useState<SearchCategory>("all");
   const [data, setData] = useState<SearchData | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [chips, setChips] = useState<ChipPerson[]>([]);
@@ -178,7 +181,13 @@ export function PersonSearch({
   const loading = searchable && !fresh;
   const results = searchable && data ? data.results : [];
   // Pairing shortcuts start a new timeline; never replace chips or a page's staged people.
-  const pairings = searchable && data && chipsMode && chips.length === 0 ? data.pairings : [];
+  const availablePairings = searchable && data && chipsMode && chips.length === 0 ? data.pairings : [];
+  const hasCategories = chipsMode && chips.length === 0 && searchable;
+  // Keep stale rows in their old order, inert, until the new query's response replaces them.
+  const sections = searchSections(data?.query ?? q, results, availablePairings, hasCategories ? category : "all");
+  const searchOptions = sections.flatMap((section) => section.options);
+  const pairingCount = searchOptions.filter((option) => "href" in option).length;
+  const artistCount = searchOptions.length - pairingCount;
   const failure = fresh && data ? data.error : null;
 
   // With no text, a one-person page's field offers the frequent collaborators; any text is a search.
@@ -186,7 +195,7 @@ export function PersonSearch({
     panelSection(suggestFor !== undefined && !chipsMode, q, collaborators.status) === "suggestions";
   const suggestions = collaborators.status === "ready" ? listedSuggestions(collaborators.results) : [];
   // The options on screen, whichever list they belong to: the keyboard rows (activeIndex) index this one.
-  const options: readonly SearchOption[] = onSuggestions ? suggestions : [...results, ...pairings];
+  const options: readonly SearchOption[] = onSuggestions ? suggestions : searchOptions;
 
   const disabledFlags = options.map(
     (option) => (!onSuggestions && !fresh) || (!("href" in option) && addState(added, option.id) !== "can-add"),
@@ -206,7 +215,7 @@ export function PersonSearch({
     activeIndex,
     disabled: disabledFlags,
   };
-  // The row a commit key (Tab or Enter) would add right now; it gets a "Tab" key hint.
+  // The row Enter would choose right now; it gets an "Enter" key hint.
   const target = chipsMode ? commitTarget(keyContext) : null;
 
   useEffect(() => {
@@ -271,6 +280,7 @@ export function PersonSearch({
       return;
     }
     setChips(outcome.chips);
+    setCategory("all");
     setQuery("");
     setOpen(false);
     setActiveIndex(-1);
@@ -341,7 +351,7 @@ export function PersonSearch({
     });
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+  function onKeyDown(event: KeyboardEvent<HTMLElement>) {
     // The "popup wanted" flag is set by focus alone, so an empty field that shows nothing still counts as open to
     // `decideKey` and would swallow this Escape; the owner gets it instead.
     if (event.key === "Escape" && onIdleEscape && !query && !showPanel) {
@@ -360,8 +370,7 @@ export function PersonSearch({
       isComposing: event.nativeEvent.isComposing,
       repeat: event.repeat,
     });
-    // Anything but "none" is ours; "none" leaves the browser alone (so Tab and Shift+Tab move
-    // focus unless Tab is committing a suggestion).
+    // Anything but "none" is ours; Tab and Shift+Tab always move focus without selecting.
     if (action.type === "none") {
       // Enter on a name when there is no room left: say why nothing happened.
       if (chipsMode && event.key === "Enter" && full && q) announce(refusedMessage("full", ""));
@@ -386,6 +395,7 @@ export function PersonSearch({
         removePerson(removeLastChip(chips));
         return;
       case "close":
+        inputRef.current?.focus({ preventScroll: true });
         setOpen(false);
         setActiveIndex(-1);
         return;
@@ -412,7 +422,9 @@ export function PersonSearch({
         : fresh
           ? results.length === 0
             ? "No one found"
-            : `${results.length} ${results.length === 1 ? "person" : "people"}${pairings.length ? ` and ${pairings.length} ${pairings.length === 1 ? "pairing" : "pairings"}` : ""}`
+            : hasCategories && category === "pairings" && pairingCount === 0
+              ? "No curated pairings for this search"
+              : [artistCount ? `${artistCount} ${artistCount === 1 ? "artist" : "artists"}` : "", pairingCount ? `${pairingCount} ${pairingCount === 1 ? "pairing" : "pairings"}` : ""].filter(Boolean).join(" and ")
           : "";
   // The panel shows "Up to 4 people." when the field is full; say it too.
   const status = chipsMode && full ? `${FULL_MESSAGE}. ${searchStatus}`.trim() : searchStatus;
@@ -434,7 +446,14 @@ export function PersonSearch({
   const iconSize = hero ? "h-5 w-5" : "h-4 w-4";
 
   return (
-    <div className="relative w-full">
+    <div
+      className="relative w-full"
+      onBlur={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget)) return;
+        setOpen(false);
+        setActiveIndex(-1);
+      }}
+    >
       <div
         data-search-box
         onMouseDown={chipsMode ? focusFromField : undefined}
@@ -503,14 +522,11 @@ export function PersonSearch({
                 setQuery(event.target.value);
                 setOpen(true);
                 setActiveIndex(-1);
+                if (panelRef.current) panelRef.current.scrollTop = 0;
               }}
               onFocus={() => {
                 setOpen(true);
                 if (suggestFor !== undefined) setAsked(true);
-              }}
-              onBlur={() => {
-                setOpen(false);
-                setActiveIndex(-1);
               }}
               onKeyDown={onKeyDown}
               className="h-full w-full min-w-0 bg-transparent text-strong outline-none! placeholder:text-muted"
@@ -613,223 +629,178 @@ export function PersonSearch({
 
       {showPanel && (
         <div
-          // Keep focus in the input while the pointer interacts with the panel.
-          onMouseDown={(event) => event.preventDefault()}
+          ref={panelRef}
+          // Options keep the current focus; category tabs are real focusable controls.
+          onMouseDown={(event) => {
+            if (!(event.target as Element).closest("[role=tab]")) event.preventDefault();
+          }}
           className={`absolute inset-x-0 top-full z-50 mt-2 max-h-[min(28rem,55dvh)] overflow-y-auto overscroll-contain rounded-md border border-border bg-surface text-sm shadow-2xl shadow-black/60 ${
             wideMenu ? "lg:left-auto lg:w-[22rem]" : ""
           }`}
         >
-          {full && (
-            <p className="border-b border-border px-3 py-2.5 text-body">
-              Up to {MAX_PEOPLE} people{chipsMode ? "." : " on a timeline."}
-            </p>
+          {hasCategories && (
+            <SearchCategoryTabs
+              value={category}
+              baseId={baseId}
+              onChange={(value) => {
+                setCategory(value);
+                setActiveIndex(-1);
+                if (panelRef.current) panelRef.current.scrollTop = 0;
+              }}
+              onResults={() => resultsRef.current?.focus()}
+              onDismiss={() => {
+                inputRef.current?.focus({ preventScroll: true });
+                setOpen(false);
+                setActiveIndex(-1);
+              }}
+            />
           )}
+          <div
+            id={hasCategories ? `${baseId}-results` : undefined}
+            role={hasCategories ? "tabpanel" : undefined}
+            aria-labelledby={hasCategories ? `${baseId}-tab-${category}` : undefined}
+          >
+            {full && (
+              <p className="border-b border-border px-3 py-2.5 text-body">
+                Up to {MAX_PEOPLE} people{chipsMode ? "." : " on a timeline."}
+              </p>
+            )}
 
-          {searchable && failure && (
-            <div className="flex items-center justify-between gap-3 px-3 py-3">
-              <p className="text-body">{errorMessage(failure, "search")}</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setData(null);
-                  setAttempt((n) => n + 1);
-                }}
-                className="shrink-0 rounded-md border border-border px-3 py-1.5 font-medium text-strong hover:bg-border"
-              >
-                Try again
-              </button>
-            </div>
-          )}
+            {searchable && failure && (
+              <div className="flex items-center justify-between gap-3 px-3 py-3">
+                <p className="text-body">{errorMessage(failure, "search")}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setData(null);
+                    setAttempt((n) => n + 1);
+                  }}
+                  className="shrink-0 rounded-md border border-border px-3 py-1.5 font-medium text-strong hover:bg-border"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
 
-          {searchable && fresh && !failure && results.length === 0 && (
-            <p className="px-3 py-3 text-body">
-              No one found for “<span className="text-strong">{q}</span>”.
-            </p>
-          )}
+            {searchable && fresh && !failure && results.length === 0 && (
+              <p className="px-3 py-3 text-body">
+                No one found for “<span className="text-strong">{q}</span>”.
+              </p>
+            )}
 
-          {searchable && loading && results.length === 0 && (
-            <p className="flex items-center gap-2 px-3 py-3 text-muted">
-              <Spinner /> Searching…
-            </p>
-          )}
+            {hasCategories && category === "pairings" && fresh && !failure && results.length > 0 && pairingCount === 0 && (
+              <p className="px-3 py-3 text-body">No curated pairings for this search.</p>
+            )}
 
-          {onSuggestions && collaborators.status === "loading" && (
-            // Skeleton rows hold the place of the first request's answer; they are not options.
-            <div aria-hidden="true" className="py-1">
-              <p className="px-3 pb-1 pt-2 text-xs font-medium text-muted">{SUGGESTIONS_LABEL}</p>
-              {Array.from({ length: SKELETON_ROWS }, (_, row) => (
-                <div key={row} className="flex items-center gap-3 px-3 py-2.5">
-                  <span className="size-10 shrink-0 rounded-full bg-border motion-safe:animate-pulse" />
-                  <span className="flex flex-1 flex-col gap-2">
-                    <span className="h-3 w-2/5 rounded bg-border motion-safe:animate-pulse" />
-                    <span className="h-2.5 w-3/5 rounded bg-border/70 motion-safe:animate-pulse" />
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+            {searchable && loading && results.length === 0 && (
+              <p className="flex items-center gap-2 px-3 py-3 text-muted">
+                <Spinner /> Searching…
+              </p>
+            )}
 
-          {onSuggestions && suggestions.length > 0 && (
-            <div id={listId} role="listbox" aria-label="People">
-              <div role="group" aria-labelledby={groupLabelId}>
-                <p id={groupLabelId} className="px-3 pb-1 pt-2.5 text-xs font-medium text-muted">
-                  {SUGGESTIONS_LABEL}
-                </p>
-                {suggestions.map((suggestion, index) => {
-                  const disabled = disabledFlags[index];
-                  const active = index === activeIndex;
-                  return (
-                    <div
-                      key={suggestion.id}
-                      id={optionId(index)}
-                      role="option"
-                      aria-selected={active}
-                      aria-disabled={disabled || undefined}
-                      title={suggestionTitle(suggestion) ?? undefined}
-                      onMouseMove={() => {
-                        if (!disabled && !active) setActiveIndex(index);
-                      }}
-                      onClick={() => {
-                        if (!disabled) select(suggestion);
-                      }}
-                      className={`flex items-center gap-3 px-3 py-2.5 ${
-                        disabled ? "cursor-default opacity-60" : "cursor-pointer"
-                      } ${active ? "bg-border shadow-[inset_3px_0_0_0_var(--green)]" : ""}`}
-                    >
-                      <PersonAvatar name={suggestion.name} profilePath={suggestion.profilePath} size={40} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium text-strong">{suggestion.name}</span>
-                        <span className="line-clamp-2 text-xs leading-snug text-muted">
-                          {suggestionDetail(suggestion)}
+            {onSuggestions && collaborators.status === "loading" && (
+              // Skeleton rows hold the place of the first request's answer; they are not options.
+              <div aria-hidden="true" className="py-1">
+                <p className="px-3 pb-1 pt-2 text-xs font-medium text-muted">{SUGGESTIONS_LABEL}</p>
+                {Array.from({ length: SKELETON_ROWS }, (_, row) => (
+                  <div key={row} className="flex items-center gap-3 px-3 py-2.5">
+                    <span className="size-10 shrink-0 rounded-full bg-border motion-safe:animate-pulse" />
+                    <span className="flex flex-1 flex-col gap-2">
+                      <span className="h-3 w-2/5 rounded bg-border motion-safe:animate-pulse" />
+                      <span className="h-2.5 w-3/5 rounded bg-border/70 motion-safe:animate-pulse" />
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {onSuggestions && suggestions.length > 0 && (
+              <div id={listId} role="listbox" aria-label="People">
+                <div role="group" aria-labelledby={groupLabelId}>
+                  <p id={groupLabelId} className="px-3 pb-1 pt-2.5 text-xs font-medium text-muted">
+                    {SUGGESTIONS_LABEL}
+                  </p>
+                  {suggestions.map((suggestion, index) => {
+                    const disabled = disabledFlags[index];
+                    const active = index === activeIndex;
+                    return (
+                      <div
+                        key={suggestion.id}
+                        id={optionId(index)}
+                        role="option"
+                        aria-selected={active}
+                        aria-disabled={disabled || undefined}
+                        title={suggestionTitle(suggestion) ?? undefined}
+                        onMouseMove={() => {
+                          if (!disabled && !active) setActiveIndex(index);
+                        }}
+                        onClick={() => {
+                          if (!disabled) select(suggestion);
+                        }}
+                        className={`flex items-center gap-3 px-3 py-2.5 ${
+                          disabled ? "cursor-default opacity-60" : "cursor-pointer"
+                        } ${active ? "bg-border shadow-[inset_3px_0_0_0_var(--green)]" : ""}`}
+                      >
+                        <PersonAvatar name={suggestion.name} profilePath={suggestion.profilePath} size={40} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium text-strong">{suggestion.name}</span>
+                          <span className="line-clamp-2 text-xs leading-snug text-muted">
+                            {suggestionDetail(suggestion)}
+                          </span>
                         </span>
-                      </span>
-                    </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {searchOptions.length > 0 && (
+              <ul
+                ref={resultsRef}
+                id={listId}
+                role="listbox"
+                aria-label={pairingCount ? (artistCount ? "People and pairings" : "Pairings") : "People"}
+                aria-activedescendant={hasCategories ? activeId : undefined}
+                tabIndex={hasCategories ? 0 : undefined}
+                onFocus={() => {
+                  if (hasCategories && activeIndex < 0) setActiveIndex(moveActive(disabledFlags, -1, "first"));
+                }}
+                onKeyDown={onKeyDown}
+                className={`outline-none ${loading ? "opacity-60" : ""}`}
+              >
+                {sections.map((section) => {
+                  const rows = section.options.map((option, row) => {
+                    const index = section.startIndex + row;
+                    return (
+                      <SearchResultOption
+                        key={"href" in option ? option.href : option.id}
+                        option={option}
+                        id={optionId(index)}
+                        active={index === activeIndex}
+                        disabled={disabledFlags[index]}
+                        state={"href" in option ? "can-add" : addState(added, option.id)}
+                        chipsMode={chipsMode}
+                        keyHint={target?.index === index}
+                        onHighlight={() => setActiveIndex(index)}
+                        onSelect={() => selectOption(option)}
+                      />
+                    );
+                  });
+                  if (!section.label) return rows;
+                  const labelId = `${baseId}-${section.key}`;
+                  return (
+                    <li key={section.key} role="group" aria-labelledby={labelId}>
+                      <p id={labelId} className="border-t border-border px-3 pb-1 pt-2.5 text-xs font-medium text-muted">
+                        {section.label}
+                      </p>
+                      <ul role="presentation">{rows}</ul>
+                    </li>
                   );
                 })}
-              </div>
-            </div>
-          )}
-
-          {results.length > 0 && (
-            <ul
-              id={listId}
-              role="listbox"
-              aria-label={pairings.length ? "People and pairings" : "People"}
-              className={loading ? "opacity-60" : undefined}
-            >
-              {results.map((result, index) => {
-                const state = addState(added, result.id);
-                const disabled = disabledFlags[index];
-                const active = index === activeIndex;
-                const department = departmentLabel(result.knownFor);
-                // Dim the photo and the name only: opacity on the whole row would also drag the
-                // "Added" badge and the role line under 4.5:1, and the badge is the reason the row
-                // cannot be picked.
-                const dimmed = disabled && state !== "can-add";
-                return (
-                  <li
-                    key={result.id}
-                    id={optionId(index)}
-                    role="option"
-                    aria-selected={active}
-                    aria-disabled={disabled || undefined}
-                    onMouseMove={() => {
-                      if (!disabled && !active) setActiveIndex(index);
-                    }}
-                    onClick={() => {
-                      if (!disabled) select(result);
-                    }}
-                    className={`flex items-start gap-3 px-3 py-2.5 ${
-                      disabled ? "cursor-default" : "cursor-pointer"
-                    } ${active ? "bg-border shadow-[inset_3px_0_0_0_var(--green)]" : ""}`}
-                  >
-                    <PersonAvatar
-                      name={result.name}
-                      profilePath={result.profilePath}
-                      size={40}
-                      className={dimmed ? "opacity-60" : undefined}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2">
-                        <span
-                          className={`truncate font-medium ${dimmed ? "text-strong/60" : "text-strong"}`}
-                        >
-                          {result.name}
-                        </span>
-                        {state === "in-view" && (
-                          <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-xs text-body">
-                            {chipsMode ? "Added" : "In timeline"}
-                          </span>
-                        )}
-                      </span>
-                      <span className="line-clamp-2 text-xs leading-snug text-muted">
-                        {department && <span className="text-body">{department}</span>}
-                        {department && result.knownForTitles.length > 0 && " · "}
-                        {result.knownForTitles.join(", ")}
-                      </span>
-                    </span>
-                    {target?.index === index && (
-                      // Only where a keyboard is likely; touch users just tap the row.
-                      <kbd
-                        aria-hidden="true"
-                        className="mt-0.5 hidden shrink-0 rounded border border-border px-1.5 py-0.5 font-sans text-[11px] font-medium text-muted pointer-fine:inline-block"
-                      >
-                        Tab
-                      </kbd>
-                    )}
-                  </li>
-                );
-              })}
-              {pairings.length > 0 && (
-                <li role="group" aria-labelledby={pairingsLabelId}>
-                  <p id={pairingsLabelId} className="border-t border-border px-3 pb-1 pt-2.5 text-xs font-medium text-muted">
-                    Related pairings
-                  </p>
-                  <ul role="presentation">
-                    {pairings.map((pairing, row) => {
-                      const index = results.length + row;
-                      const disabled = disabledFlags[index];
-                      const active = index === activeIndex;
-                      return (
-                        <li
-                          key={pairing.href}
-                          id={optionId(index)}
-                          role="option"
-                          aria-selected={active}
-                          aria-disabled={disabled || undefined}
-                          onMouseMove={() => {
-                            if (!disabled && !active) setActiveIndex(index);
-                          }}
-                          onClick={() => {
-                            if (!disabled) selectOption(pairing);
-                          }}
-                          className={`flex items-start gap-3 px-3 py-2.5 ${disabled ? "cursor-default" : "cursor-pointer"} ${active ? "bg-border shadow-[inset_3px_0_0_0_var(--green)]" : ""}`}
-                        >
-                          <span aria-hidden="true" className="relative size-10 shrink-0">
-                            {pairing.people.slice(0, 2).map((person, portrait) => (
-                              <span key={person.id} className={`absolute ${portrait === 0 ? "left-0 top-0" : "bottom-0 right-0"} rounded-full ring-2 ring-surface`}>
-                                <PersonAvatar name={person.name} profilePath={person.profilePath} size={28} />
-                              </span>
-                            ))}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-medium text-strong">{pairing.people.map((person) => person.name).join(" × ")}</span>
-                            <span className="block text-xs text-body">{filmCountLabel(pairing.sharedCount)} together</span>
-                            <span className="line-clamp-2 text-xs leading-snug text-muted">{pairing.blurb}</span>
-                          </span>
-                          {target?.index === index && (
-                            <kbd aria-hidden="true" className="mt-0.5 hidden shrink-0 rounded border border-border px-1.5 py-0.5 font-sans text-[11px] font-medium text-muted pointer-fine:inline-block">
-                              Tab
-                            </kbd>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </li>
-              )}
-            </ul>
-          )}
+              </ul>
+            )}
+          </div>
         </div>
       )}
     </div>
