@@ -74,6 +74,7 @@ describe("groupFilmCredits", () => {
       crew(31, "The Dust Brothers", "Original Music Composer", "composer"),
       crew(32, "Alex McDowell", "Production Design", "production-designer"),
       crew(33, "Michael Kaplan", "Costume Design", "costume-designer"),
+      crew(35, "A Title Studio", "Main Title Designer", "title-designer"),
       crew(34, "Laray Mayfield", "Casting", "other"),
       crew(7467, "David Fincher", "Executive Producer", "other"),
     ],
@@ -94,6 +95,7 @@ describe("groupFilmCredits", () => {
       "Music",
       "Production design",
       "Costume design",
+      "Title design",
       "Producers",
       "Other crew",
     ]);

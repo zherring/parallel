@@ -1512,6 +1512,105 @@ export const PAIR_DESCRIPTIONS: PairDescriptions = {
         "url": "https://screendaily.com/features/how-antonio-banderas-personal-baggage-helped-his-pain-and-glory-performance-/5145378.article"
       }
     ]
+  },
+  "5656+45400": {
+    "text": "On Greenberg they found a shorthand fast, and Baumbach guessed they would write well together.[1] For Frances Ha, Gerwig emailed him her scraps of scenes and dialogue;[2] they wrote scenes apart, then reworked them together.[1] Barbie, written at home in the pandemic, came despite his calls to get them out of it.[3]",
+    "sources": [
+      {
+        "title": "Flavorwire Interview: Greta Gerwig and Noah Baumbach on Creating 'Frances Ha' Together (Flavorwire)",
+        "url": "https://www.flavorwire.com/391777/flavorwire-interview-greta-gerwig-and-noah-baumbach-on-creating-frances-ha-together"
+      },
+      {
+        "title": "Interview: Noah Baumbach and Greta Gerwig discuss making Frances Ha (The List)",
+        "url": "https://list.co.uk/news/interview-noah-baumbach-and-greta-gerwig-discuss-making-frances-ha-17732"
+      },
+      {
+        "title": "\"Barbie\" filmmaker Greta Gerwig on pressure of making blockbuster (60 Minutes transcript, CBS News)",
+        "url": "https://www.cbsnews.com/news/barbie-filmmaker-greta-gerwig-60-minutes-transcript/"
+      }
+    ]
+  },
+  "40863+45400": {
+    "text": "Gerwig hit the emotion Swanberg described at once,[1] and across three of his films, ending in one they co-directed,[2] he gave her more: on Nights and Weekends he stepped back and handed her scenes.[1] They shot its halves a year apart, and the couple's ending doubled as the end of their collaboration.[3]",
+    "sources": [
+      {
+        "title": "Indie Auteur: A Conversation With Joe Swanberg, 'Mumblecore' Lynchpin (The Quietus)",
+        "url": "https://thequietus.com/culture/film/hannah-takes-the-stairs/"
+      },
+      {
+        "title": "Joe Swanberg Interview (The Seventh Art)",
+        "url": "https://theseventhart.org/joe-swanberg-interview-drinking-buddies/"
+      },
+      {
+        "title": "Don't call it mumblecore (Andrew O'Hehir, Salon, 11 Oct 2008)",
+        "url": "https://www.salon.com/2008/10/11/nights_weekends/"
+      }
+    ]
+  },
+  "45400+1075441": {
+    "text": "Levy met Gerwig in the prep for Frances Ha, where she was always around for tests and scouts.[1] After three films together she told him she had written a script she would direct.[2] Lady Bird was to feel like a memory,[2] so they photocopied its reference images again and again to wear them down.[1]",
+    "sources": [
+      {
+        "title": "The Ideology of Kinko's: A Conversation with 'Lady Bird' Cinematographer Sam Levy (Vague Visages)",
+        "url": "https://vaguevisages.com/2017/12/20/ideology-kinkos-conversation-lady-bird-cinematographer-sam-levy/"
+      },
+      {
+        "title": "Interview: Sam Levy on Lighting the Way for \"Lady Bird\" (Moveable Fest)",
+        "url": "https://moveablefest.com/sam-levy-lady-bird/"
+      }
+    ]
+  },
+  "834+19460": {
+    "text": "Bass was designing the ad symbols for Carmen Jones and The Man with the Golden Arm when he and Preminger looked at each other and asked: why not make it move?[1] Preminger liked the jagged arm so much he asked Bass for the titles too,[2] and they went on making posters and titles together through The Human Factor.[2]",
+    "sources": [
+      {
+        "title": "Celebrating Saul Bass’s centenary: 10 essential title sequences (Matthew Thrift, BFI)",
+        "url": "https://www.bfi.org.uk/lists/celebrating-saul-basss-centenary-10-essential-title-sequences"
+      },
+      {
+        "title": "Saul Bass, the Filmmaker’s Graphic Designer (Steven Brower, AIGA Eye on Design)",
+        "url": "https://eyeondesign.aiga.org/design-history-101/"
+      }
+    ]
+  },
+  "13776+19460": {
+    "text": "Already working with Bass on Grand Prix, Frankenheimer thought him the only person who could title Seconds, and pursued him until he agreed.[1] Saul and Elaine Bass broke apart a face reflected in warped aluminium sheets,[1] Bass's first return to the human face since Vertigo,[2] and Frankenheimer called the result breathtaking.[1]",
+    "sources": [
+      {
+        "title": "Seconds (1966), from Pat Kirkham's Saul Bass: A Life in Film and Design (Art of the Title)",
+        "url": "https://www.artofthetitle.com/title/seconds/"
+      },
+      {
+        "title": "Celebrating Saul Bass’s centenary: 10 essential title sequences (Matthew Thrift, BFI)",
+        "url": "https://www.bfi.org.uk/lists/celebrating-saul-basss-centenary-10-essential-title-sequences"
+      }
+    ]
+  },
+  "1032+19460": {
+    "text": "Unable to make the word GoodFellas sit right in its opening action, Scorsese decided only Saul Bass could work it out; he did, and stayed on for Cape Fear.[1] For The Age of Innocence, Saul and Elaine Bass worked from the first 40 edited minutes and opened on flowers.[1] Elaine is now seen as the driving force of this late work.[2]",
+    "sources": [
+      {
+        "title": "Martin Scorsese on The Age of Innocence (Ian Christie, Sight and Sound, February 1994)",
+        "url": "https://www.bfi.org.uk/sight-and-sound/interviews/martin-scorsese-age-innocence"
+      },
+      {
+        "title": "Celebrating Saul Bass’s centenary: 10 essential title sequences (Matthew Thrift, BFI)",
+        "url": "https://www.bfi.org.uk/lists/celebrating-saul-basss-centenary-10-essential-title-sequences"
+      }
+    ]
+  },
+  "2636+19460": {
+    "text": "Impressed by his titles for The Man with the Golden Arm, Hitchcock asked Bass to title Vertigo, where the original plan was cards over a shot of the San Francisco skyline.[1] He brought Bass back for North by Northwest and Psycho,[2] where Bass received the American industry's first public credit as \"pictorial consultant\" and storyboarded the shower scene, which Hitchcock later played down.[2]",
+    "sources": [
+      {
+        "title": "Saul Bass and John Whitney (Dan Auiler, Hitchcock’s Vertigo)",
+        "url": "https://hitchcocksvertigo.substack.com/p/saul-bass-and-john-whitney"
+      },
+      {
+        "title": "Reassessing the Saul Bass and Alfred Hitchcock Collaboration (Pat Kirkham, West 86th, Spring 2011)",
+        "url": "https://west86th.bgc.bard.edu/articles/reassessing-the-saul-bass-and-alfred-hitchcock-collaboration"
+      }
+    ]
   }
 };
 

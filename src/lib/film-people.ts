@@ -32,6 +32,7 @@ export const CREW_GROUP_ORDER: readonly RoleKey[] = [
   "composer",
   "production-designer",
   "costume-designer",
+  "title-designer",
   "producer",
   "other",
 ];
@@ -45,6 +46,7 @@ const CREW_GROUP_LABELS: Record<RoleKey, string> = {
   composer: "Music",
   "production-designer": "Production design",
   "costume-designer": "Costume design",
+  "title-designer": "Title design",
   producer: "Producers",
   other: "Other crew",
 };

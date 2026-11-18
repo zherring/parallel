@@ -1,7 +1,7 @@
 /**
  * Spike (zherring/spike-portraits): `npm run portraits:testset`.
  *
- * Twenty well-known film people with no cut (none is in PORTRAIT_IDS), for the tear fallback (src/lib/portrait-tears.ts) in /dev/portraits/grid.
+ * Nineteen well-known film people with no cut (none is in PORTRAIT_IDS), for the tear fallback (src/lib/portrait-tears.ts) in /dev/portraits/grid.
  * Reads each from TMDB (profile_path, plus their most-voted films' posters, as cut.ts) and writes src/lib/portrait-testset.json. No segmentation.
  */
 import { writeFileSync } from "node:fs";
@@ -16,7 +16,6 @@ const outFile = join(resolve(dirname(fileURLToPath(import.meta.url)), "../.."), 
 /** Directors and actors, men and women, across eras, ethnicities and framings. */
 const TEST_SET_IDS: readonly number[] = [
   5064, // Meryl Streep
-  45400, // Greta Gerwig
   505710, // Zendaya
   1190668, // Timothée Chalamet
   112, // Cate Blanchett

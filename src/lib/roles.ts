@@ -10,6 +10,7 @@ export const ROLE_ORDER: readonly RoleKey[] = [
   "producer",
   "production-designer",
   "costume-designer",
+  "title-designer",
   "other",
 ];
 
@@ -23,6 +24,7 @@ const ROLE_LABELS: Record<RoleKey, string> = {
   producer: "Producer",
   "production-designer": "Production designer",
   "costume-designer": "Costume designer",
+  "title-designer": "Title designer",
   other: "Other",
 };
 
@@ -49,6 +51,13 @@ const JOB_ROLES: Record<string, RoleKey> = {
   producer: "producer",
   "production design": "production-designer",
   "costume design": "costume-designer",
+  // A film's title sequence is a credited craft of its own (Saul Bass on Vertigo or Psycho), not
+  // incidental crew. Only the jobs TMDB lists for designing the titles: "Title Illustration" and
+  // "Main Title Theme Composer" stay minor.
+  "title designer": "title-designer",
+  "main title designer": "title-designer",
+  "opening title sequence": "title-designer",
+  "title graphics": "title-designer",
 };
 
 export function roleForJob(job: string): RoleKey {

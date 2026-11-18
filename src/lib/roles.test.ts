@@ -43,6 +43,25 @@ describe("roleForJob", () => {
   );
 });
 
+describe("title design", () => {
+  // Saul Bass's credits on Vertigo, Psycho or Anatomy of a Murder are "Title Designer" (Art).
+  it.each(["Title Designer", "Main Title Designer", "Opening Title Sequence", "Title Graphics", " title designer "])(
+    "maps %j to a non-minor title-designer credit",
+    (job) => {
+      expect(roleForJob(job)).toBe("title-designer");
+      expect(isMinorCrewRole(roleForJob(job))).toBe(false);
+      expect(roleLabel(roleForJob(job))).toBe("Title designer");
+    },
+  );
+
+  it.each(["Title Illustration", "Main Title Theme Composer", "Graphic Designer", "Art Designer", "Visual Effects Design Consultant"])(
+    "keeps %j minor",
+    (job) => {
+      expect(roleForJob(job)).toBe("other");
+    },
+  );
+});
+
 describe("isMinorCrewRole", () => {
   it("is minor only for other", () => {
     expect(isMinorCrewRole("other")).toBe(true);
