@@ -100,6 +100,10 @@ describe("moreFilms", () => {
     // Ford and Lucas: 11 films together, five posters shown.
     expect(moreFilms({ ...pairing(3, 1, 5), sharedCount: 11 })).toBe(6);
     expect(moreFilms({ ...pairing(3, 1, 5), sharedCount: 6 })).toBe(1);
+    // Fewer posters shown than it has (a narrower screen): the ones dropped count as more.
+    expect(moreFilms({ ...pairing(3, 1, 5), sharedCount: 6 }, 3)).toBe(3);
+    // Room for more than it has: nothing is added.
+    expect(moreFilms({ ...pairing(3, 1, 3), sharedCount: 3 }, 5)).toBe(0);
   });
 
   it("is zero when every film is shown, however few there are", () => {

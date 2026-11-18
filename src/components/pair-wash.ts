@@ -3,18 +3,13 @@
 import { useEffect, useSyncExternalStore, type CSSProperties } from "react";
 
 /**
- * A pair's two colours as a soft background, the first washing in from the element's top left and the second from its bottom right. The two
- * colours are registered `<color>` custom properties, so a change (the next pair on the landing hero, the other speaker's quote) eases from one pair of
- * colours to the next; where registration is missing they change at once, as they do when the visitor asks for less motion.
+ * A colour as a soft glow background (`QUOTE_GLOW_IMAGE`). The colours are registered `<color>` custom properties, so a change (the other speaker's quote)
+ * eases from one colour to the next; where registration is missing they change at once, as they do when the visitor asks for less motion.
  */
 export const PAIR_WASH_A = "--pair-wash-a";
 export const PAIR_WASH_B = "--pair-wash-b";
-/** About as long as the landing hero's portraits take to swap: the leaving card's 320ms, the arriving one's delay and 520ms. */
+/** About as long as a quote's speaker change takes. */
 export const PAIR_WASH_MS = 800;
-export const PAIR_WASH_IMAGE = [
-  `radial-gradient(ellipse 70% 95% at 0% 0%, color-mix(in srgb, var(${PAIR_WASH_A}) 16%, transparent), transparent 70%)`,
-  `radial-gradient(ellipse 70% 95% at 100% 100%, color-mix(in srgb, var(${PAIR_WASH_B}) 16%, transparent), transparent 70%)`,
-].join(", ");
 
 let registered = false;
 /** Registers the two colours (once, and only once something asks for the wash). */

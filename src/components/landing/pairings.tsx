@@ -1,31 +1,28 @@
 import { FeaturedPairings } from "@/components/landing/featured-pairings";
-import { GENRE_ICONS } from "@/components/landing/genre-icons";
-import { GenreTabs, type GenreTab } from "@/components/landing/genre-tabs";
+import { GenrePanels, RevealLinkedGenre, type GenrePanel } from "@/components/landing/genre-tabs";
 import { PairingCard } from "@/components/landing/pairing-card";
 import type { GenreSection } from "@/lib/example-cards";
-import { FEATURED_COUNT, FEATURED_TAB, type TabId } from "@/lib/examples";
+import { FEATURED_COUNT, FEATURED_TAB } from "@/lib/examples";
 
-function tabIcon(id: TabId) {
-  const Icon = GENRE_ICONS[id];
-  return <Icon size={16} strokeWidth={1.75} aria-hidden="true" className="shrink-0" />;
-}
+/** The grid's section id: what a pill of the top bar brings into view (`GenreTabsProvider`'s `anchorId`). */
+export const PAIRINGS_ANCHOR = "pairings";
 
 interface Props {
   sections: GenreSection[];
 }
 
+/**
+ * The pairings grid, a panel per genre; which one shows is chosen by the pills of the page's top bar (`GenreTablist`), which share its state
+ * (`GenreTabsProvider`). The heading says what the pills below the stage's edge are for, now that they are no longer directly above the grid.
+ */
 export function Pairings({ sections }: Props) {
-  const featuredTab: GenreTab = {
+  const featuredPanel: GenrePanel = {
     id: FEATURED_TAB.id,
-    label: FEATURED_TAB.label,
-    icon: tabIcon(FEATURED_TAB.id),
     panel: <FeaturedPairings cards={sections.flatMap((section) => section.cards)} count={FEATURED_COUNT} />,
   };
 
-  const genreTabs: GenreTab[] = sections.map(({ genre, cards }) => ({
+  const genrePanels: GenrePanel[] = sections.map(({ genre, cards }) => ({
     id: genre.id,
-    label: genre.label,
-    icon: tabIcon(genre.id),
     panel: (
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
@@ -38,12 +35,16 @@ export function Pairings({ sections }: Props) {
   }));
 
   return (
-    <section aria-labelledby="pairings-heading" className="mx-auto w-full max-w-6xl px-4 pb-12 pt-2">
-      {/* Not shown: the tabs follow the search field directly. Kept for the page's heading outline. */}
-      <h2 id="pairings-heading" className="sr-only">
+    <section
+      id={PAIRINGS_ANCHOR}
+      aria-labelledby="pairings-heading"
+      className="mx-auto w-full max-w-6xl scroll-mt-28 px-4 pb-12 pt-4 sm:scroll-mt-20"
+    >
+      <h2 id="pairings-heading" className="text-sm font-medium tracking-[0.01em] text-muted">
         Try a pairing
       </h2>
-      <GenreTabs idBase="pairings" label="Genres" tabs={[featuredTab, ...genreTabs]} />
+      <GenrePanels panels={[featuredPanel, ...genrePanels]} />
+      <RevealLinkedGenre anchorId={PAIRINGS_ANCHOR} />
     </section>
   );
 }

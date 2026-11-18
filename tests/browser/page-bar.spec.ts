@@ -233,7 +233,8 @@ for (const [label, viewport] of [
       await openView(page, "table");
       await bar(page).getByRole("link", { name: "Back to Parallel home", exact: true }).click();
       await expect(page).toHaveURL(/\/$/);
-      await expect(page.getByRole("banner")).toBeVisible();
+      // The landing page's own top bar stands where the site's header is on the other pages.
+      await expect(page.locator("[data-landing-bar]")).toBeVisible();
     });
 
     test("every control of the bar has the bar's one corner radius, a rounded rectangle and not a pill, and what is inside the control and the people pill is concentric with it", async ({ page }) => {
@@ -408,8 +409,8 @@ test.describe("what is no longer on the page", () => {
       await expect(page.locator("main").getByRole("button", { name: "Share", exact: true })).toHaveCount(0);
       await expect(page.getByRole("button", { name: "Export List as CSV" })).toHaveCount(0);
     }
-    // The other pages keep their header.
-    await page.goto("/");
+    // The other pages keep their header (the landing page has a top bar of its own instead).
+    await page.goto("/search-test-not-found");
     await expect(page.getByRole("banner")).toBeVisible();
     await expect(bar(page)).toHaveCount(0);
   });

@@ -1,10 +1,18 @@
 import { preconnect } from "react-dom";
-import { HeroCollage } from "@/components/landing/hero-collage";
-import { LandingSearch } from "@/components/landing/landing-search";
+import { HeroStage } from "@/components/landing/hero-stage";
 import { defaultScene, type HeroPairing } from "@/lib/hero-scenes";
 
+/**
+ * The landing page's first screen: the stage (two portrait panels and the pair's films on a timeline) under the top bar, with the headline centred over
+ * the seam between the panels. The h1 and its copy are the server's markup, static (it is what is painted first, and the page's largest text); the stage
+ * is the client's, revealed once its images are in.
+ *
+ * The section sets the stage's sizes, from the screen: its height fills what the bar leaves of the first screen, less a sliver of the next section (a
+ * phone's is shorter, as the headline is under it there), the panels leave a gutter on each side that the timeline line runs on through, and a narrow seam
+ * divides them. Text is sized from these (the headline from the stage's width and height) so that nothing needs checking pair by pair.
+ */
 export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
-  // The collage's first images come from TMDB's image host; open the connection early.
+  // The stage's first images come from TMDB's image host; open the connection early.
   preconnect("https://image.tmdb.org");
   // The server cannot pick at random (the page is static): it sends this scene in a <noscript>,
   // and the browser picks the one it shows.
@@ -13,30 +21,25 @@ export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
   return (
     <section
       aria-labelledby="hero-heading"
-      // The pair's wash (`usePairWash`, in the collage) is this section's background once the collage is up.
-      className="relative overflow-x-clip px-4 pb-10 pt-6 sm:pb-12 sm:pt-8"
+      className="relative flex flex-col overflow-x-clip [--gutter:clamp(12px,5vw,88px)] [--seam:6px] [--stage-h:max(400px,min(64svh,560px))] sm:[--seam:12px] sm:[--stage-h:clamp(540px,calc(100svh-84px),880px)]"
     >
-      {/* Centered above the headline: two people, the films they share, on the timeline line. */}
-      {fallback && (
-        <div className="mb-5 max-[359px]:mb-10 sm:mb-6">
-          <HeroCollage pool={pool} fallback={fallback} />
-        </div>
-      )}
-      <div className="mx-auto max-w-3xl text-center">
+      {/*
+        First in the markup (it is what the section is named by), over the seam on a screen wide enough, under the stage on a phone. It lets clicks through to the stage's
+        link under it.
+      */}
+      <div className="pointer-events-none relative z-30 px-4 pb-8 pt-7 text-center max-sm:order-2 sm:absolute sm:inset-x-0 sm:top-[17%] sm:p-0">
         <h1
           id="hero-heading"
-          className="text-balance text-4xl font-semibold leading-[1.1] tracking-tight text-strong sm:text-5xl lg:text-6xl"
+          className="mx-auto max-w-[11.5em] text-balance text-[length:clamp(34px,min(4.6vw,calc(var(--stage-h)*0.105)),68px)] font-semibold leading-[1.05] tracking-[-0.03em] text-white sm:[text-shadow:0_2px_28px_rgb(0_0_0/0.55)]"
         >
           Watch filmmakers cross paths
         </h1>
-        <p className="mx-auto mt-5 max-w-2xl text-balance text-base leading-relaxed text-body sm:text-lg">
+        <p className="mx-auto mt-3 max-w-[34ch] text-balance text-[15px] leading-relaxed text-[#cdd6df] sm:mt-4 sm:text-base sm:[text-shadow:0_1px_16px_rgb(0_0_0/0.7)]">
           Search any actor, director, writer or cinematographer. Line their timelines up. See every
           film they made together.
         </p>
-        <div data-hero-search="" className="mx-auto mt-8 max-w-2xl text-left sm:mt-10">
-          <LandingSearch />
-        </div>
       </div>
+      {fallback && <HeroStage pool={pool} fallback={fallback} />}
     </section>
   );
 }

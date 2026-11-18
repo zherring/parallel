@@ -1,28 +1,15 @@
-import { LINE_Y } from "@/lib/hero-layout";
-
 /**
- * The one timeline line of the product, running across the whole hero and fading out at both
- * ends, with a few small nodes on it. The posters sit on it. It is a plain element in the page's
- * flow of layers (not part of the scaled stage) so it can be as wide as the screen; `top` places
- * it at the posters' middle.
+ * The one timeline line of the product, a 1px white line at the stage's `--line-y`, running over both panels and on through the gutters to the stage's
+ * edges (the stage is at most 1600px wide), fading to nothing at both ends: its mask is opaque from just inside the gutter, so over the panels it reads
+ * against the montage and only the gutters carry the fade. The first reveal draws it outward from the middle (`drawLine`, which finds it by `data-line`).
+ * It never moves after that. Its parent is the stage's link, whose box is the panels' (inset by the gutter), hence the negative inset.
  */
 export function TimelineLine() {
-  const dot = "radial-gradient(circle, rgb(74 88 106) 0 2px, transparent 2.6px)";
   return (
     <div
+      data-line=""
       aria-hidden="true"
-      className="pointer-events-none absolute left-1/2 h-3 w-[min(100vw,1600px)] -translate-x-1/2 -translate-y-1/2 [mask-image:linear-gradient(to_right,transparent,#000_22%,#000_78%,transparent)]"
-      style={{
-        top: `calc(var(--s) * ${LINE_Y}px)`,
-        backgroundImage: [
-          "linear-gradient(rgb(136 153 170 / 0.34), rgb(136 153 170 / 0.34))",
-          dot,
-          dot,
-        ].join(","),
-        backgroundSize: "100% 1px, 137px 100%, 211px 100%",
-        backgroundPosition: "0 50%, 23px 0, 91px 0",
-        backgroundRepeat: "no-repeat, repeat-x, repeat-x",
-      }}
+      className="pointer-events-none absolute -inset-x-(--gutter) top-(--line-y) h-px -translate-y-1/2 bg-white/60 [mask-image:linear-gradient(to_right,transparent,#000_calc(var(--gutter)+14px),#000_calc(100%-var(--gutter)-14px),transparent)]"
     />
   );
 }

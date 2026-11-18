@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import { GenreTabsProvider } from "@/components/landing/genre-tabs";
+import { genrePills } from "@/components/landing/genre-pills";
 import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
-import { Pairings } from "@/components/landing/pairings";
+import { LandingBar } from "@/components/landing/landing-bar";
+import { PAIRINGS_ANCHOR, Pairings } from "@/components/landing/pairings";
 import { buildGenreSections, buildHeroPairings } from "@/lib/example-cards";
 import { heroPool } from "@/lib/hero-scenes";
 
@@ -20,11 +23,15 @@ export const metadata: Metadata = {
 // src/lib/examples.generated.json (see `npm run examples:refresh`), so this page makes no TMDB
 // calls at build or request time.
 export default function Home() {
+  const sections = buildGenreSections();
+  const pills = genrePills(sections);
   return (
-    <>
+    // The genre pills are in the top bar and their panels in the grid below the stage: one provider holds the choice for both.
+    <GenreTabsProvider idBase="pairings" ids={pills.map((pill) => pill.id)} anchorId={PAIRINGS_ANCHOR}>
+      <LandingBar pills={pills} />
       <Hero pool={heroPool(buildHeroPairings())} />
-      <Pairings sections={buildGenreSections()} />
+      <Pairings sections={sections} />
       <HowItWorks />
-    </>
+    </GenreTabsProvider>
   );
 }

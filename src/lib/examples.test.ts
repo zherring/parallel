@@ -12,7 +12,7 @@ import {
   pairingKey,
   type GeneratedExamples,
 } from "@/lib/examples";
-import { POSTER_SLOTS } from "@/lib/hero-layout";
+import { POSTER_CAPS } from "@/lib/hero-layout";
 import { MAX_PEOPLE } from "@/lib/people-nav";
 import { buildPeopleSlug, parsePeopleSlug } from "@/lib/slug";
 
@@ -156,8 +156,8 @@ describe("examples.generated.json", () => {
     expect(longest, "run npm run examples:refresh").toBe(HERO_POSTER_COUNT);
   });
 
-  it("records as many posters as the collage has slots for", () => {
-    expect(HERO_POSTER_COUNT).toBe(POSTER_SLOTS);
+  it("records as many posters as the widest timeline shows", () => {
+    expect(HERO_POSTER_COUNT).toBe(POSTER_CAPS.desktop);
     expect(HERO_POSTER_MIN).toBeLessThanOrEqual(HERO_POSTER_COUNT);
     expect(MIN_SHARED_FILMS).toBeGreaterThanOrEqual(HERO_POSTER_MIN);
   });

@@ -2,7 +2,8 @@ import type { Locator, Page } from "@playwright/test";
 import { test, expect, PEOPLE_PATH } from "./fixtures";
 
 // The site's one search (src/components/universal-search.tsx): the Search button of the header and ⌘K (Command+K on a Mac, Control+K elsewhere: the people overlay's
-// shortcut, routed by SearchProvider to the registered page search). Home keeps its hero field and no Search button, but the shortcut is still available.
+// shortcut, routed by SearchProvider to the registered page search). Home has no site header: its top bar (src/components/landing/landing-bar.tsx) is the header there, with a
+// search field that is a button opening the same dialog.
 // On /p/ pages the header is hidden (globals.css); the shortcut opens the contextual People overlay instead.
 
 const ALPHA_PATH = "/p/90000001-scroll-alpha";
@@ -67,27 +68,37 @@ for (const path of [NOT_FOUND, NOT_FOUND_UNDER_PEOPLE]) {
   });
 }
 
-test("the landing page keeps its hero search and opens universal search with the shortcut", async ({ page }) => {
+test("the landing page's top bar replaces the header: its search field opens universal search, as the shortcut does", async ({ page }) => {
   await page.goto("/");
-  const header = page.getByRole("banner");
-  await expect(header).toBeVisible();
-  await expect(header.getByRole("link", { name: "Parallel home", exact: true })).toBeVisible();
-  await expect(header.getByRole("button")).toHaveCount(0);
-  // The hero's field takes focus on a desktop. Once it answers (the page is live) the key is pressed from the page itself, not from the field.
-  const hero = page.getByRole("combobox").first();
-  await hero.fill("Scroll");
-  await expect(page.getByRole("option")).toHaveCount(2);
-  await hero.evaluate((field) => (field as HTMLInputElement).blur());
-  await page.keyboard.press(SHORTCUT);
+  // The site's header gives way to the bar (globals.css), and there is no field on the page itself.
+  await expect(page.locator("body > header")).toBeHidden();
+  await expect(page.getByRole("banner")).toHaveCount(0);
+  await expect(page.getByRole("combobox")).toHaveCount(0);
+  const bar = page.locator("[data-landing-bar]");
+  await expect(bar.getByRole("link", { name: "Parallel home", exact: true })).toBeVisible();
+  const trigger = bar.getByRole("button", { name: /Search any film artist/ });
+  await expect(trigger).toBeVisible();
+  await expect(trigger).toContainText(/⌘K|Ctrl K/);
+  await expect(trigger).toHaveAttribute("aria-haspopup", "dialog");
+  await expect(trigger).toHaveAttribute("aria-keyshortcuts", /^(Meta|Control)\+K$/);
+
+  await trigger.click();
   const dialog = searchDialog(page);
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("combobox")).toBeFocused();
-  await expect(dialog.getByRole("combobox")).toHaveValue("");
   await expect(peopleDialog(page)).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+
+  // The key is pressed from the page itself, not from a field.
+  await trigger.evaluate((button) => (button as HTMLButtonElement).blur());
+  await page.keyboard.press(SHORTCUT);
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("combobox")).toBeFocused();
+  await expect(dialog.getByRole("combobox")).toHaveValue("");
   await page.keyboard.press(SHORTCUT);
   await expect(dialog).toHaveCount(0);
-  // Opening another search does not overwrite the draft in the landing page's hero.
-  await expect(hero).toHaveValue("Scroll");
 });
 
 test("a timeline page has no header and no second search: ⌘K opens the people overlay, which has it", async ({ page }) => {
@@ -251,11 +262,10 @@ test("starts a timeline from search, and the next search starts empty", async ({
 
 test("one shortcut follows soft navigation and browser history without keeping the old page's search", async ({ page }) => {
   await page.goto("/");
-  const hero = page.getByRole("combobox").first();
-  await hero.fill("Scroll");
-  await expect(page.getByRole("option")).toHaveCount(2);
-  await hero.fill("");
-  const home = page.getByRole("banner").getByRole("link", { name: "Parallel home", exact: true });
+  // On the landing page the wordmark in the top bar is the way home (the site's header is hidden there).
+  const home = page.locator("[data-landing-bar]").getByRole("link", { name: "Parallel home", exact: true });
+  // The page is live once the bar's search button is (it is disabled until its handler is hydrated): the shortcut's listener is too.
+  await expect(page.locator("[data-landing-bar]").getByRole("button", { name: /Search any film artist/ })).toBeEnabled();
   await home.focus();
   await page.keyboard.press(SHORTCUT);
   const dialog = searchDialog(page);
@@ -415,20 +425,6 @@ test.describe("at 320 CSS px, the narrowest width a page must reflow to", () => 
     await expect(dialog.getByRole("option")).toHaveCount(2);
     await expectFieldFits(page, dialog, 320);
     await expect(dialog.getByRole("button", { name: "Show timeline", exact: true })).toBeEnabled();
-  });
-
-  test("the landing hero's field, which is the same chip field, fits as well", async ({ page }) => {
-    await page.goto("/");
-    const hero = page.locator("[data-hero-search]");
-    const field = hero.getByRole("combobox");
-    await field.fill("Scroll");
-    await expect(page.getByRole("option")).toHaveCount(2);
-    await page.getByRole("option", { name: /Scroll Alpha/ }).click();
-    await expect(hero.getByRole("list", { name: "Selected people", exact: true }).getByRole("listitem")).toHaveCount(1);
-    await expectFieldFits(page, hero, 320);
-
-    await field.fill(LONG_QUERY);
-    await expectFieldFits(page, hero, 320);
   });
 
   test("the people overlay's field, the same hero size without chips, fits beside its close button", async ({ page }) => {
