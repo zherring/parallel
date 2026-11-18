@@ -31,6 +31,20 @@ Requires Node 22 or newer and a TMDB API read access token (free, from your TMDB
 
 The token is only read on the server and is never sent to the browser.
 
+## Search discovery
+
+`/sitemap.xml` lists the homepage, the curated landing-page pairings and each of their artists, using checked-in data only (no TMDB requests). It deliberately excludes view/sort/period/quote variants, embeds and arbitrary combinations. `/robots.txt` advertises it and excludes API crawling; embeds remain crawlable so their `noindex` tags and social players can be read.
+
+Search-engine canonical URLs prefer the homepage's curated order of people, otherwise numeric TMDB id order. Reversing a pair or changing a view still works normally: only the canonical tag consolidates the search result, not the visitor's lane order, share URL or social card.
+
+After deploying:
+
+1. Add `https://parallel.zachherring.com/` as a URL-prefix property in [Google Search Console](https://search.google.com/search-console). Use the actual production origin if `NEXT_PUBLIC_SITE_URL` is overridden. For HTML-file verification, `public/googlecfed69c56c13e595.html` is served at the root URL; keep it deployed after verification. HTML-file verification is not available for Domain properties, which require DNS verification.
+2. Submit `sitemap.xml` in **Sitemaps**. Inspect the homepage and a few curated pairing URLs with **URL inspection** to check the live page and Google's chosen canonical. Submission does not guarantee indexing.
+3. After 4–8 weeks, review **Performance → Search results** for impressions, clicks, queries and pages, and **Page indexing** for crawl/indexing issues. Use those signals before investing in more SEO work.
+
+No analytics scripts or tracking cookies are needed for Search Console.
+
 ## Scripts
 
 | Script              | What it does                          |

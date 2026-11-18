@@ -62,6 +62,14 @@ describe("the share URL's metadata", () => {
     expect(meta.description).toBe("Pat Critic on Lemmon & Matthau · Example Review, 1999");
   });
 
+  it("consolidates reversed pairs for search without changing the shared quote's URL or player", async () => {
+    const reversed = "6837-walter-matthau+3151-jack-lemmon";
+    const meta = await generateMetadata(props(reversed, "short-one"));
+    expect(meta.alternates?.canonical).toBe(`/p/${PAIR_SLUG}`);
+    expect(meta.openGraph?.url).toBe(`/p/${reversed}/q/short-one`);
+    expect(meta.other).toHaveProperty("twitter:player", `https://parallel.zachherring.com/embed/q/${reversed}/short-one`);
+  });
+
   it("promises no player for a quote the pair does not have", async () => {
     expect(await generateMetadata(props(PAIR_SLUG, "nope"))).toEqual({});
   });

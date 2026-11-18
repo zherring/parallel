@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { QuoteEmbed } from "@/components/embed/quote-embed";
+import { canonicalPeoplePath } from "@/lib/canonical-people";
 import { criticAbout } from "@/lib/critics-view";
 import { loadPeople } from "@/lib/people";
 import { montagePosters } from "@/lib/portrait-treatment";
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description,
     // The quote is a view of the pair's page, not another page: search engines are pointed at the whole one.
-    alternates: { canonical: `/p/${canonical}` },
+    alternates: { canonical: canonicalPeoplePath(timelines.map((t) => t.person)) },
     ...peopleSocial(title, description, quotePath(canonical, quote.id), image, quotePlayer(canonical, quote.id)),
   };
 }

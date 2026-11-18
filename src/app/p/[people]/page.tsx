@@ -5,6 +5,7 @@ import { userAgent } from "next/server";
 import { DepthView } from "@/components/depth/depth-view";
 import { PeopleView } from "@/components/people-view";
 import { cardFilms } from "@/lib/card-films";
+import { canonicalPeoplePath } from "@/lib/canonical-people";
 import { getPairClippingSet } from "@/lib/clippings";
 import { clippingById, parseQuoteId, quoteLinkSearch } from "@/lib/clippings-view";
 import { getPairCritics } from "@/lib/critics";
@@ -47,6 +48,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const baseTitle = peopleTitle(timelines.map((t) => t.person.name));
   const shared = sharedFilms(timelines, { includeMinor: false, today });
   const url = `/p/${canonical}`;
+  const canonicalUrl = canonicalPeoplePath(timelines.map((t) => t.person));
 
   // A link to one quote of the Clippings (`?view=clippings&quote=<id>`), an artist's or a critic's (whose ids start with
   // "critic-"), gets the quote's card and words. An id the pair does not have is ignored, as it is on the page; a quote
@@ -71,7 +73,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       title: quote.title,
       description: quote.description,
       // The quote is a view of the page, not another page: search engines are pointed at the whole one.
-      alternates: { canonical: url },
+      alternates: { canonical: canonicalUrl },
       ...peopleSocial(quote.title, quote.description, `${url}${quoteLinkSearch(quote.id)}`, image),
     };
   }
@@ -85,7 +87,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     // The plain link to two or more people is a player card on X (see `PLAYER_CARDS`): the pair's card, which opens up into their timeline in the post.
     // A person's page, a shared period and a quote keep the large-image card, which is their own picture.
     const player = timelines.length > 1 ? pairPlayer(canonical) : undefined;
-    return { title: baseTitle, description, alternates: { canonical: url }, ...peopleSocial(baseTitle, description, url, undefined, player) };
+    return { title: baseTitle, description, alternates: { canonical: canonicalUrl }, ...peopleSocial(baseTitle, description, url, undefined, player) };
   }
 
   const title = periodTitle(baseTitle, period);
@@ -95,7 +97,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     title,
     description,
     // The period is a view of the page, not another page: search engines are pointed at the whole one.
-    alternates: { canonical: url },
+    alternates: { canonical: canonicalUrl },
     ...peopleSocial(title, description, `${url}${searchWithPeriod("", period)}`, image),
   };
 }
