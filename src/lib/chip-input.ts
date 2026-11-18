@@ -256,5 +256,6 @@ export function placeholderCopy({ mode, size, peopleInViewCount, chipCount }: Pl
 /** Screen-reader instructions for the field (referenced by aria-describedby in chips mode). */
 export const CHIPS_HINT =
   `Type a name, then press Tab or Enter to add the highlighted match, or the first one if none is highlighted. ` +
+  `Related pairings appear below people before anyone is selected; choosing a pairing opens its timeline. ` +
   `Up to ${MAX_PEOPLE} people. With the field empty, Enter shows the timeline and Backspace removes the last person. ` +
   `When there is nothing to add, Tab moves on as usual, and Shift plus Tab always does.`;

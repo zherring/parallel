@@ -108,6 +108,19 @@ export interface PersonSearchResult {
   knownForTitles: string[];
 }
 
+/** A curated pairing, offered below people in a new-timeline search. */
+export interface PairingSearchResult {
+  href: string;
+  blurb: string;
+  sharedCount: number;
+  people: Pick<PersonSearchResult, "id" | "name" | "profilePath">[];
+}
+
+export interface PeopleSearchResponse {
+  results: PersonSearchResult[];
+  pairings: PairingSearchResult[];
+}
+
 /** One "Frequent collaborators" suggestion of the Add a person field (`/api/collaborators/{id}`). */
 export interface CollaboratorSuggestion {
   id: number;

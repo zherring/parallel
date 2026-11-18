@@ -3,7 +3,9 @@ import { apiError } from "@/lib/api-error";
 import { loadPeopleMatchIndex } from "@/lib/people-index";
 import { searchIndex, type PersonMatch } from "@/lib/people-match";
 import { mergeSearchResults, MAX_SEARCH_RESULTS } from "@/lib/search-merge";
+import { searchPairings } from "@/lib/search-pairings";
 import { TmdbError, searchPeopleWithPopularity } from "@/lib/tmdb";
+import type { PairingSearchResult } from "@/lib/types";
 
 // Seconds this function may run; why this value: see REQUEST_DEADLINE_MS in src/lib/tmdb.ts.
 export const maxDuration = 20;
@@ -60,8 +62,15 @@ export async function GET(request: Request) {
   }
 
   const results = mergeSearchResults(q, local, "hits" in tmdb ? tmdb.hits : []);
+  // Pairing shortcuts are optional: a stale curated corpus must not break people search.
+  let pairings: PairingSearchResult[] = [];
+  try {
+    pairings = searchPairings(results);
+  } catch (error) {
+    console.error(error instanceof Error ? `Related pairings unavailable: ${error.message}` : "Related pairings unavailable");
+  }
   return NextResponse.json(
-    { results },
+    { results, pairings },
     { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" } },
   );
 }

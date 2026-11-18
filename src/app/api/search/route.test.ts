@@ -2,15 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/people-index", () => ({ loadPeopleMatchIndex: vi.fn() }));
+vi.mock("@/lib/example-cards", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/example-cards")>();
+  return { ...original, buildGenreSections: vi.fn(original.buildGenreSections) };
+});
 vi.mock("@/lib/tmdb", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/tmdb")>()),
   searchPeopleWithPopularity: vi.fn(),
 }));
 
 import { GET } from "@/app/api/search/route";
+import { buildGenreSections } from "@/lib/example-cards";
 import { loadPeopleMatchIndex } from "@/lib/people-index";
+import { EXAMPLE_PAIRINGS, GENRES, pairingHref } from "@/lib/examples";
 import { buildMatchIndex, type MatchablePerson } from "@/lib/people-match";
 import { TmdbError, searchPeopleWithPopularity } from "@/lib/tmdb";
+import type { PeopleSearchResponse } from "@/lib/types";
 
 const loadIndex = vi.mocked(loadPeopleMatchIndex);
 const tmdbSearch = vi.mocked(searchPeopleWithPopularity);
@@ -78,12 +85,12 @@ describe("GET /api/search: request handling", () => {
     expect(signal).toBeInstanceOf(AbortSignal);
   });
 
-  it("answers { results } with the same cache headers as before", async () => {
+  it("answers people and related pairings with the same cache headers as before", async () => {
     const res = await get("spielberg");
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=300, stale-while-revalidate=3600");
-    const body = (await res.json()) as { results: unknown[] };
-    expect(Object.keys(body)).toEqual(["results"]);
+    const body = (await res.json()) as PeopleSearchResponse;
+    expect(Object.keys(body)).toEqual(["results", "pairings"]);
     expect(body.results[0]).toEqual({
       id: 488,
       name: "Steven Spielberg",
@@ -91,6 +98,10 @@ describe("GET /api/search: request handling", () => {
       knownFor: "Directing",
       knownForTitles: ["Jaws", "E.T."],
     });
+    expect(body.pairings.map((pairing) => pairing.href)).toEqual(
+      EXAMPLE_PAIRINGS.filter((pairing) => pairing.people.some((person) => person.id === 488)).map(pairingHref),
+    );
+    expect(body.pairings.length).toBeGreaterThan(0);
   });
 });
 
@@ -134,6 +145,21 @@ describe("GET /api/search: merging", () => {
     expect(results[1].knownForTitles).toEqual(["Traffic"]);
   });
 
+  it("orders pairings by person rank and lists a pairing shared by two matches once", async () => {
+    // The lower-ranked person's own pairing is deliberately first in curated order.
+    const cards = [[1884, 1], [488, 1884], [488, 380]].map((ids) => {
+      const people = ids.map((id) => ({ id, name: `Person ${id}`, profilePath: `/${id}.jpg` }));
+      return { genre: "classic", href: pairingHref({ people }), people, blurb: "A collaboration.", sharedCount: 3 };
+    });
+    vi.mocked(buildGenreSections).mockReturnValueOnce([{ genre: GENRES[0], cards }]);
+
+    const res = await get("steven");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as PeopleSearchResponse;
+    expect(body.results.map((person) => person.id)).toEqual([488, 1884]);
+    expect(body.pairings.map((pairing) => pairing.href)).toEqual([cards[1].href, cards[2].href, cards[0].href]);
+  });
+
   it("never returns more than 8 results", async () => {
     loadIndex.mockResolvedValue(
       buildMatchIndex(Array.from({ length: 12 }, (_, i) => indexed(i + 1, `Alex Stone ${i}`, i))),
@@ -147,7 +173,7 @@ describe("GET /api/search: merging", () => {
   it("returns an empty list when neither source finds anything", async () => {
     const res = await get("qqqqzzzz");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ results: [] });
+    expect(await res.json()).toEqual({ results: [], pairings: [] });
   });
 });
 
@@ -157,6 +183,13 @@ describe("GET /api/search: when TMDB fails", () => {
     const res = await get("speil");
     expect(res.status).toBe(200);
     expect(await namesOf(res)).toEqual(["Steven Spielberg"]);
+  });
+
+  it("still offers curated pairings when TMDB fails", async () => {
+    tmdbSearch.mockRejectedValue(new TmdbError(500, "boom"));
+    const body = (await (await get("speil")).json()) as PeopleSearchResponse;
+    expect(body.pairings.length).toBeGreaterThan(0);
+    expect(body.pairings.every((pairing) => pairing.people.some((person) => person.id === 488))).toBe(true);
   });
 
   it("returns the local results alone on a non-TMDB failure (a missing token, a network error)", async () => {
@@ -206,9 +239,36 @@ describe("GET /api/search: when the index cannot load", () => {
     expect(await namesOf(res)).toEqual(["Jane Obscure"]);
   });
 
+  it("still offers curated pairings for a TMDB-only match", async () => {
+    loadIndex.mockRejectedValue(new Error("no file"));
+    tmdbSearch.mockResolvedValue([hit(488, "Steven Spielberg", 12)]);
+    const res = await get("spielberg");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as PeopleSearchResponse;
+    expect(body.results.map((person) => person.id)).toEqual([488]);
+    expect(body.pairings.map((pairing) => pairing.href)).toEqual(
+      EXAMPLE_PAIRINGS.filter((pairing) => pairing.people.some((person) => person.id === 488)).map(pairingHref),
+    );
+    expect(body.pairings.length).toBeGreaterThan(0);
+  });
+
   it("answers with the TMDB error when both fail", async () => {
     loadIndex.mockRejectedValue(new Error("no file"));
     tmdbSearch.mockRejectedValue(new TmdbError(500, "boom"));
     expect((await get("obscure")).status).toBe(502);
+  });
+});
+
+describe("GET /api/search: when the curated corpus is stale", () => {
+  it("keeps people results and omits pairings instead of failing the whole search", async () => {
+    vi.mocked(buildGenreSections).mockImplementationOnce(() => {
+      throw new Error("examples.generated.json is out of date: run `npm run examples:refresh`");
+    });
+    const res = await get("spielberg");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as PeopleSearchResponse;
+    expect(body.results.map((person) => person.id)).toEqual([488]);
+    expect(body.pairings).toEqual([]);
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining("Related pairings unavailable"));
   });
 });

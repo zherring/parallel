@@ -121,7 +121,7 @@ function SearchDialog({ opener, onClose }: { opener: Element | null; onClose: ()
           </button>
         </div>
         <p id={descriptionId} className="mb-4 text-sm text-muted">
-          Find filmmakers and start a new timeline with up to four people.
+          Find filmmakers, explore their pairings, or start a new timeline with up to four people.
         </p>
         {/* The field's own Escape first (it clears its text and closes its list); with nothing to dismiss, Escape closes the dialog, as the people overlay's does. */}
         <PersonSearch size="hero" mode="chips" autoFocus onIdleEscape={onClose} onNavigate={onClose} />
