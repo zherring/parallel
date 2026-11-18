@@ -61,8 +61,9 @@ import {
   extendedPeopleHref,
   isTimelineFull,
 } from "@/lib/people-nav";
+import { filmCountLabel } from "@/lib/format";
 import { departmentLabel } from "@/lib/person-labels";
-import type { PersonSearchResult } from "@/lib/types";
+import type { PairingSearchResult, PeopleSearchResponse, PersonSearchResult } from "@/lib/types";
 
 export interface PersonSearchProps {
   /**
@@ -110,24 +111,24 @@ export interface PersonSearchProps {
 
 /** What picking an option needs, whether it is a search result or a suggested collaborator. */
 export type PickedPerson = Pick<PersonSearchResult, "id" | "name" | "profilePath">;
+type SearchOption = PickedPerson | PairingSearchResult;
 
 const DEBOUNCE_MS = 200;
 const CACHE_LIMIT = 50;
 const NO_PEOPLE: { id: number; name: string }[] = [];
 
 /** Results per normalized query for this tab, so backspacing does not spend rate limit. */
-const resultCache = new Map<string, PersonSearchResult[]>();
+const resultCache = new Map<string, PeopleSearchResponse>();
 
-function remember(query: string, results: PersonSearchResult[]) {
+function remember(query: string, results: PeopleSearchResponse) {
   resultCache.delete(query);
   resultCache.set(query, results);
   if (resultCache.size > CACHE_LIMIT) resultCache.delete(resultCache.keys().next().value!);
 }
 
 /** Results (or the failure) for one normalized query. Anything with another query is stale. */
-interface SearchData {
+interface SearchData extends PeopleSearchResponse {
   query: string;
-  results: PersonSearchResult[];
   error: ApiErrorKind | null;
 }
 
@@ -150,6 +151,7 @@ export function PersonSearch({
   const listId = `${baseId}-listbox`;
   const hintId = `${baseId}-hint`;
   const groupLabelId = `${baseId}-group`;
+  const pairingsLabelId = `${baseId}-pairings`;
   const optionId = (index: number) => `${baseId}-option-${index}`;
 
   const [query, setQuery] = useState("");
@@ -175,6 +177,8 @@ export function PersonSearch({
   const fresh = searchable && data?.query === q;
   const loading = searchable && !fresh;
   const results = searchable && data ? data.results : [];
+  // Pairing shortcuts start a new timeline; never replace chips or a page's staged people.
+  const pairings = searchable && data && chipsMode && chips.length === 0 ? data.pairings : [];
   const failure = fresh && data ? data.error : null;
 
   // With no text, a one-person page's field offers the frequent collaborators; any text is a search.
@@ -182,10 +186,10 @@ export function PersonSearch({
     panelSection(suggestFor !== undefined && !chipsMode, q, collaborators.status) === "suggestions";
   const suggestions = collaborators.status === "ready" ? listedSuggestions(collaborators.results) : [];
   // The options on screen, whichever list they belong to: the keyboard rows (activeIndex) index this one.
-  const options: readonly PickedPerson[] = onSuggestions ? suggestions : results;
+  const options: readonly SearchOption[] = onSuggestions ? suggestions : [...results, ...pairings];
 
   const disabledFlags = options.map(
-    (option) => (!onSuggestions && !fresh) || addState(added, option.id) !== "can-add",
+    (option) => (!onSuggestions && !fresh) || (!("href" in option) && addState(added, option.id) !== "can-add"),
   );
   const listVisible = open && options.length > 0;
   const showPanel = open && (searchable || full || onSuggestions);
@@ -212,22 +216,23 @@ export function PersonSearch({
     const timer = setTimeout(async () => {
       const cached = resultCache.get(q);
       if (cached) {
-        setData({ query: q, results: cached, error: null });
+        setData({ query: q, ...cached, error: null });
         return;
       }
       try {
-        const body = await getJson<{ results: PersonSearchResult[] }>(
+        const body = await getJson<PeopleSearchResponse>(
           `/api/search?q=${encodeURIComponent(q)}`,
           controller.signal,
         );
         // A newer keystroke aborts this controller, so late responses never overwrite newer state.
         if (controller.signal.aborted) return;
-        remember(q, body.results);
-        setData({ query: q, results: body.results, error: null });
+        const response = { results: body.results, pairings: body.pairings ?? [] };
+        remember(q, response);
+        setData({ query: q, ...response, error: null });
       } catch (error) {
         if (controller.signal.aborted || isAbortError(error)) return;
         const kind = error instanceof ApiClientError ? error.kind : "server";
-        setData({ query: q, results: [], error: kind });
+        setData({ query: q, results: [], pairings: [], error: kind });
       }
     }, DEBOUNCE_MS);
 
@@ -320,6 +325,22 @@ export function PersonSearch({
     });
   }
 
+  function selectOption(option: SearchOption) {
+    if (!("href" in option)) {
+      select(option);
+      return;
+    }
+    if (isNavigating) return;
+    setOpen(false);
+    setQuery("");
+    setActiveIndex(-1);
+    inputRef.current?.blur();
+    startNavigation(() => {
+      router.push(option.href);
+      onNavigate?.();
+    });
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     // The "popup wanted" flag is set by focus alone, so an empty field that shows nothing still counts as open to
     // `decideKey` and would swallow this Escape; the owner gets it instead.
@@ -356,7 +377,7 @@ export function PersonSearch({
         move(action.direction);
         return;
       case "commit":
-        select(options[action.index]);
+        selectOption(options[action.index]);
         return;
       case "submit":
         submit();
@@ -391,7 +412,7 @@ export function PersonSearch({
         : fresh
           ? results.length === 0
             ? "No one found"
-            : `${results.length} ${results.length === 1 ? "result" : "results"}`
+            : `${results.length} ${results.length === 1 ? "person" : "people"}${pairings.length ? ` and ${pairings.length} ${pairings.length === 1 ? "pairing" : "pairings"}` : ""}`
           : "";
   // The panel shows "Up to 4 people." when the field is full; say it too.
   const status = chipsMode && full ? `${FULL_MESSAGE}. ${searchStatus}`.trim() : searchStatus;
@@ -693,7 +714,7 @@ export function PersonSearch({
             <ul
               id={listId}
               role="listbox"
-              aria-label="People"
+              aria-label={pairings.length ? "People and pairings" : "People"}
               className={loading ? "opacity-60" : undefined}
             >
               {results.map((result, index) => {
@@ -759,6 +780,54 @@ export function PersonSearch({
                   </li>
                 );
               })}
+              {pairings.length > 0 && (
+                <li role="group" aria-labelledby={pairingsLabelId}>
+                  <p id={pairingsLabelId} className="border-t border-border px-3 pb-1 pt-2.5 text-xs font-medium text-muted">
+                    Related pairings
+                  </p>
+                  <ul role="presentation">
+                    {pairings.map((pairing, row) => {
+                      const index = results.length + row;
+                      const disabled = disabledFlags[index];
+                      const active = index === activeIndex;
+                      return (
+                        <li
+                          key={pairing.href}
+                          id={optionId(index)}
+                          role="option"
+                          aria-selected={active}
+                          aria-disabled={disabled || undefined}
+                          onMouseMove={() => {
+                            if (!disabled && !active) setActiveIndex(index);
+                          }}
+                          onClick={() => {
+                            if (!disabled) selectOption(pairing);
+                          }}
+                          className={`flex items-start gap-3 px-3 py-2.5 ${disabled ? "cursor-default" : "cursor-pointer"} ${active ? "bg-border shadow-[inset_3px_0_0_0_var(--green)]" : ""}`}
+                        >
+                          <span aria-hidden="true" className="relative size-10 shrink-0">
+                            {pairing.people.slice(0, 2).map((person, portrait) => (
+                              <span key={person.id} className={`absolute ${portrait === 0 ? "left-0 top-0" : "bottom-0 right-0"} rounded-full ring-2 ring-surface`}>
+                                <PersonAvatar name={person.name} profilePath={person.profilePath} size={28} />
+                              </span>
+                            ))}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-medium text-strong">{pairing.people.map((person) => person.name).join(" × ")}</span>
+                            <span className="block text-xs text-body">{filmCountLabel(pairing.sharedCount)} together</span>
+                            <span className="line-clamp-2 text-xs leading-snug text-muted">{pairing.blurb}</span>
+                          </span>
+                          {target?.index === index && (
+                            <kbd aria-hidden="true" className="mt-0.5 hidden shrink-0 rounded border border-border px-1.5 py-0.5 font-sans text-[11px] font-medium text-muted pointer-fine:inline-block">
+                              Tab
+                            </kbd>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </li>
+              )}
             </ul>
           )}
         </div>
