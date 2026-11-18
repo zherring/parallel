@@ -94,7 +94,7 @@ export function PanelParts({ person, color, slot }: { person: HeroPerson; color:
 
       <div
         data-part="name"
-        className={`absolute top-(--inset) max-w-[68%] text-balance text-[length:clamp(15px,1.9vw,30px)] font-semibold leading-[1.1] tracking-[-0.02em] text-white [text-shadow:0_1px_14px_rgb(0_0_0/0.65)] ${
+        className={`absolute top-(--inset) max-w-[calc(100%-var(--inset)*2)] text-balance text-[length:clamp(15px,1.9vw,30px)] max-[359px]:text-[13px] font-semibold leading-[1.1] tracking-[-0.02em] text-white [text-shadow:0_1px_14px_rgb(0_0_0/0.65)] ${
           slot === 0 ? "left-(--inset)" : "right-(--inset) text-right"
         }`}
       >
