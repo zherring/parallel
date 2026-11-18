@@ -27,6 +27,8 @@ export interface HeroPairing {
   key: string;
   /** Films the pair shares by the pair page's default rules. */
   sharedCount: number;
+  /** The years of the first and the last of those films: the hero timeline's two caps. */
+  span: { first: number; last: number };
   people: readonly [HeroPerson, HeroPerson];
   /** The most-voted shared films that have a poster, oldest first: three to five. */
   posters: readonly HeroPoster[];

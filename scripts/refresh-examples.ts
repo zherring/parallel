@@ -8,7 +8,8 @@
 // photo, a pairing has fewer than HERO_POSTER_MIN shared films with a poster, or a pairing is
 // listed twice. The count comes from the same code the pair page uses (getPersonMovieCredits,
 // then sharedFilms with the default non-minor rules), so a card's number always matches its page.
-// The hero's posters are the (up to HERO_POSTER_COUNT) most-voted of those same shared films.
+// The hero's posters are the (up to HERO_POSTER_COUNT) most-voted of those same shared films, and its
+// timeline's two caps are the years of the first and the last of them.
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
@@ -20,6 +21,7 @@ import {
   pairingKey,
   type GeneratedExamples,
   type GeneratedPoster,
+  type GeneratedSpan,
 } from "../src/lib/examples";
 import { joinNames } from "../src/lib/format";
 import { mapLimited } from "../src/lib/map-limited";
@@ -78,6 +80,12 @@ function topPosters(shared: SharedFilm[], timelines: PersonTimeline[], count: nu
     .slice(0, count)
     .sort(oldestFirst)
     .map((film) => ({ path: film.posterPath, title: film.title, year: film.year }));
+}
+
+/** The years of the oldest and the newest of the shared films (all of them, not only those with a poster). */
+function sharedSpan(shared: SharedFilm[]): GeneratedSpan {
+  const years = shared.map((film) => film.year);
+  return { first: Math.min(...years), last: Math.max(...years) };
 }
 
 function fail(problems: string[]): void {
@@ -184,7 +192,7 @@ async function main(): Promise<void> {
     }
 
     if (ok) {
-      generated[pairingKey(pairing)] = { sharedCount, people, posters };
+      generated[pairingKey(pairing)] = { sharedCount, span: sharedSpan(shared), people, posters };
       rows.push({
         genre: genreLabels.get(pairing.genre) ?? pairing.genre,
         pair: joinNames(people.map((p) => p.name)),

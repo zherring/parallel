@@ -1144,10 +1144,18 @@ export interface GeneratedPoster {
   year: number;
 }
 
+/** The first and the last year the pair shares a film in. */
+export interface GeneratedSpan {
+  first: number;
+  last: number;
+}
+
 /** What `npm run examples:refresh` records per pairing, keyed by `pairingKey`. */
 export interface GeneratedPairing {
   /** Films all people share by the pair page's default rules (non-minor credits). */
   sharedCount: number;
+  /** The years of the pair's first and last shared film (the same list `sharedCount` counts): the caps of the landing hero's timeline. */
+  span: GeneratedSpan;
   /** In the same order as the pairing's people, with TMDB's canonical names and photos. */
   people: { id: number; name: string; profilePath: string }[];
   /**

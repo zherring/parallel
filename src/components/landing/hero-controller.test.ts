@@ -20,6 +20,7 @@ function pairing(a: number, b: number): HeroPairing {
   return {
     key: `${low}+${high}`,
     sharedCount: 4,
+    span: { first: 2001, last: 2003 },
     people: [person(a), person(b)],
     posters: [1, 2, 3].map((n) => ({ path: `/f${a}-${b}-${n}.jpg`, title: `Film ${n}`, year: 2000 + n })),
   };

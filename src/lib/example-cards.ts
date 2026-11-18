@@ -49,6 +49,7 @@ export function buildHeroPairings(
     out.push({
       key: pairingKey(pairing),
       sharedCount: entry.sharedCount,
+      span: entry.span,
       people: [entry.people[0], entry.people[1]],
       posters: entry.posters,
     });

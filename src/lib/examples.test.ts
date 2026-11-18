@@ -136,6 +136,20 @@ describe("examples.generated.json", () => {
     }
   });
 
+  it("has the years of the first and the last shared film, enclosing every poster's year", () => {
+    for (const [key, entry] of Object.entries(data)) {
+      const { first, last } = entry.span;
+      expect(Number.isInteger(first) && Number.isInteger(last), `span for ${key}; run npm run examples:refresh`).toBe(true);
+      expect(first).toBeLessThanOrEqual(last);
+      for (const poster of entry.posters) {
+        expect(poster.year).toBeGreaterThanOrEqual(first);
+        expect(poster.year).toBeLessThanOrEqual(last);
+      }
+      // The posters are films of the pair's shared list, so the span is as wide as the posters' own when they hold its ends.
+      expect(entry.sharedCount > entry.posters.length || (first === entry.posters[0].year && last === entry.posters.at(-1)!.year)).toBe(true);
+    }
+  });
+
   it("was refreshed with the current poster count: some pairing has a full row", () => {
     // A JSON written when HERO_POSTER_COUNT was smaller tops out below it.
     const longest = Math.max(...Object.values(data).map((entry) => entry.posters.length));
