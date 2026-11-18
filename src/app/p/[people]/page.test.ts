@@ -61,6 +61,22 @@ const redirectsTo = async (slug: string, query: Query = {}) => {
 const IMAGE = (query: string) => ({ url: `/p/${PAIR_SLUG}/og${query}`, width: 1200, height: 630 });
 
 describe("generateMetadata", () => {
+  describe("with the people reversed", () => {
+    const reversed = "6837-walter-matthau+3151-jack-lemmon";
+
+    it.each([
+      ["the plain page", {}],
+      ["a view and sort", { view: "table", sort: "year", dir: "desc" }],
+      ["a period", { from: "1970", to: "1980" }],
+      ["an artist quote", { view: "clippings", quote: "short-one" }],
+      ["a critic quote", { quote: "critic-short" }],
+    ])("uses the same search canonical for %s, without changing the social URL", async (_name, query) => {
+      const meta = await generateMetadata(props(reversed, query));
+      expect(meta.alternates?.canonical).toBe(`/p/${PAIR_SLUG}`);
+      expect(meta.openGraph?.url).toMatch(new RegExp(`^/p/${reversed.replaceAll("+", "\\+")}(\\?|$)`));
+    });
+  });
+
   describe("with a period in the link", () => {
     it("points og:image and twitter:image at the period's card, in the canonical spelling of the period", async () => {
       const meta = await generateMetadata(props(PAIR_SLUG, { from: "1970", to: "1980" }));
@@ -264,6 +280,13 @@ describe("the page", () => {
   it("does not redirect from the canonical slug", async () => {
     expect(await redirectsTo(PAIR_SLUG)).toBeNull();
     expect(await redirectsTo(PAIR_SLUG, { from: "1970", to: "1980" })).toBeNull();
+  });
+
+  it("keeps a reversed pair's lane order and does not redirect to the search canonical", async () => {
+    const reversed = "6837-walter-matthau+3151-jack-lemmon";
+    expect(await redirectsTo(reversed)).toBeNull();
+    const element = await PeoplePage(props(reversed));
+    expect(element.props.timelines.map((timeline: { person: { id: number } }) => timeline.person.id)).toEqual([6837, 3151]);
   });
 
   it("redirects a slug that is not canonical to it", async () => {
