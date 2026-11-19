@@ -42,6 +42,31 @@ test("the headline is the one h1, the stage is one labelled link to a pair, and 
   await expect.poll(() => bar(page).evaluate((element) => Math.round(element.getBoundingClientRect().top))).toBe(0);
 });
 
+test("the top bar reads wordmark, then the genre pills taking the width left, then the search pinned to the right end; the pills fade at the edge by the search and never run under it", async ({ page }) => {
+  await page.goto("/");
+  await expect(stageLink(page)).toBeVisible();
+  const home = await box(bar(page).getByRole("link", { name: "Parallel home", exact: true }));
+  // The strip the pills scroll in (the tablist inside it is as wide as all of them, and runs on past the strip's edge).
+  const strip = bar(page).getByRole("tablist").locator("xpath=..");
+  const pills = await box(strip);
+  const search = await box(bar(page).getByRole("button", { name: /Search any film artist/ }));
+  expect(home.x + home.width).toBeLessThanOrEqual(pills.x);
+  expect(pills.x + pills.width).toBeLessThanOrEqual(search.x - 8);
+  // One row: the three are on the same middle.
+  expect(Math.abs(centreY(home) - centreY(search))).toBeLessThanOrEqual(3);
+  expect(Math.abs(centreY(pills) - centreY(search))).toBeLessThanOrEqual(4);
+  // The search keeps its width (a quarter of the screen's, 240 to 340px) and sits at the bar's right end, as far in as its left padding keeps the wordmark.
+  expect(search.width).toBeGreaterThanOrEqual(240);
+  expect(search.width).toBeLessThanOrEqual(340);
+  const row = bar(page).locator(":scope > div");
+  const rowBox = await box(row);
+  const padding = await row.evaluate((element) => parseFloat(getComputedStyle(element).paddingRight));
+  expect(Math.abs(search.x + search.width - (rowBox.x + rowBox.width - padding))).toBeLessThanOrEqual(1);
+  // The pills scroll in their own strip, and its end edge, the one by the search, fades.
+  expect(await strip.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+  expect(await strip.evaluate((element) => getComputedStyle(element).maskImage)).toMatch(/calc\(100% - 40px\), rgba\(0, 0, 0, 0\)\)$/);
+});
+
 test("the timeline has every film as a dot on the one line, as the pair page's does: each person's in their colour, the shared films larger and white, and a cap at each end", async ({ page }) => {
   await page.goto("/");
   await ready(page);
@@ -505,6 +530,11 @@ test.describe("on a phone", () => {
     const search = await box(bar(page).getByRole("button", { name: /Search any film artist/ }));
     const pills = await box(bar(page).getByRole("tablist"));
     expect(pills.y).toBeGreaterThanOrEqual(search.y + search.height - 1);
+    // Row one is the wordmark at the left and the search taking the rest, to the right.
+    const home = await box(bar(page).getByRole("link", { name: "Parallel home", exact: true }));
+    expect(home.x + home.width).toBeLessThanOrEqual(search.x);
+    expect(Math.abs(centreY(home) - centreY(search))).toBeLessThanOrEqual(4);
+    expect(search.x + search.width).toBeLessThanOrEqual(320 - 8);
     expect(await bar(page).getByRole("tablist").evaluate((list) => list.parentElement!.scrollWidth > list.parentElement!.clientWidth)).toBe(true);
   });
 });
