@@ -8,8 +8,9 @@
 // photo, a pairing has fewer than HERO_POSTER_MIN shared films with a poster, or a pairing is
 // listed twice. The count comes from the same code the pair page uses (getPersonMovieCredits,
 // then sharedFilms with the default non-minor rules), so a card's number always matches its page.
-// The hero's posters are the (up to HERO_POSTER_COUNT) most-voted of those same shared films, and its
-// timeline's two caps are the years of the first and the last of them.
+// The hero's posters are the (up to HERO_POSTER_COUNT) most-voted of those same shared films. Its timeline's dots
+// are the years of each person's own films (the person's list, released and non-minor, as the pair page's lanes show
+// it, less the films they share) and of the shared films themselves; its two caps are the first and last of all of them.
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
@@ -21,14 +22,16 @@ import {
   pairingKey,
   type GeneratedExamples,
   type GeneratedPoster,
-  type GeneratedSpan,
+  type GeneratedYears,
 } from "../src/lib/examples";
 import { joinNames } from "../src/lib/format";
 import { mapLimited } from "../src/lib/map-limited";
 import { MAX_PEOPLE } from "../src/lib/people-nav";
+import { isReleased, todayIso } from "../src/lib/released";
 import { sharedFilms } from "../src/lib/shared";
 import { TmdbError, getPersonMovieCredits } from "../src/lib/tmdb";
 import type { PersonTimeline, SharedFilm } from "../src/lib/types";
+import { encodeYears } from "../src/lib/year-list";
 
 const OUTPUT = fileURLToPath(new URL("../src/lib/examples.generated.json", import.meta.url));
 /** TMDB asks clients to stay well under its rate limit; this keeps a run polite and quick. */
@@ -82,10 +85,27 @@ function topPosters(shared: SharedFilm[], timelines: PersonTimeline[], count: nu
     .map((film) => ({ path: film.posterPath, title: film.title, year: film.year }));
 }
 
-/** The years of the oldest and the newest of the shared films (all of them, not only those with a poster). */
-function sharedSpan(shared: SharedFilm[]): GeneratedSpan {
-  const years = shared.map((film) => film.year);
-  return { first: Math.min(...years), last: Math.max(...years) };
+/**
+ * The years of the films on the hero's timeline: for each person the films of their own timeline that are out and not minor (the pair page's default
+ * lane: `includeMinor` off, only released films count), less the ones every person has, which are `together` (all of the shared films, not only those
+ * with a poster). Each list is sorted, a year repeated once per film, and stored delta-coded (`encodeYears`) to keep the page's payload small.
+ */
+function filmYears(timelines: PersonTimeline[], shared: SharedFilm[], today: string): GeneratedYears {
+  const together = new Set(shared.map((film) => film.id));
+  return {
+    own: timelines.map(({ films }) =>
+      encodeYears(films.filter((film) => !film.minor && isReleased(film.releaseDate, today) && !together.has(film.id)).map((film) => film.year)),
+    ),
+    together: encodeYears(shared.map((film) => film.year)),
+  };
+}
+
+/**
+ * The file as JSON, two spaces deep, except that a list of numbers (the years) stays on one line: a year to a line is most of a long
+ * career's size.
+ */
+function toJson(value: unknown): string {
+  return JSON.stringify(value, null, 2).replace(/\[\s*(-?\d[\d,.\s-]*?)\s*\]/g, (_, list: string) => `[${list.split(",").map((item) => item.trim()).join(", ")}]`);
 }
 
 function fail(problems: string[]): void {
@@ -156,6 +176,8 @@ async function main(): Promise<void> {
   const rows: { genre: string; pair: string; sharedCount: number; posters: string }[] = [];
   const genreLabels = new Map<string, string>(GENRES.map((genre) => [genre.id, genre.label]));
 
+  // One date for every pairing, so a film that comes out today is in all of them or none.
+  const today = todayIso();
   for (const pairing of EXAMPLE_PAIRINGS) {
     const label = `[${pairing.genre}] ${joinNames(pairing.people.map((p) => p.name))}`;
     const loaded = pairing.people.map((p) => timelines.get(p.id));
@@ -176,7 +198,7 @@ async function main(): Promise<void> {
       people.push({ id: expected.id, name: person.name, profilePath: person.profilePath ?? "" });
     });
 
-    const shared = sharedFilms(loaded as PersonTimeline[], { includeMinor: false });
+    const shared = sharedFilms(loaded as PersonTimeline[], { includeMinor: false, today });
     const sharedCount = shared.length;
     if (sharedCount < MIN_SHARED_FILMS) {
       problems.push(`${label}: shares ${sharedCount} film(s), needs at least ${MIN_SHARED_FILMS}`);
@@ -192,7 +214,7 @@ async function main(): Promise<void> {
     }
 
     if (ok) {
-      generated[pairingKey(pairing)] = { sharedCount, span: sharedSpan(shared), people, posters };
+      generated[pairingKey(pairing)] = { sharedCount, years: filmYears(loaded as PersonTimeline[], shared, today), people, posters };
       rows.push({
         genre: genreLabels.get(pairing.genre) ?? pairing.genre,
         pair: joinNames(people.map((p) => p.name)),
@@ -204,7 +226,7 @@ async function main(): Promise<void> {
 
   if (problems.length > 0) return fail(problems);
 
-  writeFileSync(OUTPUT, `${JSON.stringify(generated, null, 2)}\n`);
+  writeFileSync(OUTPUT, `${toJson(generated)}\n`);
 
   const genreWidth = Math.max(5, ...rows.map((row) => row.genre.length));
   const pairWidth = Math.max(4, ...rows.map((row) => row.pair.length));

@@ -3,13 +3,13 @@ import { HeroStage } from "@/components/landing/hero-stage";
 import { defaultScene, type HeroPairing } from "@/lib/hero-scenes";
 
 /**
- * The landing page's first screen: the stage (two portrait panels and the pair's films on a timeline) under the top bar, with the headline centred over
- * the seam between the panels. The h1 and its copy are the server's markup, static (it is what is painted first, and the page's largest text); the stage
+ * The landing page's first screen, the Featured tab's splash: the stage (two portrait halves, the pair's films on a timeline and the shared ones in a
+ * cluster over it) under the top bar, with the headline centred over the seam between the halves. The h1 and its copy are the server's markup, static (it is what is painted first, and the page's largest text); the stage
  * is the client's, revealed once its images are in.
  *
  * The section sets the stage's sizes, from the screen: its height fills what the bar leaves of the first screen, less a sliver of the next section (a
- * phone's is shorter, as the headline is under it there), the panels leave a gutter on each side that the timeline line runs on through, and a narrow seam
- * divides them. Text is sized from these (the headline from the stage's width and height) so that nothing needs checking pair by pair.
+ * phone's is shorter, as the headline is under it there), the panels leave a gutter on each side (in the wide layout the halves run out over it) that the
+ * timeline line runs on through, and a narrow seam divides them. Text is sized from these (the headline from the stage's width and height) so that nothing needs checking pair by pair.
  */
 export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
   // The stage's first images come from TMDB's image host; open the connection early.

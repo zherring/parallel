@@ -1,8 +1,8 @@
 // The hero's choreography, as Web Animations API calls on plain elements. Transform and opacity
 // (and clip-path for the first reveal's wipes), so it stays on the compositor and nothing here touches layout.
 // What is moved is always an element of its own (`data-part`) inside a wrapper, so these never fight the
-// pointer parallax (the `translate` of an element above it, see hero-stage.tsx), a poster's hover lift (the
-// `translate` of one below it) or the layout transforms that centre things: the animations use `transform`
+// pointer parallax (the `translate` of an element above it, see hero-stage.tsx), a poster's hover lift and tilt (the
+// `translate` and `rotate` of one below it) or the layout transforms that centre things: the animations use `transform`
 // and `opacity` only, and those are separate properties.
 //
 // An item arrives over what it replaces, and what it replaces stays under it, unchanged, until it is covered
@@ -19,7 +19,7 @@ export interface MotionOptions {
 }
 
 /** The pieces of the stage that come and go with a scene. */
-export type ItemKind = "panel" | "poster" | "year" | "label";
+export type ItemKind = "panel" | "poster" | "strip" | "year" | "label";
 
 /**
  * How a panel arrives or leaves. "intro": the first reveal, whose frame wipes in (`wipeFrames`) so only the figure and the name move.
@@ -71,6 +71,9 @@ export const TIMING = {
   /** The year caps and the "+N more" label cross-fade after the posters have started. */
   captionDelay: 300,
   caption: 320,
+  /** The timeline's dots pop in from the left to the right, over this long, each on its own spring. */
+  stripSweep: 520,
+  stripDot: 420,
   /** The first reveal: the line draws, the frames wipe, and what is on them follows. */
   introLineDelay: 120,
   introLine: 700,
@@ -91,8 +94,8 @@ const hold = (el: HTMLElement, duration: number): Animation =>
   el.animate([{ opacity: 1 }, { opacity: 1 }], { duration });
 
 /**
- * A piece arriving. A reduced-motion visitor gets a plain fade of the whole piece. A panel's parts move by `mode`; a poster rises with its stem
- * drawn and its dot popped; the year caps and the label fade in.
+ * A piece arriving. A reduced-motion visitor gets a plain fade of the whole piece. A panel's parts move by `mode`; a poster is dealt in, rising
+ * into its place in the cluster; the timeline's dots pop in from the left to the right; the year caps and the label fade in.
  */
 export function arrive(el: HTMLElement, kind: ItemKind, { reduced, delay = 0, mode = "swap" }: MotionOptions): Animation[] {
   if (reduced) return [fade(el, 0, 1, TIMING.reduced, delay)];
@@ -101,6 +104,8 @@ export function arrive(el: HTMLElement, kind: ItemKind, { reduced, delay = 0, mo
       return arrivePanel(el, delay, mode);
     case "poster":
       return arrivePoster(el, delay);
+    case "strip":
+      return arriveStrip(el, delay);
     case "year":
     case "label":
       return [fade(el, 0, 1, TIMING.caption, delay)];
@@ -118,6 +123,7 @@ export function depart(el: HTMLElement, kind: ItemKind, { reduced, delay = 0, mo
     case "year":
       // Its replacement fades in over it, so it stays until that has covered it.
       return [hold(el, TIMING.caption + TIMING.captionDelay + 60)];
+    case "strip":
     case "label":
       return [fade(el, 1, 0, 200, delay, "ease-in")];
   }
@@ -126,6 +132,7 @@ export function depart(el: HTMLElement, kind: ItemKind, { reduced, delay = 0, mo
 function arrivePanel(el: HTMLElement, delay: number, mode: PanelMode): Animation[] {
   const backdrop = part(el, "backdrop");
   const figure = part(el, "figure");
+  const foot = part(el, "foot");
   const name = part(el, "name");
   const animations: Animation[] = [];
 
@@ -160,8 +167,9 @@ function arrivePanel(el: HTMLElement, delay: number, mode: PanelMode): Animation
     return animations;
   }
 
-  // A person replaced: the montage fades in over the old one, the figure rises from 8% below, the name comes up from below.
+  // A person replaced: the montage and the foot gradient (over the figure) fade in over the old ones, the figure rises from 8% below, the name comes up from below.
   if (backdrop) animations.push(fade(backdrop, 0, 1, TIMING.backdrop, delay + TIMING.backdropDelay, EASE_IN_OUT));
+  if (foot) animations.push(fade(foot, 0, 1, TIMING.backdrop, delay + TIMING.backdropDelay, EASE_IN_OUT));
   if (figure) {
     const options = { delay: delay + TIMING.figureDelay, fill: "backwards" } as const;
     animations.push(
@@ -189,7 +197,10 @@ function departPanel(el: HTMLElement, delay: number, mode: PanelMode): Animation
   // Only the end of each motion is given: it starts from wherever the part is, so a panel sent away mid-arrival (Next pressed again at
   // once) leaves from where it is instead of jumping to its resting place first.
   const figure = part(el, "figure");
+  const foot = part(el, "foot");
   const name = part(el, "name");
+  // The foot gradient sinks away as the new one comes in over it (their two never add up to a darker foot for long).
+  if (foot) animations.push(fade(foot, 1, 0, TIMING.backdrop, delay + TIMING.backdropDelay, EASE_IN_OUT));
   if (figure) {
     animations.push(
       figure.animate({ transform: "translateY(6%)", opacity: 0 }, { duration: TIMING.figureLeave, delay, easing: EASE_IN, fill: "forwards" }),
@@ -205,54 +216,35 @@ function departPanel(el: HTMLElement, delay: number, mode: PanelMode): Animation
 
 function arrivePoster(el: HTMLElement, delay: number): Animation[] {
   const poster = part(el, "poster");
-  const stem = part(el, "stem");
-  const dot = part(el, "dot");
-  const year = part(el, "year");
-  const animations: Animation[] = [];
-  if (poster) {
-    animations.push(
-      poster.animate([{ transform: "translateY(28px)", opacity: 0 }, { transform: "translateY(0)", opacity: 1 }], {
-        duration: TIMING.posterArrive,
-        delay,
-        easing: EASE_RISE,
-        fill: "backwards",
-      }),
-    );
-  }
-  if (stem) {
-    animations.push(
-      stem.animate([{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], { duration: 360, delay: delay + 140, easing: EASE_OUT, fill: "backwards" }),
-    );
-  }
-  if (dot) {
-    animations.push(
-      dot.animate([{ transform: "scale(0)" }, { transform: "scale(1)" }], { duration: 460, delay: delay + 200, easing: springEasing(), fill: "backwards" }),
-    );
-  }
-  if (year) {
-    animations.push(
-      year.animate([{ transform: "translateY(4px)", opacity: 0 }, { transform: "translateY(0)", opacity: 1 }], {
-        duration: 340,
-        delay: delay + 240,
-        easing: EASE_OUT,
-        fill: "backwards",
-      }),
-    );
-  }
-  return animations;
+  if (!poster) return [];
+  // Dealt onto the cluster: it rises and settles from a little smaller.
+  return [
+    poster.animate([{ transform: "translateY(28px) scale(0.94)", opacity: 0 }, { transform: "translateY(0) scale(1)", opacity: 1 }], {
+      duration: TIMING.posterArrive,
+      delay,
+      easing: EASE_RISE,
+      fill: "backwards",
+    }),
+  ];
 }
 
 function departPoster(el: HTMLElement, delay: number): Animation[] {
-  const animations: Animation[] = [];
   const poster = part(el, "poster");
-  if (poster) {
-    animations.push(
-      poster.animate({ transform: "translateY(16px)", opacity: 0 }, { duration: TIMING.posterLeave, delay, easing: EASE_IN, fill: "forwards" }),
-    );
-  }
-  // The rest of it (stem, dot, year) is the one wrapper's fade, a little behind the poster's.
-  animations.push(el.animate({ opacity: 0 }, { duration: TIMING.posterLeave - 40, delay: delay + 40, easing: EASE_IN, fill: "forwards" }));
-  return animations;
+  if (!poster) return [];
+  return [poster.animate({ transform: "translateY(16px) scale(0.96)", opacity: 0 }, { duration: TIMING.posterLeave, delay, easing: EASE_IN, fill: "forwards" })];
+}
+
+/** The timeline's dots pop in on a spring, from the left to the right (each by its place across the axis, `data-x`, 0 to 1). */
+function arriveStrip(el: HTMLElement, delay: number): Animation[] {
+  const easing = springEasing();
+  return [...el.querySelectorAll<HTMLElement>("[data-dot]")].map((dot) =>
+    dot.animate([{ transform: "scale(0)" }, { transform: "scale(1)" }], {
+      duration: TIMING.stripDot,
+      delay: delay + Number(dot.dataset.x ?? 0) * TIMING.stripSweep,
+      easing,
+      fill: "backwards",
+    }),
+  );
 }
 
 /** The first reveal's wipes: each panel's frame opens from the bottom, one after the other (clip-path, so what is inside it does not move). */

@@ -15,6 +15,7 @@ import {
 import { POSTER_CAPS } from "@/lib/hero-layout";
 import { MAX_PEOPLE } from "@/lib/people-nav";
 import { buildPeopleSlug, parsePeopleSlug } from "@/lib/slug";
+import { decodeYears } from "@/lib/year-list";
 
 const data: GeneratedExamples = generated;
 const MIN_PER_GENRE = 5;
@@ -136,17 +137,26 @@ describe("examples.generated.json", () => {
     }
   });
 
-  it("has the years of the first and the last shared film, enclosing every poster's year", () => {
+  it("has the years of everyone's films for the hero's timeline: a list per person, and the shared films' years, one per film counted", () => {
+    const thisYear = new Date().getUTCFullYear();
     for (const [key, entry] of Object.entries(data)) {
-      const { first, last } = entry.span;
-      expect(Number.isInteger(first) && Number.isInteger(last), `span for ${key}; run npm run examples:refresh`).toBe(true);
-      expect(first).toBeLessThanOrEqual(last);
-      for (const poster of entry.posters) {
-        expect(poster.year).toBeGreaterThanOrEqual(first);
-        expect(poster.year).toBeLessThanOrEqual(last);
+      const { own, together } = entry.years;
+      expect(own, `years for ${key}; run npm run examples:refresh`).toHaveLength(entry.people.length);
+      for (const list of [...own, together]) {
+        // Delta-coded: a first year, then gaps that never go back.
+        expect(list.every((step) => Number.isInteger(step) && step >= 0), `years for ${key}`).toBe(true);
+        const years = decodeYears(list);
+        for (const year of years) {
+          expect(year, `a year of ${key}`).toBeGreaterThanOrEqual(1880);
+          // Only films that are out: none from a later year.
+          expect(year, `a year of ${key}`).toBeLessThanOrEqual(thisYear);
+        }
       }
-      // The posters are films of the pair's shared list, so the span is as wide as the posters' own when they hold its ends.
-      expect(entry.sharedCount > entry.posters.length || (first === entry.posters[0].year && last === entry.posters.at(-1)!.year)).toBe(true);
+      // The list the count counts, so the timeline's white dots are the card's number.
+      expect(together, `shared years for ${key}`).toHaveLength(entry.sharedCount);
+      // The posters are films of that list.
+      const shared = decodeYears(together);
+      for (const poster of entry.posters) expect(shared, `${poster.title} of ${key}`).toContain(poster.year);
     }
   });
 

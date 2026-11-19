@@ -16,15 +16,20 @@ import {
 import { KeycapButton } from "@/components/landing/keycap-button";
 import { MoreLabel, PanelParts, PosterParts, YearCap } from "@/components/landing/hero-parts";
 import { arrive, depart, drawLine, wipeFrames, type ItemKind } from "@/components/landing/hero-motion";
-import { SLOTS, applyTransition, initialState, type Item, type LabelItem, type PanelItem, type PosterItem, type YearItem } from "@/components/landing/hero-items";
-import { TimelineLine } from "@/components/landing/hero-timeline";
+import { SLOTS, applyTransition, initialState, type Item, type LabelItem, type PanelItem, type PosterItem, type StripItem, type YearItem } from "@/components/landing/hero-items";
+import { TimelineLine, TimelineStrip } from "@/components/landing/hero-timeline";
+import { useSplashHidden } from "@/components/landing/genre-tabs";
+import { usePanelShown } from "@/components/landing/panel-shown";
+import { useHeroVariants } from "@/components/landing/use-hero-variants";
 import { posterImageUrl, preloadScene, useHeroRotation } from "@/components/landing/use-hero-rotation";
 import { useHeroKeys } from "@/components/landing/use-hero-keys";
 import { useHeroPause } from "@/components/landing/use-hero-pause";
 import { useKeycapPress } from "@/components/landing/use-keycap-press";
 import { useReducedMotion } from "@/components/pair-wash";
 import type { NavDirection } from "@/lib/hero-history";
+import { posterPlace, stripOf } from "@/lib/hero-layout";
 import { isRunning, pickFirstScene, type HeroPairing, type Scene } from "@/lib/hero-scenes";
+import { DEFAULT_VARIANTS, type HeroVariants } from "@/lib/hero-variants";
 import { buildPeopleSlug } from "@/lib/slug";
 
 interface Props {
@@ -114,44 +119,63 @@ function Motion({
   );
 }
 
-/** The anchor of poster `slot` of a scene with `count` posters: a point on the line. The row is centred on the seam among the posters a width shows (`--cap`, `POSTER_CAPS`). */
-const posterAnchor = (slot: number, count: number) => ({
-  left: `calc(50% + (${slot} - (min(${count}, var(--cap)) - 1) / 2) * var(--step))`,
-  top: "var(--line-y)",
-});
+/**
+ * The anchor of poster `slot` of a scene with `count` posters: a point on the cluster's baseline, a little above the line (`--poster-gap`), offset by the poster's
+ * own place in the fan (`posterPlace`). The cluster is centred on the seam among the posters a width shows (`--cap`, `POSTER_CAPS`), each `--step` from the next,
+ * and each poster is over the one before it (`--z`).
+ */
+const posterAnchor = (slot: number, count: number) =>
+  ({
+    left: `calc(50% + (${slot} - (min(${count}, var(--cap)) - 1) / 2) * var(--step))`,
+    top: `calc(var(--line-y) - var(--poster-gap) + ${posterPlace(slot, count).dy}px)`,
+    "--z": slot,
+  }) as CSSProperties;
+
+/** Where a half of the stage is, in the stage's link: from the seam out to its panel's edge, and (`--ext`: 0 in the panels layout, the inset in the wide one) on past it to the screen's. */
+const halfBox = (slot: 0 | 1): CSSProperties =>
+  slot === 0
+    ? { left: "calc(-1 * var(--ext))", right: "calc(50% + var(--seam) / 2)" }
+    : { left: "calc(50% + var(--seam) / 2)", right: "calc(-1 * var(--ext))" };
+
+/** The halves' corners: all four of a panel; in the wide layout only the ones at the seam, as the others are the screen's. */
+const halfCorners = (slot: 0 | 1, layout: HeroVariants["layout"]) => (layout === "wide" ? (slot === 0 ? "rounded-r-[9px]" : "rounded-l-[9px]") : "rounded-[9px]");
 
 /**
- * Everything inside the stage's link: the two panels (frames, with the pieces in them), the scrim that holds the headline, the timeline line, and the
- * posters, "+N more" and year caps on it. Drawn from `items`, with the animations of `Motion`; the noscript scene is the same thing, all idle.
+ * Everything inside the stage's link: the two halves (frames, with the pieces in them), the scrim that holds the headline, the timeline line, and over it
+ * the strip of dots, the poster cluster, "+N more" and the year caps. Drawn from `items`, with the animations of `Motion`; the noscript scene is the same
+ * thing, all idle.
  */
-function Layers({ items, reduced, onGone }: { items: readonly Item[]; reduced: boolean; onGone: (id: string) => void }) {
+function Layers({ items, reduced, onGone, variants }: { items: readonly Item[]; reduced: boolean; onGone: (id: string) => void; variants: HeroVariants }) {
   const panels = items.filter((item): item is PanelItem => item.kind === "panel");
   const posters = items.filter((item): item is PosterItem => item.kind === "poster");
+  const strips = items.filter((item): item is StripItem => item.kind === "strip");
   const years = items.filter((item): item is YearItem => item.kind === "year");
   const labels = items.filter((item): item is LabelItem => item.kind === "label");
+  const { layout, edge } = variants;
 
   return (
     <>
-      <div className="grid h-full grid-cols-2 gap-(--seam)">
-        {SLOTS.map((slot) => (
-          <div key={slot} data-frame="" className="relative isolate overflow-hidden rounded-[9px] bg-[#0b0d10] [container-type:inline-size]">
-            {panels
-              .filter((item) => item.slot === slot)
-              .map((item) => (
-                <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="absolute inset-0">
-                  <PanelParts person={item.person} color={item.color} slot={slot} />
-                </Motion>
-              ))}
-            {/* A shade over the foot of the panel, figure included: the cut photos end in a straight frame edge at their bottom, which this lets sink into the dark, and the timeline reads on it. */}
-            <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-[36%] bg-linear-to-t from-black/80 via-black/40 to-transparent" />
-            {/* A white ring when the stage is hovered, the focus colour when its link has keyboard focus. */}
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 z-10 rounded-[9px] ring-1 ring-inset ring-white/15 transition-shadow duration-300 group-hover:ring-2 group-hover:ring-white/70 group-focus-visible:ring-2 group-focus-visible:ring-focus"
-            />
-          </div>
-        ))}
-      </div>
+      {SLOTS.map((slot) => (
+        <div
+          key={slot}
+          data-frame=""
+          className={`absolute inset-y-0 isolate overflow-hidden bg-[#0b0d10] ${halfCorners(slot, layout)}`}
+          style={halfBox(slot)}
+        >
+          {panels
+            .filter((item) => item.slot === slot)
+            .map((item) => (
+              <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="absolute inset-0">
+                <PanelParts person={item.person} color={item.color} slot={slot} layout={layout} edge={edge} />
+              </Motion>
+            ))}
+          {/* A white ring when the stage is hovered, the focus colour when its link has keyboard focus; it fades out toward the bottom, which melts into the page. */}
+          <span
+            aria-hidden="true"
+            className={`pointer-events-none absolute inset-0 z-10 ${halfCorners(slot, layout)} ring-1 ring-inset ring-white/15 transition-shadow duration-300 [mask-image:linear-gradient(to_bottom,#000_55%,transparent_92%)] group-hover:ring-2 group-hover:ring-white/70 group-focus-visible:ring-2 group-focus-visible:ring-focus`}
+          />
+        </div>
+      ))}
 
       {/* A wide, soft, dark glow behind the headline (which is the section's, over the stage): no edge, so no box. Phones have the headline under the stage. */}
       <span
@@ -162,28 +186,42 @@ function Layers({ items, reduced, onGone }: { items: readonly Item[]; reduced: b
 
       <TimelineLine />
 
-      {/* Posters, label and caps are anchored on the line; the posters shown are the first of the row, three, four or five by width (`POSTER_CAPS`). */}
+      {/* The strip's dots, the cluster, its label and the caps are anchored on the line or just above it; the posters shown are the first of the row, three, four or five by width (`POSTER_CAPS`). */}
       <div className="pointer-events-none absolute inset-0 [--cap:3] sm:[--cap:4] lg:[--cap:5]">
+        {strips.map((item) => {
+          const strip = stripOf(item.pairing);
+          return (
+            strip && (
+              <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="absolute inset-0">
+                <TimelineStrip strip={strip} colors={item.colors} />
+              </Motion>
+            )
+          );
+        })}
+
         {posters.map((item) => (
           <div
             key={item.id}
-            className={`group/poster absolute size-0 hover:z-20 ${item.slot === 4 ? "max-lg:hidden" : item.slot === 3 ? "max-sm:hidden" : ""}`}
+            className={`group/poster absolute z-(--z) size-0 hover:z-20 ${item.slot === 4 ? "max-lg:hidden" : item.slot === 3 ? "max-sm:hidden" : ""}`}
             style={posterAnchor(item.slot, item.count)}
           >
             <Motion item={item} reduced={reduced} onGone={onGone} className="absolute left-0 top-0">
-              <PosterParts poster={item.poster} src={posterImageUrl(item.poster.path)} />
+              <PosterParts poster={item.poster} src={posterImageUrl(item.poster.path)} slot={item.slot} count={item.count} />
             </Motion>
           </div>
         ))}
 
         {labels.map((item) => (
-          // On the line, past the last dot; on a phone, which has no room beside the row (the right year cap is there), centred under it.
+          // To the right of the cluster, on the posters' middle (not the line's).
           <div
             key={item.id}
-            className="absolute top-(--line-y) left-(--label-left) size-0 max-sm:top-[calc(var(--line-y)+32px)] max-sm:left-1/2"
-            style={{ "--label-left": `calc(50% + (min(${item.count}, var(--cap)) - 1) / 2 * var(--step) + 20px)` } as CSSProperties}
+            className="absolute size-0"
+            style={{
+              left: `calc(50% + (min(${item.count}, var(--cap)) - 1) / 2 * var(--step) + var(--pw) / 2 + 14px)`,
+              top: "calc(var(--line-y) - var(--poster-gap) - var(--pw) * 0.75)",
+            }}
           >
-            <Motion item={item} reduced={reduced} onGone={onGone} className="absolute left-0 top-0 -translate-y-1/2 max-sm:-translate-x-1/2">
+            <Motion item={item} reduced={reduced} onGone={onGone} className="absolute left-0 top-0 -translate-y-1/2">
               <MoreLabel pairing={item.pairing} />
             </Motion>
           </div>
@@ -280,7 +318,10 @@ function Stage({ root, pool, initial }: { root: RefObject<HTMLDivElement | null>
   const [announcement, setAnnouncement] = useState("");
   const [revealed, setRevealed] = useState(false);
 
-  const { reasons, set } = useHeroPause(root, reduced);
+  // The genre tabs replace the splash with a grid: while it is hidden the rotation holds still (and the arrow keys, which step what is on screen, leave it alone).
+  const splashHidden = useSplashHidden();
+  const { reasons, set } = useHeroPause(root, reduced, splashHidden);
+  const variants = useHeroVariants();
   const running = isRunning(reasons) && revealed;
   const { go, warm } = useHeroRotation({
     pool,
@@ -303,7 +344,7 @@ function Stage({ root, pool, initial }: { root: RefObject<HTMLDivElement | null>
     },
     [press, go],
   );
-  useHeroKeys({ heroVisible: !reasons.offscreen, onNavigate: step });
+  useHeroKeys({ heroVisible: !reasons.offscreen && !reasons.genre, onNavigate: step });
   useParallax(root, reduced);
 
   useEffect(() => rememberFirstKey(initial.pairing.key), [initial]);
@@ -362,14 +403,14 @@ function Stage({ root, pool, initial }: { root: RefObject<HTMLDivElement | null>
 
   return (
     <>
-      {/* Previous and Next sit inside the panels' outer edges at the stage's middle, outside the link, so no control is nested in it. */}
+      {/* Previous and Next sit inside the panels' outer edges at the stage's middle, outside the link, so no control is nested in it. In the wide layout they stay where the panels' are. */}
       {canStep && (
         <KeycapButton
           direction="prev"
           label="Previous pairing"
           pressed={pressed === "prev"}
           onClick={navigate("prev")}
-          className={`left-[calc(var(--gutter)+8px)] top-1/2 z-20 -translate-y-1/2 ${keycapIn}`}
+          className={`left-[calc(var(--core-pad)+8px)] top-1/2 z-20 -translate-y-1/2 ${keycapIn}`}
           onPhoto
           {...focusHandlers}
         />
@@ -382,10 +423,10 @@ function Stage({ root, pool, initial }: { root: RefObject<HTMLDivElement | null>
           prefetch={false}
           aria-label={sceneLabel(scene)}
           {...focusHandlers}
-          className="group absolute inset-x-(--gutter) inset-y-0 block outline-none!"
+          className="group absolute inset-x-(--core-pad) inset-y-0 block outline-none!"
         >
           <div aria-hidden="true" className="absolute inset-0">
-            <Layers items={state.items} reduced={reduced} onGone={onGone} />
+            <Layers items={state.items} reduced={reduced} onGone={onGone} variants={variants} />
           </div>
         </Link>
       )}
@@ -396,7 +437,7 @@ function Stage({ root, pool, initial }: { root: RefObject<HTMLDivElement | null>
           label="Next pairing"
           pressed={pressed === "next"}
           onClick={navigate("next")}
-          className={`right-[calc(var(--gutter)+8px)] top-1/2 z-20 -translate-y-1/2 ${keycapIn}`}
+          className={`right-[calc(var(--core-pad)+8px)] top-1/2 z-20 -translate-y-1/2 ${keycapIn}`}
           onPhoto
           {...focusHandlers}
         />
@@ -417,34 +458,44 @@ function LiveStage({ root, pool }: { root: RefObject<HTMLDivElement | null>; poo
 }
 
 /**
- * The hero's stage, the box under the headline: two portrait panels with the pair's films on a timeline along the bottom. The page is prerendered, so
+ * The hero's stage, the box under the headline: two portrait halves with the pair's films on a timeline along the bottom. The page is prerendered, so
  * the server cannot choose a scene at random and renders only the empty, fixed-size box plus the default scene in a <noscript>, which gives crawlers and
  * visitors without JavaScript a real link, and costs everyone else no image requests, as the browser does not parse a <noscript> when scripts run. Once
  * hydrated, the browser picks the scene at random and reveals it when its images are in. The box has its final size from the first paint, so nothing shifts.
- * Its size and spacing come from the variables its section sets (hero.tsx): `--stage-h`, `--gutter` and `--seam`; the rest are derived here.
+ * It does not go live at all until the genre tabs have shown it once (a page opened on `/#horror` shows the genre's grid and never the splash, so the splash's
+ * images are not fetched, and its reveal plays when the visitor first comes to it).
+ *
+ * Its size and spacing come from the variables its section sets (hero.tsx): `--stage-h`, `--gutter` and `--seam`; the rest are derived here. The stage is as wide
+ * as the screen and a size container, so `--core-pad` (what `100cqw` makes of it) is how far in from the screen's edges the panels of the "panels" layout are:
+ * the gutter, or, past 1600px of width, the gutter and half of what is left. Both layouts are drawn from it (`--ext` is how far a half runs out past its
+ * panel: nothing, or all the way to the screen's edge). `--pw` is a poster's width, from the box (its height, and on a phone its width), `--step` the distance
+ * between posters of the cluster; `--line-y` is the line's place down the stage, `--lane` how far the lanes' dots are from it, `--poster-gap` how far the
+ * posters' bottoms are above it, and `--axis-pad` how far in from a panel's outer edge the dots' axis starts (past the year cap).
  */
 export function HeroStage({ pool, fallback }: Props) {
   // False on the server and for the hydrating render, true from the next one: the random pick
   // must not run before then, or the markup would not match the server's.
   const live = useSyncExternalStore(subscribeNever, () => true, () => false);
+  const shown = usePanelShown();
   const root = useRef<HTMLDivElement>(null);
+  const { layout } = useHeroVariants();
 
   return (
     <div
       ref={root}
       data-hero-stage=""
-      // `--pw` is a poster's width, from the box (its width and its height), `--step` the distance between posters; `--line-y` is the line's place down the stage.
-      className="group/stage relative mx-auto h-(--stage-h) w-full max-w-[1600px] [--inset:12px] [--line-y:85%] [--pw:clamp(52px,min(6vw,calc(var(--stage-h)*0.15)),104px)] [--step:calc(var(--pw)*1.55)] sm:[--inset:20px]"
+      data-layout={layout}
+      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size] [--inset:12px] [--line-y:82%] [--core-pad:max(var(--gutter),calc((100cqw_-_1600px)/2_+_var(--gutter)))] [--ext:0px] [--reach:var(--gutter)] [--fade:calc(var(--gutter)+14px)] [--axis-pad:44px] [--lane:7px] [--dot:5px] [--dot-together:8px] [--poster-gap:22px] [--pw:min(68px,calc(var(--stage-h)*0.15),17cqw)] [--step:calc(var(--pw)*0.76)] data-[layout=wide]:[--ext:var(--core-pad)] data-[layout=wide]:[--reach:var(--core-pad)] data-[layout=wide]:[--fade:56px] sm:[--inset:20px] sm:[--lane:8.5px] sm:[--dot:6px] sm:[--dot-together:10px] sm:[--poster-gap:26px] sm:[--pw:min(92px,calc(var(--stage-h)*0.15))] lg:[--pw:min(100px,calc(var(--stage-h)*0.15))]"
     >
-      {live ? <LiveStage root={root} pool={pool} /> : null}
+      {live && shown ? <LiveStage root={root} pool={pool} /> : null}
       <noscript>
         <a
           href={sceneHref(fallback)}
           aria-label={sceneLabel(fallback)}
-          className="group absolute inset-x-(--gutter) inset-y-0 block outline-none!"
+          className="group absolute inset-x-(--core-pad) inset-y-0 block outline-none!"
         >
           <div aria-hidden="true" className="absolute inset-0">
-            <Layers items={initialState(fallback, "idle").items} reduced={false} onGone={noop} />
+            <Layers items={initialState(fallback, "idle").items} reduced={false} onGone={noop} variants={DEFAULT_VARIANTS} />
           </div>
         </a>
       </noscript>

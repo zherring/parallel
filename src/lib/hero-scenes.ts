@@ -1,6 +1,6 @@
 /**
  * The landing hero shows one pairing at a time (two portrait panels, up to five shared-film
- * posters on a timeline) that changes every few seconds. This module is the pure part: which pairing comes
+ * posters in a cluster over a timeline of everyone's films) that changes every few seconds. This module is the pure part: which pairing comes
  * next, which portrait slot changes, and the timing and pause rules. It has no DOM and takes its
  * randomness as an argument, so tests drive it with a seeded generator (see featured.ts).
  */
@@ -22,13 +22,21 @@ export interface HeroPoster {
   year: number;
 }
 
+/** The years of the films on the hero's timeline: a dot for each film (examples.ts `GeneratedYears`: each list is sorted, a year repeated once per film, and delta-coded, see year-list.ts `decodeYears`). */
+export interface HeroYears {
+  /** Each person's own films, in the order of `people`: those the other did not make with them. */
+  own: readonly [readonly number[], readonly number[]];
+  /** The films they made together (all of them, not only those with a poster). */
+  together: readonly number[];
+}
+
 export interface HeroPairing {
   /** The pairing's person ids, sorted and joined with "+" (examples.ts `pairingKey`). */
   key: string;
   /** Films the pair shares by the pair page's default rules. */
   sharedCount: number;
-  /** The years of the first and the last of those films: the hero timeline's two caps. */
-  span: { first: number; last: number };
+  /** The years of everyone's films: the dots of the hero timeline, and its two caps (the first and last of all of them). */
+  years: HeroYears;
   people: readonly [HeroPerson, HeroPerson];
   /** The most-voted shared films that have a poster, oldest first: three to five. */
   posters: readonly HeroPoster[];
@@ -213,6 +221,8 @@ export interface PauseReasons {
   search: boolean;
   /** The hero is scrolled out of view. */
   offscreen: boolean;
+  /** The landing page shows a genre's grid in place of the hero (the hero is not on screen, whatever the scroll). */
+  genre: boolean;
   /** The tab is in the background. */
   hidden: boolean;
 }
@@ -224,6 +234,7 @@ export const NOT_PAUSED: PauseReasons = {
   press: false,
   search: false,
   offscreen: false,
+  genre: false,
   hidden: false,
 };
 

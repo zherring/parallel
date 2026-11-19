@@ -5,7 +5,7 @@ import { Wordmark } from "@/components/wordmark";
 
 /**
  * The landing page's top bar, stuck to the top of the screen over the stage (a blurred canvas with a hairline under it): the way home, the search (a field
- * that opens the universal search) and the genre pills, which choose what the grid further down shows. It replaces the site header on this page (globals.css
+ * that opens the universal search) and the genre pills, which choose the view under the bar: the splash and a sample of pairings, or one genre's grid. It replaces the site header on this page (globals.css
  * hides that one when this is on it), so it is the first 56px of the first screen, which the stage's height counts on. On a phone it is two rows: the
  * wordmark and the search, then the pills.
  */

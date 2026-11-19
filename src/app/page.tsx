@@ -4,8 +4,10 @@ import { genrePills } from "@/components/landing/genre-pills";
 import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { LandingBar } from "@/components/landing/landing-bar";
-import { PAIRINGS_ANCHOR, Pairings } from "@/components/landing/pairings";
+import { Pairings } from "@/components/landing/pairings";
+import { VariantsLab } from "@/components/landing/variants-lab";
 import { buildGenreSections, buildHeroPairings } from "@/lib/example-cards";
+import { GENRE_ROOT } from "@/lib/genre-deep-link";
 import { heroPool } from "@/lib/hero-scenes";
 
 const title = "Parallel — Filmographies & Film Collaborations";
@@ -26,12 +28,15 @@ export default function Home() {
   const sections = buildGenreSections();
   const pills = genrePills(sections);
   return (
-    // The genre pills are in the top bar and their panels in the grid below the stage: one provider holds the choice for both.
-    <GenreTabsProvider idBase="pairings" ids={pills.map((pill) => pill.id)} anchorId={PAIRINGS_ANCHOR}>
-      <LandingBar pills={pills} />
-      <Hero pool={heroPool(buildHeroPairings())} />
-      <Pairings sections={sections} />
-      <HowItWorks />
+    // The genre pills are in the top bar and their panels under it (the splash and its cards are Featured's): one provider holds the choice for both.
+    <GenreTabsProvider idBase="pairings" ids={pills.map((pill) => pill.id)}>
+      {/* The root of the page, which the deep-link script marks with the genre before hydration (genre-deep-link.ts): hence the suppressed warning. */}
+      <div {...{ [GENRE_ROOT]: "" }} suppressHydrationWarning>
+        <LandingBar pills={pills} />
+        <Pairings sections={sections} hero={<Hero pool={heroPool(buildHeroPairings())} />} />
+        <HowItWorks />
+        <VariantsLab />
+      </div>
     </GenreTabsProvider>
   );
 }

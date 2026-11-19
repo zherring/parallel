@@ -49,7 +49,7 @@ export function buildHeroPairings(
     out.push({
       key: pairingKey(pairing),
       sharedCount: entry.sharedCount,
-      span: entry.span,
+      years: { own: [entry.years.own[0], entry.years.own[1]], together: entry.years.together },
       people: [entry.people[0], entry.people[1]],
       posters: entry.posters,
     });

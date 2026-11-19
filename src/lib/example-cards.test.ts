@@ -28,7 +28,7 @@ const posters = (tag: string, count = 3) =>
 const data: GeneratedExamples = {
   "1+2": {
     sharedCount: 7,
-    span: { first: 1991, last: 2004 },
+    years: { own: [[1990, 1, 2], [1995, 3]], together: [1991, 6, 7] },
     people: [
       { id: 1, name: "Ada Lovelace", profilePath: "/a.jpg" },
       { id: 2, name: "Bo Peep", profilePath: "/b.jpg" },
@@ -37,7 +37,7 @@ const data: GeneratedExamples = {
   },
   "3+4": {
     sharedCount: 3,
-    span: { first: 1992, last: 1994 },
+    years: { own: [[1989], [1992]], together: [1992, 1, 1] },
     people: [
       { id: 3, name: "Cy Twombly", profilePath: "/c.jpg" },
       { id: 4, name: "Di Prince", profilePath: "/d.jpg" },
@@ -46,7 +46,7 @@ const data: GeneratedExamples = {
   },
   "5+6": {
     sharedCount: 1,
-    span: { first: 1933, last: 1933 },
+    years: { own: [[], []], together: [1933] },
     people: [
       { id: 6, name: "Fay Wray", profilePath: "/f.jpg" },
       { id: 5, name: "Ed Wood", profilePath: "/e.jpg" },
@@ -56,12 +56,12 @@ const data: GeneratedExamples = {
 };
 
 describe("buildHeroPairings", () => {
-  it("carries the key, count, span, people (in pairing order) and posters of every pairing", () => {
+  it("carries the key, count, years, people (in pairing order) and posters of every pairing", () => {
     const [first, , third] = buildHeroPairings(pairings, data);
     expect(first).toEqual({
       key: "1+2",
       sharedCount: 7,
-      span: { first: 1991, last: 2004 },
+      years: { own: [[1990, 1, 2], [1995, 3]], together: [1991, 6, 7] },
       people: data["1+2"].people,
       posters: posters("x"),
     });
@@ -79,7 +79,7 @@ describe("buildHeroPairings", () => {
   it("leaves out pairings of more than two people", () => {
     const trio = { people: [{ id: 1, name: "Ada Lovelace" }, { id: 2, name: "Bo Peep" }, { id: 3, name: "Cy Twombly" }], blurb: "x" };
     const trioData: GeneratedExamples = {
-      "1+2+3": { sharedCount: 3, span: { first: 1991, last: 1993 }, people: [...data["1+2"].people, data["3+4"].people[0]], posters: posters("t") },
+      "1+2+3": { sharedCount: 3, years: { own: [[], [], []], together: [1991, 1, 1] }, people: [...data["1+2"].people, data["3+4"].people[0]], posters: posters("t") },
     };
     expect(buildHeroPairings([trio], trioData)).toEqual([]);
   });

@@ -1,50 +1,69 @@
+import type { ReactNode } from "react";
 import { FeaturedPairings } from "@/components/landing/featured-pairings";
-import { GenrePanels, RevealLinkedGenre, type GenrePanel } from "@/components/landing/genre-tabs";
+import { GenreDeepLink, GenrePanels, type GenrePanel } from "@/components/landing/genre-tabs";
 import { PairingCard } from "@/components/landing/pairing-card";
 import type { GenreSection } from "@/lib/example-cards";
 import { FEATURED_COUNT, FEATURED_TAB } from "@/lib/examples";
 
-/** The grid's section id: what a pill of the top bar brings into view (`GenreTabsProvider`'s `anchorId`). */
-export const PAIRINGS_ANCHOR = "pairings";
-
 interface Props {
   sections: GenreSection[];
+  /** The splash (the hero): the first of the Featured tab's panel, which it shares with the sample of pairings. */
+  hero: ReactNode;
 }
 
+const pairingsText = (count: number) => `${count} ${count === 1 ? "pairing" : "pairings"}`;
+
 /**
- * The pairings grid, a panel per genre; which one shows is chosen by the pills of the page's top bar (`GenreTablist`), which share its state
- * (`GenreTabsProvider`). The heading says what the pills below the stage's edge are for, now that they are no longer directly above the grid.
+ * The page's views, a panel per tab, chosen by the pills of the top bar (`GenreTablist`, sharing the state of `GenreTabsProvider`): Featured, the default, is
+ * the splash and under it a sample of pairings; a genre is its grid of pairings under a small heading, directly under the bar, in place of the splash. The
+ * script and the style before the panels (`GenreDeepLink`) are what a link to a genre (`/#horror`) needs to open on its grid without the splash painted first
+ * (see genre-deep-link.ts).
+ *
+ * Headings: the splash has the page's one h1 (hero.tsx), and the Featured tab's cards an h2; a genre's view has its own h2, so on a genre's tab (where the
+ * splash and its h1 are hidden) the page still has a heading to start from.
  */
-export function Pairings({ sections }: Props) {
+export function Pairings({ sections, hero }: Props) {
   const featuredPanel: GenrePanel = {
     id: FEATURED_TAB.id,
-    panel: <FeaturedPairings cards={sections.flatMap((section) => section.cards)} count={FEATURED_COUNT} />,
+    panel: (
+      <>
+        {hero}
+        <section aria-labelledby="pairings-heading" className="mx-auto w-full max-w-6xl px-4 pb-12 pt-8">
+          <h2 id="pairings-heading" className="text-sm font-medium tracking-[0.01em] text-muted">
+            Try a pairing
+          </h2>
+          <div className="mt-5">
+            <FeaturedPairings cards={sections.flatMap((section) => section.cards)} count={FEATURED_COUNT} />
+          </div>
+        </section>
+      </>
+    ),
   };
 
   const genrePanels: GenrePanel[] = sections.map(({ genre, cards }) => ({
     id: genre.id,
     panel: (
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((card) => (
-          <li key={card.href}>
-            <PairingCard card={card} />
-          </li>
-        ))}
-      </ul>
+      <section aria-labelledby={`genre-${genre.id}-heading`} className="mx-auto w-full max-w-6xl px-4 pb-12 pt-8">
+        <h2 id={`genre-${genre.id}-heading`} className="flex flex-wrap items-baseline gap-x-3 text-2xl font-semibold tracking-tight text-strong">
+          {genre.label}
+          <span className="text-sm font-medium tracking-normal text-muted">{pairingsText(cards.length)}</span>
+        </h2>
+        <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {cards.map((card) => (
+            <li key={card.href}>
+              <PairingCard card={card} />
+            </li>
+          ))}
+        </ul>
+      </section>
     ),
   }));
 
+  const ids = [featuredPanel.id, ...genrePanels.map((panel) => panel.id)];
   return (
-    <section
-      id={PAIRINGS_ANCHOR}
-      aria-labelledby="pairings-heading"
-      className="mx-auto w-full max-w-6xl scroll-mt-28 px-4 pb-12 pt-4 sm:scroll-mt-20"
-    >
-      <h2 id="pairings-heading" className="text-sm font-medium tracking-[0.01em] text-muted">
-        Try a pairing
-      </h2>
+    <>
+      <GenreDeepLink ids={ids} />
       <GenrePanels panels={[featuredPanel, ...genrePanels]} />
-      <RevealLinkedGenre anchorId={PAIRINGS_ANCHOR} />
-    </section>
+    </>
   );
 }

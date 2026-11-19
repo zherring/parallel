@@ -42,7 +42,7 @@ function pairing(a: number, b: number, posterCount = 3): HeroPairing {
   return {
     key: `${low}+${high}`,
     sharedCount: 3 + a + b,
-    span: { first: 2001, last: 2000 + posterCount },
+    years: { own: [[1990, 2, 3], [1995, 4]], together: [2001, 1, 1] },
     people: [person(a), person(b)],
     posters: Array.from({ length: posterCount }, (_, i) => i + 1).map((n) => ({
       path: `/f${a}-${b}-${n}.jpg`,

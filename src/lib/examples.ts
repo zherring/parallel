@@ -1144,18 +1144,24 @@ export interface GeneratedPoster {
   year: number;
 }
 
-/** The first and the last year the pair shares a film in. */
-export interface GeneratedSpan {
-  first: number;
-  last: number;
+/**
+ * The years of the films on the landing hero's timeline, each list sorted (oldest first, a year repeated once per film) and delta-coded
+ * (year-list.ts `encodeYears`: the first year, then the gap to each next one). Only films that are already out and are not minor, by the same rules
+ * the pair page lists them with.
+ */
+export interface GeneratedYears {
+  /** One list per person, in the pairing's order of people: their own films, those the others did not make with them (the shared ones are in `together`). */
+  own: number[][];
+  /** The films every person has: the same list `sharedCount` counts. */
+  together: number[];
 }
 
 /** What `npm run examples:refresh` records per pairing, keyed by `pairingKey`. */
 export interface GeneratedPairing {
   /** Films all people share by the pair page's default rules (non-minor credits). */
   sharedCount: number;
-  /** The years of the pair's first and last shared film (the same list `sharedCount` counts): the caps of the landing hero's timeline. */
-  span: GeneratedSpan;
+  /** The years of everyone's films, for the dots of the landing hero's timeline. */
+  years: GeneratedYears;
   /** In the same order as the pairing's people, with TMDB's canonical names and photos. */
   people: { id: number; name: string; profilePath: string }[];
   /**

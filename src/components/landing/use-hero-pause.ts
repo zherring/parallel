@@ -3,17 +3,18 @@
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import type { PauseReasons } from "@/lib/hero-scenes";
 
-type AutoReason = Exclude<keyof PauseReasons, "reducedMotion">;
+/** What the hook watches for itself (the others are the caller's: the preference, and the landing page's genre view). */
+type AutoReason = Exclude<keyof PauseReasons, "reducedMotion" | "genre">;
 
 /**
  * Everything that holds the hero's rotation still: a preference for reduced motion (the rotation
- * never plays by itself then), the pointer over the stage, a pointer pressed on it (so the link
+ * never plays by itself then), a genre's grid shown in place of the hero (`genre`: the caller knows, from the page's tabs), the pointer over the stage, a pointer pressed on it (so the link
  * cannot change under a click or tap), keyboard focus on its link or on Previous or Next (set by
  * the caller with `set`), the search overlay being open, the hero scrolled out of view and
  * the tab in the background.
  */
-export function useHeroPause(root: RefObject<HTMLElement | null>, reducedMotion: boolean) {
-  const [flags, setFlags] = useState<Omit<PauseReasons, "reducedMotion">>({
+export function useHeroPause(root: RefObject<HTMLElement | null>, reducedMotion: boolean, genre = false) {
+  const [flags, setFlags] = useState<Omit<PauseReasons, "reducedMotion" | "genre">>({
     hover: false,
     focus: false,
     press: false,
@@ -99,5 +100,5 @@ export function useHeroPause(root: RefObject<HTMLElement | null>, reducedMotion:
     return () => document.removeEventListener("visibilitychange", update);
   }, [set]);
 
-  return { reasons: { reducedMotion, ...flags } satisfies PauseReasons, set };
+  return { reasons: { reducedMotion, genre, ...flags } satisfies PauseReasons, set };
 }

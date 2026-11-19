@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { PanelShownProvider } from "@/components/landing/panel-shown";
+import { GENRE_MARK, GENRE_ROOT, deepLinkCss, deepLinkScript } from "@/lib/genre-deep-link";
 import { hashForTab, nextTabIndex, scrollEdges, tabFromHash } from "@/lib/tabs";
 
 /** A pill of the genre tablist (it sits in the landing page's top bar). */
@@ -22,7 +23,7 @@ export interface GenrePill {
   icon: ReactNode;
 }
 
-/** A panel of the genre tabs (it sits further down the page, in the grid). */
+/** A panel of the genre tabs: Featured's is the splash and its cards, a genre's is its grid (each under the bar, in place of the others). */
 export interface GenrePanel {
   id: string;
   panel: ReactNode;
@@ -32,10 +33,10 @@ interface GenreTabsState {
   idBase: string;
   fallback: string;
   selected: string;
-  /** The panels that have been shown stay drawn when another one is chosen, so going back to one does not draw its faces again. */
+  /** The panels that have been shown stay drawn when another one is chosen, so going back to one does not draw its faces again (nor start its splash over). */
   shown: ReadonlySet<string>;
-  /** Chooses a tab; `reveal` also brings the panels into view (a pill of the bar was pressed: the grid is not in sight). */
-  select: (id: string, reveal?: boolean) => void;
+  /** Chooses a tab, and brings the page back to its top if it is scrolled: the panels are views, each under the bar. */
+  select: (id: string) => void;
   ids: readonly string[];
 }
 
@@ -73,40 +74,71 @@ function writeHash(hash: string) {
 const tabId = (idBase: string, id: string) => `${idBase}-tab-${id}`;
 const panelId = (idBase: string, id: string) => `${idBase}-panel-${id}`;
 
-/** Brings the element `anchorId` to just under the page's sticky bar, unless it is already well in view. Smooth, but not for a visitor who asked for less motion. */
-function revealAnchor(anchorId: string) {
-  const anchor = document.getElementById(anchorId);
-  if (!anchor) return;
-  if (anchor.getBoundingClientRect().top < window.innerHeight * 0.55) return;
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  anchor.scrollIntoView({ behavior: reduced ? "instant" : "smooth", block: "start" });
+const subscribeNever = () => () => {};
+
+/** Back to the top of the page, at once (the view under the bar has just been replaced, so a smooth scroll would only show the old view's place in the new one). */
+function scrollToTop() {
+  if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: "instant" });
 }
 
 /**
  * The state of the page's genre tabs (WAI-ARIA tabs pattern, automatic activation), shared by the tablist in the top bar (`GenreTablist`) and the panels
- * further down (`GenrePanels`): the selected tab lives in the URL hash (`/#horror`), so it can be linked and survives a reload. The first id is the default.
- * `anchorId` is the element the page scrolls to when a pill of the bar is pressed (the grid's section, whose `scroll-margin-top` clears the bar).
+ * (`GenrePanels`): the selected tab lives in the URL hash (`/#horror`), so it can be linked and survives a reload. The first id is the default (Featured, whose
+ * panel holds the splash); any other tab's panel takes the splash's place, directly under the bar.
+ *
+ * A page opened on `/#horror` is first the server's markup, which cannot know the hash and shows the default; until the page is live `GenreDeepLink` (an inline
+ * script, in the markup before the panels) has already marked the page's root, and its CSS shows the right panel and pill, so the splash is never painted. Once live
+ * the state is the hash's and the mark is taken off.
  */
-export function GenreTabsProvider({ idBase, ids, anchorId, children }: { idBase: string; ids: readonly string[]; anchorId: string; children: ReactNode }) {
+export function GenreTabsProvider({ idBase, ids, children }: { idBase: string; ids: readonly string[]; children: ReactNode }) {
   const fallback = ids[0];
   const hash = useSyncExternalStore(subscribe, getHash, getServerHash);
   const selected = tabFromHash(hash, ids, fallback);
-  // What is shown is adjusted during the render, not in an effect, so a panel's first render as the selected one already has its faces.
+  // False on the server and for the hydrating render, when `selected` is only the server's guess (the default).
+  const live = useSyncExternalStore(subscribeNever, () => true, () => false);
+  // What is shown is adjusted during the render, not in an effect, so a panel's first render as the selected one already has its faces. The guess is not recorded:
+  // a page opened on a genre never shows the splash, and so never starts it.
   const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set());
-  if (!shown.has(selected)) setShown(new Set(shown).add(selected));
+  if (live && !shown.has(selected)) setShown(new Set(shown).add(selected));
 
-  const select = (id: string, reveal = false) => {
+  useEffect(() => {
+    if (live) document.querySelector(`[${GENRE_ROOT}]`)?.removeAttribute(GENRE_MARK);
+  }, [live]);
+
+  const select = (id: string) => {
     writeHash(hashForTab(id, fallback));
-    if (reveal) revealAnchor(anchorId);
+    scrollToTop();
   };
 
   return <GenreTabsContext.Provider value={{ idBase, fallback, selected, shown, select, ids }}>{children}</GenreTabsContext.Provider>;
 }
 
 /**
+ * What a link to a genre needs to open on its grid without the splash painted first (see genre-deep-link.ts): the style, and the inline script that marks the
+ * page's root. The script is in the server's markup (where it runs, before anything under it is painted) and in the hydrating render that must match it, and not
+ * after: a script rendered by the browser is never run, and React says so, as it would when the page is reached by a client-side navigation. `ids` is the tabs' ids, the default first.
+ */
+export function GenreDeepLink({ ids }: { ids: readonly string[] }) {
+  // True on the server and for the hydrating render, false from the next one (and for a render that is never hydrated, a client-side navigation to the page).
+  const serverMarkup = useSyncExternalStore(subscribeNever, () => false, () => true);
+  return (
+    <>
+      <style>{deepLinkCss(ids)}</style>
+      {serverMarkup && <script dangerouslySetInnerHTML={{ __html: deepLinkScript(ids) }} />}
+    </>
+  );
+}
+
+/** Whether the page shows a genre's grid in place of the splash (what the hero's rotation holds still for); false outside the tabs. */
+export function useSplashHidden(): boolean {
+  const state = useContext(GenreTabsContext);
+  return state !== null && state.selected !== state.fallback;
+}
+
+/**
  * The genre pills, one row that scrolls sideways when it does not fit (its scrollbar hidden, its edge faded where more pills continue past it): the
- * WAI-ARIA tablist of the panels `GenrePanels` draws. Left and Right move between pills (and wrap), Home and End jump to the ends. Pressing a pill with
- * the pointer (or Enter and Space) also brings the grid into view, as the panels are below the stage; moving with the arrow keys does not scroll.
+ * WAI-ARIA tablist of the panels `GenrePanels` draws. Left and Right move between pills (and wrap), Home and End jump to the ends. Choosing a pill, by
+ * pointer or by key, swaps the view under the bar and brings the page back to its top.
  */
 export function GenreTablist({ label, tabs, className = "" }: { label: string; tabs: readonly GenrePill[]; className?: string }) {
   const { idBase, selected, select } = useGenreTabs();
@@ -178,10 +210,11 @@ export function GenreTablist({ label, tabs, className = "" }: { label: string; t
                 type="button"
                 role="tab"
                 id={tabId(idBase, tab.id)}
+                data-genre-tab={tab.id}
                 aria-selected={isSelected}
                 aria-controls={panelId(idBase, tab.id)}
                 tabIndex={isSelected ? 0 : -1}
-                onClick={() => select(tab.id, true)}
+                onClick={() => select(tab.id)}
                 onKeyDown={(event) => onKeyDown(event, index)}
                 className={`group inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
                   isSelected
@@ -189,7 +222,7 @@ export function GenreTablist({ label, tabs, className = "" }: { label: string; t
                     : "border-transparent text-muted hover:bg-surface/60 hover:text-strong"
                 }`}
               >
-                <span aria-hidden="true" className={`flex shrink-0 ${isSelected ? "text-accent-green" : "text-muted"}`}>
+                <span aria-hidden="true" data-genre-icon="" className={`flex shrink-0 ${isSelected ? "text-accent-green" : "text-muted"}`}>
                   {tab.icon}
                 </span>
                 {tab.label}
@@ -204,37 +237,20 @@ export function GenreTablist({ label, tabs, className = "" }: { label: string; t
 
 /**
  * The panels of the genre tabs, all in the markup, so every link stays crawlable and works before JavaScript runs. Hidden panels are display:none, so
- * their lazy images do not load until the panel is shown; and what is heavy in a panel and only for its visitors (the cards' faces) is not drawn at all
- * until it has been shown (`WhenPanelShown`), so the server's markup does not carry nine posters and an SVG for every face of every panel.
+ * their lazy images do not load until the panel is shown; and what is heavy in a panel and only for its visitors (the cards' faces, the splash) is not drawn at all
+ * until it has been shown (`WhenPanelShown`, `usePanelShown`), so the server's markup does not carry nine posters and an SVG for every face of every panel.
+ * The default panel (Featured) holds the splash: it is one panel, the page's first screen and the cards under it.
  */
 export function GenrePanels({ panels }: { panels: readonly GenrePanel[] }) {
   const { idBase, selected, shown } = useGenreTabs();
   return (
     <>
       {panels.map(({ id, panel }) => (
-        <div
-          key={id}
-          role="tabpanel"
-          id={panelId(idBase, id)}
-          aria-labelledby={tabId(idBase, id)}
-          hidden={id !== selected}
-          className="pt-5"
-        >
+        // Hidden by the `hidden` class (display:none), not the attribute: the attribute is `!important` in the base styles, which the deep link's style (genre-deep-link.ts) could not then show a panel over.
+        <div key={id} role="tabpanel" id={panelId(idBase, id)} data-genre-panel={id} aria-labelledby={tabId(idBase, id)} className={id === selected ? undefined : "hidden"}>
           <PanelShownProvider value={id === selected || shown.has(id)}>{panel}</PanelShownProvider>
         </div>
       ))}
     </>
   );
-}
-
-/** A link to a genre (`/#horror`) lands on its panels, not on a page that looks the same as the top: brings the grid into view once, on arrival. */
-export function RevealLinkedGenre({ anchorId }: { anchorId: string }) {
-  const { fallback, ids } = useGenreTabs();
-  useEffect(() => {
-    if (tabFromHash(window.location.hash, ids, fallback) === fallback) return;
-    document.getElementById(anchorId)?.scrollIntoView({ block: "start" });
-    // Once, on arrival: a pill pressed later scrolls by itself (`GenreTablist`).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return null;
 }

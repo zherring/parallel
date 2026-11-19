@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyTransition, initialState, type Item, type PanelItem, type PosterItem, type State, type YearItem } from "@/components/landing/hero-items";
+import { applyTransition, initialState, type Item, type PanelItem, type PosterItem, type State, type StripItem, type YearItem } from "@/components/landing/hero-items";
 import { TIMING } from "@/components/landing/hero-motion";
 import { sceneOf, transitionTo, type HeroPairing, type HeroPerson, type Transition } from "@/lib/hero-scenes";
 import { pairPortraitColors } from "@/lib/portrait-cuts";
@@ -11,7 +11,8 @@ function pairing(a: number, b: number, posterCount = 5, sharedCount = 9): HeroPa
   return {
     key: `${low}+${high}`,
     sharedCount,
-    span: { first: 1970 + a, last: 2000 + b },
+    // Delta-coded: the first film of either person is in 1970 + a (when a is small) and the last, a film they made together, in 2000 + b.
+    years: { own: [[1970 + a, 3], [1975 + b, 2]], together: [1980, 20, b] },
     people: [person(a), person(b)],
     posters: Array.from({ length: posterCount }, (_, i) => ({ path: `/f${a}-${b}-${i}.jpg`, title: `Film ${i}`, year: 1980 + i })),
   };
@@ -20,6 +21,7 @@ function pairing(a: number, b: number, posterCount = 5, sharedCount = 9): HeroPa
 const panels = (items: readonly Item[]) => items.filter((item): item is PanelItem => item.kind === "panel");
 const posters = (items: readonly Item[]) => items.filter((item): item is PosterItem => item.kind === "poster");
 const years = (items: readonly Item[]) => items.filter((item): item is YearItem => item.kind === "year");
+const strips = (items: readonly Item[]) => items.filter((item): item is StripItem => item.kind === "strip");
 const staying = (items: readonly Item[]) => items.filter((item) => item.phase !== "leaving");
 const leaving = (items: readonly Item[]) => items.filter((item) => item.phase === "leaving");
 
@@ -38,12 +40,13 @@ function collidingIds(): { a: number; b: number; c: number } {
 }
 
 describe("initialState", () => {
-  it("has a panel for each person, a poster for each of the pairing's, the two year caps and the label", () => {
+  it("has a panel for each person, a poster for each of the pairing's, the timeline's strip of dots, the two year caps and the label", () => {
     const state = initialState(sceneOf(pairing(3, 1)), "idle");
     expect(panels(state.items).map((item) => [item.slot, item.person.id])).toEqual([[0, 3], [1, 1]]);
     expect(posters(state.items).map((item) => [item.slot, item.count])).toEqual([[0, 5], [1, 5], [2, 5], [3, 5], [4, 5]]);
     expect(years(state.items).map((item) => [item.slot, item.year])).toEqual([[0, 1973], [1, 2001]]);
     expect(state.items.filter((item) => item.kind === "label")).toHaveLength(1);
+    expect(strips(state.items)).toHaveLength(1);
     expect(new Set(state.items.map((item) => item.id)).size).toBe(state.items.length);
     expect(state.items.every((item) => item.phase === "idle")).toBe(true);
   });
@@ -55,6 +58,13 @@ describe("initialState", () => {
     expect(pairPortraitColors(1, 3)).toEqual([second, first]);
   });
 
+  it("gives the strip each person's colour in the pair, in slot order, so their dots are the colour of their panel", () => {
+    const [first, second] = pairPortraitColors(3, 1);
+    const [strip] = strips(initialState(sceneOf(pairing(3, 1)), "idle").items);
+    expect(strip.colors).toEqual([first, second]);
+    expect(strip.pairing.key).toBe("1+3");
+  });
+
   it("is the first reveal when its items are entering: the panels one after the other, then the posters in chronological order, then the captions", () => {
     const { items } = initialState(sceneOf(pairing(3, 1)), "entering");
     expect(items.every((item) => item.phase === "entering")).toBe(true);
@@ -64,6 +74,8 @@ describe("initialState", () => {
     expect(delays).toEqual([...delays].sort((a, b) => a - b));
     expect(new Set(delays).size).toBe(delays.length);
     for (const year of years(items)) expect(year.delay).toBeGreaterThan(delays.at(-1)!);
+    // The dots start popping in with the first poster, ahead of the captions.
+    expect(strips(items)[0].delay).toBe(delays[0]);
   });
 });
 
@@ -96,11 +108,11 @@ describe("applyTransition", () => {
     expect(arriving[1].delay - arriving[0].delay).toBe(TIMING.panelStagger);
   });
 
-  it("always replaces the timeline: every poster, year cap and label leaves, and new ones arrive in chronological order", () => {
+  it("always replaces the timeline: every poster, the strip of dots, the year caps and the label leave, and new ones arrive in chronological order", () => {
     const before = start(3, 1);
     const next = applyTransition(before, single(before, pairing(3, 488, 4, 6)));
     const gone = leaving(next.items).filter((item) => item.kind !== "panel");
-    expect(gone.map((item) => item.kind).sort()).toEqual(["label", "poster", "poster", "poster", "poster", "poster", "year", "year"]);
+    expect(gone.map((item) => item.kind).sort()).toEqual(["label", "poster", "poster", "poster", "poster", "poster", "strip", "year", "year"]);
     const arriving = next.items.filter((item) => item.phase === "entering" && item.kind !== "panel");
     expect(posters(arriving)).toHaveLength(4);
     expect(posters(arriving).map((item) => item.slot)).toEqual([0, 1, 2, 3]);
