@@ -831,6 +831,214 @@ test.describe("the genre pills are tabs of views", () => {
     await expect(stage(page).locator("[data-frame]")).toHaveCount(2);
   });
 
+  test("a pairing card has its people as a large diagonal cascade of two tilted portrait cards straight on its surface at its left, nearly its whole height: A at the upper left turned left, B lower and to the right, turned right and over A's bottom right, in the link's order", async ({ page }) => {
+    await page.goto("/#classic");
+    const cards = page.locator("#pairings-panel-classic [data-landing-card]");
+    await expect(cards.first().locator("[data-card-tile]")).toHaveCount(2);
+    expect(await cards.count()).toBeGreaterThan(5);
+
+    const card = cards.first();
+    const href = (await card.getAttribute("href"))!;
+    const ids = [...href.matchAll(/(\d+)-[^+/]+/g)].map((match) => match[1]);
+    const rect = await box(card);
+    const tiles = card.locator("[data-card-tile]");
+    expect([await tiles.nth(0).getAttribute("data-card-tile"), await tiles.nth(1).getAttribute("data-card-tile")]).toEqual(ids);
+
+    // Each is a cut-out over its montage (an SVG over the posters), a portrait rectangle of 3:4 (before it is turned), with rounded corners and a soft drop shadow.
+    await expect(tiles.nth(0).locator("svg image, svg polygon").first()).toBeAttached();
+    const sizes = await tiles.evaluateAll((elements) => elements.map((element) => ({ w: (element as HTMLElement).offsetWidth, h: (element as HTMLElement).offsetHeight, rotate: getComputedStyle(element).rotate, radius: parseFloat(getComputedStyle(element).borderTopLeftRadius), shadow: getComputedStyle(element).boxShadow, z: Number(getComputedStyle(element).zIndex) })));
+    for (const size of sizes) {
+      expect(size.w / size.h).toBeCloseTo(0.75, 1);
+      expect(size.radius).toBeGreaterThanOrEqual(6);
+      expect(size.shadow).not.toBe("none");
+    }
+    // Turned the opposite ways, about 5 degrees to the left and 4 to the right; B drawn over A.
+    expect(parseFloat(sizes[0].rotate)).toBeCloseTo(-5, 0);
+    expect(parseFloat(sizes[1].rotate)).toBeCloseTo(4, 0);
+    expect(sizes[1].z).toBeGreaterThan(sizes[0].z);
+
+    // No tile, box or background behind them: they sit on the card's surface (its own colour), with their shadows; the box they are in is a third of the card's width and its height.
+    const cell = card.locator("[data-card-cell]");
+    const cellBox = await box(cell);
+    expect(await cell.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
+    expect(await cell.evaluate((element) => getComputedStyle(element).borderTopWidth)).toBe("0px");
+    expect(cellBox.width / rect.width).toBeGreaterThan(0.28);
+    expect(cellBox.width / rect.width).toBeLessThan(0.36);
+    // As tall as the card less its border and what is left of the padding (it goes 8px into it at the top and the bottom): the pair runs from near the card's top to near its bottom.
+    expect(Math.abs(cellBox.height - (rect.height - 2 - 2 * (16 - 8)))).toBeLessThanOrEqual(2);
+    expect(rect.height).toBeGreaterThanOrEqual(150);
+
+    // Diagonal: B is to the right of and below A, and covers part of A's bottom right (about a quarter of it, by area), and is drawn over it.
+    const a = await box(tiles.nth(0));
+    const b = await box(tiles.nth(1));
+    expect(b.x).toBeGreaterThan(a.x + 8);
+    expect(b.y).toBeGreaterThan(a.y + 8);
+    const overlap = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - b.x) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - b.y);
+    expect(overlap / (a.width * a.height)).toBeGreaterThan(0.15);
+    expect(overlap / (a.width * a.height)).toBeLessThan(0.45);
+    const topmost = await page.evaluate(({ x, y }) => (document.elementFromPoint(x, y)?.closest("[data-card-tile]") as HTMLElement | null)?.dataset.cardTile, { x: b.x + 8, y: b.y + 8 });
+    expect(topmost).toBe(ids[1]);
+    // Large, and centred on the card's height inside it: in a box as wide as a third of the card the pair is as wide as the box (and so, on a narrow card, a little shorter than the card);
+    // where the card is short and wide enough it runs from near its top to near its bottom.
+    const pairTop = Math.min(a.y, b.y);
+    const pairBottom = Math.max(a.y + a.height, b.y + b.height);
+    expect(pairTop).toBeGreaterThanOrEqual(rect.y + 1);
+    expect(pairBottom).toBeLessThanOrEqual(rect.y + rect.height - 1);
+    expect(Math.abs((pairTop + pairBottom) / 2 - (rect.y + rect.height / 2))).toBeLessThanOrEqual(4);
+    expect((pairBottom - pairTop) / rect.height).toBeGreaterThan(0.55);
+    expect(Math.min(a.x, b.x)).toBeGreaterThanOrEqual(rect.x + 8);
+    expect(sizes[0].h / rect.height).toBeGreaterThan(0.38);
+    // The text starts just past B's right edge.
+    const text = await box(card.locator("h3").locator("xpath=.."));
+    expect(text.x).toBeGreaterThanOrEqual(Math.max(a.x + a.width, b.x + b.width));
+    expect(text.x - Math.max(a.x + a.width, b.x + b.width)).toBeLessThan(40);
+
+    // The text is the card's own: the names, the blurb, "N films together"; no flush column, poster row, strip or headline.
+    await expect(card.getByRole("heading", { level: 3 })).toHaveText(/ & /);
+    await expect(card.locator("p").first()).not.toBeEmpty();
+    await expect(card).toContainText(/\d+ films? together/);
+    await expect(card.locator("img[src*='/w185/'], [data-dot], svg circle")).toHaveCount(0);
+  });
+
+  test("hovering or focusing a card slides its portraits a little (B 3px down and to the right, A 2px up and to the left) and with reduced motion nothing moves", async ({ page }) => {
+    await page.goto("/#classic");
+    const card = page.locator("#pairings-panel-classic [data-landing-card]").first();
+    const tiles = card.locator("[data-card-tile]");
+    await expect(tiles.nth(1)).toBeVisible();
+    await page.waitForTimeout(600);
+    const state = () => tiles.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).translate));
+    expect(await state()).toEqual(["none", "none"]);
+
+    await card.hover();
+    await expect.poll(async () => (await state())[0]).toBe("-2px -2px");
+    expect((await state())[1]).toBe("3px 3px");
+    // Eased: it is not instant (a 250ms transition runs).
+    expect(await tiles.first().evaluate((element) => getComputedStyle(element).transitionDuration)).toContain("0.25s");
+
+    // Away, and back with the keyboard: the same.
+    await page.mouse.move(5, 300);
+    await expect.poll(async () => (await state())[0]).toBe("none");
+    await card.focus();
+    await page.keyboard.press("Shift+Tab");
+    await page.keyboard.press("Tab");
+    await expect.poll(async () => (await state())[0]).toBe("-2px -2px");
+  });
+
+  test.describe("with reduced motion", () => {
+    test.use({ reducedMotion: "reduce" });
+
+    test("a hovered card's portraits do not move", async ({ page }) => {
+      await page.goto("/#classic");
+      const card = page.locator("#pairings-panel-classic [data-landing-card]").first();
+      const tiles = card.locator("[data-card-tile]");
+      await expect(tiles.nth(1)).toBeVisible();
+      const before = await tiles.evaluateAll((elements) => elements.map((element) => [getComputedStyle(element).translate, getComputedStyle(element).rotate]));
+      await card.hover();
+      await page.waitForTimeout(500);
+      const after = await tiles.evaluateAll((elements) => elements.map((element) => [getComputedStyle(element).translate, getComputedStyle(element).rotate]));
+      expect(after).toEqual(before);
+    });
+  });
+
+  test("the count follows the blurb in the text's flow (about 12px under it), and a card is only as tall as its text and padding", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/#classic");
+    const cards = page.locator("#pairings-panel-classic [data-landing-card]");
+    await expect(cards.first().locator("[data-card-tile] svg").first()).toBeAttached();
+    const measured = await cards.evaluateAll((elements) =>
+      elements.map((element) => {
+        const rect = element.getBoundingClientRect();
+        const blurb = element.querySelector("p")!.getBoundingClientRect();
+        const count = [...element.querySelectorAll("p")].at(-1)!.getBoundingClientRect();
+        const heading = element.querySelector("h3")!.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return { row: Math.round(rect.top), height: rect.height, gap: count.top - blurb.bottom, bottomRoom: rect.bottom - count.bottom, padding: parseFloat(style.paddingTop) + parseFloat(style.paddingBottom), textHeight: count.bottom - heading.top };
+      }),
+    );
+    for (const card of measured) {
+      // Straight after the blurb: a small gap (the p's own line-height adds a few px), not pushed to the card's bottom.
+      expect(card.gap).toBeGreaterThanOrEqual(8);
+      expect(card.gap).toBeLessThanOrEqual(18);
+      expect(card.height).toBeGreaterThanOrEqual(110);
+    }
+    // The cards of a row stretch to the one with the most text, which is as tall as its text and its padding: nothing left under it but the padding (and the 1px border).
+    const rows = new Map<number, typeof measured>();
+    for (const card of measured) rows.set(card.row, [...(rows.get(card.row) ?? []), card]);
+    expect(rows.size).toBeGreaterThan(3);
+    for (const row of rows.values()) {
+      expect(new Set(row.map((card) => Math.round(card.height))).size).toBe(1);
+      const fullest = row.reduce((a, b) => (b.bottomRoom < a.bottomRoom ? b : a));
+      expect(fullest.bottomRoom).toBeLessThanOrEqual(fullest.padding / 2 + 3);
+      expect(fullest.height).toBeLessThanOrEqual(fullest.textHeight + fullest.padding + 4);
+    }
+    expect(Math.max(...measured.map((card) => card.height))).toBeLessThan(260);
+  });
+
+  for (const [width, columns] of [[1280, 3], [800, 2], [390, 1]] as const) {
+    test(`at ${width}px the pairing cards are ${columns} to a row, and no title, blurb, count or tilted portrait runs out of its card (the longest of each, in their own genres)`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      for (const genre of ["classic", "world-cinema", "drama", "comedy"]) {
+        await page.goto(`/#${genre}`);
+        const cards = page.locator(`#pairings-panel-${genre} [data-landing-card]`);
+        await expect(cards.first().locator("[data-card-tile] svg").first()).toBeAttached();
+        const boxes = await cards.evaluateAll((elements) => {
+          return elements.map((element) => {
+            const card = element.getBoundingClientRect();
+            const inside = [...element.querySelectorAll("h3, p")].every((text) => {
+              const rect = text.getBoundingClientRect();
+              return rect.right <= card.right + 0.5 && rect.left >= card.left && rect.bottom <= card.bottom + 0.5 && text.scrollWidth <= text.clientWidth + 1;
+            });
+            // The tilted portraits (their boxes as drawn, tilt included) inside the card, their box a third of it, and the text clear of them.
+            const tiles = [...element.querySelectorAll("[data-card-tile]")].map((tile) => tile.getBoundingClientRect());
+            const box = element.querySelector("[data-card-cell]")!.getBoundingClientRect();
+            const textLeft = element.querySelector("h3")!.getBoundingClientRect().left;
+            const fanRight = Math.max(...tiles.map((tile) => tile.right));
+            return {
+              y: Math.round(card.y),
+              inside,
+              tilesInside: tiles.every((tile) => tile.left >= card.left + 4 && tile.top >= card.top + 1 && tile.bottom <= card.bottom - 1 && tile.right <= box.right + 6),
+              clear: textLeft >= fanRight + 8,
+              span: box.width / card.width,
+              heights: [card.height],
+            };
+          });
+        });
+        expect(boxes.every((card) => card.inside)).toBe(true);
+        expect(boxes.every((card) => card.tilesInside)).toBe(true);
+        expect(boxes.every((card) => card.clear)).toBe(true);
+        // The columns of the grid: the cards of the first row.
+        expect(boxes.filter((card) => card.y === boxes[0].y)).toHaveLength(Math.min(columns, boxes.length));
+        // The card at least 150px tall, the portraits' box about a third of its width.
+        for (const card of boxes) {
+          for (const height of card.heights) expect(height).toBeGreaterThanOrEqual(150);
+          expect(card.span).toBeLessThan(0.36);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+      }
+    });
+  }
+
+  test("a Featured visit never fetches the cards' portraits (they are not even in a hidden panel), and the images of a card that is shown are lazy", async ({ page }) => {
+    // The cards' montages are w154 posters (the hero's are w185, its posters w342): nothing at that size is for the splash.
+    const montage: string[] = [];
+    page.on("request", (request) => {
+      if (request.url().startsWith("https://image.tmdb.org/t/p/w154/")) montage.push(request.url());
+    });
+    await page.goto("/");
+    await expect(stageLink(page)).toBeVisible();
+    await page.waitForTimeout(1500);
+    expect(montage).toEqual([]);
+    // The cards are in the markup (crawlable), their portraits not: a hidden panel has no tiles to load.
+    const hidden = page.locator("#pairings-panel-horror [data-landing-card]");
+    expect(await hidden.count()).toBeGreaterThan(3);
+    await expect(hidden.first().locator("[data-card-tile]")).toHaveCount(0);
+    // Every image in a card is lazy.
+    await bar(page).getByRole("tab", { name: "Horror", exact: true }).click();
+    await expect(hidden.first().locator("[data-card-tile] img").first()).toBeAttached();
+    const eager = await hidden.first().locator("img").evaluateAll((images) => images.filter((image) => (image as HTMLImageElement).loading !== "lazy").length);
+    expect(eager).toBe(0);
+  });
+
   test("a link to a genre never paints the splash first: before any script runs, the genre's panel and pill are the ones showing", async ({ page }) => {
     await page.route("**/_next/static/**", (route) => (route.request().resourceType() === "script" ? route.abort() : route.continue()));
     await page.goto("/#horror", { waitUntil: "domcontentloaded" });
