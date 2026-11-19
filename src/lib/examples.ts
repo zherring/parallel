@@ -17,15 +17,12 @@ export type Genre = (typeof GENRES)[number];
 export type GenreId = Genre["id"];
 
 /**
- * The first tab, and the one the page opens on. Not a stored genre: it shows a random sample of
- * all pairings (see featured.ts), so every pairing belongs to exactly one real genre above.
+ * The first tab, and the one the page opens on. Not a stored genre: it is the splash (the hero) and no grid of pairings,
+ * so every pairing belongs to exactly one real genre above.
  */
 export const FEATURED_TAB = { id: "featured", label: "Featured" } as const;
 
 export type TabId = typeof FEATURED_TAB.id | GenreId;
-
-/** How many pairings the Featured tab shows. */
-export const FEATURED_COUNT = 6;
 
 export interface ExamplePairing {
   genre: GenreId;

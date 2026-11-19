@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { GenreTabsProvider } from "@/components/landing/genre-tabs";
+import { GenreOnly, GenreTabsProvider } from "@/components/landing/genre-tabs";
 import { genrePills } from "@/components/landing/genre-pills";
 import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
@@ -34,7 +34,10 @@ export default function Home() {
       <div {...{ [GENRE_ROOT]: "" }} suppressHydrationWarning>
         <LandingBar pills={pills} />
         <Pairings sections={sections} hero={<Hero pool={heroPool(buildHeroPairings())} />} />
-        <HowItWorks />
+        {/* Under a genre's grid only: the Featured tab is the splash and nothing else. */}
+        <GenreOnly>
+          <HowItWorks />
+        </GenreOnly>
         <VariantsLab />
       </div>
     </GenreTabsProvider>

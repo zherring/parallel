@@ -28,13 +28,14 @@ const SELECTED_PILL = `border-color:color-mix(in srgb,var(--green) 70%,transpare
 const PLAIN_PILL = `border-color:transparent;background-color:transparent;color:var(--text-muted)`;
 
 /**
- * The style: with the mark on the root, the default panel is hidden and the marked genre's panel shown (over the `hidden` the server's markup gives it), and
- * the pills follow. `ids` is the tabs' ids, the default first; an id that is not plain (lower case, digits, hyphens) is left out, so nothing can break out of a selector.
+ * The style: with the mark on the root, the default panel is hidden and the marked genre's panel shown (over the `hidden` the server's markup gives it), what is
+ * for a genre's view only (`data-genre-only`, hidden in the server's markup) shown, and the pills follow. `ids` is the tabs' ids, the default first; an id that is not plain (lower case, digits, hyphens) is left out, so nothing can break out of a selector.
  */
 export function deepLinkCss(ids: readonly string[]): string {
   const [fallback, ...others] = ids;
   const rules = [
     `${ROOT}[${GENRE_MARK}] [data-genre-panel="${fallback}"]{display:none}`,
+    `${ROOT}[${GENRE_MARK}] [data-genre-only]{display:block}`,
     `${ROOT}[${GENRE_MARK}] [data-genre-tab="${fallback}"]{${PLAIN_PILL}}`,
     `${ROOT}[${GENRE_MARK}] [data-genre-tab="${fallback}"] [data-genre-icon]{color:var(--text-muted)}`,
   ];

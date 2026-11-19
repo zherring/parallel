@@ -2,7 +2,7 @@
  * The landing hero shows one pairing at a time (two portrait panels, up to five shared-film
  * posters in a cluster over a timeline of everyone's films) that changes every few seconds. This module is the pure part: which pairing comes
  * next, which portrait slot changes, and the timing and pause rules. It has no DOM and takes its
- * randomness as an argument, so tests drive it with a seeded generator (see featured.ts).
+ * randomness as an argument, so tests drive it with a seeded generator.
  */
 
 /** The left (0) or right (1) portrait panel. */

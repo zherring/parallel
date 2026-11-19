@@ -9,17 +9,16 @@ interface Props {
   slot: number;
   /** The other person's TMDB id: the colour is the pair's (`pairPortraitColors`), so the two never share one. */
   partnerId: number;
-  photos: boolean;
 }
 
 /**
- * A landing card's face: cut out (`TreatedPortrait`, 2:3 like the hero's) in the pair's colour, or, for a card that draws initials only (`photos` false) or a
+ * A landing card's face: cut out (`TreatedPortrait`, 2:3 like the hero's) in the pair's colour, or, for a
  * person with no photo, the round avatar. The cut-out is drawn once its panel has been shown (`WhenPanelShown`): a hidden panel's faces are not in the
  * server's markup, where each is a 3 x 3 montage of posters and an SVG.
  */
-export function PairingFace({ person, slot, partnerId, photos }: Props) {
-  if (!photos || !person.profilePath) {
-    return <PersonAvatar name={person.name} profilePath={photos ? person.profilePath : null} size={64} imageSize="w185" className="ring-4 ring-surface" />;
+export function PairingFace({ person, slot, partnerId }: Props) {
+  if (!person.profilePath) {
+    return <PersonAvatar name={person.name} profilePath={null} size={64} imageSize="w185" className="ring-4 ring-surface" />;
   }
   const [color] = pairPortraitColors(person.id, partnerId);
   return (

@@ -44,6 +44,10 @@ describe("deepLinkCss", () => {
     }
   });
 
+  it("shows what is for a genre's view only (the server's markup hides it with the default's), whichever genre is marked", () => {
+    expect(css).toContain(`[${GENRE_ROOT}][${GENRE_MARK}] [data-genre-only]{display:block}`);
+  });
+
   it("makes the marked genre's pill the selected one", () => {
     expect(css).toContain(`[${GENRE_MARK}="horror"] [data-genre-tab="horror"]{border-color:`);
     expect(css).toContain(`[data-genre-tab="featured"]{border-color:transparent`);

@@ -136,6 +136,19 @@ export function useSplashHidden(): boolean {
 }
 
 /**
+ * What goes under a genre's grid and not under the splash (the page's "How it works"): hidden while the default tab, Featured, is the view, which is all of
+ * the server's markup too; a link to a genre shows it before the page is live, with the grid (genre-deep-link.ts).
+ */
+export function GenreOnly({ children }: { children: ReactNode }) {
+  const splash = !useSplashHidden();
+  return (
+    <div data-genre-only="" className={splash ? "hidden" : undefined}>
+      {children}
+    </div>
+  );
+}
+
+/**
  * The genre pills, one row that scrolls sideways when it does not fit (its scrollbar hidden, its edge faded where more pills continue past it): the
  * WAI-ARIA tablist of the panels `GenrePanels` draws. Left and Right move between pills (and wrap), Home and End jump to the ends. Choosing a pill, by
  * pointer or by key, swaps the view under the bar and brings the page back to its top.

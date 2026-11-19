@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import generated from "@/lib/examples.generated.json";
 import {
   EXAMPLE_PAIRINGS,
-  FEATURED_COUNT,
   FEATURED_TAB,
   GENRES,
   HERO_POSTER_COUNT,
@@ -27,10 +26,6 @@ describe("GENRES", () => {
     for (const id of ids) expect(id).toMatch(/^[a-z]+(-[a-z]+)*$/);
     expect(GENRES.every((g) => g.label.trim().length > 0)).toBe(true);
     expect(FEATURED_TAB.id).toBe("featured");
-  });
-
-  it("has at least as many genres as Featured shows, so it can pick one from each", () => {
-    expect(GENRES.length).toBeGreaterThanOrEqual(FEATURED_COUNT);
   });
 });
 

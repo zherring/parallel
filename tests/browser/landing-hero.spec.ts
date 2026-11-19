@@ -3,7 +3,7 @@ import { test, expect } from "./fixtures";
 
 // The landing page's first screen: the sticky top bar (the wordmark, the search that opens the universal search, and the genre pills) over the stage (two portrait halves with
 // the headline over the seam, the timeline of everyone's films, and the shared films' posters in a cluster over it). The stage is drawn in the browser once its images are in (or after 2.5s, TMDB's host being out of reach here).
-// The genre pills are tabs that choose the view under the bar: Featured (the splash and a sample of pairings) or one genre's grid.
+// The genre pills are tabs that choose the view under the bar: Featured (the splash, and nothing under it) or one genre's grid (and "How it works" under that).
 
 const stage = (page: Page) => page.locator("[data-hero-stage]");
 const stageLink = (page: Page) => stage(page).getByRole("link", { name: /films? together$/ });
@@ -355,20 +355,24 @@ test.describe("the variants", () => {
 });
 
 test.describe("the genre pills are tabs of views", () => {
-  test("Featured is the splash and a sample of pairings; a genre takes the splash's place with its grid, under the bar", async ({ page }) => {
+  test("Featured is the splash alone; a genre takes the splash's place with its grid, under the bar", async ({ page }) => {
     await page.goto("/");
     const featured = bar(page).getByRole("tab", { name: "Featured", exact: true });
     const horror = bar(page).getByRole("tab", { name: "Horror", exact: true });
     await expect(featured).toHaveAttribute("aria-selected", "true");
     await expect(horror).toHaveAttribute("aria-controls", "pairings-panel-horror");
     await expect(page.locator("#pairings-panel-horror")).toBeHidden();
-    // The splash (and its one h1) belongs to the Featured tabpanel, with the sample of pairings.
+    // The splash (and its one h1) is the Featured tabpanel's content, and all of it: no cards under it, and no "How it works".
+    const howItWorks = page.getByRole("heading", { name: "How it works", level: 2 });
     const panel = page.locator("#pairings-panel-featured");
     await expect(panel).toHaveAttribute("role", "tabpanel");
     await expect(panel).toHaveAttribute("aria-labelledby", "pairings-tab-featured");
     await expect(panel.locator("[data-hero-stage]")).toHaveCount(1);
     await expect(panel.getByRole("heading", { level: 1 })).toHaveCount(1);
-    await expect(panel.getByRole("heading", { name: "Try a pairing", level: 2 })).toBeVisible();
+    await expect(panel.getByRole("heading", { level: 2 })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Try a pairing" })).toHaveCount(0);
+    await expect(panel.locator("a[href^='/p/']")).toHaveCount(1);
+    await expect(howItWorks).toBeHidden();
     await expect(stageLink(page)).toBeVisible();
 
     await horror.click();
@@ -389,21 +393,28 @@ test.describe("the genre pills are tabs of views", () => {
     const heading = await box(grid.getByRole("heading", { level: 2 }));
     expect(heading.y - (barBox.y + barBox.height)).toBeLessThan(80);
     await expect(grid.getByRole("link").first()).toBeInViewport();
-    // How it works stays at the bottom.
-    await expect(page.getByRole("heading", { name: "How it works", level: 2 })).toBeAttached();
+    // How it works stays at the bottom of a genre's view.
+    await expect(howItWorks).toBeVisible();
+    expect((await box(howItWorks)).y).toBeGreaterThan((await box(grid)).y + (await box(grid)).height - 1);
 
     await featured.click();
     await expect(page).not.toHaveURL(/#/);
     await expect(stageLink(page)).toBeVisible();
     await expect(grid).toBeHidden();
+    await expect(howItWorks).toBeHidden();
   });
 
   test("choosing a tab brings a scrolled page back to the top, and the arrow keys move between tabs (and wrap) with the same effect", async ({ page }) => {
     await page.goto("/");
     await expect(stageLink(page)).toBeVisible();
+    const horror = bar(page).getByRole("tab", { name: "Horror", exact: true });
+    await horror.click();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    // Scrolled down the grid, then back to Featured (which is only the splash): it is at the top.
     await page.evaluate(() => window.scrollTo(0, 700));
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(300);
-    const horror = bar(page).getByRole("tab", { name: "Horror", exact: true });
+    await bar(page).getByRole("tab", { name: "Featured", exact: true }).click();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
     await horror.click();
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 
@@ -452,6 +463,8 @@ test.describe("the genre pills are tabs of views", () => {
     await page.goto("/#horror", { waitUntil: "domcontentloaded" });
     await expect(page.locator("#pairings-panel-horror")).toBeVisible();
     await expect(page.locator("#pairings-panel-featured")).toBeHidden();
+    // "How it works", for a genre's view, shows with its grid.
+    await expect(page.getByRole("heading", { name: "How it works", level: 2 })).toBeVisible();
     // The pill follows (the server's markup has Featured's selected: the style that goes with the script says otherwise).
     const colors = await page.evaluate(() => {
       const border = (id: string) => getComputedStyle(document.querySelector(`[data-genre-tab='${id}']`)!).borderTopColor;
@@ -462,6 +475,7 @@ test.describe("the genre pills are tabs of views", () => {
     // A hash that names no genre is the splash.
     await page.goto("/?again#nonsense", { waitUntil: "domcontentloaded" });
     await expect(page.locator("#pairings-panel-featured")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "How it works", level: 2 })).toBeHidden();
   });
 
   test("the hero's rotation holds still while a genre's grid is shown, and carries on when the splash comes back", async ({ page }) => {
