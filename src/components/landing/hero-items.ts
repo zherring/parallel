@@ -20,7 +20,9 @@ export interface ItemBase {
 }
 
 /**
- * The pieces of the stage that come and go. A panel is one person's side (montage, figure, foot gradient, name) in slot 0 (left) or 1 (right); a poster is one
+ * The pieces of the stage that come and go. A panel is one person's side (montage, figure, foot gradient) in slot 0 (left) or 1 (right); a name is that person's
+ * name in the one label under the timeline (each slot slides on its own, so a person who stays keeps their name still), and `amp` is the "&" between them, which
+ * never changes; a poster is one
  * of the scene's posters (`slot` is its place in the chronological row of `count`); the strip is the timeline's dots (each person's films in their colour, the
  * films they made together in white); a year is the cap at the left (0, the year of the first film of either person) or the right (1, the last's) end; the label
  * is "+N more". Items stay mounted (keyed by id) from arrival to departure, so a leaving piece is the very element that was on screen: its images never flicker.
@@ -31,6 +33,15 @@ export interface PanelItem extends ItemBase {
   person: HeroPerson;
   /** The person's colour in this scene's pair (`pairPortraitColors`), which a staying person's panel can change with their new partner. */
   color: string;
+}
+export interface NameItem extends ItemBase {
+  kind: "name";
+  slot: Slot;
+  person: HeroPerson;
+}
+/** The "&" of the names' label: it comes in with the first reveal and then stays, whatever the scene. */
+export interface AmpItem extends ItemBase {
+  kind: "amp";
 }
 export interface PosterItem extends ItemBase {
   kind: "poster";
@@ -54,7 +65,7 @@ export interface LabelItem extends ItemBase {
   count: number;
   pairing: HeroPairing;
 }
-export type Item = PanelItem | PosterItem | StripItem | YearItem | LabelItem;
+export type Item = PanelItem | NameItem | AmpItem | PosterItem | StripItem | YearItem | LabelItem;
 
 export interface State {
   scene: Scene;
@@ -74,6 +85,16 @@ const panelItem = (scene: Scene, slot: Slot, id: string, phase: Phase, delay: nu
   slot,
   person: scene.people[slot],
   color: sceneColor(scene, slot),
+  phase,
+  delay,
+  mode,
+});
+
+const nameItem = (scene: Scene, slot: Slot, id: string, phase: Phase, delay: number, mode: PanelMode): NameItem => ({
+  id,
+  kind: "name",
+  slot,
+  person: scene.people[slot],
   phase,
   delay,
   mode,
@@ -103,24 +124,27 @@ function timelineItems(scene: Scene, seq: number, phase: Phase, postersAt: numbe
   ];
 }
 
-/** The scene on its first reveal: the frames wipe in (`wipeFrames`) one after the other, then the posters are dealt, then the captions arrive. */
+/** The scene on its first reveal: the frames wipe in (`wipeFrames`) one after the other, the names come up as their figures do, then the posters are dealt, then the captions arrive. */
 export function initialState(scene: Scene, phase: Phase): State {
   const intro = phase === "entering";
   const postersAt = intro ? TIMING.introPostersDelay : 0;
   const captionsAt = intro ? postersAt + scene.pairing.posters.length * TIMING.posterStagger + TIMING.introCaptionsGap : 0;
+  const panelDelay = (slot: Slot) => (intro ? slot * TIMING.introWipeStagger : 0);
   return {
     scene,
     seq: 0,
     items: [
-      ...SLOTS.map((slot) => panelItem(scene, slot, `panel-${slot}-0`, phase, intro ? slot * TIMING.introWipeStagger : 0, "intro")),
+      ...SLOTS.map((slot) => panelItem(scene, slot, `panel-${slot}-0`, phase, panelDelay(slot), "intro")),
+      ...SLOTS.map((slot) => nameItem(scene, slot, `name-${slot}-0`, phase, panelDelay(slot), "intro")),
+      { id: "amp", kind: "amp", phase, delay: panelDelay(1), mode: "intro" },
       ...timelineItems(scene, 0, phase, postersAt, captionsAt),
     ],
   };
 }
 
 /**
- * Marks what leaves and adds what arrives, per changed piece: a panel whose person is replaced, and the whole timeline (posters, dots, caps, label), which
- * always changes. A person who stays keeps their panel exactly as it is, unless their colour changes with their new partner (then the same panel
+ * Marks what leaves and adds what arrives, per changed piece: a panel and the name of a person who is replaced, and the whole timeline (posters, dots, caps, label),
+ * which always changes. The "&" never does. A person who stays keeps their panel and their name exactly as they are, unless their colour changes with their new partner (then the same panel
  * cross-fades into the new colour, in place). It works from any state, also one whose last transition is still playing: what was arriving is sent away from
  * where it is, and what was already leaving carries on.
  */
@@ -130,7 +154,8 @@ export function applyTransition(state: State, transition: Transition): State {
   const recoloured = new Set<Slot>();
 
   const items = state.items.map((item): Item => {
-    if (item.phase === "leaving") return item;
+    if (item.phase === "leaving" || item.kind === "amp") return item;
+    if (item.kind === "name") return transition.changed.includes(item.slot) ? { ...item, phase: "leaving", delay: item.slot * TIMING.panelStagger, mode: "swap" } : item;
     if (item.kind !== "panel") return { ...item, phase: "leaving", delay: item.kind === "poster" ? item.slot * TIMING.posterLeaveStagger : 0 };
     if (transition.changed.includes(item.slot)) return { ...item, phase: "leaving", delay: item.slot * TIMING.panelStagger, mode: "swap" };
     if (item.color !== sceneColor(scene, item.slot)) {
@@ -141,8 +166,10 @@ export function applyTransition(state: State, transition: Transition): State {
   });
 
   for (const slot of SLOTS) {
-    if (transition.changed.includes(slot)) items.push(panelItem(scene, slot, `panel-${slot}-${seq}`, "entering", slot * TIMING.panelStagger, "swap"));
-    else if (recoloured.has(slot)) items.push(panelItem(scene, slot, `panel-${slot}-${seq}`, "entering", 0, "recolour"));
+    if (transition.changed.includes(slot)) {
+      items.push(panelItem(scene, slot, `panel-${slot}-${seq}`, "entering", slot * TIMING.panelStagger, "swap"));
+      items.push(nameItem(scene, slot, `name-${slot}-${seq}`, "entering", slot * TIMING.panelStagger, "swap"));
+    } else if (recoloured.has(slot)) items.push(panelItem(scene, slot, `panel-${slot}-${seq}`, "entering", 0, "recolour"));
   }
   items.push(...timelineItems(scene, seq, "entering", TIMING.posterArriveDelay, TIMING.captionDelay));
   return { scene, seq, items };

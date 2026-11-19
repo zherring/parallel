@@ -15,7 +15,7 @@ import { MONTAGE_POSTERS, treatmentShape } from "@/lib/portrait-treatment";
  * (-1 to 1, set on the stage while the pointer is over it, see `useParallax`).
  *
  * A half of the stage is one person's side. In the "panels" layout it is a panel inset from the screen's edges; in the "wide" layout it runs out to the
- * screen's edge, and `--ext` (0 in panels, the inset in wide) is how far it extends past that panel on its outer side. The figure, the name and the montage's
+ * screen's edge, and `--ext` (0 in panels, the inset in wide) is how far it extends past that panel on its outer side. The figure and the montage's
  * first tile stay where the panel's would be (the "core": the half less `--ext` on its outer side), so the figures do not move between the two layouts.
  */
 
@@ -37,7 +37,7 @@ const TOP_SHADE =
 
 /**
  * The foot: the page's canvas colour rising from the half's bottom, over the montage and the figure alike, so that the figure's lower body, the photo's hard
- * bottom edge and the montage all melt into the page. Its stops ease out (no visible start); the timeline, the posters and the name sit above it.
+ * bottom edge and the montage all melt into the page. Its stops ease out (no visible start); the timeline, the posters and the names sit above it.
  */
 const FOOT_HEIGHT = "42%";
 const FOOT = `linear-gradient(to top, var(--bg), color-mix(in srgb, var(--bg) 93%, transparent) 14%, color-mix(in srgb, var(--bg) 74%, transparent) 33%, color-mix(in srgb, var(--bg) 42%, transparent) 55%, color-mix(in srgb, var(--bg) 14%, transparent) 78%, transparent)`;
@@ -48,7 +48,7 @@ const EXTENSION_COLUMNS = 4;
 /**
  * The person's side of the stage: the montage of their films' posters (the look `TreatedPortrait` gives behind a cut: the same `duotoneMatrix` filter
  * and the same posters from `treatmentShape`) filling the half, the cut-out figure standing on its bottom edge and running a little off it, the foot gradient
- * over them both, and their name in the outer bottom corner. In the wide layout the montage's 3 x 3 tile is followed outward by more columns of the same posters,
+ * over them both. In the wide layout the montage's 3 x 3 tile is followed outward by more columns of the same posters,
  * repeating the list when it runs out, under the same duotone. A person with no posters is their colour, darkened.
  */
 export function PanelParts({
@@ -162,16 +162,6 @@ export function PanelParts({
       </div>
 
       <div data-part="foot" aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0" style={{ height: FOOT_HEIGHT, backgroundImage: FOOT }} />
-
-      <div
-        data-part="name"
-        className={`absolute bottom-(--inset) text-balance text-[length:clamp(15px,1.9vw,30px)] max-[359px]:text-[13px] font-semibold leading-[1.1] tracking-[-0.02em] text-white [text-shadow:0_1px_14px_rgb(0_0_0/0.65)] ${
-          slot === 0 ? "text-left" : "text-right"
-        }`}
-        style={{ ...(slot === 0 ? { left: "calc(var(--ext) + var(--inset))" } : { right: "calc(var(--ext) + var(--inset))" }), maxWidth: "calc(100% - var(--ext) - var(--inset) * 2)" }}
-      >
-        {person.name}
-      </div>
     </>
   );
 }
@@ -194,7 +184,7 @@ export function PosterParts({ poster, src, slot, count }: { poster: HeroPoster; 
     >
       <div className="relative motion-safe:transition-[translate] motion-safe:duration-300 motion-safe:ease-out motion-safe:group-hover/poster:-translate-y-2">
         <div
-          className="aspect-[2/3] w-full origin-bottom overflow-hidden rounded-[6px] bg-surface shadow-[0_14px_22px_-8px_rgb(0_0_0/0.8),0_0_0_1px_rgb(255_255_255/0.1)]"
+          className="aspect-[2/3] w-full origin-bottom overflow-hidden rounded-[6px] bg-surface shadow-[0_14px_22px_-8px_rgb(0_0_0/0.8),0_0_0_1.25px_#fff] sm:shadow-[0_14px_22px_-8px_rgb(0_0_0/0.8),0_0_0_1.5px_#fff]"
           style={{ rotate: `${place.tilt}deg`, scale: place.scale }}
         >
           <img src={src} alt="" width={104} height={156} decoding="async" draggable={false} className="size-full select-none object-cover" />

@@ -16,7 +16,7 @@ import {
 import { KeycapButton } from "@/components/landing/keycap-button";
 import { MoreLabel, PanelParts, PosterParts, YearCap } from "@/components/landing/hero-parts";
 import { arrive, depart, drawLine, wipeFrames, type ItemKind } from "@/components/landing/hero-motion";
-import { SLOTS, applyTransition, initialState, type Item, type LabelItem, type PanelItem, type PosterItem, type StripItem, type YearItem } from "@/components/landing/hero-items";
+import { SLOTS, applyTransition, initialState, type AmpItem, type Item, type LabelItem, type NameItem, type PanelItem, type PosterItem, type StripItem, type YearItem } from "@/components/landing/hero-items";
 import { TimelineLine, TimelineStrip } from "@/components/landing/hero-timeline";
 import { useSplashHidden } from "@/components/landing/genre-tabs";
 import { usePanelShown } from "@/components/landing/panel-shown";
@@ -140,9 +140,24 @@ const halfBox = (slot: 0 | 1): CSSProperties =>
 /** The halves' corners: all four of a panel; in the wide layout only the ones at the seam, as the others are the screen's. */
 const halfCorners = (slot: 0 | 1, layout: HeroVariants["layout"]) => (layout === "wide" ? (slot === 0 ? "rounded-r-[9px]" : "rounded-l-[9px]") : "rounded-[9px]");
 
+/** One side of the names' label: the names of `slot` in one cell, so a leaving name and the one arriving are in the same place. A is against the "&" on its left (right-aligned), B on its right. */
+function NameColumn({ slot, names, reduced, onGone }: { slot: 0 | 1; names: readonly NameItem[]; reduced: boolean; onGone: (id: string) => void }) {
+  return (
+    <div className={`grid justify-items-center ${slot === 0 ? "sm:justify-items-end" : "sm:justify-items-start"}`}>
+      {names
+        .filter((item) => item.slot === slot)
+        .map((item) => (
+          <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="col-start-1 row-start-1 sm:whitespace-nowrap">
+            {item.person.name}
+          </Motion>
+        ))}
+    </div>
+  );
+}
+
 /**
  * Everything inside the stage's link: the two halves (frames, with the pieces in them), the scrim that holds the headline, the timeline line, and over it
- * the strip of dots, the poster cluster, "+N more" and the year caps. Drawn from `items`, with the animations of `Motion`; the noscript scene is the same
+ * the strip of dots, the poster cluster, "+N more", the year caps and the names' label. Drawn from `items`, with the animations of `Motion`; the noscript scene is the same
  * thing, all idle.
  */
 function Layers({ items, reduced, onGone, variants }: { items: readonly Item[]; reduced: boolean; onGone: (id: string) => void; variants: HeroVariants }) {
@@ -151,6 +166,8 @@ function Layers({ items, reduced, onGone, variants }: { items: readonly Item[]; 
   const strips = items.filter((item): item is StripItem => item.kind === "strip");
   const years = items.filter((item): item is YearItem => item.kind === "year");
   const labels = items.filter((item): item is LabelItem => item.kind === "label");
+  const names = items.filter((item): item is NameItem => item.kind === "name");
+  const amps = items.filter((item): item is AmpItem => item.kind === "amp");
   const { layout, edge } = variants;
 
   return (
@@ -238,6 +255,23 @@ function Layers({ items, reduced, onGone, variants }: { items: readonly Item[]; 
             </Motion>
           </div>
         ))}
+
+        {/*
+          The names, one label under the line, centred on the seam: "A & B", the "&" on the seam and the names balanced on either side of it (a grid of two equal columns round
+          it, A against it on its left and B on its right), on one line. On a phone it wraps: A on the first line and "& B" on the second, centred. Each name is a piece
+          of its own, so a swap of one person slides only their name; a column holds the leaving name and the arriving one in the same place.
+        */}
+        <div data-names="" className="absolute inset-x-0 top-[calc(var(--line-y)+22px)] flex flex-col items-center text-center text-[length:clamp(16px,1.6vw,24px)] font-semibold leading-[1.15] tracking-[-0.02em] text-white [text-shadow:0_1px_14px_rgb(0_0_0/0.65)] sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-baseline sm:gap-x-[0.45em]">
+          <NameColumn slot={0} names={names} reduced={reduced} onGone={onGone} />
+          <div className="flex items-baseline justify-center gap-[0.35em] sm:contents">
+            {amps.map((item) => (
+              <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="font-normal text-white/70">
+                &amp;
+              </Motion>
+            ))}
+            <NameColumn slot={1} names={names} reduced={reduced} onGone={onGone} />
+          </div>
+        </div>
       </div>
     </>
   );
@@ -485,7 +519,7 @@ export function HeroStage({ pool, fallback }: Props) {
       ref={root}
       data-hero-stage=""
       data-layout={layout}
-      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size] [--inset:12px] [--line-y:82%] [--core-pad:max(var(--gutter),calc((100cqw_-_1600px)/2_+_var(--gutter)))] [--ext:0px] [--reach:var(--gutter)] [--fade:calc(var(--gutter)+14px)] [--axis-pad:44px] [--poster-gap:22px] [--pw:min(68px,calc(var(--stage-h)*0.15),17cqw)] [--step:calc(var(--pw)*0.76)] data-[layout=wide]:[--ext:var(--core-pad)] data-[layout=wide]:[--reach:var(--core-pad)] data-[layout=wide]:[--fade:56px] sm:[--inset:20px] sm:[--poster-gap:26px] sm:[--pw:min(92px,calc(var(--stage-h)*0.15))] lg:[--pw:min(100px,calc(var(--stage-h)*0.15))]"
+      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size] [--line-y:82%] [--core-pad:max(var(--gutter),calc((100cqw_-_1600px)/2_+_var(--gutter)))] [--ext:0px] [--reach:var(--gutter)] [--fade:calc(var(--gutter)+14px)] [--axis-pad:44px] [--poster-gap:22px] [--pw:min(68px,calc(var(--stage-h)*0.15),17cqw)] [--step:calc(var(--pw)*0.76)] data-[layout=wide]:[--ext:var(--core-pad)] data-[layout=wide]:[--reach:var(--core-pad)] data-[layout=wide]:[--fade:56px] sm:[--poster-gap:26px] sm:[--pw:min(92px,calc(var(--stage-h)*0.15))] lg:[--pw:min(100px,calc(var(--stage-h)*0.15))]"
     >
       {live && shown ? <LiveStage root={root} pool={pool} /> : null}
       <noscript>

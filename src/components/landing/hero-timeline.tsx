@@ -66,7 +66,7 @@ export function TimelineStrip({ strip, colors }: { strip: Strip; colors: readonl
       </svg>
       <div className="absolute inset-x-0 bottom-[9px]">
         {labelYears(strip.axis, width).map((year) => (
-          <YearTick key={year} tick={{ kind: "year", label: String(year) }} x={`${(axisFraction(year, strip.axis) * 100).toFixed(3)}%`} above mark={false} />
+          <YearTick key={year} tick={{ kind: "year", label: String(year) }} x={`${(axisFraction(year, strip.axis) * 100).toFixed(3)}%`} above mark={false} labelClass="text-white/75 [text-shadow:0_1px_6px_rgb(0_0_0/0.85)]" />
         ))}
       </div>
     </div>

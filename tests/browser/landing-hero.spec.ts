@@ -84,7 +84,7 @@ test("the timeline has every film as a dot on the one line, as the pair page's d
     expect(dot.x).toBeLessThan(rightCap.x);
   }
   // The years labelled along it are over the line, between the caps, and each is a year of the axis.
-  const years = stage(page).locator("span.tabular-nums.text-muted");
+  const years = stage(page).locator("span.tabular-nums.text-white\\/75");
   const labels = await years.evaluateAll((elements) =>
     elements.map((element) => {
       const rect = element.getBoundingClientRect();
@@ -144,6 +144,18 @@ test("the shared films' posters are a tight, fanned cluster over the seam, off t
   }
 });
 
+test("the shared films' posters have a crisp white border at rest", async ({ page }) => {
+  await page.goto("/");
+  await ready(page);
+  const shadows = await stage(page).locator("[data-part='poster'] img").evaluateAll((images) => images.map((image) => getComputedStyle(image.parentElement!).boxShadow));
+  expect(shadows.length).toBeGreaterThanOrEqual(3);
+  // The drop shadow stays, and a white ring about 1.5px wide (a little less on a phone) is round each poster.
+  for (const shadow of shadows) {
+    expect(shadow).toMatch(/rgb\(255, 255, 255\) 0px 0px 0px 1\.5px/);
+    expect(shadow).toMatch(/rgba\(0, 0, 0, 0\.8\) 0px 14px 22px -8px/);
+  }
+});
+
 test("a poster lifts and names its film when hovered, and the stage is still one link", async ({ page }) => {
   await page.goto("/");
   await expect(stageLink(page)).toBeVisible();
@@ -157,20 +169,51 @@ test("a poster lifts and names its film when hovered, and the stage is still one
   await expect(stageLink(page)).toHaveCount(1);
 });
 
-test("each person's name is in their outer bottom corner, under the timeline, and the foot gradient is over the figure and under the name", async ({ page }) => {
+/** The two names of the stage's label and its "&", from the link's name ("A and B: 6 films together"), as boxes. */
+async function nameBoxes(page: Page) {
+  const label = (await stageLink(page).getAttribute("aria-label"))!;
+  const [first, second] = label.replace(/: \d+ films? together$/, "").split(" and ");
+  const names = stage(page).locator("[data-names]");
+  return {
+    first,
+    second,
+    container: names,
+    a: await box(names.getByText(first, { exact: true })),
+    amp: await box(names.getByText("&", { exact: true })),
+    b: await box(names.getByText(second, { exact: true })),
+  };
+}
+
+test("the names are one label under the timeline, centred on the seam: A against the '&' on its left, B on its right, plain text; and the foot gradient is over the figure and under it", async ({ page }) => {
   await page.goto("/");
   await ready(page);
-  const names = stage(page).locator("[data-part='name']");
-  await expect(names).toHaveCount(2);
+  // None is in a corner any more: the one label has them both.
+  await expect(stage(page).locator("[data-part='name']")).toHaveCount(0);
+  const { first, second, container, a, amp, b } = await nameBoxes(page);
+  await expect(container).toHaveCount(1);
+  expect((await container.innerText()).replace(/\s+/g, " ").trim()).toBe(`${first} & ${second}`);
   const lineY = centreY(await box(stage(page).locator("[data-line]")));
   const link = await box(stageLink(page));
-  const [left, right] = [await box(names.nth(0)), await box(names.nth(1))];
-  for (const rect of [left, right]) expect(rect.y).toBeGreaterThan(lineY + 12);
-  expect(left.x).toBeLessThan(centreX(link) / 2 + link.x / 2);
-  expect(right.x + right.width).toBeGreaterThan(centreX(link));
-  // The figure's panel ends at the stage's bottom: the names sit inside it, in its corners.
-  expect(left.x - link.x).toBeLessThan(40);
-  expect(link.x + link.width - (right.x + right.width)).toBeLessThan(40);
+  // Under the line, a comfortable gap, on one line at this width.
+  for (const rect of [a, amp, b]) expect(rect.y).toBeGreaterThan(lineY + 12);
+  expect(Math.abs(centreY(a) - centreY(b))).toBeLessThanOrEqual(3);
+  expect(Math.abs(centreY(a) - centreY(amp))).toBeLessThanOrEqual(3);
+  // The "&" is on the seam; the names are against it, balanced either side of it, A right-aligned to its left and B left-aligned to its right.
+  expect(Math.abs(centreX(amp) - centreX(link))).toBeLessThanOrEqual(2);
+  expect(a.x + a.width).toBeLessThanOrEqual(amp.x);
+  expect(b.x).toBeGreaterThanOrEqual(amp.x + amp.width);
+  expect(Math.abs(amp.x - (a.x + a.width) - (b.x - (amp.x + amp.width)))).toBeLessThanOrEqual(2);
+  // Plain text: no box, background or border behind it; semibold white.
+  const style = await container.evaluate((element) => {
+    const css = getComputedStyle(element);
+    return { background: css.backgroundColor, border: css.borderTopWidth, weight: css.fontWeight, color: css.color, size: parseFloat(css.fontSize) };
+  });
+  expect(style.background).toBe("rgba(0, 0, 0, 0)");
+  expect(style.border).toBe("0px");
+  expect(style.weight).toBe("600");
+  expect(style.color).toBe("rgb(255, 255, 255)");
+  expect(style.size).toBeGreaterThanOrEqual(16);
+  expect(style.size).toBeLessThanOrEqual(24);
 
   const order = await stage(page).evaluate((root) => {
     const first = (name: string) => root.querySelector<HTMLElement>(`[data-part='${name}']`)!;
@@ -179,13 +222,13 @@ test("each person's name is in their outer bottom corner, under the timeline, an
     return {
       footAfterFigure: follows(first("figure"), foot),
       footAfterBackdrop: follows(first("backdrop"), foot),
-      nameAfterFoot: follows(foot, first("name")),
+      namesAfterFoot: follows(foot, root.querySelector<HTMLElement>("[data-names]")!),
       // The foot is the page's canvas colour at the very bottom, fading to nothing at the top.
       image: getComputedStyle(foot).backgroundImage,
       height: foot.getBoundingClientRect().height / root.getBoundingClientRect().height,
     };
   });
-  expect(order.footAfterFigure && order.footAfterBackdrop && order.nameAfterFoot).toBe(true);
+  expect(order.footAfterFigure && order.footAfterBackdrop && order.namesAfterFoot).toBe(true);
   expect(order.image).toContain("rgb(20, 24, 28)");
   expect(order.height).toBeGreaterThan(0.33);
   expect(order.height).toBeLessThan(0.46);
@@ -422,6 +465,23 @@ test.describe("the genre pills are tabs of views", () => {
 
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 320, height: 640 }, hasTouch: true, isMobile: true });
+
+  test("the names wrap to two centred lines: A on the first and '& B' on the second", async ({ page }) => {
+    await page.goto("/");
+    await ready(page);
+    const { container, a, amp, b } = await nameBoxes(page);
+    const link = await box(stageLink(page));
+    // A is above the "&" and B; the "&" is beside B, on the second line, and the two lines are centred under the line.
+    expect(a.y + a.height).toBeLessThanOrEqual(b.y + 2);
+    expect(Math.abs(centreY(amp) - centreY(b))).toBeLessThanOrEqual(3);
+    expect(Math.abs(centreX(a) - centreX(link))).toBeLessThanOrEqual(3);
+    expect(Math.abs((amp.x + (b.x + b.width - amp.x) / 2) - centreX(link))).toBeLessThanOrEqual(3);
+    expect(a.x).toBeGreaterThanOrEqual(link.x);
+    expect(b.x + b.width).toBeLessThanOrEqual(link.x + link.width);
+    expect(await container.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBe(16);
+    const stageBox = await box(stage(page));
+    expect(b.y + b.height).toBeLessThanOrEqual(stageBox.y + stageBox.height);
+  });
 
   test("the headline is under the stage, nothing overflows sideways, the cluster and its pill fit, and the pills scroll in their own row", async ({ page }) => {
     await page.goto("/");

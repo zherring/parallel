@@ -19,10 +19,10 @@ export interface MotionOptions {
 }
 
 /** The pieces of the stage that come and go with a scene. */
-export type ItemKind = "panel" | "poster" | "strip" | "year" | "label";
+export type ItemKind = "panel" | "name" | "amp" | "poster" | "strip" | "year" | "label";
 
 /**
- * How a panel arrives or leaves. "intro": the first reveal, whose frame wipes in (`wipeFrames`) so only the figure and the name move.
+ * How a panel arrives or leaves. "intro": the first reveal, whose frame wipes in (`wipeFrames`) so only the figure moves (and, in a name's own piece, the name).
  * "swap": its person is replaced. "recolour": its person stays but the pair's colour for them changed (their new partner's colour collided
  * with theirs, see `pairPortraitColors`): the same panel cross-fades, and nothing moves, so the panel that stays does stay still.
  */
@@ -95,17 +95,22 @@ const hold = (el: HTMLElement, duration: number): Animation =>
 
 /**
  * A piece arriving. A reduced-motion visitor gets a plain fade of the whole piece. A panel's parts move by `mode`; a poster is dealt in, rising
- * into its place in the cluster; the timeline's dots pop in from the left to the right; the year caps and the label fade in.
+ * into its place in the cluster; a name comes up from below; the timeline's dots pop in from the left to the right; the "&", the year caps and the label fade in.
  */
 export function arrive(el: HTMLElement, kind: ItemKind, { reduced, delay = 0, mode = "swap" }: MotionOptions): Animation[] {
   if (reduced) return [fade(el, 0, 1, TIMING.reduced, delay)];
   switch (kind) {
     case "panel":
       return arrivePanel(el, delay, mode);
+    case "name":
+      return [arriveName(el, delay, mode)];
     case "poster":
       return arrivePoster(el, delay);
     case "strip":
       return arriveStrip(el, delay);
+    case "amp":
+      // With the first names: it is the one piece that stays through every scene after.
+      return [fade(el, 0, 1, TIMING.caption, delay + TIMING.introFigureDelay + 120)];
     case "year":
     case "label":
       return [fade(el, 0, 1, TIMING.caption, delay)];
@@ -118,8 +123,12 @@ export function depart(el: HTMLElement, kind: ItemKind, { reduced, delay = 0, mo
   switch (kind) {
     case "panel":
       return departPanel(el, delay, mode);
+    case "name":
+      // Only the end of the motion is given: it starts from wherever the name is, so one sent away mid-arrival leaves from where it is.
+      return [el.animate({ transform: "translateY(-12px)", opacity: 0 }, { duration: TIMING.figureLeave, delay, easing: EASE_IN, fill: "forwards" })];
     case "poster":
       return departPoster(el, delay);
+    case "amp":
     case "year":
       // Its replacement fades in over it, so it stays until that has covered it.
       return [hold(el, TIMING.caption + TIMING.captionDelay + 60)];
@@ -133,7 +142,6 @@ function arrivePanel(el: HTMLElement, delay: number, mode: PanelMode): Animation
   const backdrop = part(el, "backdrop");
   const figure = part(el, "figure");
   const foot = part(el, "foot");
-  const name = part(el, "name");
   const animations: Animation[] = [];
 
   if (mode === "recolour") {
@@ -143,7 +151,7 @@ function arrivePanel(el: HTMLElement, delay: number, mode: PanelMode): Animation
   }
 
   if (mode === "intro") {
-    // The frame wipes in (`wipeFrames`); the figure rises 24px into it, the name follows.
+    // The frame wipes in (`wipeFrames`); the figure rises 24px into it.
     if (figure) {
       animations.push(
         figure.animate([{ transform: "translateY(24px)", opacity: 0 }, { transform: "translateY(0)", opacity: 1 }], {
@@ -154,20 +162,10 @@ function arrivePanel(el: HTMLElement, delay: number, mode: PanelMode): Animation
         }),
       );
     }
-    if (name) {
-      animations.push(
-        name.animate([{ transform: "translateY(10px)", opacity: 0 }, { transform: "translateY(0)", opacity: 1 }], {
-          duration: 420,
-          delay: delay + TIMING.introFigureDelay + 120,
-          easing: EASE_RISE,
-          fill: "backwards",
-        }),
-      );
-    }
     return animations;
   }
 
-  // A person replaced: the montage and the foot gradient (over the figure) fade in over the old ones, the figure rises from 8% below, the name comes up from below.
+  // A person replaced: the montage and the foot gradient (over the figure) fade in over the old ones, the figure rises from 8% below.
   if (backdrop) animations.push(fade(backdrop, 0, 1, TIMING.backdrop, delay + TIMING.backdropDelay, EASE_IN_OUT));
   if (foot) animations.push(fade(foot, 0, 1, TIMING.backdrop, delay + TIMING.backdropDelay, EASE_IN_OUT));
   if (figure) {
@@ -177,17 +175,18 @@ function arrivePanel(el: HTMLElement, delay: number, mode: PanelMode): Animation
       figure.animate([{ opacity: 0 }, { opacity: 1 }], { ...options, duration: TIMING.figureArrive * 0.5, easing: EASE_OUT }),
     );
   }
-  if (name) {
-    animations.push(
-      name.animate([{ transform: "translateY(14px)", opacity: 0 }, { transform: "translateY(0)", opacity: 1 }], {
-        duration: TIMING.name,
-        delay: delay + TIMING.figureDelay,
-        easing: EASE_RISE,
-        fill: "backwards",
-      }),
-    );
-  }
   return animations;
+}
+
+/** A name comes up from below, as its figure rises: on the first reveal after the figure has started, on a swap with it. */
+function arriveName(el: HTMLElement, delay: number, mode: PanelMode): Animation {
+  const intro = mode === "intro";
+  return el.animate([{ transform: `translateY(${intro ? 10 : 14}px)`, opacity: 0 }, { transform: "translateY(0)", opacity: 1 }], {
+    duration: intro ? 420 : TIMING.name,
+    delay: delay + (intro ? TIMING.introFigureDelay + 120 : TIMING.figureDelay),
+    easing: EASE_RISE,
+    fill: "backwards",
+  });
 }
 
 function departPanel(el: HTMLElement, delay: number, mode: PanelMode): Animation[] {
@@ -198,17 +197,11 @@ function departPanel(el: HTMLElement, delay: number, mode: PanelMode): Animation
   // once) leaves from where it is instead of jumping to its resting place first.
   const figure = part(el, "figure");
   const foot = part(el, "foot");
-  const name = part(el, "name");
   // The foot gradient sinks away as the new one comes in over it (their two never add up to a darker foot for long).
   if (foot) animations.push(fade(foot, 1, 0, TIMING.backdrop, delay + TIMING.backdropDelay, EASE_IN_OUT));
   if (figure) {
     animations.push(
       figure.animate({ transform: "translateY(6%)", opacity: 0 }, { duration: TIMING.figureLeave, delay, easing: EASE_IN, fill: "forwards" }),
-    );
-  }
-  if (name) {
-    animations.push(
-      name.animate({ transform: "translateY(-12px)", opacity: 0 }, { duration: TIMING.figureLeave, delay, easing: EASE_IN, fill: "forwards" }),
     );
   }
   return animations;

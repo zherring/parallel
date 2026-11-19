@@ -11,11 +11,14 @@ export function YearTick({
   x,
   above = false,
   mark = true,
+  labelClass,
 }: {
   tick: Pick<AxisTick, "kind" | "label">;
   x: number | string;
   above?: boolean;
   mark?: boolean;
+  /** The label's colour (and its text-shadow), where the axis's own muted one would not read: the landing page's years are over photos. */
+  labelClass?: string;
 }) {
   return (
     <span
@@ -28,7 +31,8 @@ export function YearTick({
           className={cn(
             mark && (above ? "mb-0.5" : "mt-0.5"),
             "tabular-nums",
-            tick.kind === "decade" ? "text-xs font-semibold text-strong" : "text-[10px] text-muted",
+            tick.kind === "decade" ? "text-xs font-semibold" : "text-[10px]",
+            labelClass ?? (tick.kind === "decade" ? "text-strong" : "text-muted"),
           )}
         >
           {tick.label}

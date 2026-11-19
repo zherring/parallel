@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyTransition, initialState, type Item, type PanelItem, type PosterItem, type State, type StripItem, type YearItem } from "@/components/landing/hero-items";
+import { applyTransition, initialState, type Item, type NameItem, type PanelItem, type PosterItem, type State, type StripItem, type YearItem } from "@/components/landing/hero-items";
 import { TIMING } from "@/components/landing/hero-motion";
 import { sceneOf, transitionTo, type HeroPairing, type HeroPerson, type Transition } from "@/lib/hero-scenes";
 import { pairPortraitColors } from "@/lib/portrait-cuts";
@@ -19,6 +19,7 @@ function pairing(a: number, b: number, posterCount = 5, sharedCount = 9): HeroPa
 }
 
 const panels = (items: readonly Item[]) => items.filter((item): item is PanelItem => item.kind === "panel");
+const names = (items: readonly Item[]) => items.filter((item): item is NameItem => item.kind === "name");
 const posters = (items: readonly Item[]) => items.filter((item): item is PosterItem => item.kind === "poster");
 const years = (items: readonly Item[]) => items.filter((item): item is YearItem => item.kind === "year");
 const strips = (items: readonly Item[]) => items.filter((item): item is StripItem => item.kind === "strip");
@@ -40,9 +41,11 @@ function collidingIds(): { a: number; b: number; c: number } {
 }
 
 describe("initialState", () => {
-  it("has a panel for each person, a poster for each of the pairing's, the timeline's strip of dots, the two year caps and the label", () => {
+  it("has a panel and a name for each person, the one \"&\", a poster for each of the pairing's, the timeline's strip of dots, the two year caps and the label", () => {
     const state = initialState(sceneOf(pairing(3, 1)), "idle");
     expect(panels(state.items).map((item) => [item.slot, item.person.id])).toEqual([[0, 3], [1, 1]]);
+    expect(names(state.items).map((item) => [item.slot, item.person.id])).toEqual([[0, 3], [1, 1]]);
+    expect(state.items.filter((item) => item.kind === "amp")).toHaveLength(1);
     expect(posters(state.items).map((item) => [item.slot, item.count])).toEqual([[0, 5], [1, 5], [2, 5], [3, 5], [4, 5]]);
     expect(years(state.items).map((item) => [item.slot, item.year])).toEqual([[0, 1973], [1, 2001]]);
     expect(state.items.filter((item) => item.kind === "label")).toHaveLength(1);
@@ -69,6 +72,9 @@ describe("initialState", () => {
     const { items } = initialState(sceneOf(pairing(3, 1)), "entering");
     expect(items.every((item) => item.phase === "entering")).toBe(true);
     expect(panels(items).map((item) => [item.mode, item.delay])).toEqual([["intro", 0], ["intro", TIMING.introWipeStagger]]);
+    // Each name comes up with its panel's figure, and the "&" with the second.
+    expect(names(items).map((item) => [item.mode, item.delay])).toEqual([["intro", 0], ["intro", TIMING.introWipeStagger]]);
+    expect(items.find((item) => item.kind === "amp")?.delay).toBe(TIMING.introWipeStagger);
     const delays = posters(items).map((item) => item.delay);
     expect(delays[0]).toBe(TIMING.introPostersDelay);
     expect(delays).toEqual([...delays].sort((a, b) => a - b));
@@ -98,6 +104,24 @@ describe("applyTransition", () => {
     expect(slotOne[1].mode).toBe("swap");
   });
 
+  it("on a single swap slides only the changed person's name: the other name and the \"&\" are the very same items, still", () => {
+    const before = start(3, 1);
+    const next = applyTransition(before, single(before, pairing(3, 488)));
+    const [keptName, replacedName] = names(before.items);
+    const amp = before.items.find((item) => item.kind === "amp")!;
+    expect(next.items).toContain(keptName);
+    expect(next.items).toContain(amp);
+    expect(names(next.items).filter((item) => item.slot === 0)).toHaveLength(1);
+    expect(names(next.items).filter((item) => item.slot === 1).map((item) => [item.person.id, item.phase])).toEqual([[1, "leaving"], [488, "entering"]]);
+    expect(names(next.items).find((item) => item.id === replacedName.id)?.phase).toBe("leaving");
+    // The "&" is never replaced, whatever changes, and a colour change under a person's panel leaves their name alone too.
+    let state = before;
+    for (const change of [pairing(3, 488), pairing(10, 11), pairing(10, 4)]) {
+      state = applyTransition(state, transitionTo(state.scene, change));
+      expect(state.items.filter((item) => item.kind === "amp")).toEqual([amp]);
+    }
+  });
+
   it("on a full swap replaces both panels", () => {
     const before = start(3, 1);
     const next = applyTransition(before, transitionTo(before.scene, pairing(10, 11)));
@@ -112,8 +136,8 @@ describe("applyTransition", () => {
     const before = start(3, 1);
     const next = applyTransition(before, single(before, pairing(3, 488, 4, 6)));
     const gone = leaving(next.items).filter((item) => item.kind !== "panel");
-    expect(gone.map((item) => item.kind).sort()).toEqual(["label", "poster", "poster", "poster", "poster", "poster", "strip", "year", "year"]);
-    const arriving = next.items.filter((item) => item.phase === "entering" && item.kind !== "panel");
+    expect(gone.map((item) => item.kind).sort()).toEqual(["label", "name", "poster", "poster", "poster", "poster", "poster", "strip", "year", "year"]);
+    const arriving = next.items.filter((item) => item.phase === "entering" && item.kind !== "panel" && item.kind !== "name");
     expect(posters(arriving)).toHaveLength(4);
     expect(posters(arriving).map((item) => item.slot)).toEqual([0, 1, 2, 3]);
     const delays = posters(arriving).map((item) => item.delay);
