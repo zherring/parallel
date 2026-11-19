@@ -9,7 +9,7 @@ import { axisFraction, dotScale, labelYears, type Strip } from "@/lib/hero-layou
  * The one timeline line of the product, a 1px white line at the stage's `--line-y`, running over both halves and on past them `--reach` (the gutters of the
  * "panels" layout, the whole way to the screen's edge in "wide"), fading to nothing at both ends over `--fade`: the mask is opaque from there in, so over the
  * panels it reads against the montage and only the ends carry the fade. The first reveal draws it outward from the middle (`drawLine`, which finds it by
- * `data-line`). It never moves after that. Its parent is the stage's link, whose box is the panels', hence the negative inset.
+ * `data-line`). It never moves after that. Its parent is the stage's decoration box (hero-stage.tsx `Backdrop`), whose box is the panels', hence the negative inset.
  */
 export function TimelineLine() {
   return (
@@ -49,6 +49,7 @@ export function TimelineStrip({ strip, colors }: { strip: Strip; colors: readonl
     <FilmDot
       key={`${tone}-${fill}-${index}`}
       data-dot=""
+      data-shared={tone === "lit" ? "" : undefined}
       data-x={fraction.toFixed(3)}
       className="[transform-box:fill-box] origin-center"
       x={`${(fraction * 100).toFixed(3)}%`}

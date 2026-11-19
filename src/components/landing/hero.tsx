@@ -24,17 +24,18 @@ export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
       className="relative flex flex-col overflow-x-clip [--gutter:clamp(12px,5vw,88px)] [--seam:6px] [--stage-h:max(400px,min(64svh,560px))] sm:[--seam:12px] sm:[--stage-h:clamp(540px,calc(100svh-84px),880px)]"
     >
       {/*
-        First in the markup (it is what the section is named by), over the seam on a screen wide enough, under the stage on a phone. It lets clicks through to the stage's
-        link under it.
+        First in the markup (it is what the section is named by), over the seam on a screen wide enough, under the stage on a phone. Its box lets the pointer through to what is
+        under it, and its text does not: the headline and the line under it are plain page text, which can be selected by dragging over them (nothing over them is a link, and
+        the stage under them is decoration with no pointer handling that stops a selection). It is the server's markup and never redrawn, so a scene change leaves a selection of it be.
       */}
       <div className="pointer-events-none relative z-30 px-4 pb-8 pt-7 text-center max-sm:order-2 sm:absolute sm:inset-x-0 sm:top-[17%] sm:p-0">
         <h1
           id="hero-heading"
-          className="mx-auto max-w-[11.5em] text-balance text-[length:clamp(34px,min(4.6vw,calc(var(--stage-h)*0.105)),68px)] font-semibold leading-[1.05] tracking-[-0.03em] text-white sm:[text-shadow:0_2px_28px_rgb(0_0_0/0.55)]"
+          className="pointer-events-auto mx-auto max-w-[11.5em] text-balance text-[length:clamp(34px,min(4.6vw,calc(var(--stage-h)*0.105)),68px)] font-semibold leading-[1.05] tracking-[-0.03em] text-white sm:[text-shadow:0_2px_28px_rgb(0_0_0/0.55)]"
         >
           Watch filmmakers cross paths
         </h1>
-        <p className="mx-auto mt-3 max-w-[34ch] text-balance text-[15px] leading-relaxed text-[#cdd6df] sm:mt-4 sm:text-base sm:[text-shadow:0_1px_16px_rgb(0_0_0/0.7)]">
+        <p className="pointer-events-auto mx-auto mt-3 max-w-[34ch] text-balance text-[15px] leading-relaxed text-[#cdd6df] sm:mt-4 sm:text-base sm:[text-shadow:0_1px_16px_rgb(0_0_0/0.7)]">
           Search any actor, director, writer or cinematographer. Line their timelines up. See every
           film they made together.
         </p>

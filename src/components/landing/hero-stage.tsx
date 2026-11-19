@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -13,8 +14,9 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import "@/components/landing/hero-cue.css";
 import { KeycapButton } from "@/components/landing/keycap-button";
-import { MoreLabel, PanelParts, PosterParts, YearCap } from "@/components/landing/hero-parts";
+import { CueCall, MoreLabel, PanelParts, PosterParts, YearCap } from "@/components/landing/hero-parts";
 import { arrive, depart, drawLine, wipeFrames, type ItemKind } from "@/components/landing/hero-motion";
 import { SLOTS, applyTransition, initialState, type AmpItem, type Item, type LabelItem, type NameItem, type PanelItem, type PosterItem, type StripItem, type YearItem } from "@/components/landing/hero-items";
 import { TimelineLine, TimelineStrip } from "@/components/landing/hero-timeline";
@@ -129,9 +131,11 @@ const posterAnchor = (slot: number, count: number) =>
     left: `calc(50% + (${slot} - (min(${count}, var(--cap)) - 1) / 2) * var(--step))`,
     top: `calc(var(--line-y) - var(--poster-gap) + ${posterPlace(slot, count).dy}px)`,
     "--z": slot,
+    "--slot": slot,
+    "--count": count,
   }) as CSSProperties;
 
-/** Where a half of the stage is, in the stage's link: from the seam out to its panel's edge, and (`--ext`: 0 in the panels layout, the inset in the wide one) on past it to the screen's. */
+/** Where a half of the stage is, in the stage's decoration box (the panels' box): from the seam out to its panel's edge, and (`--ext`: 0 in the panels layout, the inset in the wide one) on past it to the screen's. */
 const halfBox = (slot: 0 | 1): CSSProperties =>
   slot === 0
     ? { left: "calc(-1 * var(--ext))", right: "calc(50% + var(--seam) / 2)" }
@@ -156,18 +160,12 @@ function NameColumn({ slot, names, reduced, onGone }: { slot: 0 | 1; names: read
 }
 
 /**
- * Everything inside the stage's link: the two halves (frames, with the pieces in them), the scrim that holds the headline, the timeline line, and over it
- * the strip of dots (in the band, with the year caps at its ends), the poster cluster, "+N more" and the names' label. Drawn from `items`, with the animations of `Motion`; the noscript scene is the same
- * thing, all idle.
+ * The stage's decoration, under its link and not in it: the two halves (frames, with the pieces in them: montage, figure and foot), the scrim that holds the headline,
+ * and the timeline line. It is all `aria-hidden`, has no pointer events of its own to speak of and is not a link: only the action zone over it is (`Action`).
+ * Drawn from `items`, with the animations of `Motion`; the noscript scene is the same thing, all idle.
  */
-function Layers({ items, reduced, onGone, variants }: { items: readonly Item[]; reduced: boolean; onGone: (id: string) => void; variants: HeroVariants }) {
+function Backdrop({ items, reduced, onGone, variants }: { items: readonly Item[]; reduced: boolean; onGone: (id: string) => void; variants: HeroVariants }) {
   const panels = items.filter((item): item is PanelItem => item.kind === "panel");
-  const posters = items.filter((item): item is PosterItem => item.kind === "poster");
-  const strips = items.filter((item): item is StripItem => item.kind === "strip");
-  const years = items.filter((item): item is YearItem => item.kind === "year");
-  const labels = items.filter((item): item is LabelItem => item.kind === "label");
-  const names = items.filter((item): item is NameItem => item.kind === "name");
-  const amps = items.filter((item): item is AmpItem => item.kind === "amp");
   const { layout, edge } = variants;
 
   return (
@@ -186,11 +184,6 @@ function Layers({ items, reduced, onGone, variants }: { items: readonly Item[]; 
                 <PanelParts person={item.person} color={item.color} slot={slot} layout={layout} edge={edge} />
               </Motion>
             ))}
-          {/* No border at rest or on hover; only the focus colour when the stage's link has keyboard focus, so it can be seen. It fades out toward the bottom, which melts into the page. */}
-          <span
-            aria-hidden="true"
-            className={`pointer-events-none absolute inset-0 z-10 ${halfCorners(slot, layout)} ring-inset transition-shadow duration-300 [mask-image:linear-gradient(to_bottom,#000_55%,transparent_92%)] group-focus-visible:ring-2 group-focus-visible:ring-focus`}
-          />
         </div>
       ))}
 
@@ -202,9 +195,26 @@ function Layers({ items, reduced, onGone, variants }: { items: readonly Item[]; 
       />
 
       <TimelineLine />
+    </>
+  );
+}
 
+/**
+ * What is inside the stage's link, the action zone (see `ZONE_CLASS`): the strip of dots (in the band, with the year caps at its ends), the poster cluster, "+N more", the
+ * names' label and the cue's line under it; they are anchored on the stage's line, and drawn from `items`, with the animations of `Motion`. The noscript scene is the same, all idle.
+ */
+function Action({ items, reduced, onGone }: { items: readonly Item[]; reduced: boolean; onGone: (id: string) => void }) {
+  const posters = items.filter((item): item is PosterItem => item.kind === "poster");
+  const strips = items.filter((item): item is StripItem => item.kind === "strip");
+  const years = items.filter((item): item is YearItem => item.kind === "year");
+  const labels = items.filter((item): item is LabelItem => item.kind === "label");
+  const names = items.filter((item): item is NameItem => item.kind === "name");
+  const amps = items.filter((item): item is AmpItem => item.kind === "amp");
+
+  return (
+    <>
       {/* The strip's dots, the cluster, its label and the caps are anchored on the line or just above it; the posters shown are the first of the row, three, four or five by width (`POSTER_CAPS`). */}
-      <div className="pointer-events-none absolute inset-0 [--cap:3] sm:[--cap:4] lg:[--cap:5]">
+      <div className="pointer-events-none absolute inset-0">
         {strips.map((item) => {
           const strip = stripOf(item.pairing);
           return (
@@ -219,6 +229,7 @@ function Layers({ items, reduced, onGone, variants }: { items: readonly Item[]; 
         {posters.map((item) => (
           <div
             key={item.id}
+            data-cue-poster=""
             className={`group/poster absolute z-(--z) size-0 hover:z-20 ${item.slot === 4 ? "max-lg:hidden" : item.slot === 3 ? "max-sm:hidden" : ""}`}
             style={posterAnchor(item.slot, item.count)}
           >
@@ -229,19 +240,30 @@ function Layers({ items, reduced, onGone, variants }: { items: readonly Item[]; 
         ))}
 
         {labels.map((item) => (
-          // To the right of the cluster, on the posters' middle (not the line's).
-          <div
-            key={item.id}
-            className="absolute size-0"
-            style={{
-              left: `calc(50% + (min(${item.count}, var(--cap)) - 1) / 2 * var(--step) + var(--pw) / 2 + 14px)`,
-              top: "calc(var(--line-y) - var(--poster-gap) - var(--pw) * 0.75)",
-            }}
-          >
-            <Motion item={item} reduced={reduced} onGone={onGone} className="absolute left-0 top-0 -translate-y-1/2">
-              <MoreLabel pairing={item.pairing} />
-            </Motion>
-          </div>
+          <Fragment key={item.id}>
+            {/* To the right of the cluster, on the posters' middle (not the line's). */}
+            <div
+              data-cue-more=""
+              className="absolute size-0"
+              style={
+                {
+                  left: `calc(50% + (min(${item.count}, var(--cap)) - 1) / 2 * var(--step) + var(--pw) / 2 + 14px)`,
+                  top: "calc(var(--line-y) - var(--poster-gap) - var(--pw) * 0.75)",
+                  "--count": item.count,
+                } as CSSProperties
+              }
+            >
+              <Motion item={item} reduced={reduced} onGone={onGone} className="absolute left-0 top-0 -translate-y-1/2">
+                <MoreLabel pairing={item.pairing} />
+              </Motion>
+            </div>
+            {/* The cue's line, under the names (their box: from 22px under the line, one line of their size, then a gap): hidden until the cue (hero-cue.css), and on a phone, which has no room under its two lines of names. */}
+            <div className="absolute inset-x-0 top-[calc(var(--line-y)+34px+1.15*clamp(16px,1.6vw,24px))] flex justify-center max-sm:hidden">
+              <Motion item={item} reduced={reduced} onGone={onGone} className="">
+                <CueCall count={item.pairing.sharedCount} />
+              </Motion>
+            </div>
+          </Fragment>
         ))}
 
         {years.map((item) => (
@@ -276,6 +298,24 @@ function Layers({ items, reduced, onGone, variants }: { items: readonly Item[]; 
     </>
   );
 }
+
+/**
+ * The stage's one link, and its box is the action zone: the poster cluster (a poster is 1.5 times its width tall) padded 56px above, as wide as the timeline's band, down to the
+ * stage's bottom, which takes in the posters, "+N more", the line and its dots, the years, the names and the cue's line. Hover cue, keyboard focus and click are all this box:
+ * the faces, the montage and the headline are not in a link (no pointer cursor, no click), and the focus ring wraps the zone. `--zone-top` is its top, set on the stage (in px, from the stage's height, as the line's 82% is: a percentage would be of the link's own box where it is used for the content's offset). Its content
+ * (`Action`) is drawn on the stage's own coordinates: a box as big as the stage's, centred on the zone (which is centred on the stage), as it was when the link was the whole stage.
+ */
+const ZONE_CLASS =
+  "group absolute bottom-0 left-1/2 top-(--zone-top) block w-(--band-w) -translate-x-1/2 rounded-[14px] outline-none! focus-visible:ring-2 focus-visible:ring-focus";
+const ZoneContent = ({ children }: { children: ReactNode }) => (
+  <div
+    aria-hidden="true"
+    className="pointer-events-none absolute left-1/2 -translate-x-1/2 [--cap:3] sm:[--cap:4] lg:[--cap:5]"
+    style={{ top: "calc(-1 * var(--zone-top))", width: "calc(100cqw - 2 * var(--core-pad))", height: "var(--stage-h)" }}
+  >
+    {children}
+  </div>
+);
 
 /**
  * Pointer parallax: while a mouse or pen is over the stage, the figures and the posters drift a few pixels against it (`--px` and `--py`, from -1 to 1,
@@ -450,18 +490,18 @@ function Stage({ root, pool, initial }: { root: RefObject<HTMLDivElement | null>
         />
       )}
 
-      {/* The whole stage is one link to the pair; its decorative layers carry no text of their own. */}
+      {/* The stage's decoration: not a link, so the faces, the montage and the headline are plain. */}
       {revealed && (
-        <Link
-          href={sceneHref(scene)}
-          prefetch={false}
-          aria-label={sceneLabel(scene)}
-          {...focusHandlers}
-          className="group absolute inset-x-(--core-pad) inset-y-0 block outline-none!"
-        >
-          <div aria-hidden="true" className="absolute inset-0">
-            <Layers items={state.items} reduced={reduced} onGone={onGone} variants={variants} />
-          </div>
+        <div aria-hidden="true" className="absolute inset-x-(--core-pad) inset-y-0">
+          <Backdrop items={state.items} reduced={reduced} onGone={onGone} variants={variants} />
+        </div>
+      )}
+      {/* The one link to the pair is the action zone, over it: the posters and everything below them. Its decorative layers carry no text of their own. */}
+      {revealed && (
+        <Link href={sceneHref(scene)} prefetch={false} aria-label={sceneLabel(scene)} data-stage-link="" {...focusHandlers} className={ZONE_CLASS}>
+          <ZoneContent>
+            <Action items={state.items} reduced={reduced} onGone={onGone} />
+          </ZoneContent>
         </Link>
       )}
 
@@ -523,19 +563,18 @@ export function HeroStage({ pool, fallback }: Props) {
       ref={root}
       data-hero-stage=""
       data-layout={layout}
-      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size] [--drop:0px] sm:[--drop:clamp(0px,calc(var(--stage-h)_*_0.18_-_90px),50px)] [--fig-drop:calc(var(--drop)_/_2)] [--line-y:calc(82%_+_var(--drop))] [--core-pad:max(var(--gutter),calc((100cqw_-_1600px)/2_+_var(--gutter)))] [--ext:0px] [--reach:var(--gutter)] [--fade:calc(var(--gutter)+14px)] [--axis-pad:54px] [--axis-w:calc(var(--band-w)_-_2_*_var(--axis-pad))] [--poster-gap:22px] [--pw:min(68px,calc(var(--stage-h)*0.15),17cqw)] [--step:calc(var(--pw)*0.76)] data-[layout=wide]:[--ext:var(--core-pad)] data-[layout=wide]:[--reach:var(--core-pad)] data-[layout=wide]:[--fade:56px] sm:[--poster-gap:26px] sm:[--pw:min(92px,calc(var(--stage-h)*0.15))] lg:[--pw:min(100px,calc(var(--stage-h)*0.15))] sm:[--axis-pad:64px]"
+      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size] [--drop:0px] sm:[--drop:clamp(0px,calc(var(--stage-h)_*_0.18_-_90px),50px)] [--fig-drop:calc(var(--drop)_/_2)] [--line-y:calc(82%_+_var(--drop))] [--core-pad:max(var(--gutter),calc((100cqw_-_1600px)/2_+_var(--gutter)))] [--ext:0px] [--reach:var(--gutter)] [--fade:calc(var(--gutter)+14px)] [--axis-pad:54px] [--axis-w:calc(var(--band-w)_-_2_*_var(--axis-pad))] [--zone-top:calc(var(--stage-h)_*_0.82_+_var(--drop)_-_var(--poster-gap)_-_var(--pw)_*_1.5_-_56px)] [--poster-gap:22px] [--pw:min(68px,calc(var(--stage-h)*0.15),17cqw)] [--step:calc(var(--pw)*0.76)] data-[layout=wide]:[--ext:var(--core-pad)] data-[layout=wide]:[--reach:var(--core-pad)] data-[layout=wide]:[--fade:56px] sm:[--poster-gap:26px] sm:[--pw:min(92px,calc(var(--stage-h)*0.15))] lg:[--pw:min(100px,calc(var(--stage-h)*0.15))] sm:[--axis-pad:64px]"
       style={{ "--band-w": BAND_WIDTH_CSS } as CSSProperties}
     >
       {live && shown ? <LiveStage root={root} pool={pool} /> : null}
       <noscript>
-        <a
-          href={sceneHref(fallback)}
-          aria-label={sceneLabel(fallback)}
-          className="group absolute inset-x-(--core-pad) inset-y-0 block outline-none!"
-        >
-          <div aria-hidden="true" className="absolute inset-0">
-            <Layers items={initialState(fallback, "idle").items} reduced={false} onGone={noop} variants={DEFAULT_VARIANTS} />
-          </div>
+        <div aria-hidden="true" className="absolute inset-x-(--core-pad) inset-y-0">
+          <Backdrop items={initialState(fallback, "idle").items} reduced={false} onGone={noop} variants={DEFAULT_VARIANTS} />
+        </div>
+        <a href={sceneHref(fallback)} aria-label={sceneLabel(fallback)} className={ZONE_CLASS}>
+          <ZoneContent>
+            <Action items={initialState(fallback, "idle").items} reduced={false} onGone={noop} />
+          </ZoneContent>
         </a>
       </noscript>
     </div>

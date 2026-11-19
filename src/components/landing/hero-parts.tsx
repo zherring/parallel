@@ -184,8 +184,9 @@ export function PosterParts({ poster, src, slot, count }: { poster: HeroPoster; 
     >
       <div className="relative motion-safe:transition-[translate] motion-safe:duration-300 motion-safe:ease-out motion-safe:group-hover/poster:-translate-y-2">
         <div
+          data-cue-tilt=""
           className="aspect-[2/3] w-full origin-bottom overflow-hidden rounded-[6px] bg-surface shadow-[0_14px_22px_-8px_rgb(0_0_0/0.8),0_0_0_1.25px_#fff] sm:shadow-[0_14px_22px_-8px_rgb(0_0_0/0.8),0_0_0_1.5px_#fff]"
-          style={{ rotate: `${place.tilt}deg`, scale: place.scale }}
+          style={{ "--tilt": `${place.tilt}deg`, scale: place.scale } as CSSProperties}
         >
           <img src={src} alt="" width={104} height={156} decoding="async" draggable={false} className="size-full select-none object-cover" />
         </div>
@@ -233,5 +234,23 @@ export function MoreLabel({ pairing }: { pairing: HeroPairing }) {
         );
       })}
     </>
+  );
+}
+
+/**
+ * The cue's line under the names, "See all 11 films together →" (hero-cue.css fades it in and slides it up while the cue shows, and nudges the arrow twice): where
+ * the click on the stage goes. Decorative, like all of the stage (the link's own name says the films); no box behind it, as it is over the page's foot gradient.
+ */
+export function CueCall({ count }: { count: number }) {
+  return (
+    <span
+      data-cue-cta=""
+      className="block whitespace-nowrap text-[15px] font-medium leading-none tracking-[-0.005em] text-white [text-shadow:0_1px_14px_rgb(0_0_0/0.7)]"
+    >
+      See all <span className="tabular-nums">{count}</span> {count === 1 ? "film" : "films"} together{" "}
+      <span data-cue-arrow="" className="inline-block">
+        →
+      </span>
+    </span>
   );
 }

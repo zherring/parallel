@@ -197,6 +197,247 @@ test("a poster lifts and names its film when hovered, and the stage is still one
   await expect(stageLink(page)).toHaveCount(1);
 });
 
+/** The cue's pieces (hero-cue.css): the stage's own attribute, the line under the names, the posters' places in the cluster and the shared films' dots. */
+const cueLine = (page: Page) => stage(page).locator("[data-cue-cta]").first();
+/** Whether the cue is showing: the stage has its one link (the action zone) hovered or keyboard-focused (hero-cue.css). */
+const cueOn = (page: Page) => stage(page).evaluate((element) => element.matches(":has([data-stage-link]:is(:hover, :focus-visible))"));
+const opacityOf = (locator: ReturnType<Page["locator"]>) => locator.evaluate((element) => getComputedStyle(element).opacity);
+/** The width of the cluster, outer edge to outer edge. */
+async function clusterWidth(page: Page) {
+  const boxes = await stage(page).locator("[data-part='poster']").filter({ visible: true }).evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()));
+  return Math.max(...boxes.map((rect) => rect.right)) - Math.min(...boxes.map((rect) => rect.left));
+}
+
+test("hovering the cluster, timeline and names opens the cue: the posters ease apart, the shared dots light up and a line says where the click goes; a face does not", async ({ page }) => {
+  await page.goto("/");
+  await ready(page);
+  const link = await box(stage(page));
+  const sharedDots = stage(page).locator("[data-dot][data-shared]");
+  // The shared dots' look: a ring in the page's colour at rest; when lit, no ring (plain solid white), a small soft glow, and never larger.
+  const dotLook = () => sharedDots.first().evaluate((element) => ({ stroke: getComputedStyle(element).stroke, scale: getComputedStyle(element).scale, filter: getComputedStyle(element).filter }));
+
+  // At rest: the line is not there, the dots are as drawn.
+  expect(await cueOn(page)).toBe(false);
+  expect(await opacityOf(cueLine(page))).toBe("0");
+  const dotRest = await dotLook();
+  expect(dotRest).toEqual({ stroke: "rgb(20, 24, 28)", scale: "none", filter: "none" });
+  const rest = await clusterWidth(page);
+
+  // A face (the left panel, up where the head is) is the stage, and a link, but not the cue.
+  await page.mouse.move(link.x + link.width * 0.2, link.y + link.height * 0.3, { steps: 4 });
+  await page.waitForTimeout(700);
+  expect(await cueOn(page)).toBe(false);
+  expect(await opacityOf(cueLine(page))).toBe("0");
+  expect(await clusterWidth(page)).toBeCloseTo(rest, 0);
+  await expect(stageLink(page)).toHaveCSS("cursor", "pointer");
+  await expect(stage(page)).toHaveCSS("cursor", "auto");
+
+  // The zone's corner, over bare panel: the cue.
+  const zone = await box(stageLink(page));
+  await page.mouse.move(zone.x + 16, zone.y + zone.height - 16, { steps: 4 });
+  await expect.poll(() => cueOn(page)).toBe(true);
+  await expect.poll(() => opacityOf(cueLine(page))).toBe("1");
+  // It reads "See all 11 films together →", with the pair's own count.
+  const count = Number((await stageLink(page).getAttribute("aria-label"))!.match(/: (\d+) films? together$/)![1]);
+  await expect(cueLine(page)).toHaveText(`See all ${count} films together →`);
+  // The cluster is wider by about 10px a poster, the shared dots are larger and glow, the line sits under the names.
+  await expect.poll(async () => (await clusterWidth(page)) - rest).toBeGreaterThanOrEqual(19);
+  await expect.poll(async () => (await dotLook()).stroke).toBe("rgba(0, 0, 0, 0)");
+  const lit = await dotLook();
+  expect(lit.scale).toBe("none");
+  expect(lit.filter).toMatch(/drop-shadow\(rgba\(255, 255, 255, 0\.55\) 0px 0px 3px\)/);
+  // Plain white: the dot's fill is white, and its neighbours' (the people's colours) are not lit.
+  expect(await sharedDots.first().evaluate((element) => getComputedStyle(element).fill)).toBe("rgb(255, 255, 255)");
+  const names = await box(stage(page).locator("[data-names]"));
+  const line = await box(cueLine(page));
+  expect(line.y).toBeGreaterThanOrEqual(names.y + names.height);
+  expect(Math.abs(centreX(line) - centreX(link))).toBeLessThanOrEqual(3);
+
+  // Out of the zone, it eases shut again.
+  await page.mouse.move(link.x + link.width * 0.2, link.y + link.height * 0.3, { steps: 4 });
+  await expect.poll(() => cueOn(page)).toBe(false);
+  await expect.poll(() => opacityOf(cueLine(page))).toBe("0");
+  await expect.poll(async () => Math.abs((await clusterWidth(page)) - rest)).toBeLessThan(1);
+  await expect.poll(async () => (await dotLook()).stroke).toBe("rgb(20, 24, 28)");
+  expect((await dotLook()).filter).toBe("none");
+});
+
+test("only the action zone is a link: the faces, the montage and the headline are plain (no pointer, no click), and the posters and the names are the link", async ({ page }) => {
+  await page.goto("/");
+  await ready(page);
+  const root = await box(stage(page));
+  const zone = await box(stageLink(page));
+  await expect(stage(page).getByRole("link")).toHaveCount(1);
+  // The link's box is the zone: the cluster, the band and the names, centred on the stage, as wide as the band and down to the stage's bottom.
+  expect(zone.width).toBeLessThan(root.width * 0.8);
+  expect(Math.abs(centreX(zone) - centreX(root))).toBeLessThanOrEqual(1);
+  expect(zone.y).toBeGreaterThan(root.y + root.height * 0.4);
+  expect(Math.abs(zone.y + zone.height - (root.y + root.height))).toBeLessThanOrEqual(1);
+  const posterBoxes = await stage(page).locator("[data-part='poster']").filter({ visible: true }).evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()));
+  const names = await box(stage(page).locator("[data-names]"));
+  for (const rect of posterBoxes) {
+    expect(rect.left).toBeGreaterThanOrEqual(zone.x);
+    expect(rect.right).toBeLessThanOrEqual(zone.x + zone.width);
+    expect(rect.top).toBeGreaterThanOrEqual(zone.y);
+  }
+  expect(names.y).toBeGreaterThanOrEqual(zone.y);
+  expect(names.y + names.height).toBeLessThanOrEqual(zone.y + zone.height);
+
+  // What is under the pointer, and its cursor: the face, the headline and an empty corner are not in a link and have no pointer; a poster and the names are in it, with one.
+  const at = (x: number, y: number) => page.evaluate(({ x, y }) => { const element = document.elementFromPoint(x, y)!; return { inLink: element.closest("a") !== null, cursor: getComputedStyle(element).cursor }; }, { x, y });
+  const face = await at(root.x + root.width * 0.2, root.y + root.height * 0.45);
+  const h1 = await box(page.getByRole("heading", { level: 1 }));
+  const headline = await at(centreX(h1), centreY(h1));
+  const corner = await at(root.x + 40, root.y + root.height - 12);
+  for (const spot of [face, headline, corner]) expect(spot).toEqual({ inLink: false, cursor: "auto" });
+  const poster = posterBoxes[1];
+  expect(await at(poster.x + poster.width / 2, poster.y + poster.height / 2)).toEqual({ inLink: true, cursor: "pointer" });
+  expect(await at(centreX(names), centreY(names))).toEqual({ inLink: true, cursor: "pointer" });
+  // The zone's own empty part (over the panels, under the cluster's padding) is the link too.
+  expect(await at(zone.x + 20, zone.y + 20)).toEqual({ inLink: true, cursor: "pointer" });
+
+  // Clicks on the face, the headline and the empty corner go nowhere.
+  const path = new URL(page.url()).pathname;
+  for (const [x, y] of [[root.x + root.width * 0.2, root.y + root.height * 0.45], [centreX(h1), centreY(h1)], [root.x + 40, root.y + root.height - 12]]) {
+    await page.mouse.click(x, y);
+    await page.waitForTimeout(400);
+    expect(new URL(page.url()).pathname).toBe(path);
+  }
+});
+
+test("the headline and the line under it are plain text: they can be selected by dragging over them, a click or a drag on them goes nowhere, and a scene change leaves the selection and the node alone", async ({ page }) => {
+  await page.clock.install();
+  await page.goto("/");
+  await ready(page);
+  const h1 = page.getByRole("heading", { level: 1 });
+  const subcopy = page.locator("section[aria-labelledby='hero-heading'] p").first();
+  await expect(subcopy).toContainText("Search any actor");
+  const path = new URL(page.url()).pathname;
+  // Text, to the pointer and to the selection: nothing stops either (no user-select: none, and the text's own box takes the pointer).
+  for (const element of [h1, subcopy]) {
+    const style = await element.evaluate((node) => ({ select: getComputedStyle(node).userSelect, events: getComputedStyle(node).pointerEvents, cursor: getComputedStyle(node).cursor }));
+    expect(style.select).not.toBe("none");
+    expect(style.events).not.toBe("none");
+    expect(["auto", "text"]).toContain(style.cursor);
+  }
+  // What is at a point on the text is the text, not a layer of the stage: the headline's own element, and the line's.
+  const heading = await box(h1);
+  const line = await box(subcopy);
+  expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.id, { x: heading.x + 4, y: heading.y + 10 })).toBe("hero-heading");
+  expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.tagName, { x: line.x + 4, y: line.y + 8 })).toBe("P");
+  await page.evaluate(() => ((window as unknown as { __h1: Element }).__h1 = document.getElementById("hero-heading")!));
+
+  // Drag over them, from the start of the headline to the end of the line under it.
+  await page.mouse.move(heading.x + 2, heading.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(line.x + line.width - 4, line.y + line.height - 6, { steps: 14 });
+  await page.mouse.up();
+  const selected = await page.evaluate(() => window.getSelection()!.toString());
+  expect(selected).toContain("Watch filmmakers");
+  expect(selected).toContain("cross paths");
+  expect(selected).toContain("Search any actor");
+  expect(new URL(page.url()).pathname).toBe(path);
+
+  // The scene changes by itself (the pointer is not over the stage's link, and the selection does not hold it): the selection is still there, and the headline is the same node.
+  const label = () => stageLink(page).getAttribute("aria-label");
+  const first = await label();
+  await page.clock.runFor(30_000);
+  await expect.poll(label).not.toBe(first);
+  expect(await page.evaluate(() => window.getSelection()!.toString())).toBe(selected);
+  expect(await page.evaluate(() => (window as unknown as { __h1: Element }).__h1 === document.getElementById("hero-heading"))).toBe(true);
+
+  // A click on the headline, too, goes nowhere.
+  await page.mouse.click(heading.x + heading.width / 2, heading.y + 12);
+  await page.waitForTimeout(300);
+  expect(new URL(page.url()).pathname).toBe(path);
+});
+
+test("clicking a poster, or the names, opens the pair's page", async ({ page }) => {
+  for (const target of ["poster", "names"] as const) {
+    await page.goto("/");
+    await ready(page);
+    const href = (await stageLink(page).getAttribute("href"))!;
+    expect(href).toMatch(/^\/p\//);
+    const spot = target === "poster" ? stage(page).locator("[data-part='poster']").nth(1) : stage(page).locator("[data-names]");
+    const rect = await box(spot);
+    await Promise.all([page.waitForURL((url) => url.pathname === href, { timeout: 45_000 }), page.mouse.click(centreX(rect), centreY(rect))]);
+  }
+});
+
+test("keyboard focus on the stage's link opens the cue, and the rotation holds still for as long as the cue shows", async ({ page }) => {
+  await page.clock.install();
+  await page.goto("/");
+  await ready(page);
+  const label = () => stageLink(page).getAttribute("aria-label");
+  const first = await label();
+
+  // Tab to the link (Previous is before it): the cue shows, and the scene does not change under it.
+  for (let i = 0; i < 12 && !(await stageLink(page).evaluate((element) => element === document.activeElement)); i++) await page.keyboard.press("Tab");
+  await expect.poll(() => cueOn(page)).toBe(true);
+  await expect.poll(() => opacityOf(cueLine(page))).toBe("1");
+  await page.clock.runFor(40_000);
+  expect(await label()).toBe(first);
+  expect(await cueOn(page)).toBe(true);
+
+  // Tab on, to Next: the cue is gone (focus there holds the rotation as well); focus away from the stage and the rotation carries on.
+  await page.keyboard.press("Tab");
+  await expect.poll(() => cueOn(page)).toBe(false);
+  await page.evaluate(() => (document.activeElement as HTMLElement).blur());
+  await page.clock.runFor(40_000);
+  await expect.poll(label).not.toBe(first);
+});
+
+test("a pointer in the zone holds the rotation still, and a scene changed under it (an arrow key) settles straight into the open state", async ({ page }) => {
+  await page.clock.install();
+  await page.goto("/");
+  await ready(page);
+  const label = () => stageLink(page).getAttribute("aria-label");
+  const first = await label();
+  const zone = await box(stageLink(page));
+  await page.mouse.move(zone.x + 16, zone.y + zone.height - 16, { steps: 4 });
+  await expect.poll(() => cueOn(page)).toBe(true);
+  await page.clock.runFor(40_000);
+  expect(await label()).toBe(first);
+
+  // The arrow key is the visitor's own step: the stage changes under the pointer, which has not moved.
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(label).not.toBe(first);
+  await page.clock.runFor(2500);
+  await ready(page);
+  expect(await cueOn(page)).toBe(true);
+  // The line says the new pair's count, once; the new posters are in their open places (lifted off the anchor), not at rest.
+  const next = Number((await label())!.match(/: (\d+) films? together$/)![1]);
+  await expect(stage(page).locator("[data-cue-cta]")).toHaveCount(1);
+  await expect(cueLine(page)).toHaveText(`See all ${next} films together →`);
+  expect(await opacityOf(cueLine(page))).toBe("1");
+  // (An anchor has no size of its own, so it is found by what it shows: the ones a width hides are display: none.)
+  const lifts = await stage(page)
+    .locator("[data-cue-poster]")
+    .evaluateAll((elements) => elements.filter((element) => getComputedStyle(element).display !== "none").map((element) => getComputedStyle(element).translate));
+  expect(lifts.length).toBeGreaterThanOrEqual(3);
+  for (const lift of lifts) expect(lift).toMatch(/ -4px$/);
+  expect(await stage(page).locator("[data-dot][data-shared]").first().evaluate((element) => getComputedStyle(element).stroke)).toBe("rgba(0, 0, 0, 0)");
+});
+
+test.describe("with reduced motion", () => {
+  test.use({ reducedMotion: "reduce" });
+
+  test("the cue only fades its line in and lights the dots: nothing moves", async ({ page }) => {
+    await page.goto("/");
+    await ready(page);
+    const rest = await clusterWidth(page);
+    const zone = await box(stageLink(page));
+    await page.mouse.move(zone.x + 16, zone.y + zone.height - 16, { steps: 4 });
+    await expect.poll(() => cueOn(page)).toBe(true);
+    await expect.poll(() => opacityOf(cueLine(page))).toBe("1");
+    const dot = stage(page).locator("[data-dot][data-shared]").first();
+    await expect.poll(() => dot.evaluate((element) => getComputedStyle(element).filter)).toContain("drop-shadow");
+    expect(await dot.evaluate((element) => getComputedStyle(element).scale)).toBe("none");
+    expect(await clusterWidth(page)).toBeCloseTo(rest, 0);
+    expect(await cueLine(page).evaluate((element) => getComputedStyle(element).translate)).toBe("none");
+  });
+});
+
 /** The two names of the stage's label and its "&", from the link's name ("A and B: 6 films together"), as boxes. */
 async function nameBoxes(page: Page) {
   const label = (await stageLink(page).getAttribute("aria-label"))!;
@@ -332,25 +573,27 @@ test.describe("the timeline's content is in a band centred on the seam, and the 
       expect(Math.abs(figDrop - 25)).toBeLessThanOrEqual(0.5);
     });
 
-    test("the panels have no border at rest or when the stage is hovered, and a focus ring in the focus colour when its link has keyboard focus", async ({ page }) => {
+    test("the panels have no border at rest or when the stage is hovered; the focus ring is the action zone's, in the focus colour, and not the halves'", async ({ page }) => {
       await page.goto("/");
       await ready(page);
-      const rings = stage(page).locator("[data-frame] > span");
-      await expect(rings).toHaveCount(2);
-      const shadows = () => rings.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).boxShadow));
-      const none = (list: string[]) => list.every((shadow) => shadow === "none" || /rgba\(0, 0, 0, 0\) 0px 0px 0px 0px/.test(shadow));
-      expect(none(await shadows())).toBe(true);
+      // The halves have no ring at all, focused or not.
+      await expect(stage(page).locator("[data-frame] > span")).toHaveCount(0);
+      for (const border of await stage(page).locator("[data-frame]").evaluateAll((frames) => frames.map((frame) => getComputedStyle(frame).borderTopWidth))) expect(border).toBe("0px");
+      const ring = () => stageLink(page).evaluate((element) => getComputedStyle(element).boxShadow);
+      expect(await ring()).toBe("none");
       await stageLink(page).hover();
       await page.waitForTimeout(450);
-      expect(none(await shadows())).toBe(true);
-      // The frames themselves have no border either.
-      for (const border of await stage(page).locator("[data-frame]").evaluateAll((frames) => frames.map((frame) => getComputedStyle(frame).borderTopWidth))) expect(border).toBe("0px");
+      expect(await ring()).toBe("none");
 
       await page.mouse.move(2, 2);
       await stageLink(page).focus();
       await expect(stageLink(page)).toBeFocused();
       expect(await stageLink(page).evaluate((element) => element.matches(":focus-visible"))).toBe(true);
-      await expect.poll(async () => (await shadows()).every((shadow) => shadow !== "none" && /0px 0px 0px 2px/.test(shadow))).toBe(true);
+      // A 2px ring in the focus colour (#40bcf4) round the zone's box, which has rounded corners; and the cue is showing.
+      await expect.poll(ring).toMatch(/rgb\(64, 188, 244\) 0px 0px 0px 2px/);
+      expect(parseFloat(await stageLink(page).evaluate((element) => getComputedStyle(element).borderTopLeftRadius))).toBeGreaterThan(8);
+      expect(await cueOn(page)).toBe(true);
+      await expect(stage(page).locator("[data-frame] > span")).toHaveCount(0);
     });
   });
 
@@ -650,6 +893,14 @@ test.describe("on a phone", () => {
     expect(await container.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBe(16);
     const stageBox = await box(stage(page));
     expect(b.y + b.height).toBeLessThanOrEqual(stageBox.y + stageBox.height);
+  });
+
+  test("a touch screen gets no cue: no line under the names, and the stage is only a link", async ({ page }) => {
+    await page.goto("/");
+    await ready(page);
+    expect(await cueOn(page)).toBe(false);
+    await expect(cueLine(page)).toBeHidden();
+    await expect(stageLink(page)).toHaveCount(1);
   });
 
   test("the headline is under the stage, nothing overflows sideways, the cluster and its pill fit, and the pills scroll in their own row", async ({ page }) => {
