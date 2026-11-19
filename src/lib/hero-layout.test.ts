@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  AXIS_PAD,
+  BAND,
+  BAND_WIDTH_CSS,
   DOT_MIN_SCALE,
   LABEL_END_CLEAR,
   LABEL_GAP,
   POSTER_CAPS,
   axisFraction,
+  axisWidth,
+  bandWidth,
   decodedYears,
   dotScale,
   labelYears,
@@ -158,5 +163,72 @@ describe("the dots' size and the year labels, by the axis's width", () => {
 
   it("labels every year of a short career (the room each has, as the pair page's axis does)", () => {
     expect(labelYears({ first: 1991, last: 1996 }, 1400)).toEqual([1992, 1993, 1994, 1995]);
+  });
+});
+
+describe("the band the timeline's content is in", () => {
+  it("is half of the screen from 1200px up, and 86% of it at 390px", () => {
+    expect(bandWidth(1200)).toBeCloseTo(600);
+    expect(bandWidth(1440)).toBeCloseTo(720);
+    expect(bandWidth(1920)).toBeCloseTo(960);
+    expect(bandWidth(390)).toBeCloseTo(0.86 * 390);
+  });
+
+  it("widens as the screen narrows, by a straight line in px between those two, so a phone's years have room", () => {
+    const share = (viewport: number) => bandWidth(viewport) / viewport;
+    expect(share(800)).toBeGreaterThan(0.5);
+    expect(share(800)).toBeLessThan(0.86);
+    const widths = [1200, 1000, 800, 600, 390].map(bandWidth);
+    expect(widths).toEqual([...widths].sort((a, b) => b - a));
+    // Half way along the line in px is half way between its two ends.
+    expect(bandWidth(795)).toBeCloseTo((bandWidth(1200) + bandWidth(390)) / 2);
+    // Narrower than a phone it is held to `maxShare`, so the caps keep clear of the screen's edge.
+    expect(bandWidth(320)).toBeCloseTo(BAND.maxShare * 320);
+    expect(bandWidth(200) / 200).toBeLessThanOrEqual(BAND.maxShare);
+  });
+
+  it("is the same rule in CSS, for the stage to set as --band-w", () => {
+    expect(BAND_WIDTH_CSS).toBe("max(50cqw, min(90cqw, calc(32.6667cqw + 208px)))");
+  });
+
+  it("leaves an axis for the dots of about 590px on a 1440px screen and 230px on a phone", () => {
+    expect(axisWidth(1440)).toBeCloseTo(720 - 2 * AXIS_PAD.desktop);
+    expect(axisWidth(390)).toBeCloseTo(0.86 * 390 - 2 * AXIS_PAD.phone);
+    expect(axisWidth(390)).toBeGreaterThan(200);
+  });
+});
+
+describe("the dots' size and the year labels in the band's axis", () => {
+  const career = { first: 1972, last: 2023 };
+
+  it("sizes the dots from the band: full size on a desktop's axis for a long career, half on a phone's", () => {
+    expect(dotScale(career, axisWidth(1440))).toBe(1);
+    expect(dotScale(career, axisWidth(390))).toBe(DOT_MIN_SCALE);
+    // In between it is the formula's: smaller the narrower the band.
+    const tablet = dotScale(career, axisWidth(768));
+    expect(tablet).toBeGreaterThan(DOT_MIN_SCALE);
+    expect(tablet).toBeLessThan(1);
+  });
+
+  it("keeps two labels at least a gap apart, and the first and last clear of the caps' ends, on every screen width and career length", () => {
+    for (const viewport of [320, 390, 430, 640, 768, 1024, 1200, 1440, 1920]) {
+      const width = axisWidth(viewport);
+      for (const span of [4, 12, 30, 51, 80]) {
+        const axis = { first: 1940, last: 1940 + span };
+        const years = labelYears(axis, width);
+        const px = (year: number) => ((year - axis.first) / span) * width;
+        for (let index = 1; index < years.length; index += 1) expect(px(years[index]) - px(years[index - 1])).toBeGreaterThanOrEqual(LABEL_GAP - 1e-9);
+        for (const year of years) {
+          expect(px(year)).toBeGreaterThanOrEqual(LABEL_END_CLEAR);
+          expect(width - px(year)).toBeGreaterThanOrEqual(LABEL_END_CLEAR);
+        }
+      }
+    }
+  });
+
+  it("labels a long career every ten years at 1440px and on a phone (45px apart there), and every twenty on a phone once it is 80 years", () => {
+    expect(labelYears(career, axisWidth(1440))).toEqual([1980, 1990, 2000, 2010, 2020]);
+    expect(labelYears(career, axisWidth(390))).toEqual([1980, 1990, 2000, 2010]);
+    expect(labelYears({ first: 1940, last: 2020 }, axisWidth(390))).toEqual([1960, 1980, 2000]);
   });
 });

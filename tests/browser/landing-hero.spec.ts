@@ -262,6 +262,133 @@ test("the names are one label under the timeline, centred on the seam: A against
   expect(order.height).toBeLessThan(0.46);
 });
 
+/** The stage's box and the geometry the timeline's content is in, for the band and drop tests below. */
+async function bandGeometry(page: Page) {
+  const root = await box(stage(page));
+  const link = await box(stageLink(page));
+  const line = await box(stage(page).locator("[data-line]"));
+  const caps = stage(page).locator("span.tabular-nums.text-strong");
+  await expect(caps).toHaveCount(2);
+  const leftCap = await box(caps.first());
+  const rightCap = await box(caps.last());
+  const dots = await stage(page).locator("circle[data-dot]").evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().x + element.getBoundingClientRect().width / 2));
+  const names = await box(stage(page).locator("[data-names]"));
+  return { root, link, line, leftCap, rightCap, dots, names, lineY: centreY(line) };
+}
+
+test.describe("the timeline's content is in a band centred on the seam, and the line runs on past it", () => {
+  test.describe("at 1440px", () => {
+    test.use({ viewport: { width: 1440, height: 900 } });
+
+    test("the caps are at the ends of a band half the screen wide, every dot and year is between them, and the line fills the width", async ({ page }) => {
+      await page.goto("/");
+      await ready(page);
+      const g = await bandGeometry(page);
+      const viewport = page.viewportSize()!;
+      // The band is 720px, centred on the seam: the caps' outer edges are its ends.
+      expect(Math.abs(g.leftCap.x - (viewport.width - 720) / 2)).toBeLessThanOrEqual(1);
+      expect(Math.abs(g.rightCap.x + g.rightCap.width - (viewport.width + 720) / 2)).toBeLessThanOrEqual(1);
+      for (const x of g.dots) {
+        expect(x).toBeGreaterThan(g.leftCap.x + g.leftCap.width);
+        expect(x).toBeLessThan(g.rightCap.x);
+      }
+      // The line is not clipped to it: it runs on, out to the screen's edges (and over each half's panel).
+      expect(g.line.x).toBeLessThanOrEqual(g.leftCap.x - 200);
+      expect(g.line.x + g.line.width).toBeGreaterThanOrEqual(g.rightCap.x + g.rightCap.width + 200);
+      expect(g.line.width).toBeGreaterThanOrEqual(viewport.width - 2);
+    });
+
+    test("the posters, the line, the dots and the names are 50px lower than a line at 82% of the stage, and the names keep clear of its bottom edge", async ({ page }) => {
+      await page.goto("/");
+      await ready(page);
+      const g = await bandGeometry(page);
+      // 1440 x 900: the stage is 816px high, so the line is at 82% and 50px.
+      expect(Math.abs(g.root.height - 816)).toBeLessThanOrEqual(1);
+      expect(Math.abs(g.lineY - g.root.y - (0.82 * g.root.height + 50))).toBeLessThanOrEqual(1);
+      // The dots and the caps are on the line itself, and the names are the same 22px under it as before.
+      expect(Math.abs(centreY(g.leftCap) - g.lineY)).toBeLessThanOrEqual(1);
+      expect(Math.abs(g.names.y - (g.lineY + 22))).toBeLessThanOrEqual(1.5);
+      expect(g.root.y + g.root.height - (g.names.y + g.names.height)).toBeGreaterThanOrEqual(40);
+      // The posters stand the same distance over the line (26px, and the fan's few px), so they came down with it.
+      const posters = stage(page).locator("[data-part='poster']");
+      const bottoms = [];
+      for (let i = 0; i < (await posters.count()); i++) bottoms.push((await box(posters.nth(i))).y + (await box(posters.nth(i))).height);
+      expect(Math.max(...bottoms)).toBeLessThan(g.lineY - 10);
+      expect(Math.max(...bottoms)).toBeGreaterThan(g.lineY - 60);
+      // The figures are 25px lower, half as far: a cut stands 3% and 25px past the stage's bottom.
+      const figures = await stage(page).locator("[data-part='figure']").evaluateAll((elements) =>
+        elements.map((element) => ({ cut: element.querySelector("svg path") !== null, bottom: element.getBoundingClientRect().bottom })),
+      );
+      for (const figure of figures.filter((item) => item.cut)) expect(Math.abs(figure.bottom - (g.root.y + g.root.height + 0.03 * g.root.height + 25))).toBeLessThanOrEqual(2);
+      // (Whatever the scene's figures are, tears included, the offset they are given is 25px here.)
+      const figDrop = await stage(page).evaluate((element) => {
+        const probe = document.createElement("div");
+        probe.style.height = "var(--fig-drop)";
+        element.append(probe);
+        const height = probe.getBoundingClientRect().height;
+        probe.remove();
+        return height;
+      });
+      expect(Math.abs(figDrop - 25)).toBeLessThanOrEqual(0.5);
+    });
+
+    test("the panels have no border at rest or when the stage is hovered, and a focus ring in the focus colour when its link has keyboard focus", async ({ page }) => {
+      await page.goto("/");
+      await ready(page);
+      const rings = stage(page).locator("[data-frame] > span");
+      await expect(rings).toHaveCount(2);
+      const shadows = () => rings.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).boxShadow));
+      const none = (list: string[]) => list.every((shadow) => shadow === "none" || /rgba\(0, 0, 0, 0\) 0px 0px 0px 0px/.test(shadow));
+      expect(none(await shadows())).toBe(true);
+      await stageLink(page).hover();
+      await page.waitForTimeout(450);
+      expect(none(await shadows())).toBe(true);
+      // The frames themselves have no border either.
+      for (const border of await stage(page).locator("[data-frame]").evaluateAll((frames) => frames.map((frame) => getComputedStyle(frame).borderTopWidth))) expect(border).toBe("0px");
+
+      await page.mouse.move(2, 2);
+      await stageLink(page).focus();
+      await expect(stageLink(page)).toBeFocused();
+      expect(await stageLink(page).evaluate((element) => element.matches(":focus-visible"))).toBe(true);
+      await expect.poll(async () => (await shadows()).every((shadow) => shadow !== "none" && /0px 0px 0px 2px/.test(shadow))).toBe(true);
+    });
+  });
+
+  test.describe("at 390px", () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+    test("the band is 86% of the screen, the caps at its ends, and the phone's positions have not moved down", async ({ page }) => {
+      await page.goto("/");
+      await ready(page);
+      const g = await bandGeometry(page);
+      const band = 0.86 * 390;
+      expect(Math.abs(g.leftCap.x - (390 - band) / 2)).toBeLessThanOrEqual(1.5);
+      expect(Math.abs(g.rightCap.x + g.rightCap.width - (390 + band) / 2)).toBeLessThanOrEqual(1.5);
+      expect(g.leftCap.x).toBeGreaterThanOrEqual(16);
+      for (const x of g.dots) {
+        expect(x).toBeGreaterThan(g.leftCap.x + g.leftCap.width);
+        expect(x).toBeLessThan(g.rightCap.x);
+      }
+      // No drop on a phone: the line is at 82% of the stage.
+      expect(Math.abs(g.lineY - g.root.y - 0.82 * g.root.height)).toBeLessThanOrEqual(1);
+    });
+  });
+
+  test.describe("at 1280 x 720", () => {
+    test.use({ viewport: { width: 1280, height: 720 } });
+
+    test("the drop is less on a shorter stage, and the names still have room above its bottom edge", async ({ page }) => {
+      await page.goto("/");
+      await ready(page);
+      const g = await bandGeometry(page);
+      const drop = g.lineY - g.root.y - 0.82 * g.root.height;
+      expect(drop).toBeGreaterThan(15);
+      expect(drop).toBeLessThan(50);
+      expect(g.root.y + g.root.height - (g.names.y + g.names.height)).toBeGreaterThanOrEqual(36);
+    });
+  });
+});
+
 test.describe("the variants", () => {
   /** The figure, the first frame and the last, as boxes. */
   const geometry = async (page: Page) => ({

@@ -97,6 +97,36 @@ export function stripOf(pairing: HeroPairing): Strip | null {
   return { axis, own: [yearFractions(years.own[0], axis), yearFractions(years.own[1], axis)], together: yearFractions(years.together, axis) };
 }
 
+/**
+ * The band: everything on the timeline (the dots, the years over them and the two year caps) sits in a band centred on the seam, not across the whole stage; only the
+ * 1px line itself runs on to the screen's edges. The band is half of the screen's width from `wideAt` up, and widens by a straight line in px as the screen narrows
+ * (so a phone's years are not cramped into half of it) to `narrowShare` of it at `narrowAt`, never past `maxShare`. `BAND_WIDTH_CSS` is the same rule in CSS
+ * (`cqw` of the stage, which is as wide as the screen), set as `--band-w` on the stage (hero-stage.tsx), so the two cannot drift apart.
+ */
+export const BAND = { wideAt: 1200, wideShare: 0.5, narrowAt: 390, narrowShare: 0.86, maxShare: 0.9 } as const;
+
+const BAND_SLOPE = (BAND.wideShare * BAND.wideAt - BAND.narrowShare * BAND.narrowAt) / (BAND.wideAt - BAND.narrowAt);
+const BAND_BASE = BAND.narrowShare * BAND.narrowAt - BAND_SLOPE * BAND.narrowAt;
+
+/** The band's width in px on a screen `viewport` px wide. */
+export function bandWidth(viewport: number): number {
+  return Math.min(BAND.maxShare * viewport, Math.max(BAND.wideShare * viewport, BAND_SLOPE * viewport + BAND_BASE));
+}
+
+const css = (value: number) => String(Math.round(value * 10000) / 10000);
+export const BAND_WIDTH_CSS = `max(${css(BAND.wideShare * 100)}cqw, min(${css(BAND.maxShare * 100)}cqw, calc(${css(BAND_SLOPE * 100)}cqw + ${css(BAND_BASE)}px)))`;
+
+/**
+ * How far in from each end of the band the dots' axis starts, px: the year cap (its outer edge is the band's) and a gap after it. A phone's cap is smaller;
+ * Tailwind's `sm` (640px) is where it grows. These mirror `--axis-pad` in hero-stage.tsx.
+ */
+export const AXIS_PAD = { phone: 54, desktop: 64 } as const;
+
+/** The axis's width, px, on a screen `viewport` px wide: the band less a cap's room at each end. It is what `dotScale` and `labelYears` are given. */
+export function axisWidth(viewport: number): number {
+  return bandWidth(viewport) - 2 * (viewport >= 640 ? AXIS_PAD.desktop : AXIS_PAD.phone);
+}
+
 /** The spacing of the years (px per year) at which a dot is as large as on a pair's page; a more crowded axis shrinks them, down to `DOT_MIN_SCALE` of that. */
 export const DOT_FULL_PX_PER_YEAR = 9;
 export const DOT_MIN_SCALE = 0.5;

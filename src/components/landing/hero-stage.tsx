@@ -27,7 +27,7 @@ import { useHeroPause } from "@/components/landing/use-hero-pause";
 import { useKeycapPress } from "@/components/landing/use-keycap-press";
 import { useReducedMotion } from "@/components/pair-wash";
 import type { NavDirection } from "@/lib/hero-history";
-import { posterPlace, stripOf } from "@/lib/hero-layout";
+import { BAND_WIDTH_CSS, posterPlace, stripOf } from "@/lib/hero-layout";
 import { isRunning, pickFirstScene, type HeroPairing, type Scene } from "@/lib/hero-scenes";
 import { DEFAULT_VARIANTS, type HeroVariants } from "@/lib/hero-variants";
 import { buildPeopleSlug } from "@/lib/slug";
@@ -157,7 +157,7 @@ function NameColumn({ slot, names, reduced, onGone }: { slot: 0 | 1; names: read
 
 /**
  * Everything inside the stage's link: the two halves (frames, with the pieces in them), the scrim that holds the headline, the timeline line, and over it
- * the strip of dots, the poster cluster, "+N more", the year caps and the names' label. Drawn from `items`, with the animations of `Motion`; the noscript scene is the same
+ * the strip of dots (in the band, with the year caps at its ends), the poster cluster, "+N more" and the names' label. Drawn from `items`, with the animations of `Motion`; the noscript scene is the same
  * thing, all idle.
  */
 function Layers({ items, reduced, onGone, variants }: { items: readonly Item[]; reduced: boolean; onGone: (id: string) => void; variants: HeroVariants }) {
@@ -186,10 +186,10 @@ function Layers({ items, reduced, onGone, variants }: { items: readonly Item[]; 
                 <PanelParts person={item.person} color={item.color} slot={slot} layout={layout} edge={edge} />
               </Motion>
             ))}
-          {/* A white ring when the stage is hovered, the focus colour when its link has keyboard focus; it fades out toward the bottom, which melts into the page. */}
+          {/* No border at rest or on hover; only the focus colour when the stage's link has keyboard focus, so it can be seen. It fades out toward the bottom, which melts into the page. */}
           <span
             aria-hidden="true"
-            className={`pointer-events-none absolute inset-0 z-10 ${halfCorners(slot, layout)} ring-1 ring-inset ring-white/15 transition-shadow duration-300 [mask-image:linear-gradient(to_bottom,#000_55%,transparent_92%)] group-hover:ring-2 group-hover:ring-white/70 group-focus-visible:ring-2 group-focus-visible:ring-focus`}
+            className={`pointer-events-none absolute inset-0 z-10 ${halfCorners(slot, layout)} ring-inset transition-shadow duration-300 [mask-image:linear-gradient(to_bottom,#000_55%,transparent_92%)] group-focus-visible:ring-2 group-focus-visible:ring-focus`}
           />
         </div>
       ))}
@@ -248,7 +248,7 @@ function Layers({ items, reduced, onGone, variants }: { items: readonly Item[]; 
           <div
             key={item.id}
             className="absolute size-0"
-            style={{ top: "var(--line-y)", [item.slot === 0 ? "left" : "right"]: "calc(-1 * min(var(--gutter) - 4px, 18px))" }}
+            style={{ top: "var(--line-y)", [item.slot === 0 ? "left" : "right"]: "calc(50% - var(--band-w) / 2)" }}
           >
             <Motion item={item} reduced={reduced} onGone={onGone} className={`absolute top-0 -translate-y-1/2 ${item.slot === 0 ? "left-0" : "right-0"}`}>
               <YearCap year={item.year} />
@@ -503,8 +503,12 @@ function LiveStage({ root, pool }: { root: RefObject<HTMLDivElement | null>; poo
  * as the screen and a size container, so `--core-pad` (what `100cqw` makes of it) is how far in from the screen's edges the panels of the "panels" layout are:
  * the gutter, or, past 1600px of width, the gutter and half of what is left. Both layouts are drawn from it (`--ext` is how far a half runs out past its
  * panel: nothing, or all the way to the screen's edge). `--pw` is a poster's width, from the box (its height, and on a phone its width), `--step` the distance
- * between posters of the cluster; `--line-y` is the line's place down the stage, `--poster-gap` how far the
- * posters' bottoms are above it, and `--axis-pad` how far in from a panel's outer edge the dots' axis starts (past the year cap).
+ * between posters of the cluster; `--line-y` is the line's place down the stage (82% and `--drop`), `--poster-gap` how far the
+ * posters' bottoms are above it. `--drop` is how far the line and all that stands on it (the cluster, "+N more", the dots, years, caps and the names) are moved down
+ * from 82%: 50px on a stage 816px high (a 1440 x 900 screen), less on a shorter one so that the names keep about 40px above the stage's bottom edge
+ * (`0.18 x stage - 90px`, between 0 and 50px), and nothing on a phone, whose names would not fit; the figures are dropped half as far (`--fig-drop`). `--band-w` is
+ * the width of the band the timeline's content is in, centred on the seam (hero-layout.ts `BAND`), `--axis-pad` how far in from each end of the band the dots' axis
+ * starts (past the year cap, whose outer edge is the band's), and `--axis-w` the axis's width.
  */
 export function HeroStage({ pool, fallback }: Props) {
   // False on the server and for the hydrating render, true from the next one: the random pick
@@ -519,7 +523,8 @@ export function HeroStage({ pool, fallback }: Props) {
       ref={root}
       data-hero-stage=""
       data-layout={layout}
-      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size] [--line-y:82%] [--core-pad:max(var(--gutter),calc((100cqw_-_1600px)/2_+_var(--gutter)))] [--ext:0px] [--reach:var(--gutter)] [--fade:calc(var(--gutter)+14px)] [--axis-pad:44px] [--poster-gap:22px] [--pw:min(68px,calc(var(--stage-h)*0.15),17cqw)] [--step:calc(var(--pw)*0.76)] data-[layout=wide]:[--ext:var(--core-pad)] data-[layout=wide]:[--reach:var(--core-pad)] data-[layout=wide]:[--fade:56px] sm:[--poster-gap:26px] sm:[--pw:min(92px,calc(var(--stage-h)*0.15))] lg:[--pw:min(100px,calc(var(--stage-h)*0.15))]"
+      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size] [--drop:0px] sm:[--drop:clamp(0px,calc(var(--stage-h)_*_0.18_-_90px),50px)] [--fig-drop:calc(var(--drop)_/_2)] [--line-y:calc(82%_+_var(--drop))] [--core-pad:max(var(--gutter),calc((100cqw_-_1600px)/2_+_var(--gutter)))] [--ext:0px] [--reach:var(--gutter)] [--fade:calc(var(--gutter)+14px)] [--axis-pad:54px] [--axis-w:calc(var(--band-w)_-_2_*_var(--axis-pad))] [--poster-gap:22px] [--pw:min(68px,calc(var(--stage-h)*0.15),17cqw)] [--step:calc(var(--pw)*0.76)] data-[layout=wide]:[--ext:var(--core-pad)] data-[layout=wide]:[--reach:var(--core-pad)] data-[layout=wide]:[--fade:56px] sm:[--poster-gap:26px] sm:[--pw:min(92px,calc(var(--stage-h)*0.15))] lg:[--pw:min(100px,calc(var(--stage-h)*0.15))] sm:[--axis-pad:64px]"
+      style={{ "--band-w": BAND_WIDTH_CSS } as CSSProperties}
     >
       {live && shown ? <LiveStage root={root} pool={pool} /> : null}
       <noscript>

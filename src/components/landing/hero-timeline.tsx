@@ -25,12 +25,14 @@ export function TimelineLine() {
  * The films on the line, drawn the way the pair page's timeline draws them (`FilmDot`, `YearTick`): every film a dot on the line itself, each person's own in
  * their colour and the films they made together larger and white, ringed in the page's colour and over the rest (the year of the first film of either person at the
  * axis's left end, the last at its right, each film by its year, hero-layout.ts `stripOf`). Under a crowded axis (a long career on a phone) the dots are smaller
- * (`dotScale`). Over the line, the years between the caps' (`labelYears`, thinned by the room they have). It spans the axis between the year caps (`--axis-pad` in
- * from the panels' outer edges); `data-dot` and `data-x` are what hero-motion.ts pops in, left to right.
+ * (`dotScale`). Over the line, the years between the caps' (`labelYears`, thinned by the room they have). It spans the axis between the year caps: the
+ * band (`--band-w`, hero-layout.ts `BAND`: half the screen, centred on the seam, wider on a narrow one) less `--axis-pad` at each end, which is the
+ * caps' room, so the line is the only thing that runs out to the screen's edges. The size of the dots and the years labelled come from that axis's width, so
+ * they follow the band. `data-dot` and `data-x` are what hero-motion.ts pops in, left to right.
  */
 export function TimelineStrip({ strip, colors }: { strip: Strip; colors: readonly [string, string] }) {
   const root = useRef<HTMLDivElement>(null);
-  // The axis's width in px, for the size of the dots and which years fit; 0 (full-size dots, no years) for the server's markup and until it is measured.
+  // The axis's width in px (the band's, less the caps' room), for the size of the dots and which years fit; 0 (full-size dots, no years) for the server's markup and until it is measured.
   const [width, setWidth] = useState(0);
   useLayoutEffect(() => {
     const element = root.current;
@@ -59,7 +61,7 @@ export function TimelineStrip({ strip, colors }: { strip: Strip; colors: readonl
     />
   );
   return (
-    <div ref={root} aria-hidden="true" className="pointer-events-none absolute inset-x-(--axis-pad) top-(--line-y) h-0">
+    <div ref={root} aria-hidden="true" className="pointer-events-none absolute left-1/2 top-(--line-y) h-0 w-(--axis-w) -translate-x-1/2">
       <svg className="absolute left-0 top-0 h-px w-full -translate-y-1/2 overflow-visible">
         {strip.own.map((fractions, lane) => fractions.map((fraction, index) => dot(fraction, index, "plain", colors[lane])))}
         {strip.together.map((fraction, index) => dot(fraction, index, "lit", "#fff"))}

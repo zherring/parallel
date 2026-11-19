@@ -124,12 +124,12 @@ export function PanelParts({
       </div>
 
       {/*
-        A cut is anchored to the core's bottom (a little past it; on a phone, where the posters would cover the face of one that big, it stands on the line) and centred `FIGURE_CENTRE` of the core's width in from its outer edge, so the seam's side stays clear.
+        A cut is anchored to the core's bottom (a little past it, and `--fig-drop` further, half of how far the timeline is dropped; on a phone, where the posters would cover the face of one that big, it stands on the line) and centred `FIGURE_CENTRE` of the core's width in from its outer edge, so the seam's side stays clear.
         A tear (a person with no cut) is a strip across the whole photo, so it spans the core's width, as it spans a card's, with its strip at the height of a cut's head.
       */}
       <div className="pointer-events-none absolute inset-y-0 [container-type:inline-size]" style={core}>
         <div
-          className={tear ? "absolute inset-x-0 top-[38%] aspect-[2/3] -translate-y-[42%]" : `absolute -bottom-[3%] aspect-[2/3] h-[min(90%,165cqw)] max-sm:bottom-[calc(100%_-_var(--line-y))] ${slot === 0 ? "-translate-x-1/2" : "translate-x-1/2"}`}
+          className={tear ? "absolute inset-x-0 top-[calc(38%_+_var(--fig-drop))] aspect-[2/3] -translate-y-[42%]" : `absolute bottom-[calc(-3%_-_var(--fig-drop))] aspect-[2/3] h-[min(90%,165cqw)] max-sm:bottom-[calc(100%_-_var(--line-y))] ${slot === 0 ? "-translate-x-1/2" : "translate-x-1/2"}`}
           style={
             tear
               ? // The strip fades out toward the seam, where the headline is, so it never sits under the copy; in the wide layout its outer end fades too, as the photo ends there and the montage goes on.
