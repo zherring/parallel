@@ -89,12 +89,15 @@ test("the timeline has every film as a dot on the one line, as the pair page's d
   const own = dots.filter((dot) => dot.color !== "rgb(255, 255, 255)");
   expect(white.length).toBeGreaterThanOrEqual(1);
   expect(white.length).toBeLessThanOrEqual(together);
-  expect(own.length).toBeGreaterThan(0);
-  expect(new Set(own.map((dot) => dot.color)).size).toBeLessThanOrEqual(2);
-  expect(Math.min(...white.map((dot) => dot.size))).toBeGreaterThan(Math.max(...own.map((dot) => dot.size)));
-  // They are the pair page's dots (`FilmDot`): the people's 8px and the shared 12px at full size, smaller only where the years are crowded.
+  // (A pair who have only ever made films together, the Coens, have no dots of their own colours.)
+  if (own.length > 0) {
+    expect(new Set(own.map((dot) => dot.color)).size).toBeLessThanOrEqual(2);
+    expect(Math.min(...white.map((dot) => dot.size))).toBeGreaterThan(Math.max(...own.map((dot) => dot.size)));
+    // They are the pair page's dots (`FilmDot`): the people's 8px at full size, smaller only where the years are crowded.
+    expect(Math.min(...own.map((dot) => dot.size))).toBeGreaterThanOrEqual(4);
+  }
+  // The shared films' are 12px at full size, ringed in the page's colour.
   expect(Math.max(...white.map((dot) => dot.size))).toBeLessThanOrEqual(12.5);
-  expect(Math.min(...own.map((dot) => dot.size))).toBeGreaterThanOrEqual(4);
   // The caps are the years of the first and the last film of either person, and the dots lie between them.
   const caps = stage(page).locator("span.tabular-nums.text-strong");
   await expect(caps).toHaveCount(2);
