@@ -35,8 +35,13 @@ interface Props {
   strokePx?: number | string;
   /** Tuning override: the ring's band (and the gap inside it) in screen px, instead of the rule (`STROKE_CSS`) each. */
   ringPx?: number;
-  /** Tuning override: the edge's colour (the person's colour by default). */
-  outline?: "white" | "color";
+  /** The edge's colour: the person's colour by default; "white" is a tuning override (/dev/portraits/stroke); "none" draws no edge at all (the landing hero's `edge=none`). */
+  outline?: "white" | "color" | "none";
+  /**
+   * Where the outline runs where the cut meets the photo's own frame edge (the bottom, or a side the subject is cropped by): "open" (the default, the whole app) leaves it
+   * unstroked, so the figure bleeds off the frame; "closed" strokes the whole polygon, for a portrait big enough that the photo's hard edge shows (the landing hero).
+   */
+  frameEdge?: "open" | "closed";
   /** Tuning override: where the edge sits against the polygon (inside by default). */
   edgePosition?: EdgePosition;
   /** Tuning override (/dev/portraits/stroke): the flat colour behind the cut, instead of the montage. */
@@ -58,7 +63,7 @@ interface Props {
  * cut in the person's colour (the owner's picks); `outline` and `edgePosition` override them, for the dev labs. A photo that fails to load (the cut's
  * and the tear's alike) leaves the person's colour with their initials and the plain photo over it, as `PersonPortrait` does, in the same box.
  */
-export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, color, ringColor, posterSize = "w92", rounded = true, bare = false, strokePx, ringPx, outline = "color", edgePosition = "inside", flat = false, headAspect, filmPosters, grey = false }: Props) {
+export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, color, ringColor, posterSize = "w92", rounded = true, bare = false, strokePx, ringPx, outline = "color", frameEdge = "open", edgePosition = "inside", flat = false, headAspect, filmPosters, grey = false }: Props) {
   const rawId = useId();
   const palette = usePersonPalette();
   // The url that failed, not a flag, so a new photo for the same portrait gets its own chance.
@@ -112,7 +117,7 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
                 </clipPath>
                 {montage && <Duotone id={`duo-${id}`} tint={hex} />}
               </defs>
-              <CutPortraitImage src={src} points={points} w={w} h={h} clipId={`clip-${id}`} strokeColor={outlineColor ? hex : undefined} strokePx={strokePx} edgePosition={edgePosition} onError={() => setFailedSrc(src)} />
+              <CutPortraitImage src={src} points={points} w={w} h={h} clipId={`clip-${id}`} strokeColor={outlineColor ? hex : undefined} strokePx={strokePx} edgePosition={edgePosition} edgeShape={outline === "none" ? "none" : frameEdge} onError={() => setFailedSrc(src)} />
             </svg>
           </>
         )}
