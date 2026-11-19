@@ -22,12 +22,12 @@ function subscribe(onChange: () => void) {
 const getSearch = () => window.location.search;
 const getServerSearch = () => "";
 
-/** The edge and layout variants the URL names (the defaults without a query), as an object that only changes when they do. */
+/** The edge, layout and cards variants the URL names (the defaults without a query), as an object that only changes when they do. */
 let cached: { search: string; variants: HeroVariants } = { search: "", variants: DEFAULT_VARIANTS };
 function variantsOf(search: string): HeroVariants {
   if (cached.search !== search) {
     const next = parseHeroVariants(search);
-    cached = { search, variants: next.edge === cached.variants.edge && next.layout === cached.variants.layout ? cached.variants : next };
+    cached = { search, variants: next.edge === cached.variants.edge && next.layout === cached.variants.layout && next.cards === cached.variants.cards ? cached.variants : next };
   }
   return cached.variants;
 }

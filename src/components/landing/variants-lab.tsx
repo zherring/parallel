@@ -1,11 +1,11 @@
 "use client";
 
 import { setHeroVariant, useHeroVariants, useShowsLab } from "@/components/landing/use-hero-variants";
-import { EDGE_VARIANTS, LAYOUT_VARIANTS, type HeroVariants } from "@/lib/hero-variants";
+import { CARDS_VARIANTS, EDGE_VARIANTS, LAYOUT_VARIANTS, type HeroVariants } from "@/lib/hero-variants";
 
 /**
- * A small floating control for comparing the landing hero's design variants (see hero-variants.ts): two segmented toggles at the screen's bottom right, which
- * sets `?edge=` and `?layout=` in the URL without a reload. It shows while developing, and in production only for a visit with `?lab` in its URL; the
+ * A small floating control for comparing the landing hero's design variants (see hero-variants.ts): three segmented toggles at the screen's bottom right, which
+ * sets `?edge=`, `?layout=` and `?cards=` in the URL without a reload. It shows while developing, and in production only for a visit with `?lab` in its URL; the
  * bottom left is the dev server's badge. It is a spike's tool, not part of the page.
  */
 export function VariantsLab() {
@@ -21,6 +21,7 @@ export function VariantsLab() {
       <span className="px-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Variants</span>
       <Segmented label="Edge" name="edge" options={EDGE_VARIANTS} value={variants.edge} />
       <Segmented label="Layout" name="layout" options={LAYOUT_VARIANTS} value={variants.layout} />
+      <Segmented label="Cards" name="cards" options={CARDS_VARIANTS} value={variants.cards} />
     </div>
   );
 }

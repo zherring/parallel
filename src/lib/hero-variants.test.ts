@@ -1,16 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_VARIANTS, parseHeroVariants, showsLab, withVariant } from "@/lib/hero-variants";
+import { CARDS_VARIANTS, DEFAULT_VARIANTS, parseHeroVariants, showsLab, withVariant } from "@/lib/hero-variants";
 
 describe("parseHeroVariants", () => {
   it("is edge=none (no outline on the splash) and layout=panels without a query", () => {
-    expect(DEFAULT_VARIANTS).toEqual({ edge: "none", layout: "panels" });
+    expect(DEFAULT_VARIANTS).toEqual({ edge: "none", layout: "panels", cards: "cascade" });
     expect(parseHeroVariants("")).toEqual(DEFAULT_VARIANTS);
   });
 
   it("reads the two from the query, with or without its '?'", () => {
-    expect(parseHeroVariants("?edge=full&layout=wide")).toEqual({ edge: "full", layout: "wide" });
-    expect(parseHeroVariants("layout=wide")).toEqual({ edge: "none", layout: "wide" });
-    expect(parseHeroVariants("?edge=full&lab")).toEqual({ edge: "full", layout: "panels" });
+    expect(parseHeroVariants("?edge=full&layout=wide")).toEqual({ edge: "full", layout: "wide", cards: "cascade" });
+    expect(parseHeroVariants("layout=wide")).toEqual({ edge: "none", layout: "wide", cards: "cascade" });
+    expect(parseHeroVariants("?edge=full&lab")).toEqual({ edge: "full", layout: "panels", cards: "cascade" });
+  });
+
+  it("reads the cards' arrangement: cascade (the default), split or duo", () => {
+    expect(CARDS_VARIANTS).toEqual(["cascade", "split", "duo"]);
+    expect(parseHeroVariants("?cards=split").cards).toBe("split");
+    expect(parseHeroVariants("?cards=duo&edge=full")).toEqual({ edge: "full", layout: "panels", cards: "duo" });
+    expect(parseHeroVariants("?cards=cascade").cards).toBe("cascade");
+    expect(parseHeroVariants("?cards=grid").cards).toBe("cascade");
   });
 
   it("falls back to the default for a value it does not know", () => {
@@ -24,6 +32,7 @@ describe("withVariant", () => {
     expect(withVariant("?edge=none", "layout", "wide")).toBe("?edge=none&layout=wide");
     expect(withVariant("?lab&edge=full", "edge", "none")).toBe("?lab&edge=none");
     expect(withVariant("?edge=none&lab", "layout", "wide")).toBe("?edge=none&lab&layout=wide");
+    expect(withVariant("?layout=wide", "cards", "duo")).toBe("?layout=wide&cards=duo");
   });
 });
 

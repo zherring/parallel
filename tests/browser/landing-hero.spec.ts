@@ -1042,6 +1042,111 @@ test.describe("the genre pills are tabs of views", () => {
     });
   });
 
+  test("the Variants control has a third toggle, Cards: cascade (the default), split and duo, each in the same box (a third of the card wide, its height tall), set by ?cards= and the control without a reload", async ({ page }) => {
+    await page.goto("/#classic");
+    const lab = page.getByRole("group", { name: "Variants", exact: true });
+    await expect(lab).toBeVisible();
+    const cards = page.locator("#pairings-panel-classic [data-landing-card]");
+    const card = cards.first();
+    await expect(card.locator("[data-card-tile]")).toHaveCount(2);
+    await page.evaluate(() => ((window as unknown as { __kept: boolean }).__kept = true));
+    const cardsGroup = lab.getByRole("group", { name: "Cards", exact: true });
+    await expect(cardsGroup.getByRole("button", { name: "cascade", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(card.locator("[data-card-portraits]")).toHaveAttribute("data-card-variant", "cascade");
+    const cell = async () => box(card.locator("[data-card-cell]"));
+    const rest = await cell();
+
+    for (const variant of ["split", "duo", "cascade"] as const) {
+      await cardsGroup.getByRole("button", { name: variant, exact: true }).click();
+      await expect(page).toHaveURL(variant === "cascade" ? /\?cards=cascade#classic$/ : new RegExp(`\\?cards=${variant}#classic$`));
+      await expect(card.locator("[data-card-portraits]")).toHaveAttribute("data-card-variant", variant);
+      await expect(card.locator("[data-card-tile]")).toHaveCount(2);
+      // Same footprint: the box is the same, and what is drawn is inside it (the pair, a tile of the people, the standing figures).
+      expect(await cell()).toEqual(rest);
+      const inside = await card.evaluate((element) => {
+        const box = element.querySelector("[data-card-cell]")!.getBoundingClientRect();
+        return [...element.querySelectorAll("[data-card-tile]")].every((tile) => { const r = tile.getBoundingClientRect(); return r.left >= box.left - 6 && r.top >= box.top - 12 && r.right <= box.right + 6 && r.bottom <= box.bottom + 12; });
+      });
+      expect(inside).toBe(true);
+    }
+    expect(await page.evaluate(() => (window as unknown as { __kept?: boolean }).__kept)).toBe(true);
+    // The people stay in the pairing's order, in each.
+    const ids = [...(await card.getAttribute("href"))!.matchAll(/(\d+)-[^+/]+/g)].map((match) => match[1]);
+    for (const variant of ["split", "duo"] as const) {
+      await page.goto(`/?cards=${variant}#classic`);
+      const tiles = page.locator("#pairings-panel-classic [data-landing-card]").first().locator("[data-card-tile]");
+      await expect(tiles).toHaveCount(2);
+      expect([await tiles.nth(0).getAttribute("data-card-tile"), await tiles.nth(1).getAttribute("data-card-tile")]).toEqual(ids);
+    }
+  });
+
+  test("split: one square tile of A's cut-out over A's montage above a thin seam at a slight angle and B's below it; hover widens the seam and moves each half 1.5px apart. duo: the cut-outs stand bare side by side, B in front, on a shared backdrop that melts into the card, and lean 2px apart on hover", async ({ page }) => {
+    await page.goto("/?cards=split#classic");
+    let card = page.locator("#pairings-panel-classic [data-landing-card]").first();
+    const halves = card.locator("[data-card-tile]");
+    await expect(halves).toHaveCount(2);
+    await page.waitForTimeout(500);
+    const clipOf = () => halves.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).clipPath));
+    const shifts = () => halves.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).translate));
+    const rest = await clipOf();
+    expect(rest[0]).toContain("polygon(");
+    expect(rest[0]).not.toBe(rest[1]);
+    expect(await shifts()).toEqual(["none", "none"]);
+    // Each half has its person's montage (posters) behind a cut-out.
+    for (let i = 0; i < 2; i++) {
+      expect(await halves.nth(i).locator("img").count()).toBeGreaterThanOrEqual(6);
+      await expect(halves.nth(i).locator("svg image").first()).toBeAttached();
+    }
+    // The tile is square, with rounded corners.
+    const tile = await box(halves.first().locator("xpath=.."));
+    expect(Math.abs(tile.width - tile.height)).toBeLessThanOrEqual(1);
+    await card.hover();
+    await expect.poll(async () => (await shifts())[0]).toBe("-1.5px -1.5px");
+    expect((await shifts())[1]).toBe("1.5px 1.5px");
+    await expect.poll(async () => (await clipOf())[0]).not.toBe(rest[0]);
+
+    await page.goto("/?cards=duo#classic");
+    card = page.locator("#pairings-panel-classic [data-landing-card]").first();
+    const figures = card.locator("[data-card-tile]");
+    await expect(figures).toHaveCount(2);
+    await page.waitForTimeout(500);
+    // Bare: no montage images, no rectangle of their own; a gradient backdrop of their two colours behind them, and the card's colour over the bottom of them (nothing masked or faded).
+    await expect(figures.first().locator("img")).toHaveCount(0);
+    for (let i = 0; i < 2; i++) {
+      expect(await figures.nth(i).evaluate((node) => ({ mask: getComputedStyle(node).maskImage, opacity: getComputedStyle(node).opacity }))).toEqual({ mask: "none", opacity: "1" });
+    }
+    const a = await box(figures.nth(0));
+    const b = await box(figures.nth(1));
+    expect(b.x).toBeGreaterThan(a.x + a.width * 0.4);
+    expect(b.x).toBeLessThan(a.x + a.width * 0.85);
+    expect(Math.abs(a.y + a.height - (b.y + b.height))).toBeLessThanOrEqual(1);
+    expect(await card.evaluate((element) => element.querySelector("[data-card-portraits] > div:first-child")!.getAttribute("style")!)).toContain("linear-gradient(to right");
+    const leans = () => figures.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).translate));
+    expect(await leans()).toEqual(["0px", "0px"]);
+    await card.hover();
+    await expect.poll(async () => (await leans())[0]).toBe("-2px");
+    expect((await leans())[1]).toBe("2px");
+  });
+
+  test.describe("with reduced motion", () => {
+    test.use({ reducedMotion: "reduce" });
+
+    test("split's and duo's halves and figures do not move on hover either", async ({ page }) => {
+      for (const variant of ["split", "duo"]) {
+        await page.goto(`/?cards=${variant}#classic`);
+        const card = page.locator("#pairings-panel-classic [data-landing-card]").first();
+        const tiles = card.locator("[data-card-tile]");
+        await expect(tiles).toHaveCount(2);
+        await page.waitForTimeout(400);
+        const look = () => tiles.evaluateAll((elements) => elements.map((element) => [getComputedStyle(element).translate, getComputedStyle(element).clipPath]));
+        const before = await look();
+        await card.hover();
+        await page.waitForTimeout(500);
+        expect(await look()).toEqual(before);
+      }
+    });
+  });
+
   test("the count follows the blurb in the text's flow (about 12px under it), and a card is only as tall as its text and padding", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/#classic");
