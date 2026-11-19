@@ -2,11 +2,11 @@
  * The landing hero's two design variants, compared in the browser through the URL's query (`/?edge=none&layout=wide`) and never on the server, so the
  * page stays static. Pure, so what the query means is tested; the hook that reads it is use-hero-variants.ts.
  *
- * - `edge`: how the cut-out figure's outline meets the photo's own frame edge: "full" strokes the whole polygon, frame edges included; "none" draws no outline.
+ * - `edge`: how the cut-out figure's outline meets the photo's own frame edge: "none" (the default: the splash has no outline) draws no outline; "full" strokes the whole polygon, frame edges included.
  * - `layout`: "panels" is two inset panels; "wide" lets each half run out to the viewport's edge.
  */
 
-export const EDGE_VARIANTS = ["full", "none"] as const;
+export const EDGE_VARIANTS = ["none", "full"] as const;
 export const LAYOUT_VARIANTS = ["panels", "wide"] as const;
 export type EdgeVariant = (typeof EDGE_VARIANTS)[number];
 export type LayoutVariant = (typeof LAYOUT_VARIANTS)[number];
@@ -16,7 +16,7 @@ export interface HeroVariants {
   layout: LayoutVariant;
 }
 
-export const DEFAULT_VARIANTS: HeroVariants = { edge: "full", layout: "panels" };
+export const DEFAULT_VARIANTS: HeroVariants = { edge: "none", layout: "panels" };
 
 /** The variants a query string (with or without its "?") names; whatever it does not name, or names wrongly, is the default. */
 export function parseHeroVariants(search: string): HeroVariants {

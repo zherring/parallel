@@ -659,8 +659,9 @@ test.describe("the timeline's content is in a band centred on the seam, and the 
       expect(Math.max(...bottoms)).toBeGreaterThan(g.lineY - 60);
       // The figures are 25px lower, half as far: a cut stands 3% and 25px past the stage's bottom.
       const figures = await stage(page).locator("[data-part='figure']").evaluateAll((elements) =>
-        elements.map((element) => ({ cut: element.querySelector("svg path") !== null, bottom: element.getBoundingClientRect().bottom })),
+        elements.map((element) => ({ cut: element.parentElement!.parentElement!.style.getPropertyValue("--eye") !== "", bottom: element.getBoundingClientRect().bottom })),
       );
+      expect(figures.some((item) => item.cut)).toBe(true);
       for (const figure of figures.filter((item) => item.cut)) expect(Math.abs(figure.bottom - (g.root.y + g.root.height + 0.03 * g.root.height + 25))).toBeLessThanOrEqual(2);
       // (Whatever the scene's figures are, tears included, the offset they are given is 25px here.)
       const figDrop = await stage(page).evaluate((element) => {
@@ -741,18 +742,18 @@ test.describe("the variants", () => {
     frameRight: await box(stage(page).locator("[data-frame]").last()),
   });
 
-  test("edge=full (the default) strokes the whole outline, frame edges included; edge=none draws no outline at all", async ({ page }) => {
+  test("edge=none (the default) draws no outline round the figures; ?edge=full strokes the whole outline, frame edges included", async ({ page }) => {
     await page.goto("/");
+    await expect(stageLink(page)).toBeVisible();
+    await expect(stage(page).locator("[data-part='figure'] svg image").first()).toBeAttached();
+    await expect(stage(page).locator("[data-part='figure'] svg path")).toHaveCount(0);
+
+    await page.goto("/?edge=full");
     await expect(stageLink(page)).toBeVisible();
     const paths = stage(page).locator("[data-part='figure'] svg path");
     await expect.poll(() => paths.count()).toBeGreaterThan(0);
     // The closed outline ends in a Z: it goes on along the photo's own frame edge where the cut meets it.
     for (const d of await paths.evaluateAll((elements) => elements.map((element) => element.getAttribute("d")!))) expect(d.endsWith("Z")).toBe(true);
-
-    await page.goto("/?edge=none");
-    await expect(stageLink(page)).toBeVisible();
-    await expect(stage(page).locator("[data-part='figure'] svg image").first()).toBeAttached();
-    await expect(stage(page).locator("[data-part='figure'] svg path")).toHaveCount(0);
   });
 
   test("layout=wide lets each half run out to the screen's edge, the figures stay where they are, and the keycaps and caps do not move", async ({ page }) => {
@@ -810,15 +811,15 @@ test.describe("the variants", () => {
     await page.evaluate(() => ((window as unknown as { __kept: boolean }).__kept = true));
     const lab = page.getByRole("group", { name: "Variants", exact: true });
     await expect(lab).toBeVisible();
-    await expect(lab.getByRole("button", { name: "full", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(lab.getByRole("button", { name: "none", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(lab.getByRole("button", { name: "panels", exact: true })).toHaveAttribute("aria-pressed", "true");
 
     await lab.getByRole("button", { name: "wide", exact: true }).click();
     await expect(page).toHaveURL(/\?layout=wide$/);
     await expect(stage(page)).toHaveAttribute("data-layout", "wide");
-    await lab.getByRole("button", { name: "none", exact: true }).click();
-    await expect(page).toHaveURL(/\?layout=wide&edge=none$/);
-    await expect(stage(page).locator("[data-part='figure'] svg path")).toHaveCount(0);
+    await lab.getByRole("button", { name: "full", exact: true }).click();
+    await expect(page).toHaveURL(/\?layout=wide&edge=full$/);
+    await expect.poll(() => stage(page).locator("[data-part='figure'] svg path").count()).toBeGreaterThan(0);
     await lab.getByRole("button", { name: "panels", exact: true }).click();
     await expect(stage(page)).toHaveAttribute("data-layout", "panels");
     expect(await page.evaluate(() => (window as unknown as { __kept?: boolean }).__kept)).toBe(true);
@@ -1148,12 +1149,10 @@ test.describe("the genre pills are tabs of views", () => {
     // "How it works", for a genre's view, shows with its grid.
     await expect(page.getByRole("heading", { name: "How it works", level: 2 })).toBeVisible();
     // The pill follows (the server's markup has Featured's selected: the style that goes with the script says otherwise).
-    const colors = await page.evaluate(() => {
-      const border = (id: string) => getComputedStyle(document.querySelector(`[data-genre-tab='${id}']`)!).borderTopColor;
-      return { featured: border("featured"), horror: border("horror") };
-    });
-    expect(colors.featured).toBe("rgba(0, 0, 0, 0)");
-    expect(colors.horror).not.toBe("rgba(0, 0, 0, 0)");
+    // (The pills' borders ease between colours: poll for where they settle, so a slow machine's mid-transition frame is not read.)
+    const border = (id: string) => page.evaluate((tab) => getComputedStyle(document.querySelector(`[data-genre-tab='${tab}']`)!).borderTopColor, id);
+    await expect.poll(() => border("featured")).toBe("rgba(0, 0, 0, 0)");
+    expect(await border("horror")).not.toBe("rgba(0, 0, 0, 0)");
     // A hash that names no genre is the splash.
     await page.goto("/?again#nonsense", { waitUntil: "domcontentloaded" });
     await expect(page.locator("#pairings-panel-featured")).toBeVisible();

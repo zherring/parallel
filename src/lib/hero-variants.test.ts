@@ -2,15 +2,15 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_VARIANTS, parseHeroVariants, showsLab, withVariant } from "@/lib/hero-variants";
 
 describe("parseHeroVariants", () => {
-  it("is edge=full and layout=panels without a query", () => {
-    expect(DEFAULT_VARIANTS).toEqual({ edge: "full", layout: "panels" });
+  it("is edge=none (no outline on the splash) and layout=panels without a query", () => {
+    expect(DEFAULT_VARIANTS).toEqual({ edge: "none", layout: "panels" });
     expect(parseHeroVariants("")).toEqual(DEFAULT_VARIANTS);
   });
 
   it("reads the two from the query, with or without its '?'", () => {
-    expect(parseHeroVariants("?edge=none&layout=wide")).toEqual({ edge: "none", layout: "wide" });
-    expect(parseHeroVariants("layout=wide")).toEqual({ edge: "full", layout: "wide" });
-    expect(parseHeroVariants("?edge=none&lab")).toEqual({ edge: "none", layout: "panels" });
+    expect(parseHeroVariants("?edge=full&layout=wide")).toEqual({ edge: "full", layout: "wide" });
+    expect(parseHeroVariants("layout=wide")).toEqual({ edge: "none", layout: "wide" });
+    expect(parseHeroVariants("?edge=full&lab")).toEqual({ edge: "full", layout: "panels" });
   });
 
   it("falls back to the default for a value it does not know", () => {
