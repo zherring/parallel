@@ -42,7 +42,7 @@ test("the headline is the one h1, the stage is one labelled link to a pair, and 
   await expect.poll(() => bar(page).evaluate((element) => Math.round(element.getBoundingClientRect().top))).toBe(0);
 });
 
-test("the timeline has a dot for each film: each person's own in their colour in a lane hugging the line, the shared films in white on it, and a cap at each end", async ({ page }) => {
+test("the timeline has every film as a dot on the one line, as the pair page's does: each person's in their colour, the shared films larger and white, and a cap at each end", async ({ page }) => {
   await page.goto("/");
   await ready(page);
   const label = (await stageLink(page).getAttribute("aria-label"))!;
@@ -50,30 +50,26 @@ test("the timeline has a dot for each film: each person's own in their colour in
 
   const line = await box(stage(page).locator("[data-line]"));
   const lineY = centreY(line);
-  const dots = await stage(page).locator("[data-dot]").evaluateAll((elements) =>
+  const dots = await stage(page).locator("circle[data-dot]").evaluateAll((elements) =>
     elements.map((element) => {
       const rect = element.getBoundingClientRect();
-      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, size: Math.round(rect.width), color: getComputedStyle(element).backgroundColor };
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, size: rect.width, color: getComputedStyle(element).fill };
     }),
   );
-  // The shared films are the white dots, as many as the label says, on the line, a little larger than the people's.
+  // Every dot is on the line itself, none in a lane above or below it.
+  expect(dots.length).toBeGreaterThan(0);
+  for (const dot of dots) expect(Math.abs(dot.y - lineY)).toBeLessThanOrEqual(1);
+  // The shared films are the white dots (one per year of them, so no more than the label says), larger than any of the people's, which are in their two colours.
   const white = dots.filter((dot) => dot.color === "rgb(255, 255, 255)");
   const own = dots.filter((dot) => dot.color !== "rgb(255, 255, 255)");
-  expect(white).toHaveLength(together);
-  for (const dot of white) {
-    expect(Math.abs(dot.y - lineY)).toBeLessThanOrEqual(1);
-    expect(dot.size).toBeGreaterThanOrEqual(8);
-  }
-  // Each person's own films are in two lanes, the first person's above the line and the second's below it, in two colours, never on the line.
+  expect(white.length).toBeGreaterThanOrEqual(1);
+  expect(white.length).toBeLessThanOrEqual(together);
   expect(own.length).toBeGreaterThan(0);
-  for (const dot of own) {
-    expect(Math.abs(dot.y - lineY)).toBeGreaterThanOrEqual(5);
-    expect(Math.abs(dot.y - lineY)).toBeLessThanOrEqual(12);
-    expect(dot.size).toBeGreaterThanOrEqual(5);
-    expect(dot.size).toBeLessThanOrEqual(6);
-  }
-  expect(new Set(own.filter((dot) => dot.y < lineY).map((dot) => dot.color)).size).toBeLessThanOrEqual(1);
-  expect(new Set(own.filter((dot) => dot.y > lineY).map((dot) => dot.color)).size).toBeLessThanOrEqual(1);
+  expect(new Set(own.map((dot) => dot.color)).size).toBeLessThanOrEqual(2);
+  expect(Math.min(...white.map((dot) => dot.size))).toBeGreaterThan(Math.max(...own.map((dot) => dot.size)));
+  // They are the pair page's dots (`FilmDot`): the people's 8px and the shared 12px at full size, smaller only where the years are crowded.
+  expect(Math.max(...white.map((dot) => dot.size))).toBeLessThanOrEqual(12.5);
+  expect(Math.min(...own.map((dot) => dot.size))).toBeGreaterThanOrEqual(4);
   // The caps are the years of the first and the last film of either person, and the dots lie between them.
   const caps = stage(page).locator("span.tabular-nums.text-strong");
   await expect(caps).toHaveCount(2);
@@ -86,6 +82,22 @@ test("the timeline has a dot for each film: each person's own in their colour in
   for (const dot of dots) {
     expect(dot.x).toBeGreaterThan(leftCap.x + leftCap.width);
     expect(dot.x).toBeLessThan(rightCap.x);
+  }
+  // The years labelled along it are over the line, between the caps, and each is a year of the axis.
+  const years = stage(page).locator("span.tabular-nums.text-muted");
+  const labels = await years.evaluateAll((elements) =>
+    elements.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return { text: element.textContent ?? "", x: rect.x + rect.width / 2, bottom: rect.bottom };
+    }),
+  );
+  for (const year of labels) {
+    expect(year.text).toMatch(/^\d{4}$/);
+    expect(year.bottom).toBeLessThan(lineY);
+    expect(year.x).toBeGreaterThan(leftCap.x + leftCap.width);
+    expect(year.x).toBeLessThan(rightCap.x);
+    expect(Number(year.text)).toBeGreaterThan(Number(first));
+    expect(Number(year.text)).toBeLessThan(Number(last));
   }
   // The line is the one line of the page.
   await expect(stage(page).locator("[data-line]")).toHaveCount(1);

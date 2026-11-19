@@ -469,7 +469,7 @@ function LiveStage({ root, pool }: { root: RefObject<HTMLDivElement | null>; poo
  * as the screen and a size container, so `--core-pad` (what `100cqw` makes of it) is how far in from the screen's edges the panels of the "panels" layout are:
  * the gutter, or, past 1600px of width, the gutter and half of what is left. Both layouts are drawn from it (`--ext` is how far a half runs out past its
  * panel: nothing, or all the way to the screen's edge). `--pw` is a poster's width, from the box (its height, and on a phone its width), `--step` the distance
- * between posters of the cluster; `--line-y` is the line's place down the stage, `--lane` how far the lanes' dots are from it, `--poster-gap` how far the
+ * between posters of the cluster; `--line-y` is the line's place down the stage, `--poster-gap` how far the
  * posters' bottoms are above it, and `--axis-pad` how far in from a panel's outer edge the dots' axis starts (past the year cap).
  */
 export function HeroStage({ pool, fallback }: Props) {
@@ -485,7 +485,7 @@ export function HeroStage({ pool, fallback }: Props) {
       ref={root}
       data-hero-stage=""
       data-layout={layout}
-      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size] [--inset:12px] [--line-y:82%] [--core-pad:max(var(--gutter),calc((100cqw_-_1600px)/2_+_var(--gutter)))] [--ext:0px] [--reach:var(--gutter)] [--fade:calc(var(--gutter)+14px)] [--axis-pad:44px] [--lane:7px] [--dot:5px] [--dot-together:8px] [--poster-gap:22px] [--pw:min(68px,calc(var(--stage-h)*0.15),17cqw)] [--step:calc(var(--pw)*0.76)] data-[layout=wide]:[--ext:var(--core-pad)] data-[layout=wide]:[--reach:var(--core-pad)] data-[layout=wide]:[--fade:56px] sm:[--inset:20px] sm:[--lane:8.5px] sm:[--dot:6px] sm:[--dot-together:10px] sm:[--poster-gap:26px] sm:[--pw:min(92px,calc(var(--stage-h)*0.15))] lg:[--pw:min(100px,calc(var(--stage-h)*0.15))]"
+      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size] [--inset:12px] [--line-y:82%] [--core-pad:max(var(--gutter),calc((100cqw_-_1600px)/2_+_var(--gutter)))] [--ext:0px] [--reach:var(--gutter)] [--fade:calc(var(--gutter)+14px)] [--axis-pad:44px] [--poster-gap:22px] [--pw:min(68px,calc(var(--stage-h)*0.15),17cqw)] [--step:calc(var(--pw)*0.76)] data-[layout=wide]:[--ext:var(--core-pad)] data-[layout=wide]:[--reach:var(--core-pad)] data-[layout=wide]:[--fade:56px] sm:[--inset:20px] sm:[--poster-gap:26px] sm:[--pw:min(92px,calc(var(--stage-h)*0.15))] lg:[--pw:min(100px,calc(var(--stage-h)*0.15))]"
     >
       {live && shown ? <LiveStage root={root} pool={pool} /> : null}
       <noscript>

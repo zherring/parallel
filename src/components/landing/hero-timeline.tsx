@@ -1,5 +1,9 @@
-import type { CSSProperties } from "react";
-import type { Dot, Strip } from "@/lib/hero-layout";
+"use client";
+
+import { useLayoutEffect, useRef, useState } from "react";
+import { FilmDot } from "@/components/timeline/film-dot";
+import { YearTick } from "@/components/timeline/year-tick";
+import { axisFraction, dotScale, labelYears, type Strip } from "@/lib/hero-layout";
 
 /**
  * The one timeline line of the product, a 1px white line at the stage's `--line-y`, running over both halves and on past them `--reach` (the gutters of the
@@ -18,29 +22,53 @@ export function TimelineLine() {
 }
 
 /**
- * The films on the line, as dots across the axis (the year of the first film of either person at its left end, the last at its right, each film by its year,
- * hero-layout.ts `stripOf`): each person's own films in their colour in a lane hugging the line (the first person's above it, the second's below it), the
- * films they made together in white on the line itself, a little larger, ringed in the page's colour and over the lanes' dots, as the made-together films
- * are on a pair's page. Several films of one person in a year sit nudged apart into a small cluster (`Dot.nudge`). It spans the axis between the year
- * caps (`--axis-pad` in from the panels' outer edges); `data-dot` and `data-x` are what hero-motion.ts pops in, left to right.
+ * The films on the line, drawn the way the pair page's timeline draws them (`FilmDot`, `YearTick`): every film a dot on the line itself, each person's own in
+ * their colour and the films they made together larger and white, ringed in the page's colour and over the rest (the year of the first film of either person at the
+ * axis's left end, the last at its right, each film by its year, hero-layout.ts `stripOf`). Under a crowded axis (a long career on a phone) the dots are smaller
+ * (`dotScale`). Over the line, the years between the caps' (`labelYears`, thinned by the room they have). It spans the axis between the year caps (`--axis-pad` in
+ * from the panels' outer edges); `data-dot` and `data-x` are what hero-motion.ts pops in, left to right.
  */
 export function TimelineStrip({ strip, colors }: { strip: Strip; colors: readonly [string, string] }) {
-  const dots = (list: readonly Dot[], className: string, style: (dot: Dot) => CSSProperties) =>
-    list.map((dot, index) => (
-      <span
-        key={index}
-        data-dot=""
-        data-x={dot.x.toFixed(3)}
-        className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full ${className}`}
-        style={{ left: `calc(${(dot.x * 100).toFixed(3)}% + ${dot.nudge}px)`, ...style(dot) }}
-      />
-    ));
+  const root = useRef<HTMLDivElement>(null);
+  // The axis's width in px, for the size of the dots and which years fit; 0 (full-size dots, no years) for the server's markup and until it is measured.
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const element = root.current;
+    if (!element) return;
+    const measure = () => setWidth(Math.round(element.getBoundingClientRect().width));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const scale = dotScale(strip.axis, width);
+  const dot = (fraction: number, index: number, tone: "plain" | "lit", fill: string) => (
+    <FilmDot
+      key={`${tone}-${fill}-${index}`}
+      data-dot=""
+      data-x={fraction.toFixed(3)}
+      className="[transform-box:fill-box] origin-center"
+      x={`${(fraction * 100).toFixed(3)}%`}
+      y={0.5}
+      tone={tone}
+      colored
+      palette
+      fill={fill}
+      scale={scale}
+    />
+  );
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-x-(--axis-pad) top-(--line-y) h-0">
-      {strip.own.map((own, lane) =>
-        dots(own, "size-(--dot)", () => ({ top: lane === 0 ? "calc(-1 * var(--lane))" : "var(--lane)", backgroundColor: colors[lane] })),
-      )}
-      {dots(strip.together, "size-(--dot-together) bg-white shadow-[0_0_0_1.5px_var(--bg)]", () => ({ top: 0 }))}
+    <div ref={root} aria-hidden="true" className="pointer-events-none absolute inset-x-(--axis-pad) top-(--line-y) h-0">
+      <svg className="absolute left-0 top-0 h-px w-full -translate-y-1/2 overflow-visible">
+        {strip.own.map((fractions, lane) => fractions.map((fraction, index) => dot(fraction, index, "plain", colors[lane])))}
+        {strip.together.map((fraction, index) => dot(fraction, index, "lit", "#fff"))}
+      </svg>
+      <div className="absolute inset-x-0 bottom-[9px]">
+        {labelYears(strip.axis, width).map((year) => (
+          <YearTick key={year} tick={{ kind: "year", label: String(year) }} x={`${(axisFraction(year, strip.axis) * 100).toFixed(3)}%`} above mark={false} />
+        ))}
+      </div>
     </div>
   );
 }

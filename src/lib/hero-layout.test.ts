@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { DOT_NUDGE, POSTER_CAPS, axisFraction, decodedYears, dotsOf, moreCount, posterPlace, postersShown, stripOf, yearAxis } from "@/lib/hero-layout";
+import {
+  DOT_MIN_SCALE,
+  LABEL_END_CLEAR,
+  LABEL_GAP,
+  POSTER_CAPS,
+  axisFraction,
+  decodedYears,
+  dotScale,
+  labelYears,
+  moreCount,
+  posterPlace,
+  postersShown,
+  stripOf,
+  yearAxis,
+} from "@/lib/hero-layout";
 import type { HeroPairing } from "@/lib/hero-scenes";
 
 function pairing(posterCount: number, sharedCount: number): HeroPairing {
@@ -101,20 +115,48 @@ describe("the timeline's axis and dots", () => {
     expect(axisFraction(1990, { first: 1990, last: 1990 })).toBe(0.5);
   });
 
-  it("nudges the films of one person in the same year apart, evenly about their year, and leaves a lone film where it is", () => {
-    const axis = { first: 1977, last: 1981 };
-    const dots = dotsOf([1977, 1977, 1977, 1981], axis);
-    expect(dots.map((dot) => dot.nudge)).toEqual([-DOT_NUDGE, 0, DOT_NUDGE, 0]);
-    expect(dots.map((dot) => dot.x)).toEqual([0, 0, 0, 1]);
-    // They are closer than a dot is wide, so a year with several is one small cluster, not a row.
-    expect(DOT_NUDGE).toBeLessThan(6);
-  });
-
-  it("has a dot per film: each person's own films in their own lane, the shared films on the line", () => {
+  it("has one dot per person and year (two films of one person in a year are one dot over the other), and one per film made together", () => {
     const strip = stripOf({ ...pairing(5, 9), years: { own: [[1977, 0, 4], [1971, 2]], together: [1980, 3, 32] } })!;
     expect(strip.axis).toEqual({ first: 1971, last: 2015 });
-    expect(strip.own.map((lane) => lane.length)).toEqual([3, 2]);
-    expect(strip.together.map((dot) => dot.x)).toEqual([axisFraction(1980, strip.axis), axisFraction(1983, strip.axis), 1]);
+    expect(strip.own.map((dots) => dots.length)).toEqual([2, 2]);
+    expect(strip.own[0]).toEqual([axisFraction(1977, strip.axis), axisFraction(1981, strip.axis)]);
+    expect(strip.together).toEqual([axisFraction(1980, strip.axis), axisFraction(1983, strip.axis), 1]);
     expect(stripOf({ ...pairing(5, 9), years: { own: [[], []], together: [] } })).toBeNull();
+  });
+});
+
+describe("the dots' size and the year labels, by the axis's width", () => {
+  const long = { first: 1940, last: 2018 };
+
+  it("keeps the pair page's dot size where the years are 9px apart or more, and shrinks them as the years come closer, never below half", () => {
+    expect(dotScale({ first: 1990, last: 2000 }, 1400)).toBe(1);
+    expect(dotScale(long, 1400)).toBe(1);
+    expect(dotScale(long, 78 * 9 * 0.8)).toBeCloseTo(0.8);
+    expect(dotScale(long, 262)).toBe(DOT_MIN_SCALE);
+    // Not measured yet, or one year only: full size.
+    expect(dotScale(long, 0)).toBe(1);
+    expect(dotScale({ first: 1990, last: 1990 }, 300)).toBe(1);
+  });
+
+  it("labels none until the axis is measured, and none within the caps' reach of either end", () => {
+    expect(labelYears(long, 0)).toEqual([]);
+    expect(labelYears({ first: 1990, last: 1990 }, 800)).toEqual([]);
+    const width = 1400;
+    const px = (year: number) => ((year - long.first) / (long.last - long.first)) * width;
+    const years = labelYears(long, width);
+    expect(years.length).toBeGreaterThan(0);
+    expect(years.every((year) => px(year) >= LABEL_END_CLEAR && width - px(year) >= LABEL_END_CLEAR)).toBe(true);
+  });
+
+  it("labels every ten years on a long career at desktop width, and thins out to twenty on a phone's", () => {
+    expect(labelYears(long, 1400)).toEqual([1950, 1960, 1970, 1980, 1990, 2000, 2010]);
+    const phone = labelYears(long, 262);
+    expect(phone.length).toBeLessThan(labelYears(long, 1400).length);
+    const gaps = phone.slice(1).map((year, index) => (year - phone[index]) * (262 / 78));
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(LABEL_GAP);
+  });
+
+  it("labels every year of a short career (the room each has, as the pair page's axis does)", () => {
+    expect(labelYears({ first: 1991, last: 1996 }, 1400)).toEqual([1992, 1993, 1994, 1995]);
   });
 });

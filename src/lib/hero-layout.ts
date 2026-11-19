@@ -1,10 +1,11 @@
 /**
  * What the landing hero's timeline and poster cluster show at each width, as plain numbers, so it can be tested. The geometry itself (the panels, the
  * line, the cluster's size) is CSS sized from the stage's box (hero-stage.tsx and the variables its section sets); only what depends on the pairing's
- * data is here: how many posters fit and so what "+N more" says, how each poster sits in the cluster, and where each film's dot is on the axis.
+ * data is here: how many posters fit and so what "+N more" says, how each poster sits in the cluster, and where each film's dot and each year's label are on the axis.
  */
 
 import { moreFilms, type HeroPairing, type HeroYears } from "@/lib/hero-scenes";
+import { labelStep } from "@/lib/timeline-layout";
 import { decodeYears } from "@/lib/year-list";
 
 /**
@@ -55,15 +56,6 @@ export function posterPlace(slot: number, count: number): PosterPlace {
   };
 }
 
-/** A film's dot on the timeline strip: where across the axis (0 to 1), and how far it is nudged from there (px) when its person has several films that year. */
-export interface Dot {
-  x: number;
-  nudge: number;
-}
-
-/** The distance between the dots of one person's films in the same year, in px: closer than a dot is wide, so they overlap into one small cluster. */
-export const DOT_NUDGE = 3.5;
-
 /** The decoded years of the pairing's timeline, for everything that reads them. */
 export interface DecodedYears {
   own: readonly [readonly number[], readonly number[]];
@@ -86,31 +78,53 @@ export function axisFraction(year: number, axis: { first: number; last: number }
   return axis.last === axis.first ? 0.5 : (year - axis.first) / (axis.last - axis.first);
 }
 
-/** The dots of a sorted list of years: one per film, those of the same year nudged apart symmetrically about their year. */
-export function dotsOf(years: readonly number[], axis: { first: number; last: number }): Dot[] {
-  const dots: Dot[] = [];
-  for (let start = 0; start < years.length; ) {
-    let end = start;
-    while (end < years.length && years[end] === years[start]) end++;
-    const count = end - start;
-    for (let i = 0; i < count; i++) {
-      dots.push({ x: axisFraction(years[start], axis), nudge: Math.round((i - (count - 1) / 2) * DOT_NUDGE * 10) / 10 });
-    }
-    start = end;
-  }
-  return dots;
+/** Where across the axis (0 to 1) each year of a sorted list is: one per year, not per film, as two films of a person in a year would be one dot over the other. */
+export function yearFractions(years: readonly number[], axis: { first: number; last: number }): number[] {
+  return [...new Set(years)].map((year) => axisFraction(year, axis));
 }
 
-/** The timeline strip of a pairing: the axis and the dots of each person's own films (the lanes) and of the films they made together (on the line). Null without any film. */
+/** The timeline strip of a pairing: the axis, and where on it each person's own films are (one entry per year), and the films they made together. Null without any film. */
 export interface Strip {
   axis: { first: number; last: number };
-  own: readonly [readonly Dot[], readonly Dot[]];
-  together: readonly Dot[];
+  own: readonly [readonly number[], readonly number[]];
+  together: readonly number[];
 }
 
 export function stripOf(pairing: HeroPairing): Strip | null {
   const years = decodedYears(pairing.years);
   const axis = yearAxis(years);
   if (!axis) return null;
-  return { axis, own: [dotsOf(years.own[0], axis), dotsOf(years.own[1], axis)], together: dotsOf(years.together, axis) };
+  return { axis, own: [yearFractions(years.own[0], axis), yearFractions(years.own[1], axis)], together: yearFractions(years.together, axis) };
+}
+
+/** The spacing of the years (px per year) at which a dot is as large as on a pair's page; a more crowded axis shrinks them, down to `DOT_MIN_SCALE` of that. */
+export const DOT_FULL_PX_PER_YEAR = 9;
+export const DOT_MIN_SCALE = 0.5;
+
+/** The size of the dots (a multiple of the pair page's) on an axis `width` px wide: smaller as the years come closer, so a long career on a phone is a row of dots, not a band. */
+export function dotScale(axis: { first: number; last: number }, width: number): number {
+  if (!(width > 0) || axis.last === axis.first) return 1;
+  return Math.min(1, Math.max(DOT_MIN_SCALE, width / (axis.last - axis.first) / DOT_FULL_PX_PER_YEAR));
+}
+
+/** The closest two year labels may be, centre to centre (px), and how far in from the axis's ends the first and last may be: the year caps are there. */
+export const LABEL_GAP = 34;
+export const LABEL_END_CLEAR = 30;
+
+/**
+ * The years labelled along an axis `width` px wide: the pair page's own steps (`labelStep`: every year, every five or every ten, by the room each gets), then
+ * wider ones (20 and 50) until two labels are `LABEL_GAP` apart, none within `LABEL_END_CLEAR` of an end (the caps carry the first and last year). None until
+ * the axis has been measured.
+ */
+export function labelYears(axis: { first: number; last: number }, width: number): number[] {
+  if (!(width > 0) || axis.last === axis.first) return [];
+  const pxPerYear = width / (axis.last - axis.first);
+  let step: number = labelStep(pxPerYear);
+  for (const wider of [20, 50]) if (step * pxPerYear < LABEL_GAP) step = wider;
+  const years: number[] = [];
+  for (let year = Math.ceil((axis.first + 1) / step) * step; year < axis.last; year += step) {
+    const x = (year - axis.first) * pxPerYear;
+    if (x >= LABEL_END_CLEAR && width - x >= LABEL_END_CLEAR) years.push(year);
+  }
+  return years;
 }
