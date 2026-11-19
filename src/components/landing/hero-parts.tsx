@@ -7,7 +7,7 @@ import { POSTER_WIDTHS, moreCount, posterPlace, type PosterWidth } from "@/lib/h
 import type { HeroPairing, HeroPerson, HeroPoster } from "@/lib/hero-scenes";
 import type { EdgeVariant, LayoutVariant } from "@/lib/hero-variants";
 import { tmdbImage } from "@/lib/images";
-import { MONTAGE_POSTERS, treatmentShape } from "@/lib/portrait-treatment";
+import { MONTAGE_POSTERS, eyeLine, treatmentShape } from "@/lib/portrait-treatment";
 
 /**
  * The drawn pieces of the landing hero's stage (hero-stage.tsx places and animates them). Each moving part carries a `data-part`
@@ -37,9 +37,9 @@ const TOP_SHADE =
 
 /**
  * The foot: the page's canvas colour rising from the half's bottom, over the montage and the figure alike, so that the figure's lower body, the photo's hard
- * bottom edge and the montage all melt into the page. Its stops ease out (no visible start); the timeline, the posters and the names sit above it.
+ * bottom edge and the montage all melt into the page. Its stops ease out (no visible start); the timeline, the posters and the names sit above it. Its height
+ * is the stage's `--foot-h` (hero-stage.tsx: one value per breakpoint, a share of the half's height), and the stops are shares of that, so the easing is the same at any.
  */
-const FOOT_HEIGHT = "42%";
 const FOOT = `linear-gradient(to top, var(--bg), color-mix(in srgb, var(--bg) 93%, transparent) 14%, color-mix(in srgb, var(--bg) 74%, transparent) 33%, color-mix(in srgb, var(--bg) 42%, transparent) 55%, color-mix(in srgb, var(--bg) 14%, transparent) 78%, transparent)`;
 
 /** How many columns of posters the wide layout tiles past the first tile (three columns) on the outer side: enough for a viewport of about 3000px. */
@@ -69,6 +69,8 @@ export function PanelParts({
   const posters = shape.posters.slice(0, MONTAGE_POSTERS);
   const montage = posters.length > 0;
   const tear = shape.tear === true;
+  // Where the cut's eyes are in its photo (a share of its height): at the tablet widths the figure is stood by it, so that the eyes of every figure are on one line (`--eye-line`).
+  const eye = tear ? 0 : eyeLine(shape);
   const wide = layout === "wide";
   // The core: where the panel of the "panels" layout is, within this half.
   const core: CSSProperties = slot === 0 ? { left: "var(--ext)", right: 0 } : { left: 0, right: "var(--ext)" };
@@ -125,20 +127,19 @@ export function PanelParts({
 
       {/*
         A cut is anchored to the core's bottom (a little past it, and `--fig-drop` further, half of how far the timeline is dropped; on a phone, where the posters would cover the face of one that big, it stands on the line) and centred `FIGURE_CENTRE` of the core's width in from its outer edge, so the seam's side stays clear.
+        On the tablet widths (`sm` up to `lg`) it is stood by its eyes instead: its top is where puts its eyes (`--eye`, a share of its height, from `eyeLine`) on the stage's `--eye-line`, so every face is on one line down the stage, clear above the cluster, whatever the cut's headroom; its lower end is no longer past the stage's bottom, so the last 6px of its box (the photo's own bottom edge, where the closed outline runs along it) are clipped, and the rest of it, opaque to there, is covered by the taller foot over it. The figure is never faded: only the foot, the page's colour over it, darkens it.
         A tear (a person with no cut) is a strip across the whole photo, so it spans the core's width, as it spans a card's, with its strip at the height of a cut's head.
       */}
       <div className="pointer-events-none absolute inset-y-0 [container-type:inline-size]" style={core}>
         <div
-          className={tear ? "absolute inset-x-0 top-[calc(38%_+_var(--fig-drop))] aspect-[2/3] -translate-y-[42%]" : `absolute bottom-[calc(-3%_-_var(--fig-drop))] aspect-[2/3] h-[min(90%,165cqw)] max-sm:bottom-[calc(100%_-_var(--line-y))] ${slot === 0 ? "-translate-x-1/2" : "translate-x-1/2"}`}
+          className={tear ? "absolute inset-x-0 top-[calc(38%_+_var(--fig-drop))] aspect-[2/3] -translate-y-[42%]" : `absolute bottom-[calc(-3%_-_var(--fig-drop))] aspect-[2/3] h-[min(90%,165cqw)] max-sm:bottom-[calc(100%_-_var(--line-y))] sm:max-lg:bottom-auto sm:max-lg:top-[calc(var(--eye-line)_-_var(--eye)_*_min(90%,165cqw))] sm:max-lg:[clip-path:inset(-20%_-60%_6px_-60%)] ${slot === 0 ? "-translate-x-1/2" : "translate-x-1/2"}`}
           style={
             tear
               ? // The strip fades out toward the seam, where the headline is, so it never sits under the copy; in the wide layout its outer end fades too, as the photo ends there and the montage goes on.
                 {
                   maskImage: `linear-gradient(to ${slot === 0 ? "right" : "left"}, ${wide ? "transparent, #000 9%, #000 58%" : "#000 58%"}, transparent 97%)`,
                 }
-              : slot === 0
-                ? { left: FIGURE_CENTRE }
-                : { right: FIGURE_CENTRE }
+              : ({ [slot === 0 ? "left" : "right"]: FIGURE_CENTRE, "--eye": eye.toFixed(4) } as CSSProperties)
           }
         >
           <div className="absolute inset-0" style={{ translate: "calc(var(--px, 0) * -8px) calc(var(--py, 0) * -6px)" }}>
@@ -161,7 +162,7 @@ export function PanelParts({
         </div>
       </div>
 
-      <div data-part="foot" aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0" style={{ height: FOOT_HEIGHT, backgroundImage: FOOT }} />
+      <div data-part="foot" aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0" style={{ height: "var(--foot-h)", backgroundImage: FOOT }} />
     </>
   );
 }

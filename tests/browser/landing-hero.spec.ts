@@ -503,6 +503,107 @@ test("the names are one label under the timeline, centred on the seam: A against
   expect(order.height).toBeLessThan(0.46);
 });
 
+test.describe("at tablet widths (sm up to lg) the figures stand higher and the foot is twice as tall; desktop and phone are as they were", () => {
+  /** What the figures and the foot of the stage are: the eye line of each cut (where the eyes of its photo are, as a share of the stage's height), the foot's height, and any fade on a figure. */
+  async function figures(page: Page) {
+    return stage(page).evaluate((root) => {
+      const rootBox = root.getBoundingClientRect();
+      const frames = [...root.querySelectorAll<HTMLElement>("[data-frame]")];
+      const parts = frames.map((frame) => {
+        const figure = frame.querySelector<HTMLElement>("[data-part='figure']")!;
+        const foot = frame.querySelector<HTMLElement>("[data-part='foot']")!;
+        const box = figure.parentElement!.parentElement!;
+        const eye = parseFloat(box.style.getPropertyValue("--eye"));
+        const rect = box.getBoundingClientRect();
+        // Every element from the figure up to the frame: none of them fades the figure (a mask, or less than full opacity).
+        const fades: string[] = [];
+        for (let element: HTMLElement | null = figure; element && element !== frame; element = element.parentElement) {
+          const style = getComputedStyle(element);
+          if (style.maskImage !== "none" || style.opacity !== "1") fades.push(`${element.tagName}.${style.maskImage}.${style.opacity}`);
+        }
+        return {
+          cut: Number.isFinite(eye),
+          eyeLine: Number.isFinite(eye) ? (rect.top + eye * rect.height - rootBox.top) / rootBox.height : null,
+          bottom: (rect.bottom - rootBox.top) / rootBox.height,
+          foot: foot.getBoundingClientRect().height / frame.getBoundingClientRect().height,
+          footInFront: !!(figure.compareDocumentPosition(foot) & Node.DOCUMENT_POSITION_FOLLOWING),
+          fades,
+        };
+      });
+      const poster = root.querySelector<HTMLElement>("[data-part='poster']")!.getBoundingClientRect();
+      return { parts, posterTop: (poster.top - rootBox.top) / rootBox.height };
+    });
+  }
+
+  for (const width of [640, 768, 1000]) {
+    test(`at ${width}px the eyes are at about 44% of the stage, clear above the poster cluster, the foot is 84% of a half, and no figure is faded`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 960 });
+      await page.goto("/");
+      await ready(page);
+      const { parts, posterTop } = await figures(page);
+      expect(parts).toHaveLength(2);
+      for (const part of parts) {
+        if (part.cut) {
+          expect(part.eyeLine!).toBeGreaterThan(0.4);
+          expect(part.eyeLine!).toBeLessThan(0.5);
+          // The faces are above the cluster, not under it.
+          expect(part.eyeLine!).toBeLessThan(posterTop - 0.08);
+        }
+        expect(part.foot).toBeCloseTo(0.84, 2);
+        expect(part.footInFront).toBe(true);
+        expect(part.fades).toEqual([]);
+      }
+    });
+  }
+
+  for (const [width, label] of [[1440, "a desktop"], [390, "a phone"]] as const) {
+    test(`${label} (${width}px) keeps its figures where they were, anchored to the bottom, and its foot 42% of a half`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width < 640 ? 844 : 900 });
+      await page.goto("/");
+      await ready(page);
+      const { parts } = await figures(page);
+      for (const part of parts) {
+        expect(part.foot).toBeCloseTo(0.42, 2);
+        expect(part.footInFront).toBe(true);
+        expect(part.fades).toEqual([]);
+        // A cut stands on the bottom of the stage (past it on a desktop; on the line, 82% down, on a phone).
+        if (part.cut) expect(part.bottom).toBeGreaterThan(width < 640 ? 0.8 : 1);
+      }
+    });
+  }
+
+  test("a scene change brings the incoming panel's foot in at once, over its figure: the foot is not faded in, nor the old one out", async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 960 });
+    await page.goto("/");
+    await ready(page);
+    // The next scene: the foot of every panel on screen, during the change, has no animation and is fully opaque.
+    await page.keyboard.press("ArrowRight");
+    const seen = await page.evaluate(
+      () =>
+        new Promise<{ animated: number; opacities: string[]; feet: number }>((resolve) => {
+          const stageRoot = document.querySelector("[data-hero-stage]")!;
+          let animated = 0;
+          let feet = 0;
+          const opacities = new Set<string>();
+          const start = performance.now();
+          const tick = () => {
+            for (const foot of stageRoot.querySelectorAll<HTMLElement>("[data-part='foot']")) {
+              feet++;
+              animated += foot.getAnimations().length;
+              opacities.add(getComputedStyle(foot).opacity);
+            }
+            if (performance.now() - start < 900) requestAnimationFrame(tick);
+            else resolve({ animated, opacities: [...opacities], feet });
+          };
+          tick();
+        }),
+    );
+    expect(seen.feet).toBeGreaterThan(2);
+    expect(seen.animated).toBe(0);
+    expect(seen.opacities).toEqual(["1"]);
+  });
+});
+
 /** The stage's box and the geometry the timeline's content is in, for the band and drop tests below. */
 async function bandGeometry(page: Page) {
   const root = await box(stage(page));

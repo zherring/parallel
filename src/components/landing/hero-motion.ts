@@ -141,7 +141,6 @@ export function depart(el: HTMLElement, kind: ItemKind, { reduced, delay = 0, mo
 function arrivePanel(el: HTMLElement, delay: number, mode: PanelMode): Animation[] {
   const backdrop = part(el, "backdrop");
   const figure = part(el, "figure");
-  const foot = part(el, "foot");
   const animations: Animation[] = [];
 
   if (mode === "recolour") {
@@ -165,9 +164,9 @@ function arrivePanel(el: HTMLElement, delay: number, mode: PanelMode): Animation
     return animations;
   }
 
-  // A person replaced: the montage and the foot gradient (over the figure) fade in over the old ones, the figure rises from 8% below.
+  // A person replaced: the montage fades in over the old one, the figure rises from 8% below. The foot gradient (the page's colour over the figure) is there from the first
+  // frame, not faded in: the figure is covered at the bottom for as long as it is on screen, so it never shows its lower body, opaque, before the foot is over it.
   if (backdrop) animations.push(fade(backdrop, 0, 1, TIMING.backdrop, delay + TIMING.backdropDelay, EASE_IN_OUT));
-  if (foot) animations.push(fade(foot, 0, 1, TIMING.backdrop, delay + TIMING.backdropDelay, EASE_IN_OUT));
   if (figure) {
     const options = { delay: delay + TIMING.figureDelay, fill: "backwards" } as const;
     animations.push(
@@ -196,9 +195,7 @@ function departPanel(el: HTMLElement, delay: number, mode: PanelMode): Animation
   // Only the end of each motion is given: it starts from wherever the part is, so a panel sent away mid-arrival (Next pressed again at
   // once) leaves from where it is instead of jumping to its resting place first.
   const figure = part(el, "figure");
-  const foot = part(el, "foot");
-  // The foot gradient sinks away as the new one comes in over it (their two never add up to a darker foot for long).
-  if (foot) animations.push(fade(foot, 1, 0, TIMING.backdrop, delay + TIMING.backdropDelay, EASE_IN_OUT));
+  // The foot gradient stays as it is (the page's colour over the figure): the new one is over it from the first frame, and the same colour at the same places.
   if (figure) {
     animations.push(
       figure.animate({ transform: "translateY(6%)", opacity: 0 }, { duration: TIMING.figureLeave, delay, easing: EASE_IN, fill: "forwards" }),

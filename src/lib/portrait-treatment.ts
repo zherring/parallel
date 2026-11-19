@@ -86,6 +86,25 @@ const HEAD_BAND = 0.3;
 const FACE_DROP = 0.85;
 
 /**
+ * How far below the top of the cut the eyes are, as a multiple of the head's width: a little above the middle of the face (`FACE_DROP`, eyes to mouth). Fitted by eye
+ * on the landing hero's tablet widths, where the figures are stood so that their eyes are on a line down the stage (`eyeLine`).
+ */
+const EYE_DROP = 0.65;
+
+/**
+ * Where the eyes of the cut `shape` are, as a share (0 to 1) of the photo's height from its top: the head's top, plus `EYE_DROP` head-widths (the head, by the points of the
+ * cut's top `HEAD_BAND`, as `headCrop` has it). Not a measure (the cuts carry no face), a rule: it lets the hero stand figures of any headroom with their eyes at one height.
+ */
+export function eyeLine(shape: TreatmentShape): number {
+  const [w, h] = shape.size;
+  const ys = shape.points.map(([, y]) => y);
+  const top = Math.min(...ys);
+  const span = Math.max(...ys) - top;
+  const head = shape.points.filter(([, y]) => y <= top + span * HEAD_BAND).map(([x]) => x);
+  return top + EYE_DROP * (Math.max(...head) - Math.min(...head)) * (w / h);
+}
+
+/**
  * The crop of a tile of aspect `aspect` (width / height) on the head of `shape`, centred across on the points of the cut's top `HEAD_BAND` (the head,
  * not the shoulders), kept inside the photo. A tile no wider than `HEAD_CROP_FULL_WIDTH_ASPECT` takes `HEAD_CROP_WIDTH` of the photo's width, its top a
  * little above the cut's. A wider tile is cropped tight: the photo's whole width, whatever it is, and so a height of only the tile's shape, which is
