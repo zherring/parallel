@@ -1,6 +1,6 @@
 import type { Locator, Page } from "next/experimental/testmode/playwright";
 import { FILM_COUNT, HEADLINE, NAMES, PAIR, expect, test } from "./almodovar";
-import { bar, collapseHero, heroBody, heroState, quotesLink, scene, switcher } from "./fixtures";
+import { bar, collapseHero, heroBody, heroState, quotesLink, scene, scrollView, switcher, viewLink } from "./fixtures";
 import { getHeroNote } from "../../src/lib/pair-hero-note";
 import { portraitPersonHexes } from "../../src/lib/portrait-cuts";
 import { CARD_WIDTH, OPENING_BUFFER } from "../../src/lib/timeline-layout";
@@ -13,7 +13,8 @@ const rgbOf = (hex: string) => `rgb(${[1, 3, 5].map((at) => Number.parseInt(hex.
 
 /**
  * The pair hero at the top of every view of a `/p/` page: the names joined with ×, a line of roles and the film count, a portrait each, a note (the pair's first
- * quote here), and a chip for each film. It is open on arrival and collapses into the compact bar once the view's main scroller has moved 48px from where it landed.
+ * quote here), and a chip for each film. It is open on arrival, collapses into the compact bar once the view's main scroller has moved 48px from where it landed, and then stays collapsed
+ * (it unfurls only once: another view, or a reload, opens it again).
  * The pair is Almodóvar and Cruz, who have Quotes, with a dozen films together (`almodovar.ts`).
  */
 
@@ -232,7 +233,7 @@ test.describe("at 1440px wide", () => {
   // ---- collapsing ----------------------------------------------------------------------------------------------------
 
   for (const view of ALL_VIEWS) {
-    test(`on the ${view} view the hero collapses once the scroller has moved 48px from where it landed, and expands again within 48px of it`, async ({ page }) => {
+    test(`on the ${view} view the hero collapses once the scroller has moved 48px from where it landed, and stays collapsed when it comes back to it`, async ({ page }) => {
       // (The Timeline of this pair is no wider than a wide screen, so it is shown on a narrower one, where it has room to scroll sideways.)
       await page.setViewportSize({ width: view === "timeline" ? 900 : 1440, height: 600 });
       await openView(page, view);
@@ -251,13 +252,39 @@ test.describe("at 1440px wide", () => {
       await expect(pill(page)).toBeVisible();
       await expect(title(page)).toBeHidden();
 
-      // Back within 48px of where it landed: expanded again, and the pill gives way to the title.
-      await scrollTo(page, view, landed + away * 20);
-      await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
-      await expect(title(page)).toBeVisible();
-      await expect(pill(page)).toBeHidden();
+      // Back to where it landed, and past it: the hero does not unfurl again, which it would have done midway through the page (Films and the Timeline land mid-track).
+      for (const offset of [landed + away * 20, landed, landed - away * 10]) {
+        await scrollTo(page, view, Math.max(0, offset));
+        await frames(page, 3);
+        expect(await heroState(page), `back at ${offset}`).toBe("collapsed");
+      }
+      await expect(pill(page)).toBeVisible();
+      await expect(title(page)).toBeHidden();
     });
   }
+
+  test("another view opens with the hero expanded, and so does a reload: collapsed on one view does not carry to the next", async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 600 });
+    await openView(page, "timeline");
+    await collapseHero(page);
+    // The Table is another view of the page (chosen in place, a plain click): it opens with its hero open, and collapses by its own scroller.
+    await viewLink(page, "table").click();
+    await expect(currentSegment(page)).toHaveText("Table");
+    await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
+    await expect(title(page)).toBeVisible();
+    await collapseHero(page);
+    // And back to the Timeline, whose track is where it was left (at the end of its short track now): open again, and collapsed again by moving it back.
+    await viewLink(page, "timeline").click();
+    await expect(currentSegment(page)).toHaveText("Timeline");
+    await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
+    await frames(page, 3);
+    await scrollView(page, -120);
+    await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
+    // A reload opens the page with the hero open.
+    await page.reload();
+    await hydrated(page);
+    await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
+  });
 
   test("a Timeline with nothing to scroll collapses the hero on a press on it, or a wheel over the band, since no scroll can", async ({ page }) => {
     // At 1440px the pair's whole career is on the screen: the track has no room to scroll in either direction.
@@ -531,10 +558,10 @@ test.describe("at 1440px wide", () => {
 
     await collapseHero(page);
     await check("collapsed");
-    // Back within 48px of the start: open again, and the rail has not moved.
+    // Back within 48px of the start: still collapsed (the hero unfurls only once), and the rail has not moved.
     await scrollTo(page, "focus", landed + 20);
-    await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
-    await check("open again");
+    await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
+    await check("collapsed, back at the start");
   });
 
   test("the year readout is clear of the bar's controls, with the hero open and collapsed, wherever the scene is scrolled", async ({ page }) => {
