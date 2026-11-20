@@ -60,8 +60,8 @@ async function hydrated(page: Page) {
 }
 
 /**
- * Opens the scene and scrolls it to the first collaboration (the scene itself opens at its start, the top of the axis, and the specs about the posters want one
- * in the middle of the screen), as a visitor who scrolls down to it sees it. The pair hero has collapsed by then, having been scrolled away from the start.
+ * Opens the scene and scrolls it so the first collaboration is in the middle of the screen (the scene itself opens with it just under the hero's band, and the specs
+ * about the posters want one in the middle), as a visitor who scrolls down to it sees it. The pair hero has collapsed by then, having been scrolled away from the start.
  */
 async function openDepthAtFirstCollab(page: Page, search = "") {
   await openDepthLanded(page, search);
@@ -91,24 +91,25 @@ async function showAllFilms(page: Page) {
   await expect(sheet).toBeHidden();
 }
 
-test("the scene opens at its start: scrolled to the top, with the earliest year just under the hero's band", async ({ page }) => {
+test("the scene opens on the first collaboration: scrolled past the people's earlier films, with the first film made together just under the hero's band", async ({ page }) => {
   await openDepthLanded(page);
   const region = scene(page);
 
   await expect(region).toBeVisible();
-  // Not scrolled to anything (and it stays there: nothing moves it after it has opened).
+  // Scrolled down to it, with the hero still open (and it stays there: nothing moves it after it has opened).
   await expect(page.locator("[data-people-bar]")).toHaveAttribute("data-hero", "expanded");
-  expect(await region.evaluate((element) => element.scrollTop)).toBe(0);
-  await expect.poll(() => region.evaluate((element) => element.scrollTop)).toBe(0);
-  // The earliest film is the top of the scene, clear of the hero's band, which is open over the top of the screen when it opens (the room above the first year is the band's).
+  const landed = await region.evaluate((element) => element.scrollTop);
+  expect(landed).toBeGreaterThan(0);
+  await expect.poll(() => region.evaluate((element) => element.scrollTop)).toBe(landed);
+  // The first film made together is on the screen, clear of the hero's band, which is open over the top of the screen when it opens (the room above it is the band's).
   const band = (await page.locator("[data-people-bar]").boundingBox())!;
-  const topmost = await region.evaluate((element) => Math.min(...[...element.querySelectorAll<HTMLElement>("[data-film]")].map((poster) => poster.getBoundingClientRect().top)));
-  expect(topmost).toBeGreaterThanOrEqual(band.y + band.height);
-
-  // The depth: collaborations in front, then one layer behind per person.
-  await expect(region.locator("ol")).toHaveCount(3);
-  // The scene covers the site's header and footer rather than sitting between them.
-  await expect(page.locator("html")).toHaveAttribute("data-view", "depth");
+  const first = await region.evaluate((element) => {
+    const boxes = [...element.querySelectorAll<HTMLElement>('[data-film][data-layer="0"]')].map((poster) => poster.getBoundingClientRect());
+    const top = boxes.reduce((a, b) => (b.top < a.top ? b : a));
+    return { top: top.top, bottom: top.bottom };
+  });
+  expect(first.top).toBeGreaterThanOrEqual(band.y + band.height);
+  expect(first.bottom).toBeLessThanOrEqual(page.viewportSize()!.height);
 });
 
 test("the page's h1 is there for screen readers only: visually hidden, outside the scene, and nothing of it is over the scene", async ({ page }) => {
@@ -1802,7 +1803,7 @@ async function flatFilms(page: Page) {
 test("with Show all films off, Focus has a poster for the films the flat timeline gives a card and none for the ones it leaves as nodes, with minor credits off or on", async ({ page }) => {
   // The flat page first, every film on it (Show all films is on to begin with, so it has no bare nodes), then with it turned off: its films, and the ones it
   // leaves as nodes, with the minor credits off and on.
-  await page.goto(PEOPLE_PATH);
+  await page.goto(`${PEOPLE_PATH}?view=timeline`);
   await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
   const flatEvery = await flatFilms(page);
   expect(flatEvery.nodes).toEqual([]);
@@ -2091,11 +2092,14 @@ test("until its image arrives a poster is the dark surface tinted with its perso
   }
 });
 
-test("the plain address still renders the flat Timeline on a desktop, with the control's three views", async ({ page }) => {
+test("the plain address renders Films on a desktop too, with the control's three views, and the Timeline's link is the flat page", async ({ page }) => {
   await page.goto(PEOPLE_PATH);
-  await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
+  await expect(scene(page)).toBeVisible();
+  await expect(viewLink(page, "depth")).toHaveAttribute("aria-current", "page");
   await expect(viewLink(page, "table")).toBeVisible();
-  await expect(viewLink(page, "depth")).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-view", "depth");
+  await viewLink(page, "timeline").click();
+  await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("region", { name: "Film timeline. Scroll sideways to see more years.", exact: true })).toBeVisible();
   await expect(scene(page)).toHaveCount(0);
   await expect(page.locator("html")).not.toHaveAttribute("data-view", /.+/);

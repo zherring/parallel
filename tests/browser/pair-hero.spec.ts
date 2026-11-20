@@ -188,7 +188,7 @@ test.describe("at 1440px wide", () => {
     expect(measured.focus.gear.x).toBeLessThan(measured.timeline.gear.x);
   });
 
-  test("every view opens at its start: Films at the top of the scene, the Timeline at its left end (and at its bottom where it scrolls down), the Table and the Quotes at the top of the page", async ({ page }) => {
+  test("Films and the Timeline open on the first collaboration (the Timeline at its bottom, too, where it scrolls down), the Table and the Quotes at the top of the page", async ({ page }) => {
     // (The Timeline of this pair is no wider than a wide screen: on a narrower one it has room to scroll sideways, so that its left end is a position and not the only one.)
     await page.setViewportSize({ width: 900, height: 600 });
     for (const view of ALL_VIEWS) {
@@ -204,9 +204,12 @@ test.describe("at 1440px wide", () => {
         }
         return { left: window.scrollX, top: window.scrollY, bottomGap: 0 };
       }, view);
-      expect(start.left, `${view}: scrollLeft`).toBe(0);
-      // The Timeline sits at the bottom of its track (all of it, within a pixel), wherever that is; the others at the top.
+      // The pair's first film together is not either person's first film: both views are scrolled along to it, and the hero is still open (`openView`).
+      if (view === "timeline") expect(start.left, `${view}: scrollLeft`).toBeGreaterThan(0);
+      else expect(start.left, `${view}: scrollLeft`).toBe(0);
+      // The Timeline sits at the bottom of its track (all of it, within a pixel), wherever that is; the Table and the Quotes at the top.
       if (view === "timeline") expect(start.bottomGap, `${view}: distance from the bottom`).toBeLessThanOrEqual(1);
+      else if (view === "focus") expect(start.top, `${view}: scrollTop`).toBeGreaterThan(0);
       else expect(start.top, `${view}: scrollTop`).toBe(0);
     }
   });
@@ -219,8 +222,9 @@ test.describe("at 1440px wide", () => {
       await page.setViewportSize({ width: view === "timeline" ? 900 : 1440, height: 600 });
       await openView(page, view);
       const landed = await landing(page, view);
-      // Every view starts at its start: Films at the top of the scene, the Timeline at its left end, the Table and the Quotes at the top of the page.
-      expect(landed).toBe(0);
+      // Films and the Timeline land on the first collaboration, the Table and the Quotes at the top of the page.
+      if (view === "focus" || view === "timeline") expect(landed).toBeGreaterThan(0);
+      else expect(landed).toBe(0);
 
       await scrollTo(page, view, landed + 47);
       expect(await heroState(page)).toBe("expanded");
@@ -479,6 +483,7 @@ test.describe("at 1440px wide", () => {
 
   test("the year rail runs the full height of the screen from its top, with the hero open or collapsed: the band ends at its left edge, the hero clears it, and a press on it is on the rail", async ({ page }) => {
     await openView(page, "focus");
+    const landed = await landing(page, "focus");
     const track = page.locator("[data-depth-rail] > div").first();
     const railBox = async () => box(track);
     const check = async (state: string) => {
@@ -510,7 +515,7 @@ test.describe("at 1440px wide", () => {
     await collapseHero(page);
     await check("collapsed");
     // Back within 48px of the start: open again, and the rail has not moved.
-    await scrollTo(page, "focus", 20);
+    await scrollTo(page, "focus", landed + 20);
     await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
     await check("open again");
   });
