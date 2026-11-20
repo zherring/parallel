@@ -129,9 +129,11 @@ export async function collapseHero(page: Page, by = 120) {
   await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
 }
 
-/** Wait for hydration via a real state transition, not a sleep or private React fields. */
+/** Opens the flat Timeline (named: a plain address opens Films) and waits for hydration via a real state transition, not a sleep or private React fields. */
 export async function openPeople(page: Page, search = "") {
-  await page.goto(`${PEOPLE_PATH}${search}`);
+  const params = new URLSearchParams(search);
+  if (!params.has("view")) params.set("view", "timeline");
+  await page.goto(`${PEOPLE_PATH}?${params}`);
   const gear = page.getByRole("button", { name: "Settings", exact: true });
   await gear.click();
   await expect(page.getByRole("dialog", { name: "Settings", exact: true })).toBeVisible();

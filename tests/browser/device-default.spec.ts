@@ -3,9 +3,9 @@ import { PAIR, expect, test } from "./almodovar";
 import { bar, collapseHero, scene, switcher, viewLink } from "./fixtures";
 
 /**
- * A link that names no view opens the Films view (the Depth view) on a phone and the Timeline everywhere else. The server decides, from the user agent
- * (`device.type === "mobile"`), so the page never flashes the other view; a view the link names always wins; and every link to the Timeline names it
- * (`?view=timeline`), or a phone would bounce a tap on Timeline back to Films. The device is the user agent's, not the window's: a narrow desktop window is still a desktop.
+ * A link that names no view opens the Films view (the Depth view), on a phone, a tablet and a desktop alike (only a crawler gets the flat page). The server
+ * decides, so the page never flashes the other view; a view the link names always wins; and every link to the Timeline names it
+ * (`?view=timeline`), or a tap on Timeline would bounce back to Films. A period (`?from=&to=`) names the Timeline too, on every device, as a sort names the Table.
  */
 
 // Activate the server-side fetch fixtures before any test navigates to a people page.
@@ -41,9 +41,17 @@ test.describe("on a phone", () => {
     await expect(sheetViews(page).locator('[aria-current="page"]')).toHaveText("Films");
   });
 
-  test("a period alone names no view, so it lands on Films too", async ({ page }) => {
-    await page.goto(`${PAIR}?from=2001&to=2005`);
+  test("a period alone names the Timeline: it is the flat page, in the server's own HTML, not Films", async ({ page }) => {
+    const html = await serverHtml(page, `${PAIR}?from=2001&to=2005`);
+    expect(html).not.toContain("data-depth-scene");
+    await expect(scene(page)).toHaveCount(0);
+    await expect(flat(page)).toBeVisible();
+  });
+
+  test("a period with view=depth is still Films", async ({ page }) => {
+    await page.goto(`${PAIR}?view=depth&from=2001&to=2005`);
     await expect(scene(page)).toBeVisible();
+    await expect(flat(page)).toHaveCount(0);
   });
 
   for (const [view, ready] of [
@@ -138,19 +146,22 @@ async function hydrated(page: Page) {
   await expect(sheet).toBeHidden();
 }
 
-test.describe("on a desktop, and wherever the user agent is not a phone's", () => {
-  test("a plain address lands on the Timeline, in the server's own HTML", async ({ page }) => {
+test.describe("on a desktop", () => {
+  test("a plain address lands on Films, in the server's own HTML: no flash of the Timeline", async ({ page }) => {
     const html = await serverHtml(page, PAIR);
-    expect(html).toContain("data-fullscreen-panel");
-    expect(html).not.toContain("data-depth-scene");
-    await expect(flat(page)).toBeVisible();
-    await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
-    await expect(scene(page)).toHaveCount(0);
+    expect(html).toContain("data-depth-scene");
+    expect(html).not.toContain("data-fullscreen-panel");
+    await expect(scene(page)).toBeVisible();
+    await expect(viewLink(page, "depth")).toHaveAttribute("aria-current", "page");
+    await expect(flat(page)).toHaveCount(0);
+    // The address stays the plain one: nothing is added to it.
+    expect(new URL(page.url()).search).toBe("");
   });
 
-  test("a narrow desktop window is still a desktop: the Timeline, not Films", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(PAIR);
+  test("a link that names the Timeline wins: it is the flat page, in the server's own HTML", async ({ page }) => {
+    const html = await serverHtml(page, `${PAIR}?view=timeline`);
+    expect(html).toContain("data-fullscreen-panel");
+    expect(html).not.toContain("data-depth-scene");
     await expect(flat(page)).toBeVisible();
     await expect(scene(page)).toHaveCount(0);
   });
@@ -159,6 +170,24 @@ test.describe("on a desktop, and wherever the user agent is not a phone's", () =
     await page.goto(`${PAIR}?view=depth`);
     await expect(scene(page)).toBeVisible();
     await expect(viewLink(page, "depth")).toHaveAttribute("aria-current", "page");
+  });
+
+  test("a period alone names the Timeline: it is the flat page, in the server's own HTML, and its segment is the current one", async ({ page }) => {
+    const html = await serverHtml(page, `${PAIR}?from=2001&to=2005`);
+    expect(html).toContain("data-fullscreen-panel");
+    expect(html).not.toContain("data-depth-scene");
+    await expect(flat(page)).toBeVisible();
+    await expect(scene(page)).toHaveCount(0);
+    await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
+  });
+
+  test("a period with view=depth is still Films, and a period with view=table is still the Table", async ({ page }) => {
+    await page.goto(`${PAIR}?view=depth&from=2001&to=2005`);
+    await expect(scene(page)).toBeVisible();
+    await expect(viewLink(page, "depth")).toHaveAttribute("aria-current", "page");
+    await page.goto(`${PAIR}?view=table&from=2001&to=2005`);
+    await expect(scene(page)).toHaveCount(0);
+    await expect(viewLink(page, "table")).toHaveAttribute("aria-current", "page");
   });
 
   test("the Timeline's segment is a link that says view=timeline, on the desktop too, and tapping it stays", async ({ page }) => {
@@ -182,10 +211,10 @@ test.describe("on a desktop, and wherever the user agent is not a phone's", () =
 test.describe("on a tablet", () => {
   test.use({ userAgent: IPAD, viewport: { width: 820, height: 1180 }, hasTouch: true });
 
-  test("a plain address lands on the Timeline: only phones get Films by default", async ({ page }) => {
+  test("a plain address lands on Films, as on a phone and a desktop", async ({ page }) => {
     const html = await serverHtml(page, PAIR);
-    expect(html).toContain("data-fullscreen-panel");
-    await expect(flat(page)).toBeVisible();
-    await expect(scene(page)).toHaveCount(0);
+    expect(html).toContain("data-depth-scene");
+    await expect(scene(page)).toBeVisible();
+    await expect(flat(page)).toHaveCount(0);
   });
 });

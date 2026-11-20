@@ -371,65 +371,76 @@ describe("the page", () => {
     });
 
     it.each([
-      ["no query", {}],
-      ["a period", { from: "1970", to: "1980" }],
       ["the table", { view: "table" }],
       ["the timeline", { view: "timeline" }],
       ["the clippings", { view: "clippings" }],
       ["a link to one quote", { quote: "short-one" }],
       ["a sort", { sort: "rating", dir: "desc" }],
-      ["a view it does not know", { view: "grid" }],
-    ])("is the usual page for %s on a desktop", async (_name, query) => {
+    ])("is the flat page for %s", async (_name, query) => {
       expect((await rendered(query)).type).toBe(PeopleView);
     });
 
-    describe("on a phone, for a link that names no view", () => {
+    describe("for a link that names no view", () => {
       it.each([
+        ["a desktop", DESKTOP],
         ["an iPhone", IPHONE],
         ["an Android phone", ANDROID_PHONE],
-      ])("is the Films view (the Depth view) for %s, so that the page never flashes the Timeline first", async (_name, agent) => {
+        ["an iPad", IPAD],
+        ["an Android tablet", ANDROID_TABLET],
+        ["no user agent", null],
+      ])("is the Films view (the Depth view) for %s, so that the page never shows the flat Timeline first", async (_name, agent) => {
         userAgentHeader = agent;
         const element = await rendered({});
         expect(element.type).toBe(DepthView);
         expect(element.props.timelines).toHaveLength(2);
-        expect((await rendered({ from: "1970", to: "1980" })).type).toBe(DepthView);
-        // A view the page does not know names none, and neither does a quote it does not have.
+        // A view the page does not know names none, and neither does a quote it does not have, or a period that is not a year (the Timeline drops it too).
         expect((await rendered({ view: "grid" })).type).toBe(DepthView);
         expect((await rendered({ quote: "not-a-quote-of-its" })).type).toBe(DepthView);
+        expect((await rendered({ from: "soon", to: "later" })).type).toBe(DepthView);
+      });
+
+      it.each([
+        ["a desktop", DESKTOP],
+        ["an iPhone", IPHONE],
+        ["an Android phone", ANDROID_PHONE],
+        ["an iPad", IPAD],
+        ["an Android tablet", ANDROID_TABLET],
+        ["no user agent", null],
+        ["Googlebot's smartphone agent", GOOGLEBOT_SMARTPHONE],
+      ])("is the flat page, with the Timeline, for a period and no view, for %s: a period names the Timeline", async (_name, agent) => {
+        userAgentHeader = agent;
+        for (const query of [{ from: "1970", to: "1980" }, { from: "1970" }, { to: "1980" }]) {
+          expect((await rendered(query)).type, JSON.stringify(query)).toBe(PeopleView);
+        }
+      });
+
+      it("still opens Films for view=depth with a period, which dims the posters outside it", async () => {
+        for (const agent of [DESKTOP, IPHONE, GOOGLEBOT_SMARTPHONE]) {
+          userAgentHeader = agent;
+          expect((await rendered({ view: "depth", from: "1970", to: "1980" })).type).toBe(DepthView);
+        }
       });
 
       it("lets a view the link names win: the Timeline, the Table, the Quotes, a quote of the pair's own and a sort are the flat page", async () => {
-        userAgentHeader = IPHONE;
-        for (const query of [{ view: "timeline" }, { view: "table" }, { view: "clippings" }, { quote: "short-one" }, { sort: "rating", dir: "desc" }]) {
-          expect((await rendered(query)).type, JSON.stringify(query)).toBe(PeopleView);
+        for (const agent of [DESKTOP, IPHONE]) {
+          userAgentHeader = agent;
+          for (const query of [{ view: "timeline" }, { view: "table" }, { view: "clippings" }, { quote: "short-one" }, { sort: "rating", dir: "desc" }]) {
+            expect((await rendered(query)).type, JSON.stringify(query)).toBe(PeopleView);
+          }
+          expect((await rendered({ view: "depth" })).type).toBe(DepthView);
         }
-        expect((await rendered({ view: "depth" })).type).toBe(DepthView);
       });
 
       it("takes the first of a repeated view", async () => {
-        userAgentHeader = IPHONE;
         expect((await rendered({ view: ["timeline", "depth"] })).type).toBe(PeopleView);
         expect((await rendered({ view: ["depth", "timeline"] })).type).toBe(DepthView);
       });
-    });
 
-    describe("on a desktop, a tablet, a bot or with no user agent at all, for a link that names no view", () => {
-      it.each([
-        ["a desktop", DESKTOP],
-        ["an iPad", IPAD],
-        ["an Android tablet", ANDROID_TABLET],
-        ["Googlebot's smartphone agent, so that a crawler reads the page with the table in its HTML", GOOGLEBOT_SMARTPHONE],
-        ["no user agent", null],
-      ])("is the Timeline for %s", async (_name, agent) => {
-        userAgentHeader = agent;
+      it("is the flat page for Googlebot's smartphone agent, so that a crawler reads the page with the table in its HTML", async () => {
+        userAgentHeader = GOOGLEBOT_SMARTPHONE;
         expect((await rendered({})).type).toBe(PeopleView);
-      });
-
-      it("is still the Films view when the link says so", async () => {
-        for (const agent of [DESKTOP, IPAD, GOOGLEBOT_SMARTPHONE, null]) {
-          userAgentHeader = agent;
-          expect((await rendered({ view: "depth" })).type).toBe(DepthView);
-        }
+        // It is still the Films view when the link says so.
+        expect((await rendered({ view: "depth" })).type).toBe(DepthView);
       });
     });
 

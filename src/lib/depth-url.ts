@@ -22,18 +22,19 @@ export function isDepthView(value: ParamValue): boolean {
 
 /**
  * Whether a request for a `/p/` page is answered with the Films view (the Depth view) rather than the flat page. When the address names a view (`view=`, a quote of the
- * page's own, a sort) that decides it: Films exactly when it says `depth`. When it names none, the device does: Films on a phone, the Timeline everywhere else
- * (`phone` is the request's user agent saying so, see the page: a narrow desktop window is still a desktop). The server decides, so that the page never flashes the other
- * view. `query` is the page's `searchParams`; `quoteIds` the ids of the quotes the page has (see `quoteIdsOf`).
+ * page's own, a sort, a period: a period opens the Timeline, on every device) that decides it: Films exactly when it says `depth`, so `?view=depth&from=1990&to=2000`
+ * is still Films, with the period dimming its posters. When it names none, it is Films, on a phone, a tablet and a desktop alike; only a
+ * search engine's crawler (`bot`, the request's user agent saying so, see the page) reads the flat page, which has the table in its HTML. The server decides, so that
+ * the page never flashes the other view. `query` is the page's `searchParams`; `quoteIds` the ids of the quotes the page has (see `quoteIdsOf`).
  */
-export function opensDepth(query: Record<string, string | string[] | undefined>, quoteIds: Iterable<string>, phone: boolean): boolean {
+export function opensDepth(query: Record<string, string | string[] | undefined>, quoteIds: Iterable<string>, bot: boolean): boolean {
   if (isDepthView(query.view)) return true;
   if (namesView(query, quoteIds)) return false;
-  return phone;
+  return !bot;
 }
 
 /**
- * `search` (with or without its "?") for the flat Timeline: `view=depth` becomes `view=timeline` (said outright: a plain address opens Films on a phone), the period and every
+ * `search` (with or without its "?") for the flat Timeline: `view=depth` becomes `view=timeline` (said outright: a plain address opens Films), the period and every
  * other parameter stay. Returns a query string with its "?".
  */
 export function flatSearch(search: string): string {

@@ -109,10 +109,11 @@ test("the remembered view is gone: nothing is written to the browser's storage, 
   await viewLink(page, "depth").click();
   await expect(scene(page)).toBeVisible();
   expect(await page.evaluate(() => Object.keys(window.localStorage).filter((key) => key.startsWith("parallel:films-view")))).toEqual([]);
-  // A desktop's plain address is the Timeline, whatever view was used last.
+  // The plain address is Films, whatever view was used last.
+  await open(page, "table");
   await page.goto(PAIR);
-  await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
-  await expect(scene(page)).toHaveCount(0);
+  await expect(viewLink(page, "depth")).toHaveAttribute("aria-current", "page");
+  await expect(scene(page)).toBeVisible();
 });
 
 test.describe("on a phone", () => {

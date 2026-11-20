@@ -5,6 +5,7 @@ import {
   COLLAB_SIZE,
   DEPTH,
   HERO_ROOM_PX,
+  openingScrollTop,
   OBSCURITY_CUES,
   PULL,
   SOLO_COLUMNS,
@@ -19,6 +20,7 @@ import {
   depthPush,
   depthSceneCss,
   docCenterX,
+  eagerFilmIds,
   hashUnit,
   layerDepth,
   layerFactor,
@@ -777,6 +779,43 @@ describe("depthLayout", () => {
       expect(moved.y - film.y, `film ${film.film.id}`).toBe(HERO_ROOM_PX);
       expect([moved.layer, moved.col, moved.w, moved.h]).toEqual([film.layer, film.col, film.w, film.h]);
     }
+  });
+
+  it("opens on the first collaboration: it is where the scene's first year is at the top, and a scene without one opens at the top", () => {
+    const { entries, peopleCount } = entriesOf(pair);
+    const roomy = depthLayout(entries, peopleCount, TODAY, { pad: DEPTH.pad + HERO_ROOM_PX });
+    const together = roomy.films.filter((film) => film.shared);
+    expect(together.length).toBeGreaterThan(0);
+    const first = Math.min(...together.map((film) => film.y));
+    // Not the scene's first film: the pair's own films come before it.
+    expect(first).toBeGreaterThan(Math.min(...roomy.films.map((film) => film.y)));
+    expect(openingScrollTop(roomy)).toBe(Math.round(first - roomy.scale.pad));
+    expect(openingScrollTop(roomy)).toBeGreaterThan(0);
+    expect(openingScrollTop({ films: roomy.films.filter((film) => !film.shared), scale: roomy.scale })).toBe(0);
+    expect(openingScrollTop({ films: [], scale: roomy.scale })).toBe(0);
+  });
+
+  it("has the images of the posters around where the scene opens in its markup, not those at the top of the axis: the first collaboration is, a film a career before it is not", () => {
+    // Person 10 has a film in 1960, 40 years before the pair's first together (2000); both have one in 2025, which is far down the axis from it.
+    const { entries, peopleCount } = entriesOf([
+      [[1, "1960-01-01"], [2, "2000-01-01"], [5, "2025-01-01"]],
+      [[2, "2000-01-01"], [3, "2002-01-01"], [5, "2025-01-01"]],
+    ]);
+    const roomy = depthLayout(entries, peopleCount, TODAY, { pad: DEPTH.pad + HERO_ROOM_PX });
+    // The scene's own numbers: a nominal screen of 900px, fetched a screen and a half either side of it.
+    const viewportH = 900;
+    const buffer = 1.5 * viewportH;
+
+    const eager = eagerFilmIds(roomy.films, openingScrollTop(roomy), viewportH, buffer);
+    expect(eager.has(2)).toBe(true);
+    expect(eager.has(3)).toBe(true);
+    expect(eager.has(1)).toBe(false);
+    expect(eager.has(5)).toBe(false);
+
+    // From the top of the track, where the scene used to open, it is the other way round: that was the window of the earliest year.
+    const fromTop = eagerFilmIds(roomy.films, 0, viewportH, buffer);
+    expect(fromTop.has(1)).toBe(true);
+    expect(fromTop.has(2)).toBe(false);
   });
 
   it("lists the films layer by layer, each layer top to bottom", () => {
