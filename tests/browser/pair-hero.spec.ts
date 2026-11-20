@@ -226,16 +226,18 @@ test.describe("at 1440px wide", () => {
       if (view === "focus" || view === "timeline") expect(landed).toBeGreaterThan(0);
       else expect(landed).toBe(0);
 
-      await scrollTo(page, view, landed + 47);
+      // 48px either way counts. The Timeline lands near the end of this pair's short track, so there it is moved back, towards the earlier years.
+      const away = view === "timeline" ? -1 : 1;
+      await scrollTo(page, view, landed + away * 47);
       expect(await heroState(page)).toBe("expanded");
-      await scrollTo(page, view, landed + 48);
+      await scrollTo(page, view, landed + away * 48);
       await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
       // Collapsed: the people pill is where the title was, and the title is no longer there to be pressed.
       await expect(pill(page)).toBeVisible();
       await expect(title(page)).toBeHidden();
 
       // Back within 48px of where it landed: expanded again, and the pill gives way to the title.
-      await scrollTo(page, view, landed + 20);
+      await scrollTo(page, view, landed + away * 20);
       await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
       await expect(title(page)).toBeVisible();
       await expect(pill(page)).toBeHidden();
