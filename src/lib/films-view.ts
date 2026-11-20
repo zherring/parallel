@@ -13,6 +13,7 @@
 
 import { DIR_PARAM, SORT_PARAM } from "@/lib/films-table";
 import { filmCountLabel } from "@/lib/format";
+import { parsePeriodParams } from "@/lib/period";
 
 /** The views of the flat page, in order. The first one is the default (and what the server always renders). */
 export const VIEWS = ["timeline", "table", "clippings"] as const;
@@ -118,6 +119,16 @@ function hasSortParams(params: URLSearchParams): boolean {
 type ParamValue = string | string[] | undefined;
 
 /**
+ * Whether the query names a period: `from` and/or `to` with a year in it, read by the same rule the Timeline applies a period by
+ * (`parsePeriodParams`: four digits within the years it accepts, one open end allowed). A parameter that is not a year is dropped there
+ * as if it were not in the address, so it names no period here either. A period names the Timeline, as a sort names the Table.
+ */
+export function namesPeriod(search: string | URLSearchParams | Record<string, ParamValue>): boolean {
+  const { from, to } = parsePeriodParams(search);
+  return from !== null || to !== null;
+}
+
+/**
  * The query as `URLSearchParams`: the `searchParams` of a page (the first of a repeated parameter, a parameter with no
  * value left out), a query string with or without its "?", or the `URLSearchParams` themselves.
  */
@@ -136,7 +147,7 @@ function paramsOf(source: string | URLSearchParams | Record<string, ParamValue>)
  * The view a query selects. `view=table`, `view=timeline` and `view=clippings` say so outright; without a (known)
  * `view`, a `quote` that is one of the page's (`quoteIds`: a link to one quote, see `quoteLinkSearch`) means the Clippings,
  * where the quote is, and a query that carries a sort means the visitor was looking at the table, so a sorted link
- * opens it; anything else is the default. The page's own quotes are what make a `quote` count: one it does not have
+ * opens it; anything else is the default (the Timeline, which is also what a period with no `view` means: see `namesPeriod`). The page's own quotes are what make a `quote` count: one it does not have
  * is ignored, as the page and its preview card ignore it. `search` is `window.location.search` (with or without the
  * leading "?"), or the page's `searchParams`.
  */
@@ -190,14 +201,17 @@ export function searchWithView(search: string, view: View): string {
  * `href` for a navigation to another page of people (a person added from a search, a chip or a
  * film's cast, or one removed), carrying the view the visitor is on: `currentSearch` is the query of the page they
  * leave. The Films view (Depth) and the Table are carried, and so is the Timeline when the address names it (`view=timeline`, which is
- * how every link to it is written): a page that names no view opens the default (Films), which is the view the visitor is on exactly when
- * they came by the plain address, so a plain address stays plain. The Quotes are the pair's own and stay behind, and the sort does not
+ * how every link to it is written, and a link with only a period, which names the Timeline too): a page that names no view opens the default (Films), which is the view the visitor is on exactly when
+ * they came by the plain address, so a plain address stays plain. The period itself does not travel (it is a stretch of the old page's films), so a visitor on a period-only
+ * address is carried to the next page as `view=timeline`. The Quotes are the pair's own and stay behind, and the sort does not
  * travel, since the films it ordered are not the films of the new page.
  */
 export function carryView(href: string, currentSearch: string): string {
   const named = new URLSearchParams(currentSearch).get(VIEW_PARAM);
   const parsed = parseView(currentSearch);
-  const carried = named === DEPTH_VIEW ? DEPTH_VIEW : parsed === "timeline" && named !== "timeline" ? null : parsed;
+  // The Timeline is the view the visitor is on when the address says so (`view=timeline`) or names a period; with neither it is only what the flat page defaults to.
+  const onTimeline = named === "timeline" || namesPeriod(currentSearch);
+  const carried = named === DEPTH_VIEW ? DEPTH_VIEW : parsed === "timeline" && !onTimeline ? null : parsed;
   if (carried === null || carried === "clippings") return href;
   const hash = href.indexOf("#");
   const path = hash === -1 ? href : href.slice(0, hash);
@@ -207,7 +221,9 @@ export function carryView(href: string, currentSearch: string): string {
 
 /**
  * Whether the address names a view of its own, so that the default (Films) does not decide: `view=` one of the views (Films, which is `depth`, included),
- * a quote of the page's own (`quoteIds`, which opens the Quotes) or a sort (which opens the Table). A `view` the page does not know names none.
+ * a quote of the page's own (`quoteIds`, which opens the Quotes), a sort (which opens the Table) or a period (which opens the Timeline, where a period is
+ * drawn: see `namesPeriod`). A `view` the page does not know names none. An explicit `view` still wins over what the rest of the query implies, so
+ * `?view=depth&from=1990&to=2000` is Films, with the period dimming its posters.
  */
 export function namesView(
   search: string | URLSearchParams | Record<string, ParamValue>,
@@ -218,7 +234,7 @@ export function namesView(
   if (view === DEPTH_VIEW || VIEWS.some((named) => named === view)) return true;
   const quote = params.get(QUOTE_PARAM)?.trim();
   if (quote) for (const id of quoteIds) if (id === quote) return true;
-  return hasSortParams(params);
+  return hasSortParams(params) || namesPeriod(params);
 }
 
 /**

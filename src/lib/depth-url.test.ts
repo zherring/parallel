@@ -40,10 +40,32 @@ describe("opensDepth", () => {
   it("opens Films for an address that names no view, on every device; only a crawler reads the flat page", () => {
     expect(opensDepth({}, quotes, false)).toBe(true);
     expect(opensDepth({}, quotes, true)).toBe(false);
-    // A period or any other parameter names no view.
-    expect(opensDepth({ from: "1990", to: "2000" }, quotes, false)).toBe(true);
-    expect(opensDepth({ from: "1990", to: "2000" }, quotes, true)).toBe(false);
+    // Another parameter names no view.
     expect(opensDepth({ utm_source: "x" }, quotes, false)).toBe(true);
+    expect(opensDepth({ utm_source: "x" }, quotes, true)).toBe(false);
+  });
+
+  it("opens the flat page, with the Timeline, for an address that names only a period, on every device and for a crawler", () => {
+    for (const bot of [false, true]) {
+      expect(opensDepth({ from: "1990", to: "2000" }, quotes, bot), `both ends, bot ${bot}`).toBe(false);
+      expect(opensDepth({ from: "1990" }, quotes, bot), `from only, bot ${bot}`).toBe(false);
+      expect(opensDepth({ to: "2000" }, quotes, bot), `to only, bot ${bot}`).toBe(false);
+    }
+  });
+
+  it("ignores a period that is not one (not a year: the Timeline drops it too), so such an address still opens Films", () => {
+    expect(opensDepth({ from: "soon", to: "later" }, quotes, false)).toBe(true);
+    expect(opensDepth({ from: "199", to: "20000" }, quotes, false)).toBe(true);
+    expect(opensDepth({ from: "", to: "" }, quotes, false)).toBe(true);
+    expect(opensDepth({ from: "soon", to: "later" }, quotes, true)).toBe(false);
+  });
+
+  it("still opens Films for view=depth with a period, which dims the posters outside it; another named view keeps its own", () => {
+    for (const bot of [false, true]) {
+      expect(opensDepth({ view: "depth", from: "1990", to: "2000" }, quotes, bot), `depth, bot ${bot}`).toBe(true);
+      expect(opensDepth({ view: "table", from: "1990", to: "2000" }, quotes, bot), `table, bot ${bot}`).toBe(false);
+      expect(opensDepth({ view: "timeline", from: "1990", to: "2000" }, quotes, bot), `timeline, bot ${bot}`).toBe(false);
+    }
   });
 
   it("lets a view the address names win, for a visitor and a crawler alike", () => {

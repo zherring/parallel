@@ -393,10 +393,32 @@ describe("the page", () => {
         const element = await rendered({});
         expect(element.type).toBe(DepthView);
         expect(element.props.timelines).toHaveLength(2);
-        expect((await rendered({ from: "1970", to: "1980" })).type).toBe(DepthView);
-        // A view the page does not know names none, and neither does a quote it does not have.
+        // A view the page does not know names none, and neither does a quote it does not have, or a period that is not a year (the Timeline drops it too).
         expect((await rendered({ view: "grid" })).type).toBe(DepthView);
         expect((await rendered({ quote: "not-a-quote-of-its" })).type).toBe(DepthView);
+        expect((await rendered({ from: "soon", to: "later" })).type).toBe(DepthView);
+      });
+
+      it.each([
+        ["a desktop", DESKTOP],
+        ["an iPhone", IPHONE],
+        ["an Android phone", ANDROID_PHONE],
+        ["an iPad", IPAD],
+        ["an Android tablet", ANDROID_TABLET],
+        ["no user agent", null],
+        ["Googlebot's smartphone agent", GOOGLEBOT_SMARTPHONE],
+      ])("is the flat page, with the Timeline, for a period and no view, for %s: a period names the Timeline", async (_name, agent) => {
+        userAgentHeader = agent;
+        for (const query of [{ from: "1970", to: "1980" }, { from: "1970" }, { to: "1980" }]) {
+          expect((await rendered(query)).type, JSON.stringify(query)).toBe(PeopleView);
+        }
+      });
+
+      it("still opens Films for view=depth with a period, which dims the posters outside it", async () => {
+        for (const agent of [DESKTOP, IPHONE, GOOGLEBOT_SMARTPHONE]) {
+          userAgentHeader = agent;
+          expect((await rendered({ view: "depth", from: "1970", to: "1980" })).type).toBe(DepthView);
+        }
       });
 
       it("lets a view the link names win: the Timeline, the Table, the Quotes, a quote of the pair's own and a sort are the flat page", async () => {
@@ -417,7 +439,6 @@ describe("the page", () => {
       it("is the flat page for Googlebot's smartphone agent, so that a crawler reads the page with the table in its HTML", async () => {
         userAgentHeader = GOOGLEBOT_SMARTPHONE;
         expect((await rendered({})).type).toBe(PeopleView);
-        expect((await rendered({ from: "1970", to: "1980" })).type).toBe(PeopleView);
         // It is still the Films view when the link says so.
         expect((await rendered({ view: "depth" })).type).toBe(DepthView);
       });

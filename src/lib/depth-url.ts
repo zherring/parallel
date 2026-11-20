@@ -22,7 +22,8 @@ export function isDepthView(value: ParamValue): boolean {
 
 /**
  * Whether a request for a `/p/` page is answered with the Films view (the Depth view) rather than the flat page. When the address names a view (`view=`, a quote of the
- * page's own, a sort) that decides it: Films exactly when it says `depth`. When it names none, it is Films, on a phone, a tablet and a desktop alike; only a
+ * page's own, a sort, a period: a period opens the Timeline, on every device) that decides it: Films exactly when it says `depth`, so `?view=depth&from=1990&to=2000`
+ * is still Films, with the period dimming its posters. When it names none, it is Films, on a phone, a tablet and a desktop alike; only a
  * search engine's crawler (`bot`, the request's user agent saying so, see the page) reads the flat page, which has the table in its HTML. The server decides, so that
  * the page never flashes the other view. `query` is the page's `searchParams`; `quoteIds` the ids of the quotes the page has (see `quoteIdsOf`).
  */
