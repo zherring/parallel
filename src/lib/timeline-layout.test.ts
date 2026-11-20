@@ -18,6 +18,7 @@ import {
   LINE_TO_CARD,
   MAX_ZOOM,
   MIN_ZOOM,
+  OPENING_BUFFER,
   OVERFLOW_ROW,
   POSTER_HEIGHT,
   QUIET_CARD_WIDTH,
@@ -1305,11 +1306,21 @@ describe("zoom", () => {
       expect(firstCollaborationX([], new Set([1]))).toBeNull();
     });
 
-    it("scrolls so that its card is where the track's first card is at scrollLeft 0, and never before the start", () => {
-      expect(scrollLeftForCardStart(500)).toBe(500 - TRACK_PAD);
-      expect(500 - scrollLeftForCardStart(500)).toBe(TRACK_PAD);
+    it("scrolls so that its card starts one card's width (OPENING_BUFFER) in from the left edge, so a sliver of the films before it shows", () => {
+      expect(OPENING_BUFFER).toBe(CARD_WIDTH);
+      const left = scrollLeftForCardStart(500);
+      expect(left).toBe(500 - CARD_WIDTH / 2 - OPENING_BUFFER);
+      // The card is centred on x, so its left edge is half a card before it: that is the buffer from the edge.
+      expect(500 - CARD_WIDTH / 2 - left).toBe(OPENING_BUFFER);
+    });
+
+    it("opens a track's earliest card with less of a buffer rather than before the start: never a negative scrollLeft", () => {
+      // The earliest card of a track is centred on TRACK_PAD (its left edge CARD_GAP in from the start): too near the start for a whole buffer.
       expect(scrollLeftForCardStart(TRACK_PAD)).toBe(0);
+      expect(scrollLeftForCardStart(OPENING_BUFFER + CARD_WIDTH / 2)).toBe(0);
+      expect(scrollLeftForCardStart(OPENING_BUFFER + CARD_WIDTH / 2 + 1)).toBe(1);
       expect(scrollLeftForCardStart(10)).toBe(0);
+      expect(scrollLeftForCardStart(0)).toBe(0);
     });
   });
 

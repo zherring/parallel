@@ -563,8 +563,9 @@ export function Timeline({
     return () => observer.disconnect();
   }, [updateEdges]);
 
-  // When the timeline is first shown it starts on the first collaboration: the earliest film that two or more lanes share is at the left edge, where the track's first
-  // card is when it is scrolled fully left (a page with none, one person's or people who share nothing, and a frame in a post, start fully left, on the earliest year),
+  // When the timeline is first shown it starts on the first collaboration: the earliest film that two or more lanes share, its card `OPENING_BUFFER` (a card's width) in from the
+  // left edge, so a sliver of the films before it shows (a first collaboration that is nearer the start than that opens at the start; a page with none, one person's or
+  // people who share nothing, and a frame in a post, start fully left, on the earliest year),
   // and, where the track scrolls vertically too (more rows than fit), at the bottom, on its baseline. A linked period, applied after this, wins. Every later time it is shown (its tab was hidden: display none forgets the scroll position) it is put back where it was; see
   // `lastSeen`. A year queued by `rememberCenter` while it was hidden wins over the pixel position, because the axis may have moved meanwhile.
   useLayoutEffect(() => {

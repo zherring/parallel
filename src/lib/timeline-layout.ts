@@ -633,9 +633,19 @@ export function firstCollaborationX(lanes: readonly (readonly { film: { id: numb
   return first;
 }
 
-/** The scrollLeft that puts the card centred on track `x` at the left edge of the visible track, as the track's first card is at scrollLeft 0. */
+/**
+ * How far in from the left edge of the visible track the Timeline opens with the first collaboration's card: one card's width, so that a sliver of the films before it
+ * shows to the left and the card is not read as the start of the track, flush against the screen's edge.
+ */
+export const OPENING_BUFFER = CARD_WIDTH;
+
+/**
+ * The scrollLeft that opens the Timeline on the card centred on track `x` (the first collaboration's): its left edge is `OPENING_BUFFER` in from the left edge of the
+ * visible track. Never before the track's start (0): a first collaboration that is within that of the start (or the start itself) opens at the start, with less than
+ * the buffer to its left, since there is nothing further left to show. The browser holds the other end, at the end of the track, when the scroll is set.
+ */
 export function scrollLeftForCardStart(x: number): number {
-  return Math.max(0, Math.round(x - TRACK_PAD));
+  return Math.max(0, Math.round(x - CARD_WIDTH / 2 - OPENING_BUFFER));
 }
 
 /** Fractional year under the centre of the visible track area. */

@@ -327,7 +327,7 @@ export const COLLAPSE_PX = 48;
 
 /**
  * Whether the hero is collapsed into the compact bar: the view's main scroller is `COLLAPSE_PX` or more from where it started (`landing`: its
- * offset when the view opened: the top, 0, for the Table and the Quotes; where the pair's first collaboration is for Films and the Timeline (the start, the top or the left end, only for a page without one), and the Timeline's bottom where it scrolls down too), in either direction. Back
+ * offset when the view opened: the top, 0, for the Table and the Quotes; where the pair's first collaboration is for Films and the Timeline (its card a card's width in from the left edge on the Timeline; the start, the top or the left end, only for a page without one), and the Timeline's bottom where it scrolls down too), in either direction. Back
  * within that of the start it is expanded again.
  */
 export function heroCollapsed(offset: number, landing: number, threshold = COLLAPSE_PX): boolean {

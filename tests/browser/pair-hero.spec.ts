@@ -3,6 +3,10 @@ import { FILM_COUNT, HEADLINE, NAMES, PAIR, expect, test } from "./almodovar";
 import { bar, collapseHero, heroBody, heroState, quotesLink, scene, switcher } from "./fixtures";
 import { getHeroNote } from "../../src/lib/pair-hero-note";
 import { portraitPersonHexes } from "../../src/lib/portrait-cuts";
+import { CARD_WIDTH, OPENING_BUFFER } from "../../src/lib/timeline-layout";
+
+/** The pair's first collaboration ("Bar Film 1", 2000): the film the Timeline and Films open on (the page's films are 100 + n - 1, see `almodovar.ts`). */
+const FIRST_COLLABORATION_ID = 100;
 
 /** "#rrggbb" as the computed colour: "rgb(r, g, b)". */
 const rgbOf = (hex: string) => `rgb(${[1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16)).join(", ")})`;
@@ -207,6 +211,17 @@ test.describe("at 1440px wide", () => {
       // The pair's first film together is not either person's first film: both views are scrolled along to it, and the hero is still open (`openView`).
       if (view === "timeline") expect(start.left, `${view}: scrollLeft`).toBeGreaterThan(0);
       else expect(start.left, `${view}: scrollLeft`).toBe(0);
+      // The Timeline leaves a buffer of one card's width left of the first collaboration's card, so a sliver of the films before it shows; the card is not flush with the screen's edge.
+      if (view === "timeline") {
+        const { scrollerBox, cardBox } = await page.evaluate((filmId) => {
+          const scroller = [...document.querySelectorAll<HTMLElement>('[aria-label^="Film timeline. Scroll sideways"]')].find((e) => e.getClientRects().length > 0)!;
+          const card = scroller.querySelector<HTMLElement>(`li > button[data-film="${filmId}"]`)!;
+          const [a, b] = [scroller.getBoundingClientRect(), card.getBoundingClientRect()];
+          return { scrollerBox: { left: a.left }, cardBox: { left: b.left, width: b.width } };
+        }, FIRST_COLLABORATION_ID);
+        expect(cardBox.width, "it is the card, not the film's node").toBe(CARD_WIDTH);
+        expect(Math.abs(cardBox.left - scrollerBox.left - OPENING_BUFFER), `${view}: the card starts a buffer in from the left edge`).toBeLessThanOrEqual(3);
+      }
       // The Timeline sits at the bottom of its track (all of it, within a pixel), wherever that is; the Table and the Quotes at the top.
       if (view === "timeline") expect(start.bottomGap, `${view}: distance from the bottom`).toBeLessThanOrEqual(1);
       else if (view === "focus") expect(start.top, `${view}: scrollTop`).toBeGreaterThan(0);
@@ -226,8 +241,8 @@ test.describe("at 1440px wide", () => {
       if (view === "focus" || view === "timeline") expect(landed).toBeGreaterThan(0);
       else expect(landed).toBe(0);
 
-      // 48px either way counts. The Timeline lands near the end of this pair's short track, so there it is moved back, towards the earlier years.
-      const away = view === "timeline" ? -1 : 1;
+      // 48px either way counts. (The Timeline lands a card's width in from the start of this pair's short track, so there is more room to move towards the later years than back.)
+      const away = 1;
       await scrollTo(page, view, landed + away * 47);
       expect(await heroState(page)).toBe("expanded");
       await scrollTo(page, view, landed + away * 48);
