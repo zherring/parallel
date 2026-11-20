@@ -28,7 +28,7 @@ describe("flatSearch", () => {
     expect(flatSearch("?from=1990&view=depth&to=2000&a=1")).toBe("?from=1990&view=timeline&to=2000&a=1");
   });
 
-  it("names the Timeline even when the query named no view: a plain address opens Films on a phone", () => {
+  it("names the Timeline even when the query named no view: a plain address opens Films", () => {
     expect(flatSearch("")).toBe("?view=timeline");
     expect(flatSearch("?from=1990&to=2000")).toBe("?from=1990&to=2000&view=timeline");
   });
@@ -37,16 +37,16 @@ describe("flatSearch", () => {
 describe("opensDepth", () => {
   const quotes = ["a-quote"];
 
-  it("opens Films on a phone, and the Timeline everywhere else, for an address that names no view", () => {
-    expect(opensDepth({}, quotes, true)).toBe(true);
-    expect(opensDepth({}, quotes, false)).toBe(false);
+  it("opens Films for an address that names no view, on every device; only a crawler reads the flat page", () => {
+    expect(opensDepth({}, quotes, false)).toBe(true);
+    expect(opensDepth({}, quotes, true)).toBe(false);
     // A period or any other parameter names no view.
-    expect(opensDepth({ from: "1990", to: "2000" }, quotes, true)).toBe(true);
-    expect(opensDepth({ from: "1990", to: "2000" }, quotes, false)).toBe(false);
-    expect(opensDepth({ utm_source: "x" }, quotes, true)).toBe(true);
+    expect(opensDepth({ from: "1990", to: "2000" }, quotes, false)).toBe(true);
+    expect(opensDepth({ from: "1990", to: "2000" }, quotes, true)).toBe(false);
+    expect(opensDepth({ utm_source: "x" }, quotes, false)).toBe(true);
   });
 
-  it("lets a view the address names win over the device, in both directions", () => {
+  it("lets a view the address names win, for a visitor and a crawler alike", () => {
     expect(opensDepth({ view: "depth" }, quotes, false)).toBe(true);
     expect(opensDepth({ view: "depth" }, quotes, true)).toBe(true);
     for (const view of ["timeline", "table", "clippings"]) {
@@ -56,17 +56,17 @@ describe("opensDepth", () => {
   });
 
   it("takes the first of a repeated view", () => {
-    expect(opensDepth({ view: ["table", "depth"] }, quotes, true)).toBe(false);
-    expect(opensDepth({ view: ["depth", "table"] }, quotes, false)).toBe(true);
+    expect(opensDepth({ view: ["table", "depth"] }, quotes, false)).toBe(false);
+    expect(opensDepth({ view: ["depth", "table"] }, quotes, true)).toBe(true);
   });
 
   it("counts a sort, and a quote of the page's own, as naming a view (the Table and the Quotes)", () => {
-    expect(opensDepth({ sort: "rating", dir: "desc" }, quotes, true)).toBe(false);
-    expect(opensDepth({ quote: "a-quote" }, quotes, true)).toBe(false);
+    expect(opensDepth({ sort: "rating", dir: "desc" }, quotes, false)).toBe(false);
+    expect(opensDepth({ quote: "a-quote" }, quotes, false)).toBe(false);
     // A quote the page does not have, and a view it does not know, name nothing.
-    expect(opensDepth({ quote: "not-its" }, quotes, true)).toBe(true);
-    expect(opensDepth({ view: "bogus" }, quotes, true)).toBe(true);
-    expect(opensDepth({ view: "bogus" }, quotes, false)).toBe(false);
+    expect(opensDepth({ quote: "not-its" }, quotes, false)).toBe(true);
+    expect(opensDepth({ view: "bogus" }, quotes, false)).toBe(true);
+    expect(opensDepth({ view: "bogus" }, quotes, true)).toBe(false);
   });
 });
 
@@ -113,7 +113,7 @@ describe("withDepth", () => {
 describe("pageViewHref", () => {
   const path = "/p/1032-martin-scorsese+3661-thelma-schoonmaker";
 
-  it("is the page's own address with the view written out, for every view: the Timeline's too, since a plain address opens Films on a phone", () => {
+  it("is the page's own address with the view written out, for every view: the Timeline's too, since a plain address opens Films", () => {
     expect(pageViewHref(path, "", "timeline")).toBe(`${path}?view=timeline`);
     expect(pageViewHref(path, "", "table")).toBe(`${path}?view=table`);
     expect(pageViewHref(path, "", "clippings")).toBe(`${path}?view=clippings`);

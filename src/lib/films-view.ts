@@ -173,8 +173,8 @@ export function viewParams(query: Record<string, ParamValue>): URLSearchParams {
 /**
  * The query string (with its "?", or "" when it is empty) after switching to `view`: every other
  * parameter is kept. The view is always written out, the Timeline's `view=timeline` too: a link that names no view
- * opens the device's default (Films on a phone, the Timeline elsewhere, see `opensDepth`), so a link to the Timeline
- * has to say so, or a phone would bounce it to Films; and a sort in the query would open the Table.
+ * opens Films (see `opensDepth`), so a link to the Timeline
+ * has to say so, or it would open Films; and a sort in the query would open the Table.
  * A quote (`quote=<id>`) belongs to the Clippings alone, so any other view drops it: the address bar
  * then no longer names a quote that is not on screen (and a copied link does not unfurl as one).
  */
@@ -190,7 +190,7 @@ export function searchWithView(search: string, view: View): string {
  * `href` for a navigation to another page of people (a person added from a search, a chip or a
  * film's cast, or one removed), carrying the view the visitor is on: `currentSearch` is the query of the page they
  * leave. The Films view (Depth) and the Table are carried, and so is the Timeline when the address names it (`view=timeline`, which is
- * how every link to it is written): a page that names no view opens the device's default, which is the view the visitor is on exactly when
+ * how every link to it is written): a page that names no view opens the default (Films), which is the view the visitor is on exactly when
  * they came by the plain address, so a plain address stays plain. The Quotes are the pair's own and stay behind, and the sort does not
  * travel, since the films it ordered are not the films of the new page.
  */
@@ -206,7 +206,7 @@ export function carryView(href: string, currentSearch: string): string {
 }
 
 /**
- * Whether the address names a view of its own, so that the device's default does not decide: `view=` one of the views (Films, which is `depth`, included),
+ * Whether the address names a view of its own, so that the default (Films) does not decide: `view=` one of the views (Films, which is `depth`, included),
  * a quote of the page's own (`quoteIds`, which opens the Quotes) or a sort (which opens the Table). A `view` the page does not know names none.
  */
 export function namesView(

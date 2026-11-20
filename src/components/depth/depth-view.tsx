@@ -24,7 +24,7 @@ import { cardFilms } from "@/lib/card-films";
 import type { PairClippings } from "@/lib/clippings";
 import { combineLanes, combinedMinimapFilms, describeCombined } from "@/lib/combined-track";
 import type { PairCritics } from "@/lib/critics";
-import { DEPTH, HERO_ROOM_PX, depthLayout } from "@/lib/depth-layout";
+import { DEPTH, HERO_ROOM_PX, depthLayout, openingScrollTop } from "@/lib/depth-layout";
 import { demoteMinor, minorOnlyIds } from "@/lib/depth-minor";
 import { DEPTH_VIEW, withDepth } from "@/lib/depth-url";
 import { personRows, sharedRows } from "@/lib/film-rows";
@@ -66,7 +66,7 @@ const NO_FILMS_LEFT_OUT: ReadonlySet<number> = new Set();
 
 /**
  * The Depth view of a `/p/` page (`?view=depth`): the same films as the Timeline, drawn as a vertical scene with
- * parallax, the first collaboration in the middle of the screen. It takes the page's props as `PeopleView` does so
+ * parallax, opened on the first collaboration (see `openingScrollTop`). It takes the page's props as `PeopleView` does so
  * the page can swap one for the other.
  */
 export function DepthView(props: Props) {
@@ -177,6 +177,15 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
     [rows, today, people],
   );
 
+  // The scene opens on the first collaboration (a page without one, at its top): placed once, before the first paint, from the layout the server drew too.
+  const opened = useRef(false);
+  useLayoutEffect(() => {
+    if (opened.current) return;
+    opened.current = true;
+    const scroller = scrollerRef.current;
+    if (scroller) scroller.scrollTop = openingScrollTop(layout);
+  }, [layout]);
+
   // The year at the middle of the screen stays there when the settings redraw the scene (the axis may grow or shrink at its ends).
   const keptCenter = useRef<number | null>(null);
   const rememberCenter = useCallback(() => {
@@ -228,9 +237,9 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const { subtitle, chips } = usePairHero({ timelines, rows, includeMinor, today });
-  // The scene is the main scroller. It opens at its start (the top), so the hero collapses once it has moved 48px from there.
+  // The scene is the main scroller. It opens on the first collaboration (see `openingScrollTop`), so the hero collapses once it has moved 48px from where it landed.
   const getHeroScroller = useCallback(() => scrollerRef.current, []);
-  const { collapsed, collapse } = useHeroCollapse({ getScroller: getHeroScroller, axis: "y", landing: 0, resetKey: DEPTH_VIEW });
+  const { collapsed, collapse } = useHeroCollapse({ getScroller: getHeroScroller, axis: "y", resetKey: DEPTH_VIEW });
   const forwardWheel = useCallback(
     (deltaX: number, deltaY: number) => {
       const scroller = scrollerRef.current;

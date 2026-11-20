@@ -53,6 +53,8 @@ import {
   packFilms,
   packTrackLanes,
   rowCount,
+  firstCollaborationX,
+  scrollLeftForCardStart,
   scrollLeftForCenter,
   scrollLeftForYearStart,
   sharedAcrossLanes,
@@ -374,6 +376,8 @@ export function Timeline({
   }, [embed, embedRows, entries, showAll, isCombined, lanes, pxPerYear, today, trackLanes]);
 
   const { scale, width, boxes } = layout;
+  /** Where the first collaboration's card is on the track, or null on a page without one: where the timeline opens. */
+  const firstSharedX = useMemo(() => firstCollaborationX(layout.items, layout.priorityIds), [layout.items, layout.priorityIds]);
 
   // A node's hit area, per lane: its own size on the page, and in a frame whose track is drawn smaller than it is laid out (`hitScale`) the size it has on the screen. Apart from the
   // layout, so that a frame that is resized (the fit changes with it) does not pack the cards again.
@@ -559,8 +563,9 @@ export function Timeline({
     return () => observer.disconnect();
   }, [updateEdges]);
 
-  // When the timeline is first shown it starts at its start: scrolled fully left (the earliest year), and, where the track scrolls vertically too (more rows than fit),
-  // at the bottom, on its baseline. Every later time it is shown (its tab was hidden: display none forgets the scroll position) it is put back where it was; see
+  // When the timeline is first shown it starts on the first collaboration: the earliest film that two or more lanes share is at the left edge, where the track's first
+  // card is when it is scrolled fully left (a page with none, one person's or people who share nothing, and a frame in a post, start fully left, on the earliest year),
+  // and, where the track scrolls vertically too (more rows than fit), at the bottom, on its baseline. A linked period, applied after this, wins. Every later time it is shown (its tab was hidden: display none forgets the scroll position) it is put back where it was; see
   // `lastSeen`. A year queued by `rememberCenter` while it was hidden wins over the pixel position, because the axis may have moved meanwhile.
   useLayoutEffect(() => {
     const shown = active && !wasActive.current;
@@ -571,7 +576,7 @@ export function Timeline({
 
     if (!didInitialScroll.current) {
       didInitialScroll.current = true;
-      scroller.scrollLeft = 0;
+      scroller.scrollLeft = firstSharedX === null || embed ? 0 : scrollLeftForCardStart(firstSharedX);
       scroller.scrollTop = scroller.scrollHeight;
     } else if (lastSeen.current) {
       if (pendingCenter.current === null) scroller.scrollLeft = lastSeen.current.left;
@@ -580,7 +585,7 @@ export function Timeline({
     remember();
     updateEdges();
     updateActiveLane();
-  }, [active, remember, updateActiveLane, updateEdges]);
+  }, [active, embed, firstSharedX, remember, updateActiveLane, updateEdges]);
 
   // Zoom and the minor toggle can move the axis; keep whatever year was centred in place. While the
   // timeline is hidden the year comes from where it was last seen, and is placed once it is shown.

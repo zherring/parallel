@@ -250,7 +250,7 @@ describe("searchWithView", () => {
     expect(searchWithView("?view=timeline", "table")).toBe("?view=table");
   });
 
-  it("writes view=timeline for the timeline too: a plain address opens Films on a phone, so a link to the Timeline has to say so", () => {
+  it("writes view=timeline for the timeline too: a plain address opens Films, so a link to the Timeline has to say so", () => {
     expect(searchWithView("", "timeline")).toBe("?view=timeline");
     expect(searchWithView("?view=table", "timeline")).toBe("?view=timeline");
     expect(searchWithView("?view=depth", "timeline")).toBe("?view=timeline");
@@ -306,7 +306,7 @@ describe("carryView", () => {
     expect(carryView(`${href}#x`, "?view=depth")).toBe(`${href}?view=depth#x`);
   });
 
-  it("carries the timeline when the address names it, as every link to it does: on a phone a plain address would open Films", () => {
+  it("carries the timeline when the address names it, as every link to it does: a plain address would open Films", () => {
     expect(carryView(href, "?view=timeline")).toBe(`${href}?view=timeline`);
     expect(carryView(href, "?view=timeline&from=1990&to=2000")).toBe(`${href}?view=timeline`);
     expect(carryView(href, "?view=timeline&sort=rating&dir=desc")).toBe(`${href}?view=timeline`);

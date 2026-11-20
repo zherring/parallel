@@ -619,6 +619,25 @@ export function scrollLeftForYearStart(from: number, scale: Pick<Scale, "pxPerYe
   return Math.max(0, Math.round(xForYear(scale, from) - TRACK_PAD));
 }
 
+/**
+ * Where the first collaboration is on the track (the x of its card's centre), or null when there is none: the earliest of the films that `sharedIds` names
+ * (see `sharedAcrossLanes`; on the combined track, the films everyone made) among the lanes' placed films. It is where the Timeline opens.
+ */
+export function firstCollaborationX(lanes: readonly (readonly { film: { id: number }; x: number }[])[], sharedIds: ReadonlySet<number>): number | null {
+  let first: number | null = null;
+  for (const items of lanes) {
+    for (const item of items) {
+      if (sharedIds.has(item.film.id) && (first === null || item.x < first)) first = item.x;
+    }
+  }
+  return first;
+}
+
+/** The scrollLeft that puts the card centred on track `x` at the left edge of the visible track, as the track's first card is at scrollLeft 0. */
+export function scrollLeftForCardStart(x: number): number {
+  return Math.max(0, Math.round(x - TRACK_PAD));
+}
+
 /** Fractional year under the centre of the visible track area. */
 export function centerYear(scrollLeft: number, viewportTrackWidth: number, scale: Scale): number {
   const trackX = scrollLeft + viewportTrackWidth / 2;

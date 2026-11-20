@@ -58,6 +58,8 @@ import {
   yearFraction,
   zoomForPeriod,
   scrollLeftForYearStart,
+  firstCollaborationX,
+  scrollLeftForCardStart,
 } from "@/lib/timeline-layout";
 import type { Credit, Film, PersonTimeline } from "@/lib/types";
 
@@ -1275,6 +1277,39 @@ describe("zoom", () => {
       const scale = makeScale({ startYear: 1960, endYear: 2030 }, 56);
       expect(scrollLeftForYearStart(1960, scale)).toBe(0);
       expect(scrollLeftForYearStart(1950, scale)).toBe(0);
+    });
+  });
+
+  describe("the first collaboration, where the timeline opens", () => {
+    const lanes = [
+      [
+        { film: { id: 1 }, x: 100 },
+        { film: { id: 2 }, x: 900 },
+        { film: { id: 3 }, x: 500 },
+      ],
+      [
+        { film: { id: 3 }, x: 500 },
+        { film: { id: 2 }, x: 900 },
+        { film: { id: 4 }, x: 40 },
+      ],
+    ];
+
+    it("is the earliest of the shared films, whatever the order of the lanes' films", () => {
+      expect(firstCollaborationX(lanes, new Set([2, 3]))).toBe(500);
+      expect(firstCollaborationX(lanes, new Set([2]))).toBe(900);
+    });
+
+    it("is null when nothing is shared, or none of the shared films is placed", () => {
+      expect(firstCollaborationX(lanes, new Set())).toBeNull();
+      expect(firstCollaborationX(lanes, new Set([99]))).toBeNull();
+      expect(firstCollaborationX([], new Set([1]))).toBeNull();
+    });
+
+    it("scrolls so that its card is where the track's first card is at scrollLeft 0, and never before the start", () => {
+      expect(scrollLeftForCardStart(500)).toBe(500 - TRACK_PAD);
+      expect(500 - scrollLeftForCardStart(500)).toBe(TRACK_PAD);
+      expect(scrollLeftForCardStart(TRACK_PAD)).toBe(0);
+      expect(scrollLeftForCardStart(10)).toBe(0);
     });
   });
 
