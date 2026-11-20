@@ -7,8 +7,7 @@ import { IMAGE_WINDOW, usePosterImages } from "@/components/depth/use-poster-ima
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "@/components/timeline/film-popover";
 import { useDragPan, type DragPanOptions } from "@/components/timeline/use-drag-pan";
 import type { CombinedFilmInfo } from "@/lib/combined-track";
-import { depthSceneCss, layerDepth, posterFactor, type DepthFilm, type DepthLayout } from "@/lib/depth-layout";
-import { inWindow } from "@/lib/depth-projection";
+import { depthSceneCss, eagerFilmIds, layerDepth, type DepthFilm, type DepthLayout } from "@/lib/depth-layout";
 import { filmCardContent } from "@/lib/film-credits";
 import { joinNames } from "@/lib/format";
 import { personColor } from "@/lib/person-colors";
@@ -24,6 +23,8 @@ interface DepthSceneProps {
   /** id of the scroller, for the rail's aria-controls. */
   scrollerId: string;
   layout: DepthLayout;
+  /** The scrollTop the scene opens on (`openingScrollTop`): the posters with their images in the server's markup are the ones around it. */
+  openingTop: number;
   people: readonly { id: number; name: string }[];
   /** Each person's films (minor credits left out unless `includeMinor`), for the hover card's credits. */
   lanes: CardLanes;
@@ -118,7 +119,7 @@ function focusIsVisible(element: HTMLElement): boolean {
  * Hover and focus are handled once, on the scroller, for every poster (the film popover is a portal on the body, which
  * is not inside the scroller either). The field of focus that brings the faint posters behind up to full opacity is `useFocusField`.
  */
-export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slots, info, outsideIds, includeMinor, selectedId, today, onSelect }: DepthSceneProps) {
+export function DepthScene({ scrollerRef, scrollerId, layout, openingTop, people, lanes, slots, info, outsideIds, includeMinor, selectedId, today, onSelect }: DepthSceneProps) {
   const layers = useMemo(() => {
     const byLayer = new Map<number, DepthFilm[]>();
     for (const item of layout.films) {
@@ -134,16 +135,12 @@ export function DepthScene({ scrollerRef, scrollerId, layout, people, lanes, slo
   useFocusField(scrollerRef, layout.films, people.length);
   usePosterImages(scrollerRef, layout.films);
 
-  // The posters whose images are in the markup (see `DepthPoster`'s `eager`): those within the fetch window of where the
-  // scene opens (its start: the earliest year at the top), worked out for a nominal viewport so the server and the browser agree. The rest wait for `usePosterImages`.
+  // The posters whose images are in the markup (see `DepthPoster`'s `eager`): those within the fetch window of where the scene opens (`openingTop`: the
+  // first collaboration, which can be a career down the axis from its earliest year), worked out for a nominal viewport so the server and the browser agree.
+  // The rest wait for `usePosterImages`.
   const eagerIds = useMemo(
-    () =>
-      new Set(
-        layout.films
-          .filter((item) => inWindow(item.y, 0, NOMINAL_VIEWPORT_H, posterFactor(item), IMAGE_WINDOW * NOMINAL_VIEWPORT_H))
-          .map((item) => item.film.id),
-      ),
-    [layout.films],
+    () => eagerFilmIds(layout.films, openingTop, NOMINAL_VIEWPORT_H, IMAGE_WINDOW * NOMINAL_VIEWPORT_H),
+    [layout.films, openingTop],
   );
 
   // ---- hover, focus and the film card ---------------------------------------

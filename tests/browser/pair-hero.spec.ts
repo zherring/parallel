@@ -40,7 +40,7 @@ const WORD: Record<ViewName, string> = { timeline: "Timeline", table: "Table", f
 /** The control's current segment, found without looking at whether it is shown (a phone's bar hides the control: its sheet has it). */
 const currentSegment = (page: Page) => bar(page).locator('nav[aria-label="Views"] a[aria-current="page"]');
 
-/** Opens a view of the pair, live, with its hero open and every view at its start. */
+/** Opens a view of the pair, live, with its hero open and every view where it opens (Films and the Timeline on the first collaboration, the Table and the Quotes at the top). */
 async function openView(page: Page, view: ViewName) {
   await page.goto(`${PAIR}${VIEWS[view]}`);
   if (view === "focus") await expect(scene(page)).toBeVisible();

@@ -388,7 +388,7 @@ describe("the page", () => {
         ["an iPad", IPAD],
         ["an Android tablet", ANDROID_TABLET],
         ["no user agent", null],
-      ])("is the Films view (the Depth view) for %s, so that the page never flashes the Timeline first", async (_name, agent) => {
+      ])("is the Films view (the Depth view) for %s, so that the page never shows the flat Timeline first", async (_name, agent) => {
         userAgentHeader = agent;
         const element = await rendered({});
         expect(element.type).toBe(DepthView);

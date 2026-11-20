@@ -15,7 +15,7 @@ const peopleCard = (page: Page) => page.getByRole("dialog", { name: "People", ex
 const BEST_REST = 0.56;
 const WORST_REST = 0.32;
 
-/** The first of the fixture's shared films (2000-01-01): the scene opens with it in the middle of the screen. */
+/** The first of the fixture's shared films (2000-01-01): the scene opens on it, just under the pair hero's band. */
 const FIRST_SHARED = /^Scroll Film 100, 2000\./;
 
 /** The fixture pair's colours (`PEOPLE_PATH`), by slot: a pair's own palette, not the app's blue and amber. */
@@ -38,8 +38,8 @@ function shadowColours(value: string): { rgb: number[]; alpha: number }[] {
 }
 
 /**
- * Opens the Depth view and waits for it to be live (the gear's sheet opens and closes: a state transition, not a sleep). The scene opens at its start, the top of the axis (the earliest year),
- * with the room the pair hero's band needs above it (`HERO_ROOM_PX`), and not scrolled to anything.
+ * Opens the Depth view and waits for it to be live (the gear's sheet opens and closes: a state transition, not a sleep). The scene opens on the first collaboration
+ * (`openingScrollTop`), its poster just under the pair hero's band (the room above it is `HERO_ROOM_PX`), and nothing moves it after that.
  */
 async function openDepthLanded(page: Page, search = "") {
   await page.goto(`${PEOPLE_PATH}?view=depth${search}`);
@@ -294,6 +294,16 @@ test("the films made together float in front: larger, with their own shadow, and
   expect(covered).toBe("0");
 });
 
+test("a scene that is too short to open on the first collaboration, on a tall screen, opens at its end with the hero still open", async ({ page }) => {
+  // The browser clamps the opening position (`openingScrollTop`) to the scene's end: here the first collaboration is further down than the scene scrolls. The hero collapses
+  // once the scene is 48px from where it landed, so it must be measured from the position the scene really has, or it would open already collapsed.
+  await page.setViewportSize({ width: 1440, height: 5000 });
+  await openDepthLanded(page);
+  const reached = await scene(page).evaluate((scroller) => ({ top: scroller.scrollTop, end: scroller.scrollHeight - scroller.clientHeight }));
+  expect(reached.top).toBe(reached.end);
+  await expect(page.locator("[data-people-bar]")).toHaveAttribute("data-hero", "expanded");
+});
+
 test("the posters near the screen have their images, whichever layer they are on, and the far ones wait", async ({ page }) => {
   await openDepth(page);
   const region = scene(page);
@@ -332,6 +342,33 @@ test("the posters near the screen have their images, whichever layer they are on
   await expect.poll(async () => (await unloaded()).nearBackground).toBe(0);
   // Every poster there is a poster with an image to show.
   expect(await region.locator("[data-poster] img").count()).toBeGreaterThan(20);
+});
+
+test("the server's markup has the images of the posters around where the scene opens, the first collaboration, and not those a career earlier at the top of the axis", async ({ page, next }) => {
+  // A pair whose first film together comes 32 to 40 years after three films of one of them (the Scroll people's own films are within 10 years of theirs, inside the window around the opening).
+  const ALPHA = 90000011;
+  const BETA = 90000012;
+  const credit = (id: number, year: number, month: string) => ({ id, title: `Long Film ${id}`, release_date: `${year}-${month}-01`, poster_path: `/poster-${id}.png`, vote_count: 100, order: 0, character: "Lead" });
+  const together = [credit(5001, 2000, "01"), credit(5002, 2000, "04"), credit(5003, 2000, "07")];
+  const earlier = [credit(5101, 1960, "06"), credit(5102, 1964, "06"), credit(5103, 1968, "06")];
+  next.onFetch((request) => {
+    const match = new URL(request.url).pathname.match(/^\/3\/person\/(\d+)(\/movie_credits)?$/);
+    if (!match || ![ALPHA, BETA].includes(Number(match[1]))) return undefined;
+    const alpha = Number(match[1]) === ALPHA;
+    if (!match[2]) return Response.json({ id: Number(match[1]), name: alpha ? "Long Alpha" : "Long Beta", profile_path: null, birthday: "1940-01-01", biography: "A long career." });
+    return Response.json({ cast: alpha ? [...earlier, ...together] : together, crew: [] });
+  });
+
+  const response = await page.goto(`/p/${ALPHA}-long-alpha+${BETA}-long-beta?view=depth`);
+  const markup = await response!.text();
+  // What the markup says before any script runs: which posters have an image with its `src` (the rest have only `data-src`, for `usePosterImages`).
+  const sources = await page.evaluate((html) => {
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    return Object.fromEntries(Array.from(parsed.querySelectorAll("[data-poster]"), (poster) => [poster.getAttribute("data-poster")!, poster.querySelector("img")?.hasAttribute("src") ?? false]));
+  }, markup);
+  // The scene opens on the first collaboration, so the posters around it are in the first paint; the ones at the top of the axis, 32 years and more up, are not (they were, when it opened there).
+  expect(sources).toMatchObject({ 5001: true, 5002: true, 5003: true, 5101: false, 5102: false, 5103: false });
+  await expect(scene(page)).toBeVisible();
 });
 
 test("the rail is the bottom minimap turned on its side: nodes and ticks all centred on one line, and a node jumps to its film", async ({ page }) => {
@@ -1688,7 +1725,7 @@ test("the switcher round-trips Films, Timeline, Films, and the period goes along
   await openDepth(page, "&from=2000&to=2001");
   await viewLink(page, "timeline").click();
 
-  // The flat Timeline, with the same switcher: Timeline is the one current there, and the link said so (a plain address opens Films on a phone).
+  // The flat Timeline, with the same switcher: Timeline is the one current there, and the link said so (a plain address opens Films).
   await expect(viewLink(page, "timeline")).toHaveAttribute("aria-current", "page");
   await expect(viewLink(page, "depth")).not.toHaveAttribute("aria-current", "page");
   await expect(page).toHaveURL(/\?view=timeline&from=2000&to=2001$/);
@@ -2281,7 +2318,7 @@ test.describe("on a phone", () => {
   });
   test("a film made together's caption is there at rest wherever its poster is on the screen, and nothing about it follows the middle band", async ({ page }) => {
     await openDepth(page);
-    // The scene opens with the first collaboration in the middle, and a film made together at the end is far off screen: both are showing in full.
+    // With the first collaboration in the middle of the screen, and a film made together at the end far off it: both are showing in full.
     expect(await captionOf(page, "100")).toMatchObject({ opacity: 1, transform: "none", marked: false });
     expect(await captionOf(page, "200")).toMatchObject({ opacity: 1, transform: "none", marked: false });
     // Nothing has a caption that is not a film made together, and nothing marks a poster any more (the loop no longer touches them).

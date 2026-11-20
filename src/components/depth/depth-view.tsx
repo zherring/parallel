@@ -178,13 +178,15 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
   );
 
   // The scene opens on the first collaboration (a page without one, at its top): placed once, before the first paint, from the layout the server drew too.
+  // It also centres the window of posters whose images are in the server's markup (see `DepthScene`).
+  const openingTop = useMemo(() => openingScrollTop(layout), [layout]);
   const opened = useRef(false);
   useLayoutEffect(() => {
     if (opened.current) return;
     opened.current = true;
     const scroller = scrollerRef.current;
-    if (scroller) scroller.scrollTop = openingScrollTop(layout);
-  }, [layout]);
+    if (scroller) scroller.scrollTop = openingTop;
+  }, [openingTop]);
 
   // The year at the middle of the screen stays there when the settings redraw the scene (the axis may grow or shrink at its ends).
   const keptCenter = useRef<number | null>(null);
@@ -238,6 +240,8 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
   const search = useSearchParams().toString();
   const { subtitle, chips } = usePairHero({ timelines, rows, includeMinor, today });
   // The scene is the main scroller. It opens on the first collaboration (see `openingScrollTop`), so the hero collapses once it has moved 48px from where it landed.
+  // Where it landed is read off the scroller a frame after it opened, not given as `openingTop`: the browser clamps that to the scene's end, which a short scene on a tall screen
+  // reaches first, and the hero would then open collapsed, 48px or more from a position the scene never had.
   const getHeroScroller = useCallback(() => scrollerRef.current, []);
   const { collapsed, collapse } = useHeroCollapse({ getScroller: getHeroScroller, axis: "y", resetKey: DEPTH_VIEW });
   const forwardWheel = useCallback(
@@ -309,6 +313,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
         scrollerRef={scrollerRef}
         scrollerId={scrollerId}
         layout={layout}
+        openingTop={openingTop}
         people={people}
         lanes={lanes}
         slots={slots}
