@@ -24,6 +24,10 @@ test("the headline is the one h1, the stage is one labelled link to a pair, and 
   const h1 = page.getByRole("heading", { level: 1 });
   await expect(h1).toHaveCount(1);
   await expect(h1).toHaveText("Watch filmmakers cross paths");
+  // The line under it is one paragraph of plain text that wraps to its box: no inner element, no forced break.
+  const description = h1.locator("xpath=following-sibling::p");
+  await expect(description).toHaveText("Search any actor, director, writer or cinematographer. See every film they made together.");
+  await expect(description.locator("*")).toHaveCount(0);
 
   const link = stageLink(page);
   await expect(link).toBeVisible();
@@ -1501,6 +1505,9 @@ test.describe("on a phone the headline is over the figures' heads and the figure
       const copy = await box(page.getByRole("heading", { level: 1 }).locator("xpath=following-sibling::p"));
       expect(h1.y).toBeGreaterThanOrEqual(stageBox.y);
       expect(copy.y + copy.height).toBeLessThanOrEqual(stageBox.y + HEAD);
+      // The copy wraps naturally to three lines (the box `--head-h` is sized for), and its box ends 8px above the headline box's bottom.
+      expect(Math.abs(copy.height - 3 * 1.625 * 15)).toBeLessThanOrEqual(1);
+      expect(Math.abs(stageBox.y + HEAD - 8 - (copy.y + copy.height))).toBeLessThanOrEqual(1.5);
 
       const figures = await stage(page).evaluate((root) =>
         [...root.querySelectorAll<HTMLElement>("[data-frame]")].map((frame) => {
@@ -1546,6 +1553,18 @@ test.describe("on a phone the headline is over the figures' heads and the figure
       expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
     });
   }
+
+  test("below 320px the h1 takes three lines, and the copy is still three: the headline's box is 220px, and the copy ends 8px above its bottom", async ({ page }) => {
+    await page.setViewportSize({ width: 280, height: 640 });
+    await page.goto("/");
+    await ready(page);
+    const stageBox = await box(stage(page));
+    const h1 = await box(page.getByRole("heading", { level: 1 }));
+    const copy = await box(page.getByRole("heading", { level: 1 }).locator("xpath=following-sibling::p"));
+    expect(Math.abs(h1.height - 3 * 1.05 * 34)).toBeLessThanOrEqual(1);
+    expect(Math.abs(copy.height - 3 * 1.625 * 15)).toBeLessThanOrEqual(1);
+    expect(Math.abs(stageBox.y + (20 + 3 * 1.05 * 34 + 12 + 3 * 1.625 * 15 + 8) - 8 - (copy.y + copy.height))).toBeLessThanOrEqual(1.5);
+  });
 
   test("the headline is the same, unanimated element across a scene change, and does not move", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
