@@ -1245,11 +1245,11 @@ test.describe("the genre pills are tabs of views", () => {
   });
 });
 
-/** The phone's names row (hero.tsx `--name-fs`, `--cue-fs`, `--row-body`, `--row-h`): the names' size from the width of a third of the screen, and the height of the row, which is 22px under the line and has room for four lines of names and two of the cue. */
+/** The phone's names row (hero.tsx `--name-fs`, `--cue-fs`, `--row-body`, `--row-h`): the names' size from the width of a third of the screen (over 8em, the longest word of the pool's family names), and the height of the row, which is 22px under the line and has room for three lines of names and two of the cue. */
 function phoneRow(width: number) {
-  const nameFs = Math.min(16, Math.max(11, width / 27));
+  const nameFs = Math.min(18, Math.max(11, width / 24));
   const cueFs = nameFs * 0.9;
-  const body = 4 * 1.15 * nameFs + 6 + 2 * 1.25 * cueFs;
+  const body = 3 * 1.15 * nameFs + 6 + 2 * 1.25 * cueFs;
   return { nameFs, cueFs, body, height: 22 + body + 10 };
 }
 
@@ -1275,14 +1275,29 @@ test.describe("on a phone", () => {
     expect(Math.abs(amp.y - b.y)).toBeLessThanOrEqual(3);
     expect(Math.abs(centreX(a) - centreX(link))).toBeLessThanOrEqual(3);
     expect(Math.abs((amp.x + (b.x + b.width - amp.x) / 2) - centreX(link))).toBeLessThanOrEqual(3);
-    // In the middle third of the screen: the names and the "&", whatever they wrap to.
+    // In the middle third of the screen: the names and the "&", whatever they wrap to (the "&" beside the longest word of the pool reaches out of the third by 0.06 of it at most, into the room before the keycap).
+    const poke = (320 / 3) * 0.06 + 1;
     for (const rect of [a, amp, b]) {
-      expect(rect.x).toBeGreaterThanOrEqual(320 / 3 - 1);
-      expect(rect.x + rect.width).toBeLessThanOrEqual((320 * 2) / 3 + 1);
+      expect(rect.x).toBeGreaterThanOrEqual(320 / 3 - poke);
+      expect(rect.x + rect.width).toBeLessThanOrEqual((320 * 2) / 3 + poke);
     }
     expect(Math.abs((await container.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))) - phoneRow(320).nameFs)).toBeLessThanOrEqual(0.1);
     const stageBox = await box(stage(page));
     expect(b.y + b.height).toBeLessThanOrEqual(stageBox.y + stageBox.height);
+  });
+
+  test("the names are sized from the width of a third and the longest word of the pool's family names: 16px and more at 390px, up to 18px", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await ready(page);
+    const size = () => stage(page).locator("[data-names]").evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+    for (const width of [320, 360, 390, 430, 600]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(Math.abs((await size()) - phoneRow(width).nameFs), `${width}px`).toBeLessThanOrEqual(0.05);
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await size()).toBeGreaterThanOrEqual(16);
+    expect(await size()).toBeLessThanOrEqual(18);
   });
 
   test("a touch screen has no hover, so the cue's line is always there, still, under the names, and the stage is only a link", async ({ page }) => {
@@ -1431,7 +1446,7 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
         await expect.poll(() => stageLink(page).getAttribute("aria-label")).not.toBe(third);
       });
 
-      test("the longest names wrap inside the middle third, never inside a word, and the row (keycaps level with it) holds them and the cue's line within the stage", async ({ page }) => {
+      test("the longest names wrap in the middle third at their spaces, never inside a word, and the row (keycaps level with it) holds them and the cue's line within the stage", async ({ page }) => {
         await page.goto("/");
         await ready(page);
         // Whatever scene it is, the names are set to the worst wraps of the pool's family-name labels: a shared family name (the Wachowskis: "Lana" and "Lilly Wachowski", three lines), a name with a particle, then the longest single word beside the "&".
@@ -1449,6 +1464,7 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
             };
             const lines = rects(slots[1]).length;
             const out = {
+              first: rects(slots[0]),
               text: rects(row),
               row: row.getBoundingClientRect().toJSON() as { left: number; right: number; top: number; bottom: number },
               stage: root.getBoundingClientRect().toJSON() as { bottom: number },
@@ -1458,11 +1474,17 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
             slots.forEach((element, index) => (element.textContent = saved[index]));
             return out;
           }, names);
-        for (const names of [["Lana", "Lilly Wachowski"], ["del Toro", "van Hoytema"], ["Cameron", "Schwarzenegger"]] as const) {
+        // The "&" beside the longest word reaches out of the third by 0.06 of it at most (the room before the keycap is 31px at 320px and 43px at 390px); the names themselves, A and the longest word alone, are inside it.
+        const poke = (width / 3) * 0.06 + 1;
+        for (const names of [["Lana", "Lilly Wachowski"], ["del Toro", "van Hoytema"], ["Cameron", "Schwarzenegger"], ["Schwarzenegger", "Frankenheimer"]] as const) {
           const got = await measure(names);
-          for (const rect of got.text) {
+          for (const rect of got.first) {
             expect(rect.left).toBeGreaterThanOrEqual(width / 3 - 1);
             expect(rect.right).toBeLessThanOrEqual((width * 2) / 3 + 1);
+          }
+          for (const rect of got.text) {
+            expect(rect.left).toBeGreaterThanOrEqual(width / 3 - poke);
+            expect(rect.right).toBeLessThanOrEqual((width * 2) / 3 + poke);
             // Inside the row's box, so inside the stage; the keycaps are the next thing over, not touching.
             expect(rect.top).toBeGreaterThanOrEqual(got.row.top - 1);
             expect(rect.bottom).toBeLessThanOrEqual(got.row.bottom + 1);
@@ -1470,7 +1492,7 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
             for (const key of got.keys) expect(rect.right <= key.left || key.right <= rect.left).toBe(true);
           }
           // The longest word is one line: it is not broken to fit.
-          if (names[1] === "Schwarzenegger") expect(got.lines).toBe(1);
+          if (names[1] === "Schwarzenegger" || names[1] === "Frankenheimer") expect(got.lines).toBe(1);
           // The longest wraps go to three lines at the most.
           expect(got.lines).toBeLessThanOrEqual(3);
         }

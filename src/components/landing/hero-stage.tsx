@@ -281,10 +281,10 @@ function Action({ items, reduced, onGone }: { items: readonly Item[]; reduced: b
           hover, always there.
           On a phone the row under the line is in thirds of the screen: Previous (stage level, outside the link) centred in the left, this block in the middle third and Next in the right. The block is
           a box of the row's height (`--row-body`, hero.tsx: room for the longest wrap) and its content is centred in it, so the keycaps, centred on the same box, are centred on the names whatever they
-          wrap to. The names wrap in the third (A on the first line, "& B" on the second, each wrapped further when it does not fit, at the size `--name-fs`), and the cue's line under them.
+          wrap to. The names wrap in the third (A on the first line, "& B" on the second, each wrapped further at its spaces when it does not fit, never inside a word, at the size `--name-fs`: the longest word of the pool's labels fills the third, and its "&" beside it pokes out of the third a little, into the room before the keycap), and the cue's line under them.
         */}
         <div data-names-row="" className="absolute left-1/2 top-[calc(var(--line-y)+22px)] flex h-(--row-body) w-[calc(100cqw/3)] -translate-x-1/2 flex-col items-center justify-center sm:inset-x-0 sm:block sm:h-auto sm:w-auto sm:translate-x-0">
-          <div data-names="" className="flex flex-col items-center text-center text-[length:var(--name-fs)] font-semibold leading-[1.15] tracking-[-0.02em] text-white [overflow-wrap:anywhere] [text-shadow:0_1px_14px_rgb(0_0_0/0.65)] sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-baseline sm:gap-x-[0.45em] sm:text-[length:clamp(16px,1.6vw,24px)] sm:[overflow-wrap:normal]">
+          <div data-names="" className="flex flex-col items-center text-center text-[length:var(--name-fs)] font-semibold leading-[1.15] tracking-[-0.02em] text-white [text-shadow:0_1px_14px_rgb(0_0_0/0.65)] sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-baseline sm:gap-x-[0.45em] sm:text-[length:clamp(16px,1.6vw,24px)]">
             <NameColumn slot={0} names={names} reduced={reduced} onGone={onGone} />
             <div className="flex items-baseline justify-center gap-[0.35em] sm:contents">
               {amps.map((item) => (
