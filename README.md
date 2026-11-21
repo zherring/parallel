@@ -242,6 +242,8 @@ This product uses the TMDB API but is not endorsed or certified by TMDB.
 
 Awards data comes from Wikidata (CC0).
 
+Both are credited in the site footer (`src/components/site-footer.tsx`): at its left who made the site and where the code is, at its right, in small type, TMDB's notice with its mark and then the awards data's source (below 768px the credits are under the first line, at the left). The mark stays small and less prominent than the site's own name, as TMDB's terms ask.
+
 ## License
 
 [MIT](LICENSE). Film data and images come from TMDB and remain subject to [TMDB's terms](https://www.themoviedb.org/api-terms-of-use). Awards data comes from [Wikidata](https://www.wikidata.org/wiki/Wikidata:Licensing) (CC0).
