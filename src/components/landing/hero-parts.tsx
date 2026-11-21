@@ -37,7 +37,7 @@ const TOP_SHADE =
 /**
  * The foot: the page's canvas colour rising from the half's bottom, over the montage and the figure alike, so that the figure's lower body, the photo's hard
  * bottom edge and the montage all melt into the page. Its stops ease out (no visible start); the timeline, the posters and the names sit above it. Its height
- * is the stage's `--foot-h` (hero-stage.tsx: one value per breakpoint, a share of the half's height), and the stops are shares of that, so the easing is the same at any.
+ * is the stage's `--foot-h` (hero-stage.tsx: one value, 84% of the half's height, at every width), and the stops are shares of that, so the easing is the same at any.
  */
 const FOOT = `linear-gradient(to top, var(--bg), color-mix(in srgb, var(--bg) 93%, transparent) 14%, color-mix(in srgb, var(--bg) 74%, transparent) 33%, color-mix(in srgb, var(--bg) 42%, transparent) 55%, color-mix(in srgb, var(--bg) 14%, transparent) 78%, transparent)`;
 

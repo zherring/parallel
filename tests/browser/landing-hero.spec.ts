@@ -572,11 +572,11 @@ test("the names are one label under the timeline, centred on the seam: A against
   });
   expect(order.footAfterFigure && order.footAfterBackdrop && order.namesAfterFoot).toBe(true);
   expect(order.image).toContain("rgb(20, 24, 28)");
-  expect(order.height).toBeGreaterThan(0.33);
-  expect(order.height).toBeLessThan(0.46);
+  expect(order.height).toBeGreaterThan(0.8);
+  expect(order.height).toBeLessThan(0.88);
 });
 
-test.describe("at tablet widths (sm up to lg) the figures stand higher and the foot is twice as tall; desktop and phone are as they were", () => {
+test.describe("the foot is 84% of a half at every width, and at tablet widths (sm up to lg) the figures stand higher; desktop and phone figures are where they were", () => {
   /** What the figures and the foot of the stage are: the eye line of each cut (where the eyes of its photo are, as a share of the stage's height), the foot's height, and any fade on a figure. */
   async function figures(page: Page) {
     return stage(page).evaluate((root) => {
@@ -631,7 +631,7 @@ test.describe("at tablet widths (sm up to lg) the figures stand higher and the f
   }
 
   for (const [width, label] of [[1440, "a desktop"], [390, "a phone"]] as const) {
-    test(`${label} (${width}px) anchors its figures to the bottom, past the line and behind the timeline and the names, and its foot is 42% of a half`, async ({ page }) => {
+    test(`${label} (${width}px) anchors its figures to the bottom, past the line and behind the timeline and the names, and its foot is 84% of a half`, async ({ page }) => {
       await page.setViewportSize({ width, height: width < 640 ? 844 : 900 });
       await page.goto("/");
       await ready(page);
@@ -639,7 +639,7 @@ test.describe("at tablet widths (sm up to lg) the figures stand higher and the f
       const root = await box(stage(page).locator("[data-frame]").first());
       const line = (centreY(await box(stage(page).locator("[data-line]"))) - root.y) / root.height;
       for (const part of parts) {
-        expect(part.foot).toBeCloseTo(0.42, 2);
+        expect(part.foot).toBeCloseTo(0.84, 2);
         expect(part.footInFront).toBe(true);
         expect(part.fades).toEqual([]);
         // A cut stands on the bottom of the stage, a little past it, on a desktop (3% past it); on a phone it is stood 18px higher, so its bottom is at the stage's (3% of it, less 18px, past it): either way it goes on well below the line (82% down, and the drop), not ending on it.
@@ -648,6 +648,32 @@ test.describe("at tablet widths (sm up to lg) the figures stand higher and the f
           expect(part.bottom).toBeGreaterThan(line + 0.1);
         }
       }
+    });
+  }
+
+  // The foot's stops, as shares of its height from the bottom (hero-parts.tsx `FOOT`): the page's colour is more than 40% of what is drawn up to 55% of the foot's height.
+  for (const [width, height] of [[390, 844], [1440, 900], [1920, 1080]] as const) {
+    test(`at ${width}px the names, the line with its dots and caps and the posters are above the foot and stand in the part of it that is more than 40% the page's colour`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto("/");
+      await ready(page);
+      const frame = await box(stage(page).locator("[data-frame]").first());
+      const foot = await box(stage(page).locator("[data-part='foot']").first());
+      expect(Math.abs(foot.height / frame.height - 0.84), `${width}px`).toBeLessThanOrEqual(0.005);
+      const dense = foot.y + foot.height * (1 - 0.55);
+      // Each piece is in the stage's decoration or its link, both after the halves (and so over their foot) in the markup; and its top is in the denser part.
+      const pieces = {
+        names: await box(stage(page).locator("[data-names]")),
+        line: await box(stage(page).locator("[data-line]")),
+        leftCap: await box(stage(page).locator("span.tabular-nums.text-strong").first()),
+        rightCap: await box(stage(page).locator("span.tabular-nums.text-strong").last()),
+      };
+      for (const [name, piece] of Object.entries(pieces)) expect(piece.y, `${width}px ${name}`).toBeGreaterThanOrEqual(dense);
+      expect(await stage(page).evaluate((root) => {
+        const frames = root.querySelector("[data-frame]")!;
+        const link = root.querySelector("[data-stage-link]")!;
+        return Boolean(frames.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING);
+      })).toBe(true);
     });
   }
 
@@ -1660,7 +1686,7 @@ test.describe("on a phone the headline is over the figures' heads and the figure
           expect(Math.abs(figure.right - figure.crop * figure.width - width)).toBeLessThanOrEqual(1.5);
           expect(figure.right - figure.width / 2).toBeLessThan(width);
         }
-        // Stood 18px higher than 3% past the halves' bottom (the foot, 42% of a half, covers the photo's bottom edge: it is within a few px of the halves' bottom, where the foot is the page's colour).
+        // Stood 18px higher than 3% past the halves' bottom (the foot, 84% of a half, covers the photo's bottom edge: it is within a few px of the halves' bottom, where the foot is the page's colour).
         const figureBottom = figure.top + figure.height;
         expect(Math.abs(figureBottom - (frameBox.y + frameBox.height + 0.03 * frameBox.height - LIFT)), `${width}px`).toBeLessThanOrEqual(1.5);
         expect(figureBottom, `${width}px`).toBeGreaterThanOrEqual(frameBox.y + frameBox.height - 6);
