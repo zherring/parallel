@@ -23,8 +23,8 @@ export function deepLinkScript(ids: readonly string[]): string {
   return `(function(){try{var ids=${JSON.stringify(ids)};var h=decodeURIComponent(location.hash.slice(1)).toLowerCase();if(ids.indexOf(h)>0)document.querySelector("${ROOT}").setAttribute("${GENRE_MARK}",h)}catch(e){}})();`;
 }
 
-/** The pill of the tab the mark names looks selected, and the default's does not (the look of `GenreTablist`'s own selected and unselected pills). */
-const SELECTED_PILL = `border-color:color-mix(in srgb,var(--green) 70%,transparent);background-color:var(--surface);color:var(--text-strong)`;
+/** The pill of the tab the mark names looks selected (white, with black text and icon), and the default's does not (the look of `GenreTablist`'s own selected and unselected pills). */
+const SELECTED_PILL = `border-color:transparent;background-color:#fff;color:#000`;
 const PLAIN_PILL = `border-color:transparent;background-color:transparent;color:var(--text-muted)`;
 
 /**
@@ -43,7 +43,7 @@ export function deepLinkCss(ids: readonly string[]): string {
     rules.push(
       `${ROOT}[${GENRE_MARK}="${id}"] [data-genre-panel="${id}"]{display:block}`,
       `${ROOT}[${GENRE_MARK}="${id}"] [data-genre-tab="${id}"]{${SELECTED_PILL}}`,
-      `${ROOT}[${GENRE_MARK}="${id}"] [data-genre-tab="${id}"] [data-genre-icon]{color:var(--green)}`,
+      `${ROOT}[${GENRE_MARK}="${id}"] [data-genre-tab="${id}"] [data-genre-icon]{color:#000}`,
     );
   }
   return rules.join("");

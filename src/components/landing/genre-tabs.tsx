@@ -19,7 +19,7 @@ export interface GenrePill {
   /** Also the URL hash that selects it (`/#horror`). */
   id: string;
   label: string;
-  /** Decorative icon shown before the label; the pill colors it (muted, or green when selected). */
+  /** Decorative icon shown before the label; the pill colors it (muted, or black on the selected pill's white). */
   icon: ReactNode;
 }
 
@@ -151,7 +151,8 @@ export function GenreOnly({ children }: { children: ReactNode }) {
 /**
  * The genre pills, one row that scrolls sideways when it does not fit (its scrollbar hidden, its edge faded where more pills continue past it): the
  * WAI-ARIA tablist of the panels `GenrePanels` draws. Left and Right move between pills (and wrap), Home and End jump to the ends. Choosing a pill, by
- * pointer or by key, swaps the view under the bar and brings the page back to its top.
+ * pointer or by key, swaps the view under the bar and brings the page back to its top. The selected pill is a solid white pill with black text and a black icon (no
+ * green; its border is transparent, so it is the size of the others), and its focus ring is the page's own (`--focus`, a 2px outline 2px outside the pill, over the bar's dark).
  */
 export function GenreTablist({ label, tabs, className = "" }: { label: string; tabs: readonly GenrePill[]; className?: string }) {
   const { idBase, selected, select } = useGenreTabs();
@@ -231,11 +232,11 @@ export function GenreTablist({ label, tabs, className = "" }: { label: string; t
                 onKeyDown={(event) => onKeyDown(event, index)}
                 className={`group inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
                   isSelected
-                    ? "border-accent-green/70 bg-surface text-strong"
+                    ? "border-transparent bg-white text-black"
                     : "border-transparent text-muted hover:bg-surface/60 hover:text-strong"
                 }`}
               >
-                <span aria-hidden="true" data-genre-icon="" className={`flex shrink-0 ${isSelected ? "text-accent-green" : "text-muted"}`}>
+                <span aria-hidden="true" data-genre-icon="" className={`flex shrink-0 ${isSelected ? "text-black" : "text-muted"}`}>
                   {tab.icon}
                 </span>
                 {tab.label}

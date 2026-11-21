@@ -1336,14 +1336,79 @@ test.describe("the genre pills are tabs of views", () => {
     await expect(page.getByRole("heading", { name: "How it works", level: 2 })).toBeVisible();
     // The pill follows (the server's markup has Featured's selected: the style that goes with the script says otherwise).
     // (The pills' borders ease between colours: poll for where they settle, so a slow machine's mid-transition frame is not read.)
-    const border = (id: string) => page.evaluate((tab) => getComputedStyle(document.querySelector(`[data-genre-tab='${tab}']`)!).borderTopColor, id);
-    await expect.poll(() => border("featured")).toBe("rgba(0, 0, 0, 0)");
-    expect(await border("horror")).not.toBe("rgba(0, 0, 0, 0)");
+    const look = (id: string) =>
+      page.evaluate((tab) => {
+        const pill = document.querySelector(`[data-genre-tab='${tab}']`)!;
+        const css = getComputedStyle(pill);
+        return { border: css.borderTopColor, background: css.backgroundColor, color: css.color, icon: getComputedStyle(pill.querySelector("[data-genre-icon]")!).color };
+      }, id);
+    await expect.poll(async () => (await look("featured")).background).toBe("rgba(0, 0, 0, 0)");
+    expect(await look("featured")).toMatchObject({ border: "rgba(0, 0, 0, 0)", color: "rgb(136, 153, 170)", icon: "rgb(136, 153, 170)" });
+    // The selected pill is solid white with black text and a black icon, and no green (as the tablist's own, once the page is live).
+    expect(await look("horror")).toEqual({ border: "rgba(0, 0, 0, 0)", background: "rgb(255, 255, 255)", color: "rgb(0, 0, 0)", icon: "rgb(0, 0, 0)" });
     // A hash that names no genre is the splash.
     await page.goto("/?again#nonsense", { waitUntil: "domcontentloaded" });
     await expect(page.locator("#pairings-panel-featured")).toBeVisible();
     await expect(page.getByRole("heading", { name: "How it works", level: 2 })).toBeHidden();
   });
+
+  for (const [width, height] of [[1440, 900], [390, 844]] as const) {
+    test(`at ${width}px the selected pill is solid white with black text and a black icon and no green, the same size as when it is not selected, with its focus ring showing; an unselected pill's hover is as it was`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto("/");
+      await expect(stageLink(page)).toBeVisible();
+      const pill = (name: string) => bar(page).getByRole("tab", { name, exact: true });
+      const look = (name: string) =>
+        pill(name).evaluate((element) => {
+          const css = getComputedStyle(element);
+          const icon = element.querySelector("[data-genre-icon]")!;
+          const box = element.getBoundingClientRect();
+          return {
+            background: css.backgroundColor,
+            color: css.color,
+            icon: getComputedStyle(icon).color,
+            stroke: getComputedStyle(icon.querySelector("svg")!).stroke,
+            border: css.borderTopColor,
+            borderWidth: css.borderTopWidth,
+            shadow: css.boxShadow,
+            outlineStyle: css.outlineStyle,
+            outlineWidth: css.outlineWidth,
+            outlineColor: css.outlineColor,
+            outlineOffset: css.outlineOffset,
+            width: box.width,
+            height: box.height,
+            radius: css.borderTopLeftRadius,
+          };
+        });
+      // Featured is selected: solid white, black text, black icon; its border is the size of the others' but transparent; no glow, no green (the page's green is rgb(0, 224, 84)).
+      await expect.poll(async () => (await look("Featured")).background).toBe("rgb(255, 255, 255)");
+      const featured = await look("Featured");
+      expect(featured).toMatchObject({ color: "rgb(0, 0, 0)", icon: "rgb(0, 0, 0)", border: "rgba(0, 0, 0, 0)", borderWidth: "1px", shadow: "none" });
+      expect(featured.stroke).not.toContain("0, 224, 84");
+      const horror = await look("Horror");
+      expect(horror).toMatchObject({ background: "rgba(0, 0, 0, 0)", color: "rgb(136, 153, 170)", icon: "rgb(136, 153, 170)", border: "rgba(0, 0, 0, 0)", borderWidth: "1px" });
+      // Hover on an unselected pill is as it was: the surface colour at 60% (the browser reports Tailwind's colour mix in oklab), white text.
+      await pill("Classic").hover();
+      await expect.poll(async () => (await look("Classic")).background).toMatch(/^oklab\(0\.27\d* .* \/ 0\.6\)$/);
+      expect(await look("Classic")).toMatchObject({ color: "rgb(255, 255, 255)" });
+      await page.mouse.move(width / 2, height / 2);
+      // Choosing a pill: it turns white and Featured plain, and neither changes size.
+      await pill("Horror").click();
+      await expect.poll(async () => (await look("Horror")).background).toBe("rgb(255, 255, 255)");
+      await expect.poll(async () => (await look("Featured")).background).toBe("rgba(0, 0, 0, 0)");
+      const selected = await look("Horror");
+      expect(selected).toMatchObject({ color: "rgb(0, 0, 0)", icon: "rgb(0, 0, 0)", border: "rgba(0, 0, 0, 0)", borderWidth: "1px", shadow: "none" });
+      expect(Math.abs(selected.width - horror.width)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(selected.height - horror.height)).toBeLessThanOrEqual(0.5);
+      expect(selected.radius).toBe(horror.radius);
+      // A mouse click leaves no focus ring; a key move to the next pill does, in the page's focus colour, 2px, 2px outside the pill (over the bar's dark, not the white).
+      expect(selected.outlineStyle === "none" || selected.outlineWidth === "0px").toBe(true);
+      await page.keyboard.press("ArrowRight");
+      await expect(pill("Sci-Fi")).toHaveAttribute("aria-selected", "true");
+      await expect.poll(async () => (await look("Sci-Fi")).background).toBe("rgb(255, 255, 255)");
+      expect(await look("Sci-Fi")).toMatchObject({ outlineStyle: "solid", outlineWidth: "2px", outlineColor: "rgb(64, 188, 244)", outlineOffset: "2px", color: "rgb(0, 0, 0)" });
+    });
+  }
 
   test("the hero's rotation holds still while a genre's grid is shown, and carries on when the splash comes back", async ({ page }) => {
     await page.clock.install();

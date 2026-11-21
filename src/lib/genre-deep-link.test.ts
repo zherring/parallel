@@ -53,6 +53,15 @@ describe("deepLinkCss", () => {
     expect(css).toContain(`[data-genre-tab="featured"]{border-color:transparent`);
   });
 
+  it("makes the selected pill white with black text and a black icon, no green anywhere, as the tablist's own selected pill is", () => {
+    expect(css).toContain(`[${GENRE_MARK}="horror"] [data-genre-tab="horror"]{border-color:transparent;background-color:#fff;color:#000}`);
+    expect(css).toContain(`[${GENRE_MARK}="horror"] [data-genre-tab="horror"] [data-genre-icon]{color:#000}`);
+    expect(css).not.toContain("--green");
+    // The default's pill goes plain when another is marked, its icon muted.
+    expect(css).toContain(`[data-genre-tab="featured"]{border-color:transparent;background-color:transparent;color:var(--text-muted)}`);
+    expect(css).toContain(`[data-genre-tab="featured"] [data-genre-icon]{color:var(--text-muted)}`);
+  });
+
   it("leaves out an id that could break out of a selector", () => {
     expect(deepLinkCss(["featured", 'x"]{}a{']).includes('x"')).toBe(false);
   });
