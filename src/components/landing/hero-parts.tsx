@@ -3,10 +3,10 @@
 import { useId, type CSSProperties } from "react";
 import { Duotone, TreatedPortrait } from "@/components/treated-portrait";
 import { MONTAGE_SIZE, PERSON_SIZE } from "@/components/landing/use-hero-rotation";
-import { POSTER_WIDTHS, moreCount, posterPlace, type PosterWidth } from "@/lib/hero-layout";
+import { FIGURE_OVERHANG, POSTER_WIDTHS, figureOverhang, moreCount, posterPlace, type PosterWidth } from "@/lib/hero-layout";
 import type { HeroPairing, HeroPerson, HeroPoster } from "@/lib/hero-scenes";
 import { tmdbImage } from "@/lib/images";
-import { MONTAGE_POSTERS, eyeLine, treatmentShape } from "@/lib/portrait-treatment";
+import { MONTAGE_POSTERS, eyeLine, headSpan, treatmentShape } from "@/lib/portrait-treatment";
 
 /**
  * The drawn pieces of the landing hero's stage (hero-stage.tsx places and animates them). Each moving part carries a `data-part`
@@ -58,6 +58,16 @@ export function PanelParts({ person, color, slot }: { person: HeroPerson; color:
   const tear = shape.tear === true;
   // Where the cut's eyes are in its photo (a share of its height): at the tablet widths the figure is stood by it, so that the eyes of every figure are on one line (`--eye-line`).
   const eye = tear ? 0 : eyeLine(shape);
+  // On a phone the figure is pushed out so that part of it is off the screen (`--crop`, a share of its width): `FIGURE_OVERHANG`, less where the head would lose more than a quarter of itself (a tear has no head to keep: its strip runs on to the screen's edge).
+  const crop = tear ? FIGURE_OVERHANG : figureOverhang(headSpan(shape), slot);
+  const figureStyle: Record<string, string> = {
+    "--crop": crop.toFixed(4),
+    "--fig-out": "calc(-1 * var(--core-pad) - var(--crop) * var(--fig-h) * 2 / 3)",
+    ...(tear
+      ? // The strip fades out toward the seam, where the headline is (on a larger screen), so it never sits under the copy, and at its outer end too, as the photo ends there and the montage goes on.
+        { maskImage: `linear-gradient(to ${slot === 0 ? "right" : "left"}, transparent, #000 9%, #000 58%, transparent 97%)` }
+      : { "--fig-in": FIGURE_CENTRE, "--eye": eye.toFixed(4) }),
+  };
   // The core: this half less its extension past the decoration box, on its outer side.
   const core: CSSProperties = slot === 0 ? { left: "var(--core-pad)", right: 0 } : { left: 0, right: "var(--core-pad)" };
 
@@ -113,18 +123,16 @@ export function PanelParts({ person, color, slot }: { person: HeroPerson; color:
         A cut is anchored to the core's bottom (a little past it, and `--fig-drop` further, half of how far the timeline is dropped, which on a phone is no further: its lower body goes on past the line, behind the timeline and the names, and the foot melts it into the page) and centred `FIGURE_CENTRE` of the core's width in from its outer edge, so the seam's side stays clear.
         On the tablet widths (`sm` up to `lg`) it is stood by its eyes instead: its top is where puts its eyes (`--eye`, a share of its height, from `eyeLine`) on the stage's `--eye-line`, so every face is on one line down the stage, clear above the cluster, whatever the cut's headroom; its lower end is no longer past the stage's bottom, so the last 6px of its box (the photo's own bottom edge) are clipped, and the rest of it, opaque to there, is covered by the taller foot over it. The figure is never faded: only the foot, the page's colour over it, darkens it.
         A tear (a person with no cut) is a strip across the whole photo, so it spans the core's width, as it spans a card's, with its strip at the height of a cut's head.
+        On a phone (below `sm`) the figure is the same box as a cut's for a tear too: `--fig-h` high (hero.tsx: 1.5 times what it was, `min(90%, 165cqw)` of the core, and the stage is as tall as the headline above it and the figure need), standing on the core's bottom as before, and pushed out toward the screen's edge by `--crop` of its width (`figureOverhang`, from the head's place in its photo): `--fig-out` is where its outer edge is, past the screen's, so that the half's frame cuts the outer part off, and the face (a third of the figure at most is off, a quarter of the head at most) is beside the poster cluster. The headline is over the figure's top, which is a headline's height under the stage's: the heads never reach it. A tear's strip runs on past the screen's edge the same way.
       */}
       <div className="pointer-events-none absolute inset-y-0 [container-type:inline-size]" style={core}>
         <div
-          className={tear ? "absolute inset-x-0 top-[calc(38%_+_var(--fig-drop))] aspect-[2/3] -translate-y-[42%]" : `absolute bottom-[calc(-3%_-_var(--fig-drop))] aspect-[2/3] h-[min(90%,165cqw)] sm:max-lg:bottom-auto sm:max-lg:top-[calc(var(--eye-line)_-_var(--eye)_*_min(90%,165cqw))] sm:max-lg:[clip-path:inset(-20%_-60%_6px_-60%)] ${slot === 0 ? "-translate-x-1/2" : "translate-x-1/2"}`}
-          style={
+          className={
             tear
-              ? // The strip fades out toward the seam, where the headline is, so it never sits under the copy, and at its outer end too, as the photo ends there and the montage goes on.
-                {
-                  maskImage: `linear-gradient(to ${slot === 0 ? "right" : "left"}, transparent, #000 9%, #000 58%, transparent 97%)`,
-                }
-              : ({ [slot === 0 ? "left" : "right"]: FIGURE_CENTRE, "--eye": eye.toFixed(4) } as CSSProperties)
+              ? `absolute aspect-[2/3] sm:inset-x-0 sm:top-[calc(38%_+_var(--fig-drop))] sm:-translate-y-[42%] max-sm:bottom-[-3%] max-sm:h-(--fig-h) ${slot === 0 ? "max-sm:left-(--fig-out)" : "max-sm:right-(--fig-out)"}`
+              : `absolute bottom-[calc(-3%_-_var(--fig-drop))] aspect-[2/3] h-[min(90%,165cqw)] max-sm:h-(--fig-h) sm:max-lg:bottom-auto sm:max-lg:top-[calc(var(--eye-line)_-_var(--eye)_*_min(90%,165cqw))] sm:max-lg:[clip-path:inset(-20%_-60%_6px_-60%)] ${slot === 0 ? "left-(--fig-in) -translate-x-1/2 max-sm:left-(--fig-out) max-sm:translate-x-0" : "right-(--fig-in) translate-x-1/2 max-sm:right-(--fig-out) max-sm:translate-x-0"}`
           }
+          style={figureStyle as CSSProperties}
         >
           <div className="absolute inset-0" style={{ translate: "calc(var(--px, 0) * -8px) calc(var(--py, 0) * -6px)" }}>
             <div data-part="figure" className="absolute inset-0">

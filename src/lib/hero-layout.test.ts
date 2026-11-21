@@ -4,6 +4,8 @@ import {
   BAND,
   BAND_WIDTH_CSS,
   DOT_MIN_SCALE,
+  FIGURE_OVERHANG,
+  HEAD_CROP_MAX,
   LABEL_END_CLEAR,
   LABEL_GAP,
   POSTER_CAPS,
@@ -12,6 +14,7 @@ import {
   bandWidth,
   decodedYears,
   dotScale,
+  figureOverhang,
   labelYears,
   moreCount,
   posterPlace,
@@ -230,5 +233,36 @@ describe("the dots' size and the year labels in the band's axis", () => {
     expect(labelYears(career, axisWidth(1440))).toEqual([1980, 1990, 2000, 2010, 2020]);
     expect(labelYears(career, axisWidth(390))).toEqual([1980, 1990, 2000, 2010]);
     expect(labelYears({ first: 1940, last: 2020 }, axisWidth(390))).toEqual([1960, 1980, 2000]);
+  });
+});
+
+describe("figureOverhang: how much of a figure goes off the screen's edge on a phone", () => {
+  it("is a third of the figure's width for a head with room to spare, on either side", () => {
+    // A head 0.6 of the photo's width across, in the middle: 0.2 of room on each side, and a quarter of the head (0.15) more.
+    expect(figureOverhang({ centre: 0.5, width: 0.6 }, 0)).toBeCloseTo(FIGURE_OVERHANG, 10);
+    expect(figureOverhang({ centre: 0.5, width: 0.6 }, 1)).toBeCloseTo(FIGURE_OVERHANG, 10);
+  });
+
+  it("goes off by less where the head fills the photo (a tight crop of a face): the screen's edge may take a quarter of the head, no more", () => {
+    expect(figureOverhang({ centre: 0.5, width: 1 }, 0)).toBeCloseTo(HEAD_CROP_MAX, 10);
+    expect(figureOverhang({ centre: 0.5, width: 1 }, 1)).toBeCloseTo(HEAD_CROP_MAX, 10);
+    // Whatever the overhang, the head's outer edge is off the screen by `HEAD_CROP_MAX` of the head's width at most.
+    for (const width of [0.5, 0.7, 0.9, 1]) {
+      for (const centre of [0.4, 0.5, 0.6]) {
+        for (const slot of [0, 1] as const) {
+          const head = { centre, width };
+          const outer = slot === 0 ? centre - width / 2 : 1 - (centre + width / 2);
+          expect(figureOverhang(head, slot) - outer).toBeLessThanOrEqual(HEAD_CROP_MAX * width + 1e-9);
+          expect(figureOverhang(head, slot)).toBeLessThanOrEqual(FIGURE_OVERHANG);
+        }
+      }
+    }
+  });
+
+  it("goes off by less on the side the head leans toward: a head near the outer edge has less room", () => {
+    const head = { centre: 0.6, width: 0.7 }; // its left edge is 0.25 in from the photo's left and its right edge 0.05 in from the right
+    expect(figureOverhang(head, 0)).toBeCloseTo(FIGURE_OVERHANG, 10);
+    expect(figureOverhang(head, 1)).toBeCloseTo(0.05 + HEAD_CROP_MAX * 0.7, 10);
+    expect(figureOverhang(head, 1)).toBeLessThan(figureOverhang(head, 0));
   });
 });

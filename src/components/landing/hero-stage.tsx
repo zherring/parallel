@@ -184,10 +184,10 @@ function Backdrop({ items, reduced, onGone }: { items: readonly Item[]; reduced:
         </div>
       ))}
 
-      {/* A wide, soft, dark glow behind the headline (which is the section's, over the stage): no edge, so no box. Phones have the headline under the stage. */}
+      {/* A wide, soft, dark glow behind the headline (which is the section's, over the stage): no edge, so no box. On a phone the headline is across the stage's top, `--head-h` high, and so is the glow, centred on it. */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-[34%] hidden h-[58%] w-[min(94%,1020px)] -translate-x-1/2 -translate-y-1/2 sm:block"
+        className="pointer-events-none absolute left-1/2 top-[calc(var(--head-h)*0.5)] h-[calc(var(--head-h)*1.5)] w-[130%] -translate-x-1/2 -translate-y-1/2 sm:top-[34%] sm:h-[58%] sm:w-[min(94%,1020px)]"
         style={{ background: "radial-gradient(closest-side, rgb(7 9 11 / 0.66), rgb(7 9 11 / 0.4) 52%, transparent)" }}
       />
 

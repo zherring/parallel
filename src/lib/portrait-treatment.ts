@@ -92,16 +92,27 @@ const FACE_DROP = 0.85;
 const EYE_DROP = 0.65;
 
 /**
+ * Where the head of the cut `shape` is in its photo: its top (a share of the photo's height) and, across, its middle and its width (shares of the photo's width), by
+ * the points of the cut's top `HEAD_BAND` (hair and ears included, as `headCrop` has it).
+ */
+export function headSpan(shape: TreatmentShape): { top: number; centre: number; width: number } {
+  const ys = shape.points.map(([, y]) => y);
+  const top = Math.min(...ys);
+  const span = Math.max(...ys) - top;
+  const head = shape.points.filter(([, y]) => y <= top + span * HEAD_BAND).map(([x]) => x);
+  const left = Math.min(...head);
+  const right = Math.max(...head);
+  return { top, centre: (left + right) / 2, width: right - left };
+}
+
+/**
  * Where the eyes of the cut `shape` are, as a share (0 to 1) of the photo's height from its top: the head's top, plus `EYE_DROP` head-widths (the head, by the points of the
  * cut's top `HEAD_BAND`, as `headCrop` has it). Not a measure (the cuts carry no face), a rule: it lets the hero stand figures of any headroom with their eyes at one height.
  */
 export function eyeLine(shape: TreatmentShape): number {
   const [w, h] = shape.size;
-  const ys = shape.points.map(([, y]) => y);
-  const top = Math.min(...ys);
-  const span = Math.max(...ys) - top;
-  const head = shape.points.filter(([, y]) => y <= top + span * HEAD_BAND).map(([x]) => x);
-  return top + EYE_DROP * (Math.max(...head) - Math.min(...head)) * (w / h);
+  const head = headSpan(shape);
+  return head.top + EYE_DROP * head.width * (w / h);
 }
 
 /**

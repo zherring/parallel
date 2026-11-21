@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PORTRAIT_TEARS, TEAR_SIZE } from "@/lib/portrait-tears";
-import { eyeLine, headCrop, montagePosters, tileView, treatmentShape, type TreatmentShape } from "@/lib/portrait-treatment";
+import { eyeLine, headCrop, headSpan, montagePosters, tileView, treatmentShape, type TreatmentShape } from "@/lib/portrait-treatment";
 
 /** A cut of a 342 x 513 photo: a head in the top third (centred at x = 0.4 of the photo's width), the shoulders below it. */
 const shape: TreatmentShape = {
@@ -76,6 +76,16 @@ const extentOf = (shape: TreatmentShape) => {
   const ys = shape.points.map(([, y]) => y);
   return { top: Math.min(...ys), bottom: Math.max(...ys) };
 };
+
+describe("headSpan", () => {
+  it("is where the head is in its photo: its top, and across, its middle and width, by the points of the cut's top 30%", () => {
+    // The head's points are 0.28 to 0.52 across (the cut's top 30%, from 0.1 down to 0.37), so its middle is 0.4 and its width 0.24.
+    const head = headSpan(shape);
+    expect(head.top).toBeCloseTo(0.1, 10);
+    expect(head.centre).toBeCloseTo(0.4, 10);
+    expect(head.width).toBeCloseTo(0.24, 10);
+  });
+});
 
 describe("eyeLine", () => {
   it("is the head's top plus a share of the head's width, as a share of the photo's height", () => {

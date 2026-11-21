@@ -1180,12 +1180,14 @@ test.describe("on a phone", () => {
     await expect(stageLink(page)).toHaveCount(1);
   });
 
-  test("the headline is under the stage, nothing overflows sideways, the cluster and its pill fit, and the pills scroll in their own row", async ({ page }) => {
+  test("the headline is across the top of the stage, nothing overflows sideways, the cluster and its pill fit, and the pills scroll in their own row", async ({ page }) => {
     await page.goto("/");
     await expect(stageLink(page)).toBeVisible();
     const stageBox = await box(stage(page));
     const h1 = await box(page.getByRole("heading", { level: 1 }));
-    expect(h1.y).toBeGreaterThanOrEqual(stageBox.y + stageBox.height - 1);
+    // In the stage, at its top (a phone's headline is no longer under it).
+    expect(h1.y).toBeGreaterThanOrEqual(stageBox.y);
+    expect(h1.y + h1.height).toBeLessThanOrEqual(stageBox.y + stageBox.height * 0.4);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
     // Three posters at most, bunched at the middle, and "+N" (the number alone, for want of room) on the screen.
     const posters = stage(page).locator("[data-part='poster']").filter({ visible: true });
@@ -1208,5 +1210,91 @@ test.describe("on a phone", () => {
     expect(Math.abs(centreY(home) - centreY(search))).toBeLessThanOrEqual(4);
     expect(search.x + search.width).toBeLessThanOrEqual(320 - 8);
     expect(await bar(page).getByRole("tablist").evaluate((list) => list.parentElement!.scrollWidth > list.parentElement!.clientWidth)).toBe(true);
+  });
+});
+
+/**
+ * A phone: the headline is across the top of the stage, over the montage, and the figures stand under it, 1.5 times as big as they were, each pushed out toward its own side of the
+ * screen so that its outer part hangs off the screen's edge (the half's frame clips it: nothing scrolls sideways). The stage is as tall as the headline's box and the figure need.
+ * The figure was `min(90%, 165cqw)` of its core high (the half less the gutter, the stage's old height, `max(400, min(64svh, 560))`, for the 90%).
+ */
+test.describe("on a phone the headline is over the figures' heads and the figures are 1.5 times as big, cropped by the screen's edge", () => {
+  const HEAD = 20 + 2 * 1.05 * 34 + 12 + 3 * 1.625 * 15 + 8; // the headline's box: padding, two lines of 34px, a gap, three lines of 15px, a gap
+  for (const [width, height] of [[320, 640], [390, 844], [600, 900]] as const) {
+    test(`at ${width}px: the figures are 1.5 times as big, off the screen's edge by a third of their width at most, under the headline, and the page does not scroll sideways`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto("/");
+      await ready(page);
+      const gutter = Math.min(88, Math.max(12, 0.05 * width));
+      const core = width / 2 - 3 - gutter;
+      const oldStage = Math.max(400, Math.min(0.64 * height, 560));
+      const figureHeight = 1.5 * Math.min(0.9 * oldStage, 1.65 * core);
+
+      const stageBox = await box(stage(page));
+      // The stage holds the headline's box and the figure, which stands 3% past its foot; never shorter than it was.
+      expect(Math.abs(stageBox.height - Math.max(oldStage, (HEAD + figureHeight) / 1.03))).toBeLessThanOrEqual(1.5);
+      const h1 = await box(page.getByRole("heading", { level: 1 }));
+      const copy = await box(page.getByRole("heading", { level: 1 }).locator("xpath=following-sibling::p"));
+      expect(h1.y).toBeGreaterThanOrEqual(stageBox.y);
+      expect(copy.y + copy.height).toBeLessThanOrEqual(stageBox.y + HEAD);
+
+      const figures = await stage(page).evaluate((root) =>
+        [...root.querySelectorAll<HTMLElement>("[data-frame]")].map((frame) => {
+          const figure = frame.querySelector<HTMLElement>("[data-part='figure']")!.parentElement!.parentElement!;
+          const rect = figure.getBoundingClientRect();
+          return {
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+            width: rect.width,
+            height: rect.height,
+            crop: parseFloat(figure.style.getPropertyValue("--crop")),
+            eye: figure.style.getPropertyValue("--eye") === "" ? null : parseFloat(figure.style.getPropertyValue("--eye")),
+            frameOverflow: getComputedStyle(frame).overflow,
+          };
+        }),
+      );
+      expect(figures).toHaveLength(2);
+      for (const [slot, figure] of figures.entries()) {
+        expect(Math.abs(figure.height - figureHeight)).toBeLessThanOrEqual(1.5);
+        expect(Math.abs(figure.width - (figureHeight * 2) / 3)).toBeLessThanOrEqual(1.5);
+        // Pushed out: its outer part is off the screen, by `--crop` of its width (a third at most), and the frame clips it. Its middle line, where the face is, stays on screen.
+        expect(figure.crop).toBeGreaterThan(0.2);
+        expect(figure.crop).toBeLessThanOrEqual(1 / 3 + 0.0001);
+        expect(figure.frameOverflow).toBe("hidden");
+        if (slot === 0) {
+          expect(figure.left).toBeLessThan(-10);
+          expect(Math.abs(figure.left + figure.crop * figure.width)).toBeLessThanOrEqual(1.5);
+          expect(figure.left + figure.width / 2).toBeGreaterThan(0);
+        } else {
+          expect(figure.right).toBeGreaterThan(width + 10);
+          expect(Math.abs(figure.right - figure.crop * figure.width - width)).toBeLessThanOrEqual(1.5);
+          expect(figure.right - figure.width / 2).toBeLessThan(width);
+        }
+        // Under the headline: the figure's top is the headline's bottom, so no head reaches it; a cut's eyes are well inside the stage.
+        expect(figure.top).toBeGreaterThanOrEqual(copy.y + copy.height - 1.5);
+        if (figure.eye !== null) {
+          const eyeY = figure.top + figure.eye * figure.height;
+          expect(eyeY).toBeGreaterThan(copy.y + copy.height);
+          expect(eyeY).toBeLessThan(stageBox.y + stageBox.height * 0.82);
+        }
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+    });
+  }
+
+  test("the headline is the same, unanimated element across a scene change, and does not move", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await ready(page);
+    const h1 = page.getByRole("heading", { level: 1 });
+    await page.evaluate(() => ((window as unknown as { __h1: Element }).__h1 = document.getElementById("hero-heading")!));
+    const before = await box(h1);
+    await page.keyboard.press("ArrowRight");
+    expect(await h1.evaluate((element) => element.getAnimations().length + (element.parentElement?.getAnimations().length ?? 0))).toBe(0);
+    await ready(page);
+    expect(await page.evaluate(() => (window as unknown as { __h1: Element }).__h1 === document.getElementById("hero-heading"))).toBe(true);
+    const after = await box(h1);
+    expect(after).toEqual(before);
   });
 });
