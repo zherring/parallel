@@ -242,7 +242,7 @@ This product uses the TMDB API but is not endorsed or certified by TMDB.
 
 Awards data comes from Wikidata (CC0).
 
-Both are credited in the site footer (`src/components/site-footer.tsx`): at its left who made the site and where the code is, at its right, in small type, TMDB's notice with its mark and then the awards data's source (below 768px the credits are under the first line, at the left). The mark stays small and less prominent than the site's own name, as TMDB's terms ask.
+Both are credited in the site footer (`src/components/site-footer.tsx`): at its left who made the site and where the code is, at its right, in small type, three lines: TMDB's mark on its own line, then its notice, then the awards data's source (the notice and the source are the same size; from 768px the credits are right-aligned, below it they are under the first line, at the left). The mark stays small and less prominent than the site's own name, as TMDB's terms ask.
 
 ## License
 
