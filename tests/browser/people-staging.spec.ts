@@ -225,7 +225,7 @@ test.describe("an explicit navigation beats what is staged", () => {
     await stageRemovalInPill(page);
     await page.getByRole("link", { name: "Back to Parallel home", exact: true }).click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole("banner")).toBeVisible();
+    await expect(page.locator("[data-landing-bar]")).toBeVisible();
     // Nothing comes after it: the staged page does not replace the landing page a moment later.
     await page.waitForTimeout(1500);
     await expect(page).toHaveURL(/\/$/);

@@ -1,0 +1,121 @@
+/*
+ * The hero's friendly cue: "clicking this opens their collaboration". The stage's one link is its action zone (the poster cluster, "+N more", the timeline's band and the
+ * names, padded; hero-stage.tsx `ZONE_CLASS`), so while the pointer is over it, or it has keyboard focus, the stage has `:has([data-stage-link]:is(:hover, :focus-visible))`
+ * and these rules do the rest: the cluster eases open (the posters slide apart from the middle, their tilts relax, the whole cluster lifts a little, each a touch after the
+ * one inside it), the white shared-film dots light up, and a line under the names says where the click goes. Plain CSS on the stage's own state, so a scene change under a
+ * still pointer settles the new scene's pieces straight into the open state (a piece that is just mounted has no earlier style to transition from). Namespaced by the
+ * stage's attribute, as Next keeps global styles between pages.
+ *
+ * Reduced motion: nothing moves; the line fades in and the dots light up.
+ */
+
+[data-hero-stage] {
+  --cue-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --cue-ms: 380ms;
+  /* How far each poster slides from the middle of the cluster, and how far the whole cluster (and its label) lifts. */
+  --cue-spread: 10px;
+  --cue-lift: -4px;
+  /* The stagger from the middle outward. */
+  --cue-stagger: 25ms;
+  /* The fan: each poster is turned this much more than the one before it, and is this much smaller than the one before it on the way out from the middle (whose size is 1.04). */
+  --fan-tilt: 2.4deg;
+  --fan-depth: 0.0425;
+}
+
+/* The poster's place in the cluster: its offset from the middle of the posters a width shows (`--cap`), by `--slot` and `--count` (hero-stage.tsx `posterAnchor`). */
+[data-hero-stage] [data-cue-poster],
+[data-hero-stage] [data-cue-more] {
+  --mid: calc((min(var(--count), var(--cap)) - 1) / 2);
+  --off: calc(var(--slot, 0) - var(--mid));
+}
+
+/*
+ * A poster's tilt and size, by `--off`: the row fans about the middle of the posters the width shows (a phone's three of a pairing's five turn from left to right, as a
+ * desktop's five do), whatever the pairing's own count. `--tilt-jitter` is the poster's own few degrees off the even fan (hero-layout.ts `posterPlace`).
+ */
+[data-hero-stage] [data-cue-tilt] {
+  --tilt: calc(var(--off) * var(--fan-tilt) + var(--tilt-jitter, 0deg));
+  rotate: var(--tilt);
+  scale: calc(1.04 - abs(var(--off)) * var(--fan-depth));
+}
+
+/*
+ * The dots light up: the white shared-film dots (the ring in the page's colour that sets them off the dots beside them is dropped, so they are plain solid white) take a small, soft
+ * white glow, over 200ms. They do not grow: on a dense career neighbouring dots would run together.
+ */
+[data-hero-stage] [data-dot][data-shared] {
+  transition:
+    stroke 200ms ease-out,
+    filter 200ms ease-out;
+}
+[data-hero-stage]:has([data-stage-link]:is(:hover, :focus-visible)) [data-dot][data-shared] {
+  stroke: transparent;
+  filter: drop-shadow(0 0 3px rgb(255 255 255 / 0.55));
+}
+
+/* The line under the names. */
+[data-hero-stage] [data-cue-cta] {
+  opacity: 0;
+  translate: 0 8px;
+  transition:
+    opacity var(--cue-ms) var(--cue-ease),
+    translate var(--cue-ms) var(--cue-ease);
+}
+[data-hero-stage]:has([data-stage-link]:is(:hover, :focus-visible)) [data-cue-cta] {
+  opacity: 1;
+  translate: 0 0;
+  transition-delay: 90ms;
+}
+/* The arrow nudges right twice, then rests. */
+@keyframes hero-cue-nudge {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 3px 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-hero-stage] [data-cue-poster] {
+    transition: translate var(--cue-ms) var(--cue-ease);
+  }
+  [data-hero-stage]:has([data-stage-link]:is(:hover, :focus-visible)) [data-cue-poster] {
+    translate: calc(var(--off) * var(--cue-spread)) var(--cue-lift);
+    transition-delay: calc(abs(var(--off)) * var(--cue-stagger));
+  }
+
+  /* The tilt relaxes most of the way to level. */
+  [data-hero-stage] [data-cue-tilt] {
+    transition: rotate var(--cue-ms) var(--cue-ease);
+  }
+  [data-hero-stage]:has([data-stage-link]:is(:hover, :focus-visible)) [data-cue-tilt] {
+    rotate: calc(var(--tilt) * 0.2);
+    transition-delay: calc(abs(var(--off)) * var(--cue-stagger));
+  }
+
+  /* "+N more" keeps its distance from the cluster's last poster. */
+  [data-hero-stage] [data-cue-more] {
+    transition: translate var(--cue-ms) var(--cue-ease);
+  }
+  [data-hero-stage]:has([data-stage-link]:is(:hover, :focus-visible)) [data-cue-more] {
+    translate: calc(var(--mid) * var(--cue-spread)) var(--cue-lift);
+    transition-delay: calc(var(--mid) * var(--cue-stagger));
+  }
+
+  [data-hero-stage]:has([data-stage-link]:is(:hover, :focus-visible)) [data-cue-arrow] {
+    animation: hero-cue-nudge 1000ms ease-in-out 480ms 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-hero-stage] [data-cue-cta],
+  [data-hero-stage]:has([data-stage-link]:is(:hover, :focus-visible)) [data-cue-cta] {
+    translate: none;
+    transition: opacity 200ms linear;
+  }
+  [data-hero-stage]:has([data-stage-link]:is(:hover, :focus-visible)) [data-cue-cta] {
+    transition-delay: 0ms;
+  }
+}
