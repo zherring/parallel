@@ -1480,26 +1480,57 @@ async function namesBlock(page: Page) {
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 320, height: 640 }, hasTouch: true, isMobile: true });
 
-  test("the names wrap in the middle third: A on the first line and '& B' after it, centred, at a size from the width of a third", async ({ page }) => {
-    await page.goto("/");
-    await ready(page);
-    const { container, a, amp, b } = await nameBoxes(page, { phone: true });
-    const link = await box(stageLink(page));
-    // A is above the "&" and B; the "&" is beside B, on its first line, and the lines are centred under the line.
-    expect(a.y + a.height).toBeLessThanOrEqual(b.y + 2);
-    expect(Math.abs(amp.y - b.y)).toBeLessThanOrEqual(3);
-    expect(Math.abs(centreX(a) - centreX(link))).toBeLessThanOrEqual(3);
-    expect(Math.abs((amp.x + (b.x + b.width - amp.x) / 2) - centreX(link))).toBeLessThanOrEqual(3);
-    // In the middle third of the screen: the names and the "&", whatever they wrap to (the "&" beside the longest word of the pool reaches out of the third by 0.06 of it at most, into the room before the keycap).
-    const poke = (320 / 3) * 0.06 + 1;
-    for (const rect of [a, amp, b]) {
-      expect(rect.x).toBeGreaterThanOrEqual(320 / 3 - poke);
-      expect(rect.x + rect.width).toBeLessThanOrEqual((320 * 2) / 3 + poke);
-    }
-    expect(Math.abs((await container.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))) - phoneRow(320).nameFs)).toBeLessThanOrEqual(0.1);
-    const stageBox = await box(stage(page));
-    expect(b.y + b.height).toBeLessThanOrEqual(stageBox.y + stageBox.height);
-  });
+  // The label is one run of text, "A & B", centred on the middle third: on one line where it fits the room between the keycaps (the screen's two thirds less the two 44px keycaps and 12px clear of each), else A over "& B" (the "&" is kept with B, never alone at the end of a line).
+  for (const [key, label, oneLine] of [
+    ["380+1032", "Scorsese & De Niro", true],
+    ["31+488", "Spielberg & Hanks", true],
+    ["9339+9340", "Lana & Lilly Wachowski", true],
+    ["1100+2710", "Cameron & Schwarzenegger", false],
+  ] as const) {
+    test(`${label}: the names are one line, centred, where they fit between the keycaps, else A over '& B'; at 320, 390 and 430px`, async ({ page }) => {
+      const pool = heroPool(buildHeroPairings());
+      const index = pool.findIndex((pairing) => pairing.key === key);
+      expect(index, key).toBeGreaterThanOrEqual(0);
+      await page.addInitScript((value) => (Math.random = () => value), (index + 0.5) / pool.length);
+      await page.goto("/");
+      await ready(page);
+      for (const width of [320, 390, 430]) {
+        await page.setViewportSize({ width, height: 844 });
+        await expect.poll(() => page.evaluate(() => document.documentElement.clientWidth)).toBe(width);
+        const { container, a, amp, b } = await nameBoxes(page, { phone: true });
+        const at = `${label} at ${width}px`;
+        expect((await container.innerText()).replace(/\s+/g, " ").trim(), at).toBe(label);
+        const link = await box(stageLink(page));
+        // The "&" is always beside B, on B's first line, before it and after A: never alone at the end of a line.
+        expect(Math.abs(amp.y - b.y), at).toBeLessThanOrEqual(3);
+        expect(amp.x + amp.width, at).toBeLessThanOrEqual(b.x + 1);
+        if (oneLine) {
+          // One line: A, "&", B left to right, a space apart, and the whole run centred on the screen's middle.
+          expect(Math.abs(a.y - b.y), at).toBeLessThanOrEqual(3);
+          expect(a.x + a.width, at).toBeLessThanOrEqual(amp.x + 1);
+          expect(Math.abs((a.x + (b.x + b.width - a.x) / 2) - centreX(link)), at).toBeLessThanOrEqual(3);
+        } else {
+          // Too long for one line: A over "& B", each line centred.
+          expect(a.y + a.height, at).toBeLessThanOrEqual(b.y + 2);
+          expect(Math.abs(centreX(a) - centreX(link)), at).toBeLessThanOrEqual(3);
+          expect(Math.abs((amp.x + (b.x + b.width - amp.x) / 2) - centreX(link)), at).toBeLessThanOrEqual(3);
+        }
+        // Clear of the keycaps by 12px or more (the run may be wider than the third: it takes the room between them), and the font is the third's (`phoneRow`).
+        const prev = await box(stage(page).getByRole("button", { name: "Previous pairing", exact: true }));
+        const next = await box(stage(page).getByRole("button", { name: "Next pairing", exact: true }));
+        for (const rect of [a, amp, b]) {
+          expect(rect.x - (prev.x + prev.width), at).toBeGreaterThanOrEqual(11);
+          expect(next.x - (rect.x + rect.width), at).toBeGreaterThanOrEqual(11);
+        }
+        expect(Math.abs((await container.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))) - phoneRow(width).nameFs), at).toBeLessThanOrEqual(0.1);
+        // Centred in the row, level with the keycaps' middle (the names and the cue are one block, the keycaps centred on it).
+        const stageBox = await box(stage(page));
+        expect(b.y + b.height, at).toBeLessThanOrEqual(stageBox.y + stageBox.height);
+        const block = await namesBlock(page);
+        expect(Math.abs(centreY(prev) - block.centre), at).toBeLessThanOrEqual(Math.max(2, block.names.height / 2));
+      }
+    });
+  }
 
   test("the names are sized from the width of a third and the longest word of the pool's family names: 16px and more at 390px, up to 18px", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -1685,10 +1716,10 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
         await expect.poll(() => stageLink(page).getAttribute("aria-label")).not.toBe(third);
       });
 
-      test("the longest names wrap in the middle third at their spaces, never inside a word, and the row (keycaps level with it) holds them and the cue's line within the stage", async ({ page }) => {
+      test("the longest names wrap between the keycaps at their spaces, never inside a word, the '&' with B, and the row (keycaps level with it) holds them and the cue's line within the stage", async ({ page }) => {
         await page.goto("/");
         await ready(page);
-        // Whatever scene it is, the names are set to the worst wraps of the pool's family-name labels: a shared family name (the Wachowskis: "Lana" and "Lilly Wachowski", three lines), a name with a particle, then the longest single word beside the "&".
+        // Whatever scene it is, the names are set to the worst wraps of the pool's family-name labels: a shared family name (the Wachowskis: "Lana" and "Lilly Wachowski", one line), a name with a particle, then the longest single words beside the "&" (two lines: A over "& B").
         const measure = (names: readonly [string, string]) =>
           stage(page).evaluate((root, [first, second]) => {
             const row = root.querySelector<HTMLElement>("[data-names-row]")!;
@@ -1702,6 +1733,9 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
               return [...range.getClientRects()].map((rect) => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }));
             };
             const lines = rects(slots[1]).length;
+            // Where the "&" and B's first line are: the "&" is always beside B, never alone at the end of a line.
+            const amp = [...root.querySelectorAll<HTMLElement>("[data-names] > div > div")].find((element) => element.textContent === "&")!.getBoundingClientRect();
+            const bFirst = rects(slots[1])[0];
             // The widest cue's count, two digits.
             const cue = root.querySelector<HTMLElement>("[data-cue-cta]")!;
             const count = cue.querySelector<HTMLElement>(".tabular-nums")!;
@@ -1711,6 +1745,10 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
               cue: cue.getBoundingClientRect().toJSON() as { left: number; right: number; top: number; bottom: number; height: number },
               cueLine: parseFloat(getComputedStyle(cue).lineHeight),
               first: rects(slots[0]),
+              ampTop: amp.top,
+              bTop: bFirst.top,
+              ampRight: amp.right,
+              bLeft: bFirst.left,
               text: rects(root.querySelector("[data-names]")!),
               row: row.getBoundingClientRect().toJSON() as { left: number; right: number; top: number; bottom: number },
               stage: root.getBoundingClientRect().toJSON() as { bottom: number },
@@ -1721,17 +1759,20 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
             count.textContent = savedCount;
             return out;
           }, names);
-        // The "&" beside the longest word reaches out of the third by 0.06 of it at most (the room before the keycap is 31px at 320px and 43px at 390px); the names themselves, A and the longest word alone, are inside it.
-        const poke = (width / 3) * 0.06 + 1;
+        // The label takes the room between the keycaps, 12px clear of each (an "&" beside the longest word of the pool is wider than the third, and overhangs it on both sides alike): a keycap is 44px, centred on a sixth and on five sixths of the screen.
+        const room = { left: width / 6 + 22 + 11, right: (width * 5) / 6 - 22 - 11 };
         for (const names of [["Lana", "Lilly Wachowski"], ["del Toro", "van Hoytema"], ["Cameron", "Schwarzenegger"], ["Schwarzenegger", "Frankenheimer"]] as const) {
           const got = await measure(names);
+          // "&" is beside B, on its first line, and before it; never alone at the end of a line.
+          expect(Math.abs(got.ampTop - got.bTop), names.join(" & ")).toBeLessThanOrEqual(3);
+          expect(got.ampRight, names.join(" & ")).toBeLessThanOrEqual(got.bLeft + 1);
           for (const rect of got.first) {
-            expect(rect.left).toBeGreaterThanOrEqual(width / 3 - 1);
-            expect(rect.right).toBeLessThanOrEqual((width * 2) / 3 + 1);
+            expect(rect.left).toBeGreaterThanOrEqual(room.left);
+            expect(rect.right).toBeLessThanOrEqual(room.right);
           }
           for (const rect of got.text) {
-            expect(rect.left).toBeGreaterThanOrEqual(width / 3 - poke);
-            expect(rect.right).toBeLessThanOrEqual((width * 2) / 3 + poke);
+            expect(rect.left).toBeGreaterThanOrEqual(room.left);
+            expect(rect.right).toBeLessThanOrEqual(room.right);
             // Inside the row's box, so inside the stage; the keycaps are the next thing over, not touching.
             expect(rect.top).toBeGreaterThanOrEqual(got.row.top - 1);
             expect(rect.bottom).toBeLessThanOrEqual(got.row.bottom + 1);
@@ -1746,8 +1787,8 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
           for (const key of got.keys) expect(got.cue.right + 8 <= key.left || key.right + 8 <= got.cue.left).toBe(true);
           // The longest word is one line: it is not broken to fit.
           if (names[1] === "Schwarzenegger" || names[1] === "Frankenheimer") expect(got.lines).toBe(1);
-          // The longest wraps go to three lines at the most.
-          expect(got.lines).toBeLessThanOrEqual(3);
+          // A name wraps inside its own box only where it alone is wider than the room, and then at its spaces: two lines at the most.
+          expect(got.lines).toBeLessThanOrEqual(2);
         }
       });
     });

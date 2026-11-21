@@ -147,15 +147,15 @@ const halfCorners = (slot: 0 | 1) => (slot === 0 ? "rounded-r-[9px]" : "rounded-
 /**
  * One side of the names' label: the names of `slot` in one cell, so a leaving name and the one arriving are in the same place. A is against the "&" on its left (right-aligned), B on its right.
  * Each name is two texts, one shown at a time: the full name from `sm` up, and on a phone the family name (`item.label`, hero-items.ts). The label is decoration (`aria-hidden`): the stage's link is named by the full names.
- * On a phone B is left-aligned in its column, so that where it wraps ("Lilly" over "Wachowski") its first line stays beside the "&"; a name on one line is as wide as its column, so it is centred as before.
+ * On a phone the column is an inline box (an atomic one, `inline-grid`: a piece animates by its transform, which an inline box that is not atomic ignores) in the label's one run of text, so the label is "A & B" on one line and wraps, where it does not fit the third, between A and "& B"; a name of two words ("De Niro", "Lilly Wachowski") stays on one line unless it alone is wider than the third, and then wraps inside its own box (never inside a word).
  */
 function NameColumn({ slot, names, reduced, onGone }: { slot: 0 | 1; names: readonly NameItem[]; reduced: boolean; onGone: (id: string) => void }) {
   return (
-    <div className={`grid justify-items-center ${slot === 0 ? "sm:justify-items-end" : "sm:justify-items-start"}`}>
+    <div className={`grid justify-items-center max-sm:inline-grid max-sm:max-w-full max-sm:shrink-0 ${slot === 0 ? "sm:justify-items-end" : "sm:justify-items-start"}`}>
       {names
         .filter((item) => item.slot === slot)
         .map((item) => (
-          <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className={`col-start-1 row-start-1 sm:whitespace-nowrap ${slot === 1 ? "max-sm:text-left" : ""}`}>
+          <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="col-start-1 row-start-1 sm:whitespace-nowrap">
             <span className="sm:hidden">{item.label}</span>
             <span className="max-sm:hidden">{item.person.name}</span>
           </Motion>
@@ -282,14 +282,16 @@ function Action({ items, reduced, onGone }: { items: readonly Item[]; reduced: b
           hover, always there.
           On a phone the row under the line is in thirds of the screen: Previous (stage level, outside the link) centred in the left, this block in the middle third and Next in the right. The block is
           a box of the row's height (`--row-body`, hero.tsx: room for the longest wrap) and its content is centred in it, so the keycaps, centred on the same box, are centred on the names whatever they
-          wrap to. The names wrap in the third (A on the first line, "& B" on the second, each wrapped further at its spaces when it does not fit, never inside a word, at the size `--name-fs`: the longest word of the pool's labels fills the third, and its "&" beside it pokes out of the third a little, into the room before the keycap), and the cue's line under them, one line, wider than the third (`CueCall`): it is between the keycaps, which are centred on the same box.
+          wrap to. The names are one run of text, "A & B", centred on the third, on one line where it fits the room between the keycaps (two thirds of the screen less the two 44px keycaps and 12px clear of each, as the cue's line is wider than the third and between them) and wrapping at its spaces where it does not (between the names, "A" over "& B", the "&" kept with B by a no-break space; a name of two words wraps inside its own box; never inside a word; at the size `--name-fs`: the longest word of the pool's labels fills the third, and its "&" beside it pokes out of the third a little, into the room before the keycap), and the cue's line under them, one line, wider than the third (`CueCall`): it is between the keycaps, which are centred on the same box.
         */}
         <div data-names-row="" className="absolute left-1/2 top-[calc(var(--line-y)+22px)] flex h-(--row-body) w-[calc(100cqw/3)] -translate-x-1/2 flex-col items-center justify-center sm:inset-x-0 sm:block sm:h-auto sm:w-auto sm:translate-x-0">
-          <div data-names="" className="flex flex-col items-center text-center text-[length:var(--name-fs)] font-semibold leading-[1.15] tracking-[-0.02em] text-white [text-shadow:0_1px_14px_rgb(0_0_0/0.65)] sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-baseline sm:gap-x-[0.45em] sm:text-[length:clamp(16px,1.6vw,24px)]">
+          <div data-names="" className="text-center max-sm:w-max max-sm:max-w-[calc(66.667cqw_-_68px)] text-[length:var(--name-fs)] font-semibold leading-[1.15] tracking-[-0.02em] text-white [text-shadow:0_1px_14px_rgb(0_0_0/0.65)] sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-baseline sm:gap-x-[0.45em] sm:text-[length:clamp(16px,1.6vw,24px)]">
             <NameColumn slot={0} names={names} reduced={reduced} onGone={onGone} />
-            <div className="flex items-baseline justify-center gap-[0.35em] sm:contents">
+            {/* On a phone the label is one run of text, "A & B": A, a space the line may break at (from `sm` up it is not there, the label is a grid), then the "&" and B in one box, a flex row that does not break between them, so a wrap never leaves the "&" at the end of a line, alone: "A" over "& B". The row's content is centred in it, so where it is a little wider than the third (the "&" beside a name as wide as the third) it overhangs the third on both sides alike. */}
+            <span className="sm:hidden"> </span>
+            <div className="max-sm:inline-flex max-sm:items-baseline max-sm:justify-center max-sm:gap-[0.3em] sm:contents">
               {amps.map((item) => (
-                <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="font-normal text-white/70">
+                <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="font-normal text-white/70 max-sm:inline-block">
                   &amp;
                 </Motion>
               ))}
