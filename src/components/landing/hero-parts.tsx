@@ -232,20 +232,17 @@ export function MoreLabel({ pairing }: { pairing: HeroPairing }) {
 /**
  * The cue's line under the names, "See all 11 films together →" (hero-cue.css fades it in and slides it up while the cue shows, and nudges the arrow twice; on a touch screen, which has no hover,
  * it is always there, still): where the click on the stage goes. Decorative, like all of the stage (the link's own name says the films); no box behind it, as it is over the page's foot gradient.
- * On a phone it is in the names' third of the screen (`--cue-fs`, hero.tsx), centred and wrapped, "together →" kept whole so the arrow is never alone on a line; from `sm` up it is one line of 15px.
+ * On a phone it is one line, centred under the names, at `--cue-fs` (hero.tsx): wider than the names' third (it would be under 10px in it), between the two keycaps, which it clears by 18px or more; from `sm` up it is one line of 15px.
  */
 export function CueCall({ count }: { count: number }) {
   return (
     <span
       data-cue-cta=""
-      className="block text-center text-[length:var(--cue-fs)] font-medium leading-[1.25] tracking-[-0.005em] text-balance text-white [text-shadow:0_1px_14px_rgb(0_0_0/0.7)] sm:text-[15px] sm:leading-none sm:whitespace-nowrap"
+      className="block text-center text-[length:var(--cue-fs)] font-medium leading-[1.25] tracking-[-0.005em] whitespace-nowrap text-white [text-shadow:0_1px_14px_rgb(0_0_0/0.7)] sm:text-[15px] sm:leading-none"
     >
-      See all <span className="tabular-nums">{count}</span> {count === 1 ? "film" : "films"}{" "}
-      <span className="whitespace-nowrap">
-        together{" "}
-        <span data-cue-arrow="" className="inline-block">
-          →
-        </span>
+      See all <span className="tabular-nums">{count}</span> {count === 1 ? "film" : "films"} together{" "}
+      <span data-cue-arrow="" className="inline-block">
+        →
       </span>
     </span>
   );

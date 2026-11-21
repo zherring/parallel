@@ -1245,11 +1245,11 @@ test.describe("the genre pills are tabs of views", () => {
   });
 });
 
-/** The phone's names row (hero.tsx `--name-fs`, `--cue-fs`, `--row-body`, `--row-h`): the names' size from the width of a third of the screen (over 8em, the longest word of the pool's family names), and the height of the row, which is 22px under the line and has room for three lines of names and two of the cue. */
+/** The phone's names row (hero.tsx `--name-fs`, `--cue-fs`, `--row-body`, `--row-h`): the names' size from the width of a third of the screen (over 8em, the longest word of the pool's family names), the cue's (0.85 of it, one line), and the height of the row, which is 22px under the line and has room for three lines of names and the cue's one. */
 function phoneRow(width: number) {
   const nameFs = Math.min(18, Math.max(11, width / 24));
-  const cueFs = nameFs * 0.9;
-  const body = 3 * 1.15 * nameFs + 6 + 2 * 1.25 * cueFs;
+  const cueFs = nameFs * 0.85;
+  const body = 3 * 1.15 * nameFs + 6 + 1.25 * cueFs;
   return { nameFs, cueFs, body, height: 22 + body + 10 };
 }
 
@@ -1298,6 +1298,31 @@ test.describe("on a phone", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await size()).toBeGreaterThanOrEqual(16);
     expect(await size()).toBeLessThanOrEqual(18);
+  });
+
+  test("the cue is one line, at 0.85 of the names' size (never under 11px from 320px), wider than the middle third, and between the keycaps, clear of them", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await ready(page);
+    const prev = stage(page).getByRole("button", { name: "Previous pairing", exact: true });
+    const next = stage(page).getByRole("button", { name: "Next pairing", exact: true });
+    for (const width of [320, 360, 390, 430, 600]) {
+      await page.setViewportSize({ width, height: 844 });
+      const row = phoneRow(width);
+      const size = await cueLine(page).evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+      expect(Math.abs(size - row.cueFs), `${width}px`).toBeLessThanOrEqual(0.05);
+      expect(size, `${width}px`).toBeGreaterThanOrEqual(11);
+      const cue = await box(cueLine(page));
+      // One line: its box is one line of 1.25 high, and up to 430px it is wider than a third of the screen (at 600px it is about the third).
+      expect(Math.abs(cue.height - 1.25 * size), `${width}px`).toBeLessThanOrEqual(1);
+      if (width <= 430) expect(cue.width, `${width}px`).toBeGreaterThan(width / 3);
+      // Between the keycaps, which are centred on the names and the cue together, with room to spare.
+      const left = await box(prev);
+      const right = await box(next);
+      expect(cue.x - (left.x + left.width), `${width}px`).toBeGreaterThanOrEqual(8);
+      expect(right.x - (cue.x + cue.width), `${width}px`).toBeGreaterThanOrEqual(8);
+      expect(Math.abs(centreX(cue) - width / 2), `${width}px`).toBeLessThanOrEqual(2);
+    }
   });
 
   test("a touch screen has no hover, so the cue's line is always there, still, under the names, and the stage is only a link", async ({ page }) => {
@@ -1463,15 +1488,23 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
               return [...range.getClientRects()].map((rect) => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }));
             };
             const lines = rects(slots[1]).length;
+            // The widest cue's count, two digits.
+            const cue = root.querySelector<HTMLElement>("[data-cue-cta]")!;
+            const count = cue.querySelector<HTMLElement>(".tabular-nums")!;
+            const savedCount = count.textContent;
+            count.textContent = "25";
             const out = {
+              cue: cue.getBoundingClientRect().toJSON() as { left: number; right: number; top: number; bottom: number; height: number },
+              cueLine: parseFloat(getComputedStyle(cue).lineHeight),
               first: rects(slots[0]),
-              text: rects(row),
+              text: rects(root.querySelector("[data-names]")!),
               row: row.getBoundingClientRect().toJSON() as { left: number; right: number; top: number; bottom: number },
               stage: root.getBoundingClientRect().toJSON() as { bottom: number },
               lines,
               keys: [...root.querySelectorAll<HTMLElement>("[data-keycap]")].map((key) => key.getBoundingClientRect().toJSON() as { left: number; right: number; top: number; bottom: number }),
             };
             slots.forEach((element, index) => (element.textContent = saved[index]));
+            count.textContent = savedCount;
             return out;
           }, names);
         // The "&" beside the longest word reaches out of the third by 0.06 of it at most (the room before the keycap is 31px at 320px and 43px at 390px); the names themselves, A and the longest word alone, are inside it.
@@ -1491,6 +1524,12 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
             expect(rect.bottom).toBeLessThanOrEqual(got.stage.bottom);
             for (const key of got.keys) expect(rect.right <= key.left || key.right <= rect.left).toBe(true);
           }
+          // The cue ("See all 25 films together →", the widest) is one line, inside the row's box and the screen, and clear of both keycaps by 8px or more.
+          expect(got.cue.height).toBeLessThanOrEqual(got.cueLine + 1);
+          expect(got.cue.bottom).toBeLessThanOrEqual(Math.min(got.row.bottom, got.stage.bottom) + 1);
+          expect(got.cue.left).toBeGreaterThanOrEqual(0);
+          expect(got.cue.right).toBeLessThanOrEqual(width);
+          for (const key of got.keys) expect(got.cue.right + 8 <= key.left || key.right + 8 <= got.cue.left).toBe(true);
           // The longest word is one line: it is not broken to fit.
           if (names[1] === "Schwarzenegger" || names[1] === "Frankenheimer") expect(got.lines).toBe(1);
           // The longest wraps go to three lines at the most.
