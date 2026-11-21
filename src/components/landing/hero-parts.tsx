@@ -110,13 +110,13 @@ export function PanelParts({ person, color, slot }: { person: HeroPerson; color:
       </div>
 
       {/*
-        A cut is anchored to the core's bottom (a little past it, and `--fig-drop` further, half of how far the timeline is dropped; on a phone, where the posters would cover the face of one that big, it stands on the line) and centred `FIGURE_CENTRE` of the core's width in from its outer edge, so the seam's side stays clear.
+        A cut is anchored to the core's bottom (a little past it, and `--fig-drop` further, half of how far the timeline is dropped, which on a phone is no further: its lower body goes on past the line, behind the timeline and the names, and the foot melts it into the page) and centred `FIGURE_CENTRE` of the core's width in from its outer edge, so the seam's side stays clear.
         On the tablet widths (`sm` up to `lg`) it is stood by its eyes instead: its top is where puts its eyes (`--eye`, a share of its height, from `eyeLine`) on the stage's `--eye-line`, so every face is on one line down the stage, clear above the cluster, whatever the cut's headroom; its lower end is no longer past the stage's bottom, so the last 6px of its box (the photo's own bottom edge) are clipped, and the rest of it, opaque to there, is covered by the taller foot over it. The figure is never faded: only the foot, the page's colour over it, darkens it.
         A tear (a person with no cut) is a strip across the whole photo, so it spans the core's width, as it spans a card's, with its strip at the height of a cut's head.
       */}
       <div className="pointer-events-none absolute inset-y-0 [container-type:inline-size]" style={core}>
         <div
-          className={tear ? "absolute inset-x-0 top-[calc(38%_+_var(--fig-drop))] aspect-[2/3] -translate-y-[42%]" : `absolute bottom-[calc(-3%_-_var(--fig-drop))] aspect-[2/3] h-[min(90%,165cqw)] max-sm:bottom-[calc(100%_-_var(--line-y))] sm:max-lg:bottom-auto sm:max-lg:top-[calc(var(--eye-line)_-_var(--eye)_*_min(90%,165cqw))] sm:max-lg:[clip-path:inset(-20%_-60%_6px_-60%)] ${slot === 0 ? "-translate-x-1/2" : "translate-x-1/2"}`}
+          className={tear ? "absolute inset-x-0 top-[calc(38%_+_var(--fig-drop))] aspect-[2/3] -translate-y-[42%]" : `absolute bottom-[calc(-3%_-_var(--fig-drop))] aspect-[2/3] h-[min(90%,165cqw)] sm:max-lg:bottom-auto sm:max-lg:top-[calc(var(--eye-line)_-_var(--eye)_*_min(90%,165cqw))] sm:max-lg:[clip-path:inset(-20%_-60%_6px_-60%)] ${slot === 0 ? "-translate-x-1/2" : "translate-x-1/2"}`}
           style={
             tear
               ? // The strip fades out toward the seam, where the headline is, so it never sits under the copy, and at its outer end too, as the photo ends there and the montage goes on.

@@ -557,17 +557,22 @@ test.describe("at tablet widths (sm up to lg) the figures stand higher and the f
   }
 
   for (const [width, label] of [[1440, "a desktop"], [390, "a phone"]] as const) {
-    test(`${label} (${width}px) keeps its figures where they were, anchored to the bottom, and its foot 42% of a half`, async ({ page }) => {
+    test(`${label} (${width}px) anchors its figures to the bottom, past the line and behind the timeline and the names, and its foot is 42% of a half`, async ({ page }) => {
       await page.setViewportSize({ width, height: width < 640 ? 844 : 900 });
       await page.goto("/");
       await ready(page);
       const { parts } = await figures(page);
+      const root = await box(stage(page));
+      const line = (centreY(await box(stage(page).locator("[data-line]"))) - root.y) / root.height;
       for (const part of parts) {
         expect(part.foot).toBeCloseTo(0.42, 2);
         expect(part.footInFront).toBe(true);
         expect(part.fades).toEqual([]);
-        // A cut stands on the bottom of the stage (past it on a desktop; on the line, 82% down, on a phone).
-        if (part.cut) expect(part.bottom).toBeGreaterThan(width < 640 ? 0.8 : 1);
+        // A cut stands on the bottom of the stage, a little past it, on a phone as on a desktop: it goes on well below the line (82% down, and the drop), not ending on it.
+        if (part.cut) {
+          expect(part.bottom).toBeGreaterThan(1);
+          expect(part.bottom).toBeGreaterThan(line + 0.1);
+        }
       }
     });
   }
