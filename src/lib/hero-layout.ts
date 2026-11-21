@@ -9,16 +9,23 @@ import { labelStep } from "@/lib/timeline-layout";
 import { decodeYears } from "@/lib/year-list";
 
 /**
- * The most posters each width shows. Its CSS breakpoints are Tailwind's `sm` (640px) and `lg` (1024px); hero-stage.tsx hides the posters past
- * the count with them, and sets `--cap` to the same numbers for the cluster's centring.
+ * The most posters each width shows. Its CSS breakpoints are Tailwind's `sm` (640px) and `lg` (1024px), and the stage's markup is written from these numbers: `CAP_VAR_CLASS`
+ * sets `--cap` (the cluster's centring and fan, hero-cue.css), `posterHiddenClass` hides the posters past the count, and `MoreLabel` (hero-parts.tsx) has a pill per width.
+ * hero-layout.test.ts holds the two classes to the caps.
  */
 export const POSTER_CAPS = { phone: 3, tablet: 4, desktop: 5 } as const;
 export type PosterWidth = keyof typeof POSTER_CAPS;
 export const POSTER_WIDTHS: readonly PosterWidth[] = ["phone", "tablet", "desktop"];
 
-/** How many of the pairing's posters `width` shows: the first ones, so the dropped ones are the newest films. */
-export function postersShown(pairing: HeroPairing, width: PosterWidth): number {
-  return Math.min(pairing.posters.length, POSTER_CAPS[width]);
+/** `--cap` by width, as the Tailwind classes the stage's cluster carries (written out whole, as Tailwind finds a class only where it is spelled whole). */
+export const CAP_VAR_CLASS = "[--cap:3] sm:[--cap:4] lg:[--cap:5]";
+
+/** The class that hides poster `slot` at the widths whose cap leaves it out (none, where every width shows it). */
+export function posterHiddenClass(slot: number): string {
+  if (slot >= POSTER_CAPS.desktop) return "hidden";
+  if (slot >= POSTER_CAPS.tablet) return "max-lg:hidden";
+  if (slot >= POSTER_CAPS.phone) return "max-sm:hidden";
+  return "";
 }
 
 /** The "+N more" hint of a pairing at a width: the films the posters of `width` leave out, every shared film without a poster on screen; 0 when they show them all. */
@@ -129,15 +136,9 @@ const css = (value: number) => String(Math.round(value * 10000) / 10000);
 export const BAND_WIDTH_CSS = `max(${css(BAND.wideShare * 100)}cqw, min(${css(BAND.maxShare * 100)}cqw, calc(${css(BAND_SLOPE * 100)}cqw + ${css(BAND_BASE)}px)))`;
 
 /**
- * How far in from each end of the band the dots' axis starts, px: the year cap (its outer edge is the band's) and a gap after it. A phone's cap is smaller;
- * Tailwind's `sm` (640px) is where it grows. These mirror `--axis-pad` in hero-stage.tsx.
+ * The dots' axis is the band less the year caps' room at each end (`--axis-pad`, 54px on a phone and 64px from `sm` up, set on the stage in hero-stage.tsx and nowhere
+ * else): the timeline measures the axis it is given (hero-timeline.tsx), so `dotScale` and `labelYears` take its width and nothing here knows the padding.
  */
-export const AXIS_PAD = { phone: 54, desktop: 64 } as const;
-
-/** The axis's width, px, on a screen `viewport` px wide: the band less a cap's room at each end. It is what `dotScale` and `labelYears` are given. */
-export function axisWidth(viewport: number): number {
-  return bandWidth(viewport) - 2 * (viewport >= 640 ? AXIS_PAD.desktop : AXIS_PAD.phone);
-}
 
 /** The spacing of the years (px per year) at which a dot is as large as on a pair's page; a more crowded axis shrinks them, down to `DOT_MIN_SCALE` of that. */
 export const DOT_FULL_PX_PER_YEAR = 9;

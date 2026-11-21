@@ -678,7 +678,9 @@ async function bandGeometry(page: Page) {
   const rightCap = await box(caps.last());
   const dots = await stage(page).locator("circle[data-dot]").evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().x + element.getBoundingClientRect().width / 2));
   const names = await box(stage(page).locator("[data-names]"));
-  return { root, link, line, leftCap, rightCap, dots, names, lineY: centreY(line) };
+  // The dots' axis: the strip's own svg, which is as wide as it (the band less the caps' room, the stage's `--axis-pad`).
+  const axis = await box(stage(page).locator("svg", { has: page.locator("circle[data-dot]") }).first());
+  return { root, link, line, leftCap, rightCap, dots, names, axis, lineY: centreY(line) };
 }
 
 test.describe("the timeline's content is in a band centred on the seam, and the line runs on past it", () => {
@@ -701,6 +703,14 @@ test.describe("the timeline's content is in a band centred on the seam, and the 
       expect(g.line.x).toBeLessThanOrEqual(g.leftCap.x - 200);
       expect(g.line.x + g.line.width).toBeGreaterThanOrEqual(g.rightCap.x + g.rightCap.width + 200);
       expect(g.line.width).toBeGreaterThanOrEqual(viewport.width - 2);
+    });
+
+    test("the dots' axis is the band less 64px at each end, for the caps", async ({ page }) => {
+      await page.goto("/");
+      await ready(page);
+      const g = await bandGeometry(page);
+      expect(Math.abs(g.axis.width - (720 - 2 * 64))).toBeLessThanOrEqual(1);
+      expect(Math.abs(g.axis.x - ((page.viewportSize()!.width - 720) / 2 + 64))).toBeLessThanOrEqual(1);
     });
 
     test("the posters, the line, the dots and the names are 50px lower than a line at 82% of the stage, and the names keep clear of its bottom edge", async ({ page }) => {
@@ -779,6 +789,14 @@ test.describe("the timeline's content is in a band centred on the seam, and the 
       }
       // No drop on a phone: the line is at 82% of the stage.
       expect(Math.abs(g.lineY - g.root.y - 0.82 * g.root.height)).toBeLessThanOrEqual(1);
+    });
+
+    test("the dots' axis is the band less 54px at each end, for the caps (a phone's are smaller)", async ({ page }) => {
+      await page.goto("/");
+      await ready(page);
+      const g = await bandGeometry(page);
+      expect(Math.abs(g.axis.width - (0.86 * 390 - 2 * 54))).toBeLessThanOrEqual(1.5);
+      expect(Math.abs(g.axis.x - ((390 - 0.86 * 390) / 2 + 54))).toBeLessThanOrEqual(1.5);
     });
   });
 

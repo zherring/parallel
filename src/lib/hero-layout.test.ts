@@ -1,24 +1,25 @@
 import { describe, expect, it } from "vitest";
 import {
-  AXIS_PAD,
   BAND,
   BAND_WIDTH_CSS,
+  CAP_VAR_CLASS,
   DOT_MIN_SCALE,
   FIGURE_OVERHANG,
   HEAD_CROP_MAX,
   LABEL_END_CLEAR,
   LABEL_GAP,
   POSTER_CAPS,
+  POSTER_WIDTHS,
+  type PosterWidth,
   axisFraction,
-  axisWidth,
   bandWidth,
   decodedYears,
   dotScale,
   figureOverhang,
   labelYears,
   moreCount,
+  posterHiddenClass,
   posterPlace,
-  postersShown,
   stripOf,
   yearAxis,
 } from "@/lib/hero-layout";
@@ -43,13 +44,23 @@ describe("POSTER_CAPS", () => {
   });
 });
 
-describe("postersShown", () => {
-  it("is the cap of the width, or all the posters there are when they are fewer", () => {
-    expect(postersShown(pairing(5, 9), "desktop")).toBe(5);
-    expect(postersShown(pairing(5, 9), "tablet")).toBe(4);
-    expect(postersShown(pairing(5, 9), "phone")).toBe(3);
-    expect(postersShown(pairing(3, 3), "desktop")).toBe(3);
-    expect(postersShown(pairing(4, 6), "tablet")).toBe(4);
+describe("CAP_VAR_CLASS and posterHiddenClass: the stage's markup, from the caps", () => {
+  it("sets --cap to each width's cap, from the phone up (sm is 640px, lg 1024px)", () => {
+    expect(CAP_VAR_CLASS).toBe(`[--cap:${POSTER_CAPS.phone}] sm:[--cap:${POSTER_CAPS.tablet}] lg:[--cap:${POSTER_CAPS.desktop}]`);
+  });
+
+  it("hides a poster at exactly the widths whose cap leaves it out", () => {
+    // The class's width: hidden below `sm` (phone only), below `lg` (phone and tablet), at every width, or never.
+    const hiddenAt = (slot: number): PosterWidth[] => {
+      const hidden = posterHiddenClass(slot);
+      if (hidden === "hidden") return ["phone", "tablet", "desktop"];
+      if (hidden === "max-lg:hidden") return ["phone", "tablet"];
+      if (hidden === "max-sm:hidden") return ["phone"];
+      return [];
+    };
+    for (const slot of [0, 1, 2, 3, 4, 5]) {
+      for (const width of POSTER_WIDTHS) expect(hiddenAt(slot).includes(width), `poster ${slot} on a ${width}`).toBe(slot >= POSTER_CAPS[width]);
+    }
   });
 });
 
@@ -189,16 +200,13 @@ describe("the band the timeline's content is in", () => {
   it("is the same rule in CSS, for the stage to set as --band-w", () => {
     expect(BAND_WIDTH_CSS).toBe("max(50cqw, min(90cqw, calc(32.6667cqw + 208px)))");
   });
-
-  it("leaves an axis for the dots of about 590px on a 1440px screen and 230px on a phone", () => {
-    expect(axisWidth(1440)).toBeCloseTo(720 - 2 * AXIS_PAD.desktop);
-    expect(axisWidth(390)).toBeCloseTo(0.86 * 390 - 2 * AXIS_PAD.phone);
-    expect(axisWidth(390)).toBeGreaterThan(200);
-  });
 });
 
 describe("the dots' size and the year labels in the band's axis", () => {
   const career = { first: 1972, last: 2023 };
+  // The axis the timeline measures at a screen width: the band less the caps' room at each end (the stage's `--axis-pad`: 64px from 640px up, 54px below). The browser spec holds
+  // the real axis to this at 1440px and 390px.
+  const axisWidth = (viewport: number) => bandWidth(viewport) - 2 * (viewport >= 640 ? 64 : 54);
 
   it("sizes the dots from the band: full size on a desktop's axis for a long career, half on a phone's", () => {
     expect(dotScale(career, axisWidth(1440))).toBe(1);

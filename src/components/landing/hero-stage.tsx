@@ -28,7 +28,7 @@ import { useHeroPause } from "@/components/landing/use-hero-pause";
 import { useKeycapPress } from "@/components/landing/use-keycap-press";
 import { useReducedMotion } from "@/components/pair-wash";
 import type { NavDirection } from "@/lib/hero-history";
-import { BAND_WIDTH_CSS, posterPlace, stripOf } from "@/lib/hero-layout";
+import { BAND_WIDTH_CSS, CAP_VAR_CLASS, posterHiddenClass, posterPlace, stripOf } from "@/lib/hero-layout";
 import { isRunning, pickFirstScene, type HeroPairing, type Scene } from "@/lib/hero-scenes";
 import { buildPeopleSlug } from "@/lib/slug";
 
@@ -210,7 +210,7 @@ function Action({ items, reduced, onGone }: { items: readonly Item[]; reduced: b
 
   return (
     <>
-      {/* The strip's dots, the cluster, its label and the caps are anchored on the line or just above it; the posters shown are the first of the row, three, four or five by width (`POSTER_CAPS`). */}
+      {/* The strip's dots, the cluster, its label and the caps are anchored on the line or just above it; the posters shown are the first of the row, three, four or five by width (`POSTER_CAPS`, `posterHiddenClass`). */}
       <div className="pointer-events-none absolute inset-0">
         {strips.map((item) => {
           const strip = stripOf(item.pairing);
@@ -227,7 +227,7 @@ function Action({ items, reduced, onGone }: { items: readonly Item[]; reduced: b
           <div
             key={item.id}
             data-cue-poster=""
-            className={`group/poster absolute z-(--z) size-0 hover:z-20 ${item.slot === 4 ? "max-lg:hidden" : item.slot === 3 ? "max-sm:hidden" : ""}`}
+            className={`group/poster absolute z-(--z) size-0 hover:z-20 ${posterHiddenClass(item.slot)}`}
             style={posterAnchor(item.slot, item.count)}
           >
             <Motion item={item} reduced={reduced} onGone={onGone} className="absolute left-0 top-0">
@@ -307,7 +307,7 @@ const ZONE_CLASS =
 const ZoneContent = ({ children }: { children: ReactNode }) => (
   <div
     aria-hidden="true"
-    className="pointer-events-none absolute left-1/2 -translate-x-1/2 [--cap:3] sm:[--cap:4] lg:[--cap:5]"
+    className={`pointer-events-none absolute left-1/2 -translate-x-1/2 ${CAP_VAR_CLASS}`}
     style={{ top: "calc(-1 * var(--zone-top))", width: "calc(100cqw - 2 * var(--core-pad))", height: "var(--stage-h)" }}
   >
     {children}
@@ -544,7 +544,7 @@ function LiveStage({ root, pool }: { root: RefObject<HTMLDivElement | null>; poo
  * from 82%: 50px on a stage 816px high (a 1440 x 900 screen), less on a shorter one so that the names keep about 40px above the stage's bottom edge
  * (`0.18 x stage - 90px`, between 0 and 50px), and nothing on a phone, whose names would not fit; the figures are dropped half as far (`--fig-drop`). `--band-w` is
  * the width of the band the timeline's content is in, centred on the seam (hero-layout.ts `BAND`), `--axis-pad` how far in from each end of the band the dots' axis
- * starts (past the year cap, whose outer edge is the band's), and `--axis-w` the axis's width.
+ * starts (past the year cap, whose outer edge is the band's; 54px, and 64px from `sm` up, here and nowhere else: the timeline measures the axis), and `--axis-w` the axis's width.
  */
 export function HeroStage({ pool, fallback }: Props) {
   // False on the server and for the hydrating render, true from the next one: the random pick
