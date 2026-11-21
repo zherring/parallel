@@ -22,7 +22,6 @@ import { SLOTS, applyTransition, initialState, type AmpItem, type Item, type Lab
 import { TimelineLine, TimelineStrip } from "@/components/landing/hero-timeline";
 import { useSplashHidden } from "@/components/landing/genre-tabs";
 import { usePanelShown } from "@/components/landing/panel-shown";
-import { useHeroVariants } from "@/components/landing/use-hero-variants";
 import { posterImageUrl, preloadScene, useHeroRotation } from "@/components/landing/use-hero-rotation";
 import { useHeroKeys } from "@/components/landing/use-hero-keys";
 import { useHeroPause } from "@/components/landing/use-hero-pause";
@@ -31,7 +30,6 @@ import { useReducedMotion } from "@/components/pair-wash";
 import type { NavDirection } from "@/lib/hero-history";
 import { BAND_WIDTH_CSS, posterPlace, stripOf } from "@/lib/hero-layout";
 import { isRunning, pickFirstScene, type HeroPairing, type Scene } from "@/lib/hero-scenes";
-import { DEFAULT_VARIANTS, type HeroVariants } from "@/lib/hero-variants";
 import { buildPeopleSlug } from "@/lib/slug";
 
 interface Props {
@@ -135,14 +133,14 @@ const posterAnchor = (slot: number, count: number) =>
     "--count": count,
   }) as CSSProperties;
 
-/** Where a half of the stage is, in the stage's decoration box (the panels' box): from the seam out to its panel's edge, and (`--ext`: 0 in the panels layout, the inset in the wide one) on past it to the screen's. */
+/** Where a half of the stage is, in the stage's decoration box (inset from the screen by `--core-pad`): from the seam out past the box's edge (by `--core-pad`) to the screen's. */
 const halfBox = (slot: 0 | 1): CSSProperties =>
   slot === 0
-    ? { left: "calc(-1 * var(--ext))", right: "calc(50% + var(--seam) / 2)" }
-    : { left: "calc(50% + var(--seam) / 2)", right: "calc(-1 * var(--ext))" };
+    ? { left: "calc(-1 * var(--core-pad))", right: "calc(50% + var(--seam) / 2)" }
+    : { left: "calc(50% + var(--seam) / 2)", right: "calc(-1 * var(--core-pad))" };
 
-/** The halves' corners: all four of a panel; in the wide layout only the ones at the seam, as the others are the screen's. */
-const halfCorners = (slot: 0 | 1, layout: HeroVariants["layout"]) => (layout === "wide" ? (slot === 0 ? "rounded-r-[9px]" : "rounded-l-[9px]") : "rounded-[9px]");
+/** The halves' corners: only the ones at the seam are rounded, as the others are the screen's. */
+const halfCorners = (slot: 0 | 1) => (slot === 0 ? "rounded-r-[9px]" : "rounded-l-[9px]");
 
 /** One side of the names' label: the names of `slot` in one cell, so a leaving name and the one arriving are in the same place. A is against the "&" on its left (right-aligned), B on its right. */
 function NameColumn({ slot, names, reduced, onGone }: { slot: 0 | 1; names: readonly NameItem[]; reduced: boolean; onGone: (id: string) => void }) {
@@ -164,9 +162,8 @@ function NameColumn({ slot, names, reduced, onGone }: { slot: 0 | 1; names: read
  * and the timeline line. It is all `aria-hidden`, has no pointer events of its own to speak of and is not a link: only the action zone over it is (`Action`).
  * Drawn from `items`, with the animations of `Motion`; the noscript scene is the same thing, all idle.
  */
-function Backdrop({ items, reduced, onGone, variants }: { items: readonly Item[]; reduced: boolean; onGone: (id: string) => void; variants: HeroVariants }) {
+function Backdrop({ items, reduced, onGone }: { items: readonly Item[]; reduced: boolean; onGone: (id: string) => void }) {
   const panels = items.filter((item): item is PanelItem => item.kind === "panel");
-  const { layout, edge } = variants;
 
   return (
     <>
@@ -174,14 +171,14 @@ function Backdrop({ items, reduced, onGone, variants }: { items: readonly Item[]
         <div
           key={slot}
           data-frame=""
-          className={`absolute inset-y-0 isolate overflow-hidden bg-[#0b0d10] ${halfCorners(slot, layout)}`}
+          className={`absolute inset-y-0 isolate overflow-hidden bg-[#0b0d10] ${halfCorners(slot)}`}
           style={halfBox(slot)}
         >
           {panels
             .filter((item) => item.slot === slot)
             .map((item) => (
               <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="absolute inset-0">
-                <PanelParts person={item.person} color={item.color} slot={slot} layout={layout} edge={edge} />
+                <PanelParts person={item.person} color={item.color} slot={slot} />
               </Motion>
             ))}
         </div>
@@ -395,7 +392,6 @@ function Stage({ root, pool, initial }: { root: RefObject<HTMLDivElement | null>
   // The genre tabs replace the splash with a grid: while it is hidden the rotation holds still (and the arrow keys, which step what is on screen, leave it alone).
   const splashHidden = useSplashHidden();
   const { reasons, set } = useHeroPause(root, reduced, splashHidden);
-  const variants = useHeroVariants();
   const running = isRunning(reasons) && revealed;
   const { go, warm } = useHeroRotation({
     pool,
@@ -477,7 +473,7 @@ function Stage({ root, pool, initial }: { root: RefObject<HTMLDivElement | null>
 
   return (
     <>
-      {/* Previous and Next sit inside the panels' outer edges at the stage's middle, outside the link, so no control is nested in it. In the wide layout they stay where the panels' are. */}
+      {/* Previous and Next sit 8px in from the decoration box's outer edges (`--core-pad` in from the screen's) at the stage's middle, outside the link, so no control is nested in it. */}
       {canStep && (
         <KeycapButton
           direction="prev"
@@ -493,7 +489,7 @@ function Stage({ root, pool, initial }: { root: RefObject<HTMLDivElement | null>
       {/* The stage's decoration: not a link, so the faces, the montage and the headline are plain. */}
       {revealed && (
         <div aria-hidden="true" className="absolute inset-x-(--core-pad) inset-y-0">
-          <Backdrop items={state.items} reduced={reduced} onGone={onGone} variants={variants} />
+          <Backdrop items={state.items} reduced={reduced} onGone={onGone} />
         </div>
       )}
       {/* The one link to the pair is the action zone, over it: the posters and everything below them. Its decorative layers carry no text of their own. */}
@@ -540,9 +536,9 @@ function LiveStage({ root, pool }: { root: RefObject<HTMLDivElement | null>; poo
  * images are not fetched, and its reveal plays when the visitor first comes to it).
  *
  * Its size and spacing come from the variables its section sets (hero.tsx): `--stage-h`, `--gutter` and `--seam`; the rest are derived here. The stage is as wide
- * as the screen and a size container, so `--core-pad` (what `100cqw` makes of it) is how far in from the screen's edges the panels of the "panels" layout are:
- * the gutter, or, past 1600px of width, the gutter and half of what is left. Both layouts are drawn from it (`--ext` is how far a half runs out past its
- * panel: nothing, or all the way to the screen's edge). `--pw` is a poster's width, from the box (its height, and on a phone its width), `--step` the distance
+ * as the screen and a size container, so `--core-pad` (what `100cqw` makes of it) is how far in from the screen's edges the stage's decoration box is (and
+ * its content, the keycaps, the figures and the montage's first tile, which stand in it): the gutter, or, past 1600px of width, the gutter and half of what is left.
+ * Each half runs out past the box all the way to the screen's edge (`--core-pad` further), and so does the timeline's line. `--pw` is a poster's width, from the box (its height, and on a phone its width), `--step` the distance
  * between posters of the cluster; `--line-y` is the line's place down the stage (82% and `--drop`), `--poster-gap` how far the
  * posters' bottoms are above it. `--drop` is how far the line and all that stands on it (the cluster, "+N more", the dots, years, caps and the names) are moved down
  * from 82%: 50px on a stage 816px high (a 1440 x 900 screen), less on a shorter one so that the names keep about 40px above the stage's bottom edge
@@ -556,20 +552,18 @@ export function HeroStage({ pool, fallback }: Props) {
   const live = useSyncExternalStore(subscribeNever, () => true, () => false);
   const shown = usePanelShown();
   const root = useRef<HTMLDivElement>(null);
-  const { layout } = useHeroVariants();
 
   return (
     <div
       ref={root}
       data-hero-stage=""
-      data-layout={layout}
-      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size] [--drop:0px] sm:[--drop:clamp(0px,calc(var(--stage-h)_*_0.18_-_90px),50px)] [--fig-drop:calc(var(--drop)_/_2)] [--line-y:calc(82%_+_var(--drop))] [--core-pad:max(var(--gutter),calc((100cqw_-_1600px)/2_+_var(--gutter)))] [--ext:0px] [--reach:var(--gutter)] [--fade:calc(var(--gutter)+14px)] [--axis-pad:54px] [--axis-w:calc(var(--band-w)_-_2_*_var(--axis-pad))] [--foot-h:42%] sm:[--foot-h:84%] lg:[--foot-h:42%] [--eye-line:44%] [--zone-top:calc(var(--stage-h)_*_0.82_+_var(--drop)_-_var(--poster-gap)_-_var(--pw)_*_1.5_-_56px)] [--poster-gap:22px] [--pw:min(68px,calc(var(--stage-h)*0.15),17cqw)] [--step:calc(var(--pw)*0.76)] data-[layout=wide]:[--ext:var(--core-pad)] data-[layout=wide]:[--reach:var(--core-pad)] data-[layout=wide]:[--fade:56px] sm:[--poster-gap:26px] sm:[--pw:min(92px,calc(var(--stage-h)*0.15))] lg:[--pw:min(100px,calc(var(--stage-h)*0.15))] sm:[--axis-pad:64px]"
+      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size] [--drop:0px] sm:[--drop:clamp(0px,calc(var(--stage-h)_*_0.18_-_90px),50px)] [--fig-drop:calc(var(--drop)_/_2)] [--line-y:calc(82%_+_var(--drop))] [--core-pad:max(var(--gutter),calc((100cqw_-_1600px)/2_+_var(--gutter)))] [--axis-pad:54px] [--axis-w:calc(var(--band-w)_-_2_*_var(--axis-pad))] [--foot-h:42%] sm:[--foot-h:84%] lg:[--foot-h:42%] [--eye-line:44%] [--zone-top:calc(var(--stage-h)_*_0.82_+_var(--drop)_-_var(--poster-gap)_-_var(--pw)_*_1.5_-_56px)] [--poster-gap:22px] [--pw:min(68px,calc(var(--stage-h)*0.15),17cqw)] [--step:calc(var(--pw)*0.76)] sm:[--poster-gap:26px] sm:[--pw:min(92px,calc(var(--stage-h)*0.15))] lg:[--pw:min(100px,calc(var(--stage-h)*0.15))] sm:[--axis-pad:64px]"
       style={{ "--band-w": BAND_WIDTH_CSS } as CSSProperties}
     >
       {live && shown ? <LiveStage root={root} pool={pool} /> : null}
       <noscript>
         <div aria-hidden="true" className="absolute inset-x-(--core-pad) inset-y-0">
-          <Backdrop items={initialState(fallback, "idle").items} reduced={false} onGone={noop} variants={DEFAULT_VARIANTS} />
+          <Backdrop items={initialState(fallback, "idle").items} reduced={false} onGone={noop} />
         </div>
         <a href={sceneHref(fallback)} aria-label={sceneLabel(fallback)} className={ZONE_CLASS}>
           <ZoneContent>

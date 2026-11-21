@@ -5,7 +5,6 @@ import { Duotone, TreatedPortrait } from "@/components/treated-portrait";
 import { MONTAGE_SIZE, PERSON_SIZE } from "@/components/landing/use-hero-rotation";
 import { POSTER_WIDTHS, moreCount, posterPlace, type PosterWidth } from "@/lib/hero-layout";
 import type { HeroPairing, HeroPerson, HeroPoster } from "@/lib/hero-scenes";
-import type { EdgeVariant, LayoutVariant } from "@/lib/hero-variants";
 import { tmdbImage } from "@/lib/images";
 import { MONTAGE_POSTERS, eyeLine, treatmentShape } from "@/lib/portrait-treatment";
 
@@ -14,19 +13,19 @@ import { MONTAGE_POSTERS, eyeLine, treatmentShape } from "@/lib/portrait-treatme
  * that hero-motion.ts animates; the pointer parallax is the `translate` of the wrapper above a part, which reads `--px` and `--py`
  * (-1 to 1, set on the stage while the pointer is over it, see `useParallax`).
  *
- * A half of the stage is one person's side. In the "panels" layout it is a panel inset from the screen's edges; in the "wide" layout it runs out to the
- * screen's edge, and `--ext` (0 in panels, the inset in wide) is how far it extends past that panel on its outer side. The figure and the montage's
- * first tile stay where the panel's would be (the "core": the half less `--ext` on its outer side), so the figures do not move between the two layouts.
+ * A half of the stage is one person's side and runs out to the screen's edge. The stage's decoration box is inset from the screen by `--core-pad` (hero-stage.tsx),
+ * and a half reaches `--core-pad` past it on its outer side. The figure and the montage's first tile are in the "core": the half less that extension on its outer
+ * side, where a panel inset from the screen's edges would be.
  */
 
 /** The panel's dark base: what shows where there is no montage, and under the montage's own darkening. */
 const BASE = "#0b0d10";
 
 /**
- * A cut's height is 90% of the panel's, but never more than 165% of the panel's width (`cqw`, the core is a size container): on a phone's narrow
- * panels a full-height figure would be wider than the panel, and its face cut by the outer edge. Photos are 2:3, so this is a figure about 1.1 times as wide as the panel.
+ * A cut's height is 90% of the core's, but never more than 165% of the core's width (`cqw`, the core is a size container): on a phone's narrow
+ * cores a full-height figure would be wider than the core, and its face cut by the outer edge. Photos are 2:3, so this is a figure about 1.1 times as wide as the core.
  *
- * How far in from the panel's outer edge the figure's centre is, as a share of the panel's width. The spec's 42% leaves the heads of these tight
+ * How far in from the core's outer edge the figure's centre is, as a share of the core's width. The spec's 42% leaves the heads of these tight
  * portraits (the face fills most of the photo's width) reaching under the headline's first line; this keeps the seam's side clear of them.
  */
 const FIGURE_CENTRE = "37%";
@@ -42,28 +41,16 @@ const TOP_SHADE =
  */
 const FOOT = `linear-gradient(to top, var(--bg), color-mix(in srgb, var(--bg) 93%, transparent) 14%, color-mix(in srgb, var(--bg) 74%, transparent) 33%, color-mix(in srgb, var(--bg) 42%, transparent) 55%, color-mix(in srgb, var(--bg) 14%, transparent) 78%, transparent)`;
 
-/** How many columns of posters the wide layout tiles past the first tile (three columns) on the outer side: enough for a viewport of about 3000px. */
+/** How many columns of posters are tiled past the first tile (three columns) on the outer side: enough for a viewport of about 3000px. */
 const EXTENSION_COLUMNS = 4;
 
 /**
  * The person's side of the stage: the montage of their films' posters (the look `TreatedPortrait` gives behind a cut: the same `duotoneMatrix` filter
  * and the same posters from `treatmentShape`) filling the half, the cut-out figure standing on its bottom edge and running a little off it, the foot gradient
- * over them both. In the wide layout the montage's 3 x 3 tile is followed outward by more columns of the same posters,
- * repeating the list when it runs out, under the same duotone. A person with no posters is their colour, darkened.
+ * over them both. The montage's 3 x 3 tile is followed outward by more columns of the same posters, repeating the list when it runs out, under the same
+ * duotone. The figure has no outline: the cut is its own edge against the montage. A person with no posters is their colour, darkened.
  */
-export function PanelParts({
-  person,
-  color,
-  slot,
-  layout,
-  edge,
-}: {
-  person: HeroPerson;
-  color: string;
-  slot: 0 | 1;
-  layout: LayoutVariant;
-  edge: EdgeVariant;
-}) {
+export function PanelParts({ person, color, slot }: { person: HeroPerson; color: string; slot: 0 | 1 }) {
   const filter = `hero-duo-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const shape = treatmentShape(person.id, person.profilePath);
   const posters = shape.posters.slice(0, MONTAGE_POSTERS);
@@ -71,9 +58,8 @@ export function PanelParts({
   const tear = shape.tear === true;
   // Where the cut's eyes are in its photo (a share of its height): at the tablet widths the figure is stood by it, so that the eyes of every figure are on one line (`--eye-line`).
   const eye = tear ? 0 : eyeLine(shape);
-  const wide = layout === "wide";
-  // The core: where the panel of the "panels" layout is, within this half.
-  const core: CSSProperties = slot === 0 ? { left: "var(--ext)", right: 0 } : { left: 0, right: "var(--ext)" };
+  // The core: this half less its extension past the decoration box, on its outer side.
+  const core: CSSProperties = slot === 0 ? { left: "var(--core-pad)", right: 0 } : { left: 0, right: "var(--core-pad)" };
 
   return (
     <>
@@ -89,36 +75,34 @@ export function PanelParts({
                   <img key={path} src={tmdbImage(path, MONTAGE_SIZE) ?? ""} alt="" decoding="async" draggable={false} className="size-full select-none object-cover" />
                 ))}
               </div>
-              {wide && (
-                // The tile goes on outward: its columns by distance from the first tile, each cell the next poster of the list (the list again when it runs out).
-                <div
-                  className="absolute inset-y-0 grid grid-rows-3"
-                  style={{
-                    width: `calc(100% * ${EXTENSION_COLUMNS} / 3)`,
-                    gridTemplateColumns: `repeat(${EXTENSION_COLUMNS}, 1fr)`,
-                    ...(slot === 0 ? { right: "100%" } : { left: "100%" }),
-                    filter: `url(#${filter})`,
-                  }}
-                >
-                  {Array.from({ length: EXTENSION_COLUMNS * 3 }, (_, index) => {
-                    const column = Math.floor(index / 3);
-                    const row = index % 3;
-                    const path = posters[(MONTAGE_POSTERS + index) % posters.length];
-                    return (
-                      <img
-                        key={index}
-                        src={tmdbImage(path, MONTAGE_SIZE) ?? ""}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        draggable={false}
-                        className="size-full select-none object-cover"
-                        style={{ gridColumn: slot === 0 ? EXTENSION_COLUMNS - column : column + 1, gridRow: row + 1 }}
-                      />
-                    );
-                  })}
-                </div>
-              )}
+              {/* The tile goes on outward: its columns by distance from the first tile, each cell the next poster of the list (the list again when it runs out). */}
+              <div
+                className="absolute inset-y-0 grid grid-rows-3"
+                style={{
+                  width: `calc(100% * ${EXTENSION_COLUMNS} / 3)`,
+                  gridTemplateColumns: `repeat(${EXTENSION_COLUMNS}, 1fr)`,
+                  ...(slot === 0 ? { right: "100%" } : { left: "100%" }),
+                  filter: `url(#${filter})`,
+                }}
+              >
+                {Array.from({ length: EXTENSION_COLUMNS * 3 }, (_, index) => {
+                  const column = Math.floor(index / 3);
+                  const row = index % 3;
+                  const path = posters[(MONTAGE_POSTERS + index) % posters.length];
+                  return (
+                    <img
+                      key={index}
+                      src={tmdbImage(path, MONTAGE_SIZE) ?? ""}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      draggable={false}
+                      className="size-full select-none object-cover"
+                      style={{ gridColumn: slot === 0 ? EXTENSION_COLUMNS - column : column + 1, gridRow: row + 1 }}
+                    />
+                  );
+                })}
+              </div>
             </div>
           </>
         )}
@@ -127,7 +111,7 @@ export function PanelParts({
 
       {/*
         A cut is anchored to the core's bottom (a little past it, and `--fig-drop` further, half of how far the timeline is dropped; on a phone, where the posters would cover the face of one that big, it stands on the line) and centred `FIGURE_CENTRE` of the core's width in from its outer edge, so the seam's side stays clear.
-        On the tablet widths (`sm` up to `lg`) it is stood by its eyes instead: its top is where puts its eyes (`--eye`, a share of its height, from `eyeLine`) on the stage's `--eye-line`, so every face is on one line down the stage, clear above the cluster, whatever the cut's headroom; its lower end is no longer past the stage's bottom, so the last 6px of its box (the photo's own bottom edge, where the closed outline runs along it) are clipped, and the rest of it, opaque to there, is covered by the taller foot over it. The figure is never faded: only the foot, the page's colour over it, darkens it.
+        On the tablet widths (`sm` up to `lg`) it is stood by its eyes instead: its top is where puts its eyes (`--eye`, a share of its height, from `eyeLine`) on the stage's `--eye-line`, so every face is on one line down the stage, clear above the cluster, whatever the cut's headroom; its lower end is no longer past the stage's bottom, so the last 6px of its box (the photo's own bottom edge) are clipped, and the rest of it, opaque to there, is covered by the taller foot over it. The figure is never faded: only the foot, the page's colour over it, darkens it.
         A tear (a person with no cut) is a strip across the whole photo, so it spans the core's width, as it spans a card's, with its strip at the height of a cut's head.
       */}
       <div className="pointer-events-none absolute inset-y-0 [container-type:inline-size]" style={core}>
@@ -135,9 +119,9 @@ export function PanelParts({
           className={tear ? "absolute inset-x-0 top-[calc(38%_+_var(--fig-drop))] aspect-[2/3] -translate-y-[42%]" : `absolute bottom-[calc(-3%_-_var(--fig-drop))] aspect-[2/3] h-[min(90%,165cqw)] max-sm:bottom-[calc(100%_-_var(--line-y))] sm:max-lg:bottom-auto sm:max-lg:top-[calc(var(--eye-line)_-_var(--eye)_*_min(90%,165cqw))] sm:max-lg:[clip-path:inset(-20%_-60%_6px_-60%)] ${slot === 0 ? "-translate-x-1/2" : "translate-x-1/2"}`}
           style={
             tear
-              ? // The strip fades out toward the seam, where the headline is, so it never sits under the copy; in the wide layout its outer end fades too, as the photo ends there and the montage goes on.
+              ? // The strip fades out toward the seam, where the headline is, so it never sits under the copy, and at its outer end too, as the photo ends there and the montage goes on.
                 {
-                  maskImage: `linear-gradient(to ${slot === 0 ? "right" : "left"}, ${wide ? "transparent, #000 9%, #000 58%" : "#000 58%"}, transparent 97%)`,
+                  maskImage: `linear-gradient(to ${slot === 0 ? "right" : "left"}, transparent, #000 9%, #000 58%, transparent 97%)`,
                 }
               : ({ [slot === 0 ? "left" : "right"]: FIGURE_CENTRE, "--eye": eye.toFixed(4) } as CSSProperties)
           }
@@ -153,8 +137,7 @@ export function PanelParts({
                 profilePath={person.profilePath}
                 imageSize={PERSON_SIZE}
                 rounded={false}
-                outline={edge === "none" ? "none" : "color"}
-                frameEdge="closed"
+                outline="none"
                 className="absolute! inset-0 size-full"
               />
             </div>

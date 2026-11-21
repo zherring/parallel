@@ -8,8 +8,8 @@ import { defaultScene, type HeroPairing } from "@/lib/hero-scenes";
  * is the client's, revealed once its images are in.
  *
  * The section sets the stage's sizes, from the screen: its height fills what the bar leaves of the first screen, less a sliver of the next section (a
- * phone's is shorter, as the headline is under it there), the panels leave a gutter on each side (in the wide layout the halves run out over it) that the
- * timeline line runs on through, and a narrow seam divides them. Text is sized from these (the headline from the stage's width and height) so that nothing needs checking pair by pair.
+ * phone's is shorter, as the headline is under it there), a gutter on each side that the halves and the timeline line run out over to the screen's edge, and a narrow
+ * seam divides them. Text is sized from these (the headline from the stage's width and height) so that nothing needs checking pair by pair.
  */
 export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
   // The stage's first images come from TMDB's image host; open the connection early.

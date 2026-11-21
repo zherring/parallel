@@ -182,14 +182,6 @@ export function cutEdgePath(points: readonly CutPoint[], w: number, h: number): 
   return start === -1 ? `${d}Z` : d;
 }
 
-/**
- * The whole polygon's outline, closed: the segments along the frame's edge included, which `cutEdgePath` leaves out. For a portrait big enough that the
- * photo's own hard edge shows (the landing hero's), where the figure's outline running along it reads as the cut-out's own edge.
- */
-export function cutOutlinePath(points: readonly CutPoint[], w: number, h: number): string {
-  return `${points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${round(x * w)},${round(y * h)}`).join("")}Z`;
-}
-
 function round(value: number): number {
   return Math.round(value * 10) / 10;
 }

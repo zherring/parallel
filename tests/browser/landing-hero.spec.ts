@@ -293,7 +293,7 @@ test("only the action zone is a link: the faces, the montage and the headline ar
   const poster = posterBoxes[1];
   expect(await at(poster.x + poster.width / 2, poster.y + poster.height / 2)).toEqual({ inLink: true, cursor: "pointer" });
   expect(await at(centreX(names), centreY(names))).toEqual({ inLink: true, cursor: "pointer" });
-  // The zone's own empty part (over the panels, under the cluster's padding) is the link too.
+  // The zone's own empty part (over the halves, under the cluster's padding) is the link too.
   expect(await at(zone.x + 20, zone.y + 20)).toEqual({ inLink: true, cursor: "pointer" });
 
   // Clicks on the face, the headline and the empty corner go nowhere.
@@ -734,98 +734,62 @@ test.describe("the timeline's content is in a band centred on the seam, and the 
   });
 });
 
-test.describe("the variants", () => {
-  /** The figure, the first frame and the last, as boxes. */
-  const geometry = async (page: Page) => ({
-    figure: await box(stage(page).locator("[data-part='figure']").first()),
-    frameLeft: await box(stage(page).locator("[data-frame]").first()),
-    frameRight: await box(stage(page).locator("[data-frame]").last()),
-  });
-
-  test("edge=none (the default) draws no outline round the figures; ?edge=full strokes the whole outline, frame edges included", async ({ page }) => {
+test.describe("the halves and the figures", () => {
+  test("the figures have no outline: the cut is its own edge against the montage", async ({ page }) => {
     await page.goto("/");
     await expect(stageLink(page)).toBeVisible();
     await expect(stage(page).locator("[data-part='figure'] svg image").first()).toBeAttached();
     await expect(stage(page).locator("[data-part='figure'] svg path")).toHaveCount(0);
-
-    await page.goto("/?edge=full");
-    await expect(stageLink(page)).toBeVisible();
-    const paths = stage(page).locator("[data-part='figure'] svg path");
-    await expect.poll(() => paths.count()).toBeGreaterThan(0);
-    // The closed outline ends in a Z: it goes on along the photo's own frame edge where the cut meets it.
-    for (const d of await paths.evaluateAll((elements) => elements.map((element) => element.getAttribute("d")!))) expect(d.endsWith("Z")).toBe(true);
   });
 
-  test("layout=wide lets each half run out to the screen's edge, the figures stay where they are, and the keycaps and caps do not move", async ({ page }) => {
+  test("each half runs out to the screen's edge, a narrow seam between them, rounded only at the seam; the figures and the keycaps stand inside the gutters, and the line spans the whole width", async ({ page }) => {
     await page.goto("/");
     await ready(page);
     const viewport = page.viewportSize()!;
-    const panels = await geometry(page);
-    // Two inset panels, the seam between them.
-    expect(panels.frameLeft.x).toBeGreaterThan(20);
-    expect(viewport.width - (panels.frameRight.x + panels.frameRight.width)).toBeGreaterThan(20);
-    const prev = await box(stage(page).getByRole("button", { name: "Previous pairing", exact: true }));
-    const cap = await box(stage(page).locator("span.tabular-nums.text-strong").first());
-    const seam = panels.frameRight.x - (panels.frameLeft.x + panels.frameLeft.width);
+    const frames = stage(page).locator("[data-frame]");
+    const left = await box(frames.first());
+    const right = await box(frames.last());
+    // The halves are the screen's whole width, but for the narrow seam at the centre.
+    expect(Math.round(left.x)).toBe(0);
+    expect(Math.round(right.x + right.width)).toBe(viewport.width);
+    const seam = right.x - (left.x + left.width);
     expect(seam).toBeGreaterThan(0);
     expect(seam).toBeLessThanOrEqual(14);
+    expect(Math.abs(centreX({ x: left.x + left.width, width: seam }) - viewport.width / 2)).toBeLessThanOrEqual(1);
 
-    await page.goto("/?layout=wide");
-    await ready(page);
-    await expect(stage(page)).toHaveAttribute("data-layout", "wide");
-    const wide = await geometry(page);
-    expect(Math.round(wide.frameLeft.x)).toBe(0);
-    expect(Math.round(wide.frameRight.x + wide.frameRight.width)).toBe(viewport.width);
-    // The same narrow seam at the centre.
-    expect(Math.abs(wide.frameRight.x - (wide.frameLeft.x + wide.frameLeft.width) - seam)).toBeLessThanOrEqual(1);
-    // The figure, the keycap and the cap are where they were.
-    expect(Math.abs(wide.figure.x - panels.figure.x)).toBeLessThanOrEqual(1);
-    expect(Math.abs(wide.figure.y - panels.figure.y)).toBeLessThanOrEqual(1);
-    expect(Math.abs(wide.figure.width - panels.figure.width)).toBeLessThanOrEqual(1);
-    const prevWide = await box(stage(page).getByRole("button", { name: "Previous pairing", exact: true }));
-    expect(Math.abs(prevWide.x - prev.x)).toBeLessThanOrEqual(1);
-    const capWide = await box(stage(page).locator("span.tabular-nums.text-strong").first());
-    expect(Math.abs(capWide.x - cap.x)).toBeLessThanOrEqual(1);
-    // The outer corners are the screen's, square; the corners at the seam stay rounded.
-    const radii = await stage(page).locator("[data-frame]").evaluateAll((frames) => ({
-      outerLeft: getComputedStyle(frames[0]).borderTopLeftRadius,
-      innerRight: getComputedStyle(frames[0]).borderTopRightRadius,
-      outerRight: getComputedStyle(frames[1]).borderTopRightRadius,
-      innerLeft: getComputedStyle(frames[1]).borderTopLeftRadius,
+    // The stage's decoration box is inset by the gutters, and the halves run out past it on their outer sides; what stands in it (the figures, the keycaps) is inset too.
+    const decoration = await box(frames.first().locator("xpath=.."));
+    expect(decoration.x).toBeGreaterThan(20);
+    expect(Math.abs(decoration.x + decoration.width - (viewport.width - decoration.x))).toBeLessThanOrEqual(1);
+    const prev = await box(stage(page).getByRole("button", { name: "Previous pairing", exact: true }));
+    const next = await box(stage(page).getByRole("button", { name: "Next pairing", exact: true }));
+    expect(Math.abs(prev.x - (decoration.x + 8))).toBeLessThanOrEqual(1);
+    expect(Math.abs(viewport.width - (next.x + next.width) - (decoration.x + 8))).toBeLessThanOrEqual(1);
+    const figures = stage(page).locator("[data-part='figure']");
+    const first = await box(figures.first());
+    const last = await box(figures.last());
+    expect(centreX(first)).toBeGreaterThan(decoration.x);
+    expect(centreX(first)).toBeLessThan(viewport.width / 2);
+    expect(centreX(last)).toBeGreaterThan(viewport.width / 2);
+    expect(centreX(last)).toBeLessThan(viewport.width - decoration.x);
+
+    // The outer corners are the screen's, square; the corners at the seam are rounded.
+    const radii = await frames.evaluateAll((elements) => ({
+      outerLeft: getComputedStyle(elements[0]).borderTopLeftRadius,
+      innerRight: getComputedStyle(elements[0]).borderTopRightRadius,
+      outerRight: getComputedStyle(elements[1]).borderTopRightRadius,
+      innerLeft: getComputedStyle(elements[1]).borderTopLeftRadius,
     }));
     expect(radii.outerLeft).toBe("0px");
     expect(radii.outerRight).toBe("0px");
     expect(radii.innerRight).not.toBe("0px");
     expect(radii.innerLeft).not.toBe("0px");
-    // The line spans the whole width.
+
+    // The line spans the whole width, and nothing makes the page scroll sideways.
     const line = await box(stage(page).locator("[data-line]"));
     expect(line.x).toBeLessThanOrEqual(1);
     expect(line.x + line.width).toBeGreaterThanOrEqual(viewport.width - 1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
-  });
-
-  test("the Variants control sets the query without a reload, and the stage follows", async ({ page }) => {
-    await page.goto("/");
-    await expect(stageLink(page)).toBeVisible();
-    // A marker that a reload would lose.
-    await page.evaluate(() => ((window as unknown as { __kept: boolean }).__kept = true));
-    const lab = page.getByRole("group", { name: "Variants", exact: true });
-    await expect(lab).toBeVisible();
-    await expect(lab.getByRole("button", { name: "none", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await expect(lab.getByRole("button", { name: "panels", exact: true })).toHaveAttribute("aria-pressed", "true");
-
-    await lab.getByRole("button", { name: "wide", exact: true }).click();
-    await expect(page).toHaveURL(/\?layout=wide$/);
-    await expect(stage(page)).toHaveAttribute("data-layout", "wide");
-    await lab.getByRole("button", { name: "full", exact: true }).click();
-    await expect(page).toHaveURL(/\?layout=wide&edge=full$/);
-    await expect.poll(() => stage(page).locator("[data-part='figure'] svg path").count()).toBeGreaterThan(0);
-    await lab.getByRole("button", { name: "panels", exact: true }).click();
-    await expect(stage(page)).toHaveAttribute("data-layout", "panels");
-    expect(await page.evaluate(() => (window as unknown as { __kept?: boolean }).__kept)).toBe(true);
-    // It does not sit over the dev server's badge (bottom left).
-    const labBox = await box(lab);
-    expect(labBox.x).toBeGreaterThan((page.viewportSize()!.width * 2) / 3);
   });
 });
 
@@ -1039,111 +1003,6 @@ test.describe("the genre pills are tabs of views", () => {
       await page.waitForTimeout(500);
       const after = await tiles.evaluateAll((elements) => elements.map((element) => [getComputedStyle(element).translate, getComputedStyle(element).rotate]));
       expect(after).toEqual(before);
-    });
-  });
-
-  test("the Variants control has a third toggle, Cards: cascade (the default), split and duo, each in the same box (a third of the card wide, its height tall), set by ?cards= and the control without a reload", async ({ page }) => {
-    await page.goto("/#classic");
-    const lab = page.getByRole("group", { name: "Variants", exact: true });
-    await expect(lab).toBeVisible();
-    const cards = page.locator("#pairings-panel-classic [data-landing-card]");
-    const card = cards.first();
-    await expect(card.locator("[data-card-tile]")).toHaveCount(2);
-    await page.evaluate(() => ((window as unknown as { __kept: boolean }).__kept = true));
-    const cardsGroup = lab.getByRole("group", { name: "Cards", exact: true });
-    await expect(cardsGroup.getByRole("button", { name: "cascade", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await expect(card.locator("[data-card-portraits]")).toHaveAttribute("data-card-variant", "cascade");
-    const cell = async () => box(card.locator("[data-card-cell]"));
-    const rest = await cell();
-
-    for (const variant of ["split", "duo", "cascade"] as const) {
-      await cardsGroup.getByRole("button", { name: variant, exact: true }).click();
-      await expect(page).toHaveURL(variant === "cascade" ? /\?cards=cascade#classic$/ : new RegExp(`\\?cards=${variant}#classic$`));
-      await expect(card.locator("[data-card-portraits]")).toHaveAttribute("data-card-variant", variant);
-      await expect(card.locator("[data-card-tile]")).toHaveCount(2);
-      // Same footprint: the box is the same, and what is drawn is inside it (the pair, a tile of the people, the standing figures).
-      expect(await cell()).toEqual(rest);
-      const inside = await card.evaluate((element) => {
-        const box = element.querySelector("[data-card-cell]")!.getBoundingClientRect();
-        return [...element.querySelectorAll("[data-card-tile]")].every((tile) => { const r = tile.getBoundingClientRect(); return r.left >= box.left - 6 && r.top >= box.top - 12 && r.right <= box.right + 6 && r.bottom <= box.bottom + 12; });
-      });
-      expect(inside).toBe(true);
-    }
-    expect(await page.evaluate(() => (window as unknown as { __kept?: boolean }).__kept)).toBe(true);
-    // The people stay in the pairing's order, in each.
-    const ids = [...(await card.getAttribute("href"))!.matchAll(/(\d+)-[^+/]+/g)].map((match) => match[1]);
-    for (const variant of ["split", "duo"] as const) {
-      await page.goto(`/?cards=${variant}#classic`);
-      const tiles = page.locator("#pairings-panel-classic [data-landing-card]").first().locator("[data-card-tile]");
-      await expect(tiles).toHaveCount(2);
-      expect([await tiles.nth(0).getAttribute("data-card-tile"), await tiles.nth(1).getAttribute("data-card-tile")]).toEqual(ids);
-    }
-  });
-
-  test("split: one square tile of A's cut-out over A's montage above a thin seam at a slight angle and B's below it; hover widens the seam and moves each half 1.5px apart. duo: the cut-outs stand bare side by side, B in front, on a shared backdrop that melts into the card, and lean 2px apart on hover", async ({ page }) => {
-    await page.goto("/?cards=split#classic");
-    let card = page.locator("#pairings-panel-classic [data-landing-card]").first();
-    const halves = card.locator("[data-card-tile]");
-    await expect(halves).toHaveCount(2);
-    await page.waitForTimeout(500);
-    const clipOf = () => halves.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).clipPath));
-    const shifts = () => halves.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).translate));
-    const rest = await clipOf();
-    expect(rest[0]).toContain("polygon(");
-    expect(rest[0]).not.toBe(rest[1]);
-    expect(await shifts()).toEqual(["none", "none"]);
-    // Each half has its person's montage (posters) behind a cut-out.
-    for (let i = 0; i < 2; i++) {
-      expect(await halves.nth(i).locator("img").count()).toBeGreaterThanOrEqual(6);
-      await expect(halves.nth(i).locator("svg image").first()).toBeAttached();
-    }
-    // The tile is square, with rounded corners.
-    const tile = await box(halves.first().locator("xpath=.."));
-    expect(Math.abs(tile.width - tile.height)).toBeLessThanOrEqual(1);
-    await card.hover();
-    await expect.poll(async () => (await shifts())[0]).toBe("-1.5px -1.5px");
-    expect((await shifts())[1]).toBe("1.5px 1.5px");
-    await expect.poll(async () => (await clipOf())[0]).not.toBe(rest[0]);
-
-    await page.goto("/?cards=duo#classic");
-    card = page.locator("#pairings-panel-classic [data-landing-card]").first();
-    const figures = card.locator("[data-card-tile]");
-    await expect(figures).toHaveCount(2);
-    await page.waitForTimeout(500);
-    // Bare: no montage images, no rectangle of their own; a gradient backdrop of their two colours behind them, and the card's colour over the bottom of them (nothing masked or faded).
-    await expect(figures.first().locator("img")).toHaveCount(0);
-    for (let i = 0; i < 2; i++) {
-      expect(await figures.nth(i).evaluate((node) => ({ mask: getComputedStyle(node).maskImage, opacity: getComputedStyle(node).opacity }))).toEqual({ mask: "none", opacity: "1" });
-    }
-    const a = await box(figures.nth(0));
-    const b = await box(figures.nth(1));
-    expect(b.x).toBeGreaterThan(a.x + a.width * 0.4);
-    expect(b.x).toBeLessThan(a.x + a.width * 0.85);
-    expect(Math.abs(a.y + a.height - (b.y + b.height))).toBeLessThanOrEqual(1);
-    expect(await card.evaluate((element) => element.querySelector("[data-card-portraits] > div:first-child")!.getAttribute("style")!)).toContain("linear-gradient(to right");
-    const leans = () => figures.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).translate));
-    expect(await leans()).toEqual(["0px", "0px"]);
-    await card.hover();
-    await expect.poll(async () => (await leans())[0]).toBe("-2px");
-    expect((await leans())[1]).toBe("2px");
-  });
-
-  test.describe("with reduced motion", () => {
-    test.use({ reducedMotion: "reduce" });
-
-    test("split's and duo's halves and figures do not move on hover either", async ({ page }) => {
-      for (const variant of ["split", "duo"]) {
-        await page.goto(`/?cards=${variant}#classic`);
-        const card = page.locator("#pairings-panel-classic [data-landing-card]").first();
-        const tiles = card.locator("[data-card-tile]");
-        await expect(tiles).toHaveCount(2);
-        await page.waitForTimeout(400);
-        const look = () => tiles.evaluateAll((elements) => elements.map((element) => [getComputedStyle(element).translate, getComputedStyle(element).clipPath]));
-        const before = await look();
-        await card.hover();
-        await page.waitForTimeout(500);
-        expect(await look()).toEqual(before);
-      }
     });
   });
 

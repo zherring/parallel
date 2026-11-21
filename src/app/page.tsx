@@ -5,7 +5,6 @@ import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { LandingBar } from "@/components/landing/landing-bar";
 import { Pairings } from "@/components/landing/pairings";
-import { VariantsLab } from "@/components/landing/variants-lab";
 import { buildGenreSections, buildHeroPairings } from "@/lib/example-cards";
 import { GENRE_ROOT } from "@/lib/genre-deep-link";
 import { heroPool } from "@/lib/hero-scenes";
@@ -38,7 +37,6 @@ export default function Home() {
         <GenreOnly>
           <HowItWorks />
         </GenreOnly>
-        <VariantsLab />
       </div>
     </GenreTabsProvider>
   );

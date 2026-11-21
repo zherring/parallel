@@ -6,17 +6,17 @@ import { YearTick } from "@/components/timeline/year-tick";
 import { axisFraction, dotScale, labelYears, type Strip } from "@/lib/hero-layout";
 
 /**
- * The one timeline line of the product, a 1px white line at the stage's `--line-y`, running over both halves and on past them `--reach` (the gutters of the
- * "panels" layout, the whole way to the screen's edge in "wide"), fading to nothing at both ends over `--fade`: the mask is opaque from there in, so over the
- * panels it reads against the montage and only the ends carry the fade. The first reveal draws it outward from the middle (`drawLine`, which finds it by
- * `data-line`). It never moves after that. Its parent is the stage's decoration box (hero-stage.tsx `Backdrop`), whose box is the panels', hence the negative inset.
+ * The one timeline line of the product, a 1px white line at the stage's `--line-y`, running over both halves and on past the stage's decoration box (`--core-pad`
+ * each side) the whole way to the screen's edge, fading to nothing at both ends over 56px: the mask is opaque from there in, so over the montage it reads
+ * and only the ends carry the fade. The first reveal draws it outward from the middle (`drawLine`, which finds it by `data-line`). It never moves after that.
+ * Its parent is the stage's decoration box (hero-stage.tsx `Backdrop`), which is inset from the screen by `--core-pad`, hence the negative inset.
  */
 export function TimelineLine() {
   return (
     <div
       data-line=""
       aria-hidden="true"
-      className="pointer-events-none absolute -inset-x-(--reach) top-(--line-y) h-px -translate-y-1/2 bg-white/60 [mask-image:linear-gradient(to_right,transparent,#000_var(--fade),#000_calc(100%-var(--fade)),transparent)]"
+      className="pointer-events-none absolute -inset-x-(--core-pad) top-(--line-y) h-px -translate-y-1/2 bg-white/60 [mask-image:linear-gradient(to_right,transparent,#000_56px,#000_calc(100%-56px),transparent)]"
     />
   );
 }

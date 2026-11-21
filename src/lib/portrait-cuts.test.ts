@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { personColorCss, personHex } from "@/lib/person-colors";
-import { PORTRAIT_PALETTE, cutEdgePath, cutOutlinePath, pairPortraitColors, portraitPersonHexes, type CutPoint } from "@/lib/portrait-cuts";
+import { PORTRAIT_PALETTE, cutEdgePath, pairPortraitColors, portraitPersonHexes, type CutPoint } from "@/lib/portrait-cuts";
 
 describe("PORTRAIT_PALETTE", () => {
   it("has no green: the app's green means the films they share, never one person", () => {
@@ -75,7 +75,7 @@ describe("portraitPersonHexes", () => {
   });
 });
 
-describe("cutEdgePath and cutOutlinePath", () => {
+describe("cutEdgePath", () => {
   // A figure cut off by the bottom of the photo and by its right side: the polygon runs along the frame there.
   const points: CutPoint[] = [
     [0.2, 1],
@@ -91,13 +91,5 @@ describe("cutEdgePath and cutOutlinePath", () => {
     expect(open).not.toContain("Z");
     expect(open.match(/M/g)).toHaveLength(1);
     expect(open).toContain("L100,100");
-  });
-
-  it("closes the whole polygon for the outline the landing hero asks for, the frame's segments included", () => {
-    const closed = cutOutlinePath(points, 100, 200);
-    expect(closed).toBe("M20,200L30,40L70,40L100,100L100,200Z");
-    // One closed path: it goes on along the right side and the bottom, which the open edge stops short of.
-    expect(closed.match(/M/g)).toHaveLength(1);
-    expect(closed.endsWith("Z")).toBe(true);
   });
 });
