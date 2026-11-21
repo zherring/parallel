@@ -749,16 +749,16 @@ test.describe("the foot is 84% of a half at every width; at tablet widths (sm up
     });
   }
 
-  // The foot's stops, as shares of its height from the bottom (hero-parts.tsx `FOOT`): the page's colour is more than 40% of what is drawn up to 55% of the foot's height.
+  // The foot's stops, as shares of its height from the bottom (hero-parts.tsx `FOOT`): the page's colour is more than 40% of what is drawn up to 40% of the foot's height (the faces, above it, get half of what they got: 100, 93, 75, 47, 25, 15, 7 and 0% at 0, 14, 24, 36, 50, 65, 78 and 100%).
   for (const [width, height] of [[390, 844], [1440, 900], [1920, 1080]] as const) {
-    test(`at ${width}px the names, the line with its dots and caps and the posters are above the foot and stand in the part of it that is more than 40% the page's colour`, async ({ page }) => {
+    test(`at ${width}px the names, the line with its dots and caps and the posters are above the foot and stand in the lowest 40% of it, where it is more than 40% the page's colour`, async ({ page }) => {
       await page.setViewportSize({ width, height });
       await page.goto("/");
       await ready(page);
       const frame = await box(stage(page).locator("[data-frame]").first());
       const foot = await box(stage(page).locator("[data-part='foot']").first());
       expect(Math.abs(foot.height / frame.height - 0.84), `${width}px`).toBeLessThanOrEqual(0.005);
-      const dense = foot.y + foot.height * (1 - 0.55);
+      const dense = foot.y + foot.height * (1 - 0.4);
       // Each piece is in the stage's decoration or its link, both after the halves (and so over their foot) in the markup; and its top is in the denser part.
       const pieces = {
         names: await box(stage(page).locator("[data-names]")),
@@ -774,6 +774,32 @@ test.describe("the foot is 84% of a half at every width; at tablet widths (sm up
       })).toBe(true);
     });
   }
+
+  test("the foot's strength: the bottom as it was (100% at the bottom, 93% at 14% of its height) and half of what it was over the faces (47% at 36%, 25% at 50%), easing out to nothing at the top, at every width", async ({ page }) => {
+    for (const [width, height] of [[390, 844], [768, 1024], [1440, 900]] as const) {
+      await page.setViewportSize({ width, height });
+      await page.goto("/");
+      await ready(page);
+      // The browser reports the colour mixes in its own space: read each stop's alpha by painting the foot's image on a probe. Here, the stops as written (the gradient's text).
+      const image = await stage(page).locator("[data-part='foot']").first().evaluate((element) => getComputedStyle(element).backgroundImage);
+      const stops = [...image.matchAll(/(oklab|rgba?|color)\([^)]*\)\s*([\d.]+%)?/g)].map((match) => ({ colour: match[0], at: match[2] }));
+      // 8 stops: the page colour, six mixes and the transparent end.
+      expect(stops.length, `${width}px: ${image}`).toBeGreaterThanOrEqual(8);
+      // Alpha of each by position: read where the colour has one (`/ 0.93`), else it is the page's colour (1) or transparent (0).
+      const alphas = stops.map(({ colour }) => (colour.includes("/") ? parseFloat(colour.split("/")[1]) : colour.startsWith("rgba(") ? parseFloat(colour.split(",")[3]) : 1));
+      const positions = stops.map(({ at }) => (at ? parseFloat(at) : null));
+      const want: [number, number][] = [[14, 0.93], [24, 0.75], [36, 0.47], [50, 0.25], [65, 0.15], [78, 0.07]];
+      for (const [position, alpha] of want) {
+        const index = positions.indexOf(position);
+        expect(index, `${width}px: a stop at ${position}% in ${image}`).toBeGreaterThan(0);
+        expect(alphas[index], `${width}px at ${position}%`).toBeCloseTo(alpha, 2);
+      }
+      expect(alphas[0]).toBe(1);
+      expect(alphas[alphas.length - 1]).toBe(0);
+      // Never rising: the foot only eases out from the bottom up.
+      for (let i = 1; i < alphas.length; i++) expect(alphas[i], `${width}px stop ${i}`).toBeLessThanOrEqual(alphas[i - 1]);
+    }
+  });
 
   test("a scene change brings the incoming panel's foot in at once, over its figure: the foot is not faded in, nor the old one out", async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 960 });

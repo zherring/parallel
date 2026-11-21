@@ -38,10 +38,16 @@ const TOP_SHADE =
 
 /**
  * The foot: the page's canvas colour rising from the half's bottom, over the montage and the figure alike, so that the figure's lower body, the photo's hard
- * bottom edge and the montage all melt into the page. Its stops ease out (no visible start); the timeline, the posters and the names sit above it. Its height
- * is the stage's `--foot-h` (hero-stage.tsx: one value, 84% of the half's height, at every width), and the stops are shares of that, so the easing is the same at any.
+ * bottom edge and the montage all melt into the page. The timeline, the posters and the names sit above it. Its height is the stage's `--foot-h` (hero-stage.tsx: one value, 84% of the half's
+ * height, at every width), and the stops are shares of that, so the easing is the same at any.
+ *
+ * Its strength is the page colour's share at each stop. The bottom, where the names, the line with its dots and caps, "+N more", the phone's cue and the keycaps are and where the photo's bottom
+ * edge is, is as it always was: 100% at the bottom, 93% at 14% of the foot's height (the line is at 14 to 21% of it, the names under it). Above that the faces are (their eyes are at 35 to 65% of it
+ * at every width), where the foot is now half what it was: the old stops (100, 93, 74, 42, 14, 0% at 0, 14, 33, 55, 78, 100%) times a weight that eases (a smoothstep) from 1 at 14% to one half at 50% and
+ * stays at one half above it, read at 24, 36, 50, 65 and 78% (more stops than before, so the curve stays smooth where it bends): 75, 47, 25, 15 and 7%, then nothing at the top. The face is half as covered
+ * (25% where it was 49% at the middle of the faces' range) and the page colour is still over 40% of what is drawn to 40% of the foot's height (it was to 55%).
  */
-const FOOT = `linear-gradient(to top, var(--bg), color-mix(in srgb, var(--bg) 93%, transparent) 14%, color-mix(in srgb, var(--bg) 74%, transparent) 33%, color-mix(in srgb, var(--bg) 42%, transparent) 55%, color-mix(in srgb, var(--bg) 14%, transparent) 78%, transparent)`;
+const FOOT = `linear-gradient(to top, var(--bg), color-mix(in srgb, var(--bg) 93%, transparent) 14%, color-mix(in srgb, var(--bg) 75%, transparent) 24%, color-mix(in srgb, var(--bg) 47%, transparent) 36%, color-mix(in srgb, var(--bg) 25%, transparent) 50%, color-mix(in srgb, var(--bg) 15%, transparent) 65%, color-mix(in srgb, var(--bg) 7%, transparent) 78%, transparent)`;
 
 /**
  * The person's side of the stage: the montage of their films' posters (the look `TreatedPortrait` gives behind a cut: the same `duotoneMatrix` filter
