@@ -273,11 +273,11 @@ function Action({ items, reduced, onGone }: { items: readonly Item[]; reduced: b
         {/*
           The names, one label under the line, centred on the seam: "A & B", the "&" on the seam and the names balanced on either side of it (a grid of two equal columns round
           it, A against it on its left and B on its right), on one line. Each name is a piece of its own, so a swap of one person slides only their name; a column holds the leaving name
-          and the arriving one in the same place. Under the names is the cue's line (`CueCall`), where a click goes: hidden until the cue (hero-cue.css), and on a phone, which has no room under
-          its names for it, not there.
+          and the arriving one in the same place. Under the names is the cue's line (`CueCall`), where a click goes: hidden until the cue (hero-cue.css), and on a touch screen, which has no
+          hover, always there.
           On a phone the row under the line is in thirds of the screen: Previous (stage level, outside the link) centred in the left, this block in the middle third and Next in the right. The block is
           a box of the row's height (`--row-body`, hero.tsx: room for the longest wrap) and its content is centred in it, so the keycaps, centred on the same box, are centred on the names whatever they
-          wrap to. The names wrap in the third (A on the first line, "& B" on the second, each wrapped further when it does not fit, at the size `--name-fs`).
+          wrap to. The names wrap in the third (A on the first line, "& B" on the second, each wrapped further when it does not fit, at the size `--name-fs`), and the cue's line under them.
         */}
         <div data-names-row="" className="absolute left-1/2 top-[calc(var(--line-y)+22px)] flex h-(--row-body) w-[calc(100cqw/3)] -translate-x-1/2 flex-col items-center justify-center sm:inset-x-0 sm:block sm:h-auto sm:w-auto sm:translate-x-0">
           <div data-names="" className="flex flex-col items-center text-center text-[length:var(--name-fs)] font-semibold leading-[1.15] tracking-[-0.02em] text-white [overflow-wrap:anywhere] [text-shadow:0_1px_14px_rgb(0_0_0/0.65)] sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-baseline sm:gap-x-[0.45em] sm:text-[length:clamp(16px,1.6vw,24px)] sm:[overflow-wrap:normal]">
@@ -291,8 +291,8 @@ function Action({ items, reduced, onGone }: { items: readonly Item[]; reduced: b
               <NameColumn slot={1} names={names} reduced={reduced} onGone={onGone} />
             </div>
           </div>
-          {/* From `sm` up the line is under the names' box (12px; they are one line), centred on the stage; on a phone there is none. */}
-          <div className="hidden justify-items-center sm:absolute sm:inset-x-0 sm:top-full sm:mt-3 sm:grid">
+          {/* From `sm` up the line is under the names' box (12px; they are one line), centred on the stage; on a phone it is in the block's flow, a gap under them. */}
+          <div className="mt-(--row-gap) grid justify-items-center sm:absolute sm:inset-x-0 sm:top-full sm:mt-3">
             {labels.map((item) => (
               <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="col-start-1 row-start-1">
                 <CueCall count={item.pairing.sharedCount} />

@@ -17,7 +17,7 @@ import { defaultScene, type HeroPairing } from "@/lib/hero-scenes";
  * the halves' height (`--scene-h`: the line is 82% of it, and the halves end there); on a phone the stage is the scene and, if it has not room for them under the line, the names row
  * too, which hangs below the halves on the page's own colour (`--stage-h`: `--row-h` is that row, from the names' size, `--name-fs`: a third of the screen's width over 9em, up to 16px, 9em
  * being the widest word of a name in the pool, "Schwarzenegger" (7.96em of the font), beside the "&" and its gap (0.97em), so that a name wraps in its third but never inside a word;
- * and the room for the longest wrap: four lines of names).
+ * and the room for the longest wrap: four lines of names and two of the cue).
  * From `sm` up the stage is the scene, as before.
  */
 export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
@@ -30,7 +30,7 @@ export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
   return (
     <section
       aria-labelledby="hero-heading"
-      className="relative flex flex-col overflow-x-clip [--gutter:clamp(12px,5vw,88px)] [--seam:6px] [--stage-h0:max(400px,min(64svh,560px))] [--head-h:calc(20px+2*1.05*34px+12px+3*1.625*15px+8px)] max-[319px]:[--head-h:calc(20px+3*1.05*34px+12px+4*1.625*15px+8px)] [--fig-h:calc(1.5*min(0.9*var(--stage-h0),1.65*(50vw-var(--seam)/2-var(--gutter))))] [--scene-h:max(var(--stage-h0),calc((var(--head-h)+var(--fig-h))/1.03))] [--name-fs:clamp(11px,calc(100vw/27),16px)] [--row-body:calc(4*1.15*var(--name-fs))] [--row-h:calc(22px+var(--row-body)+10px)] [--stage-h:max(var(--scene-h),calc(0.82*var(--scene-h)+var(--row-h)))] sm:[--seam:12px] sm:[--scene-h:var(--stage-h)] sm:[--stage-h:clamp(540px,calc(100svh-84px),880px)]"
+      className="relative flex flex-col overflow-x-clip [--gutter:clamp(12px,5vw,88px)] [--seam:6px] [--stage-h0:max(400px,min(64svh,560px))] [--head-h:calc(20px+2*1.05*34px+12px+3*1.625*15px+8px)] max-[319px]:[--head-h:calc(20px+3*1.05*34px+12px+4*1.625*15px+8px)] [--fig-h:calc(1.5*min(0.9*var(--stage-h0),1.65*(50vw-var(--seam)/2-var(--gutter))))] [--scene-h:max(var(--stage-h0),calc((var(--head-h)+var(--fig-h))/1.03))] [--name-fs:clamp(11px,calc(100vw/27),16px)] [--cue-fs:calc(var(--name-fs)*0.9)] [--row-gap:6px] [--row-body:calc(4*1.15*var(--name-fs)+var(--row-gap)+2*1.25*var(--cue-fs))] [--row-h:calc(22px+var(--row-body)+10px)] [--stage-h:max(var(--scene-h),calc(0.82*var(--scene-h)+var(--row-h)))] sm:[--seam:12px] sm:[--scene-h:var(--stage-h)] sm:[--stage-h:clamp(540px,calc(100svh-84px),880px)]"
     >
       {/*
         First in the markup (it is what the section is named by), over the seam on a screen wide enough, across the top of the stage on a phone (its box is `--head-h` high, which the stage's height has room for). Its box lets the pointer through to what is

@@ -1230,17 +1230,21 @@ test.describe("the genre pills are tabs of views", () => {
   });
 });
 
-/** The phone's names row (hero.tsx `--name-fs`, `--row-body`, `--row-h`): the names' size from the width of a third of the screen, and the height of the row, which is 22px under the line and has room for four lines of names. */
+/** The phone's names row (hero.tsx `--name-fs`, `--cue-fs`, `--row-body`, `--row-h`): the names' size from the width of a third of the screen, and the height of the row, which is 22px under the line and has room for four lines of names and two of the cue. */
 function phoneRow(width: number) {
   const nameFs = Math.min(16, Math.max(11, width / 27));
-  const body = 4 * 1.15 * nameFs;
-  return { nameFs, body, height: 22 + body + 10 };
+  const cueFs = nameFs * 0.9;
+  const body = 4 * 1.15 * nameFs + 6 + 2 * 1.25 * cueFs;
+  return { nameFs, cueFs, body, height: 22 + body + 10 };
 }
 
-/** Where the names are, as the block the keycaps are level with. */
+/** Where the cue's line, and the names, are, as one block (the names and the cue under them), for the keycaps' row. */
 async function namesBlock(page: Page) {
   const names = await box(stage(page).locator("[data-names]"));
-  return { top: names.y, bottom: names.y + names.height, centre: names.y + names.height / 2, names };
+  const cue = await box(cueLine(page));
+  const top = Math.min(names.y, cue.y);
+  const bottom = Math.max(names.y + names.height, cue.y + cue.height);
+  return { top, bottom, centre: (top + bottom) / 2, names, cue };
 }
 
 test.describe("on a phone", () => {
@@ -1266,11 +1270,12 @@ test.describe("on a phone", () => {
     expect(b.y + b.height).toBeLessThanOrEqual(stageBox.y + stageBox.height);
   });
 
-  test("a touch screen gets no cue: no line under the names, and the stage is only a link", async ({ page }) => {
+  test("a touch screen has no hover, so the cue's line is always there, still, under the names, and the stage is only a link", async ({ page }) => {
     await page.goto("/");
     await ready(page);
+    expect(await page.evaluate(() => matchMedia("(hover: none)").matches)).toBe(true);
     expect(await cueOn(page)).toBe(false);
-    await expect(cueLine(page)).toBeHidden();
+    await expect(cueLine(page)).toBeVisible();
     await expect(stageLink(page)).toHaveCount(1);
   });
 
@@ -1329,8 +1334,10 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
           // Under the timeline, never over the faces or the cluster above it, and level with the names' block.
           expect(key.y).toBeGreaterThan(lineY);
           expect(Math.abs(centreY(key) - block.centre)).toBeLessThanOrEqual(1.5);
-          // Not on the names: the keycap's box is clear of the names'.
-          expect(key.x + key.width <= block.names.x || block.names.x + block.names.width <= key.x).toBe(true);
+          // Not on the names: the keycap's box is clear of the names' and the cue's.
+          for (const text of [block.names, block.cue]) {
+            expect(key.x + key.width <= text.x || text.x + text.width <= key.x).toBe(true);
+          }
         }
         expect(Math.abs(centreX(prev) - width / 6)).toBeLessThanOrEqual(1);
         expect(Math.abs(centreX(next) - (width * 5) / 6)).toBeLessThanOrEqual(1);
@@ -1369,7 +1376,7 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
         await expect.poll(() => stageLink(page).getAttribute("aria-label")).not.toBe(third);
       });
 
-      test("the longest names wrap inside the middle third, never inside a word, and the row (keycaps level with it) holds them within the stage", async ({ page }) => {
+      test("the longest names wrap inside the middle third, never inside a word, and the row (keycaps level with it) holds them and the cue's line within the stage", async ({ page }) => {
         await page.goto("/");
         await ready(page);
         // Whatever scene it is, the names are set to the worst wraps of the pool: three words and a three-word name (4 lines), then the longest single word beside the "&".
@@ -1413,6 +1420,59 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
       });
     });
   }
+});
+
+/** The cue's line on a device with no hover, at the width of a phone and of a tablet held upright: always there, still, and clear of everything round it. */
+test.describe("a touch screen shows the cue's line under the names, still, and a hover-capable one shows it only on hover", () => {
+  for (const [width, height] of [[390, 844], [768, 1024]] as const) {
+    test.describe(`touch at ${width}px`, () => {
+      test.use({ viewport: { width, height }, hasTouch: true, isMobile: true });
+
+      test("it is visible without a hover, reads the pair's count, is inside the link under the names, and does not move or fade", async ({ page }) => {
+        await page.goto("/");
+        await ready(page);
+        expect(await page.evaluate(() => matchMedia("(hover: none)").matches)).toBe(true);
+        const count = Number((await stageLink(page).getAttribute("aria-label"))!.match(/: (\d+) films? together$/)![1]);
+        const line = cueLine(page);
+        await expect(line).toBeVisible();
+        await expect(line).toHaveText(`See all ${count} films together →`);
+        await expect(stageLink(page).locator("[data-cue-cta]")).toHaveCount(1);
+        const look = await line.evaluate((element) => {
+          const css = getComputedStyle(element);
+          return { opacity: css.opacity, translate: css.translate, transition: css.transitionProperty, arrow: getComputedStyle(element.querySelector("[data-cue-arrow]")!).animationName };
+        });
+        expect(look.opacity).toBe("1");
+        expect(look.translate).toBe("none");
+        expect(look.transition).toBe("none");
+        expect(look.arrow).toBe("none");
+        const block = await namesBlock(page);
+        expect(block.cue.y).toBeGreaterThanOrEqual(block.names.y + block.names.height);
+        expect(Math.abs(centreX(block.cue) - width / 2)).toBeLessThanOrEqual(2);
+        // Inside the stage and the link, and clear of the keycaps and the "+N more" pill above.
+        const stageBox = await box(stage(page));
+        const link = await box(stageLink(page));
+        expect(block.cue.y + block.cue.height).toBeLessThanOrEqual(stageBox.y + stageBox.height);
+        expect(block.cue.x).toBeGreaterThanOrEqual(link.x);
+        expect(block.cue.x + block.cue.width).toBeLessThanOrEqual(link.x + link.width);
+        const others = [
+          await box(stage(page).getByRole("button", { name: "Previous pairing", exact: true })),
+          await box(stage(page).getByRole("button", { name: "Next pairing", exact: true })),
+          ...(await stage(page).getByText(/^\+\d+/).filter({ visible: true }).evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON() as { x: number; y: number; width: number; height: number }))),
+        ];
+        for (const other of others) {
+          const apart = block.cue.x + block.cue.width <= other.x || other.x + other.width <= block.cue.x || block.cue.y + block.cue.height <= other.y || other.y + other.height <= block.cue.y;
+          expect(apart).toBe(true);
+        }
+      });
+    });
+  }
+
+  test("on a desktop, which can hover, it is hidden at rest", async ({ page }) => {
+    await page.goto("/");
+    await ready(page);
+    expect(await page.evaluate(() => matchMedia("(hover: none)").matches)).toBe(false);
+    expect(await opacityOf(cueLine(page))).toBe("0");
+  });
 });
 
 /**
