@@ -122,6 +122,27 @@ describe("applyTransition", () => {
     }
   });
 
+  it("tells each name for a phone as the pair's family names, and a person who stays is told again by their new partner (a shared family name), the same item otherwise", () => {
+    const named = (id: number, name: string): HeroPerson => ({ id, name, profilePath: `/p${id}.jpg` });
+    const pair = (a: HeroPerson, b: HeroPerson): HeroPairing => ({ ...pairing(a.id, b.id), key: `${Math.min(a.id, b.id)}+${Math.max(a.id, b.id)}`, people: [a, b] });
+    const lana = named(9339, "Lana Wachowski");
+    const lilly = named(9340, "Lilly Wachowski");
+    const keanu = named(6384, "Keanu Reeves");
+    const labels = (items: readonly Item[]) => names(items).map((item) => [item.slot, item.person.id, item.label]);
+    const start = initialState(sceneOf(pair(lana, keanu)), "idle");
+    expect(labels(start.items)).toEqual([[0, 9339, "Wachowski"], [1, 6384, "Reeves"]]);
+    // Lilly comes in beside Lana: the two share a family name, so Lana (who stays) is "Lana" now, in a new item of the same id, and Lilly "Lilly Wachowski".
+    const shared = applyTransition(start, { kind: "single", scene: sceneOf(pair(lana, lilly)), changed: [1], stayed: 0 });
+    expect(labels(shared.items.filter((item) => item.phase !== "leaving"))).toEqual([[0, 9339, "Lana"], [1, 9340, "Lilly Wachowski"]]);
+    expect(names(shared.items).find((item) => item.slot === 0)?.id).toBe(names(start.items)[0].id);
+    expect(names(shared.items).find((item) => item.slot === 0)?.phase).toBe("idle");
+    // And away from them again: Lana is "Wachowski" once more. A stay that changes nothing about the label is the very same item.
+    const apart = applyTransition(shared, { kind: "single", scene: sceneOf(pair(lana, keanu)), changed: [1], stayed: 0 });
+    expect(labels(apart.items.filter((item) => item.phase !== "leaving"))).toEqual([[0, 9339, "Wachowski"], [1, 6384, "Reeves"]]);
+    const other = applyTransition(start, { kind: "single", scene: sceneOf(pair(lana, named(1, "Roger Deakins"))), changed: [1], stayed: 0 });
+    expect(names(other.items)).toContain(names(start.items)[0]);
+  });
+
   it("on a full swap replaces both panels", () => {
     const before = start(3, 1);
     const next = applyTransition(before, transitionTo(before.scene, pairing(10, 11)));

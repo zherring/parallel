@@ -2,6 +2,7 @@ import { TIMING, type PanelMode } from "@/components/landing/hero-motion";
 import { decodedYears, yearAxis } from "@/lib/hero-layout";
 import type { HeroPairing, HeroPerson, HeroPoster, Scene, Slot, Transition } from "@/lib/hero-scenes";
 import { pairPortraitColors } from "@/lib/portrait-cuts";
+import { pairFamilyNames } from "@/lib/short-name";
 
 /**
  * What is on the landing hero's stage, as plain data (hero-stage.tsx draws it and `Motion` animates it): the pieces that come and go with a scene, and how a
@@ -38,6 +39,8 @@ export interface NameItem extends ItemBase {
   kind: "name";
   slot: Slot;
   person: HeroPerson;
+  /** What a phone's label says for this person (`pairFamilyNames`: the family name, or with a shared family name the given name, or the given name and the family name): from the scene's pair, so a person who stays is relabelled by their new partner. */
+  label: string;
 }
 /** The "&" of the names' label: it comes in with the first reveal and then stays, whatever the scene. */
 export interface AmpItem extends ItemBase {
@@ -90,11 +93,15 @@ const panelItem = (scene: Scene, slot: Slot, id: string, phase: Phase, delay: nu
   mode,
 });
 
+/** The phone's label of the person in `slot` of the scene: its family name, as the pair's two are told apart (`pairFamilyNames`). */
+const sceneLabel = (scene: Scene, slot: Slot): string => pairFamilyNames(scene.people[0], scene.people[1])[slot];
+
 const nameItem = (scene: Scene, slot: Slot, id: string, phase: Phase, delay: number, mode: PanelMode): NameItem => ({
   id,
   kind: "name",
   slot,
   person: scene.people[slot],
+  label: sceneLabel(scene, slot),
   phase,
   delay,
   mode,
@@ -155,7 +162,12 @@ export function applyTransition(state: State, transition: Transition): State {
 
   const items = state.items.map((item): Item => {
     if (item.phase === "leaving" || item.kind === "amp") return item;
-    if (item.kind === "name") return transition.changed.includes(item.slot) ? { ...item, phase: "leaving", delay: item.slot * TIMING.panelStagger, mode: "swap" } : item;
+    if (item.kind === "name") {
+      if (transition.changed.includes(item.slot)) return { ...item, phase: "leaving", delay: item.slot * TIMING.panelStagger, mode: "swap" };
+      // A person who stays keeps their name where it is (the very same item), unless the new partner changes how a phone says it (a shared family name: "Lana" beside "Lilly Wachowski").
+      const label = sceneLabel(scene, item.slot);
+      return label === item.label ? item : { ...item, label };
+    }
     if (item.kind !== "panel") return { ...item, phase: "leaving", delay: item.kind === "poster" ? item.slot * TIMING.posterLeaveStagger : 0 };
     if (transition.changed.includes(item.slot)) return { ...item, phase: "leaving", delay: item.slot * TIMING.panelStagger, mode: "swap" };
     if (item.color !== sceneColor(scene, item.slot)) {

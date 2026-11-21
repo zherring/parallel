@@ -1,4 +1,7 @@
 import type { Page } from "@playwright/test";
+import { buildHeroPairings } from "../../src/lib/example-cards";
+import { heroPool } from "../../src/lib/hero-scenes";
+import { pairFamilyNames } from "../../src/lib/short-name";
 import { test, expect } from "./fixtures";
 
 // The landing page's first screen: the sticky top bar (the wordmark, the search that opens the universal search, and the genre pills) over the stage (two portrait halves with
@@ -500,18 +503,26 @@ test.describe("with reduced motion", () => {
   });
 });
 
-/** The two names of the stage's label and its "&", from the link's name ("A and B: 6 films together"), as boxes. */
-async function nameBoxes(page: Page) {
+/**
+ * The two names of the stage's label and its "&", from the link's name ("A and B: 6 films together"), as boxes. `first` and `second` are the people's full names, which the link
+ * keeps at every width; the label shows them in full from `sm` up and, on a phone, their family names (`pairFamilyNames`): `shownFirst` and `shownSecond` are what is on the screen.
+ */
+async function nameBoxes(page: Page, { phone = false } = {}) {
   const label = (await stageLink(page).getAttribute("aria-label"))!;
   const [first, second] = label.replace(/: \d+ films? together$/, "").split(" and ");
+  const ids = [...(await stageLink(page).getAttribute("href"))!.matchAll(/(\d+)-/g)].map((match) => Number(match[1]));
+  const [shownFirst, shownSecond] = phone ? pairFamilyNames({ id: ids[0], name: first }, { id: ids[1], name: second }) : [first, second];
   const names = stage(page).locator("[data-names]");
+  const shown = (text: string) => names.getByText(text, { exact: true }).filter({ visible: true });
   return {
     first,
     second,
+    shownFirst,
+    shownSecond,
     container: names,
-    a: await box(names.getByText(first, { exact: true })),
-    amp: await box(names.getByText("&", { exact: true })),
-    b: await box(names.getByText(second, { exact: true })),
+    a: await box(shown(shownFirst)),
+    amp: await box(names.getByText("&", { exact: true }).filter({ visible: true })),
+    b: await box(shown(shownSecond)),
   };
 }
 
@@ -1257,7 +1268,7 @@ test.describe("on a phone", () => {
   test("the names wrap in the middle third: A on the first line and '& B' after it, centred, at a size from the width of a third", async ({ page }) => {
     await page.goto("/");
     await ready(page);
-    const { container, a, amp, b } = await nameBoxes(page);
+    const { container, a, amp, b } = await nameBoxes(page, { phone: true });
     const link = await box(stageLink(page));
     // A is above the "&" and B; the "&" is beside B, on its first line, and the lines are centred under the line.
     expect(a.y + a.height).toBeLessThanOrEqual(b.y + 2);
@@ -1282,6 +1293,46 @@ test.describe("on a phone", () => {
     await expect(cueLine(page)).toBeVisible();
     await expect(stageLink(page)).toHaveCount(1);
   });
+
+  test("the names are the family names, 'Anderson & Hoffman', and the link keeps the full names as its name", async ({ page }) => {
+    await page.goto("/");
+    await ready(page);
+    const { container, shownFirst, shownSecond } = await nameBoxes(page, { phone: true });
+    // What is on the screen is the family names, and nothing of the full names (they are the label's other text, hidden here, shown from `sm` up).
+    expect((await container.innerText()).replace(/\s+/g, " ").trim()).toBe(`${shownFirst} & ${shownSecond}`);
+    // The link is still named by the full names and the count, as on a desktop; the label is decoration (`aria-hidden`), so a screen reader hears the link's name and nothing of the label.
+    const fullNames = await container.evaluate((element) => [...element.querySelectorAll(".max-sm\\:hidden")].map((name) => name.textContent));
+    const label = (await stageLink(page).getAttribute("aria-label"))!;
+    const count = Number(label.match(/(\d+) films? together$/)![1]);
+    expect(label).toBe(`${fullNames[0]} and ${fullNames[1]}: ${count} ${count === 1 ? "film" : "films"} together`);
+    expect(await container.evaluate((element) => element.closest("[aria-hidden='true']") !== null)).toBe(true);
+    // Every scene the rotation shows is told in family names: step through a few, each label is what `pairFamilyNames` says for the link's two people.
+    for (let step = 0; step < 4; step++) {
+      await page.keyboard.press("ArrowRight");
+      await ready(page);
+      const now = await nameBoxes(page, { phone: true });
+      expect((await now.container.innerText()).replace(/\s+/g, " ").trim()).toBe(`${now.shownFirst} & ${now.shownSecond}`);
+    }
+  });
+
+  for (const [key, shown, full] of [
+    ["9339+9340", "Lana & Lilly Wachowski", "Lana Wachowski & Lilly Wachowski"],
+    ["1223+1224", "Joel & Ethan Coen", "Joel Coen & Ethan Coen"],
+  ] as const) {
+    test(`a pair that shares a family name reads '${shown}', never the family name twice; from sm up the full names are back (${key})`, async ({ page }) => {
+      const pool = heroPool(buildHeroPairings());
+      const index = pool.findIndex((pairing) => pairing.key === key);
+      expect(index, key).toBeGreaterThanOrEqual(0);
+      // The first scene is picked at random from the pool, uniformly: a generator that always says this much picks this pair.
+      await page.addInitScript((value) => (Math.random = () => value), (index + 0.5) / pool.length);
+      await page.goto("/");
+      await ready(page);
+      const names = stage(page).locator("[data-names]");
+      expect((await names.innerText()).replace(/\s+/g, " ").trim()).toBe(shown);
+      await page.setViewportSize({ width: 1000, height: 800 });
+      expect((await names.innerText()).replace(/\s+/g, " ").trim()).toBe(full);
+    });
+  }
 
   test("the headline is across the top of the stage, nothing overflows sideways, the cluster and its pill fit, and the pills scroll in their own row", async ({ page }) => {
     await page.goto("/");
@@ -1383,7 +1434,7 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
       test("the longest names wrap inside the middle third, never inside a word, and the row (keycaps level with it) holds them and the cue's line within the stage", async ({ page }) => {
         await page.goto("/");
         await ready(page);
-        // Whatever scene it is, the names are set to the worst wraps of the pool: three words and a three-word name (4 lines), then the longest single word beside the "&".
+        // Whatever scene it is, the names are set to the worst wraps of the pool's family-name labels: a shared family name (the Wachowskis: "Lana" and "Lilly Wachowski", three lines), a name with a particle, then the longest single word beside the "&".
         const measure = (names: readonly [string, string]) =>
           stage(page).evaluate((root, [first, second]) => {
             const row = root.querySelector<HTMLElement>("[data-names-row]")!;
@@ -1407,7 +1458,7 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
             slots.forEach((element, index) => (element.textContent = saved[index]));
             return out;
           }, names);
-        for (const names of [["Paul Thomas Anderson", "Philip Seymour Hoffman"], ["Arnold Schwarzenegger", "Schwarzenegger"]] as const) {
+        for (const names of [["Lana", "Lilly Wachowski"], ["del Toro", "van Hoytema"], ["Cameron", "Schwarzenegger"]] as const) {
           const got = await measure(names);
           for (const rect of got.text) {
             expect(rect.left).toBeGreaterThanOrEqual(width / 3 - 1);
@@ -1420,6 +1471,8 @@ test.describe("on a phone the keycaps are in the names' row, on either side of t
           }
           // The longest word is one line: it is not broken to fit.
           if (names[1] === "Schwarzenegger") expect(got.lines).toBe(1);
+          // The longest wraps go to three lines at the most.
+          expect(got.lines).toBeLessThanOrEqual(3);
         }
       });
     });

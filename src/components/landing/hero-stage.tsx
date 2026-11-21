@@ -144,7 +144,10 @@ const halfBox = (slot: 0 | 1): CSSProperties =>
 /** The halves' corners: only the ones at the seam are rounded, as the others are the screen's. */
 const halfCorners = (slot: 0 | 1) => (slot === 0 ? "rounded-r-[9px]" : "rounded-l-[9px]");
 
-/** One side of the names' label: the names of `slot` in one cell, so a leaving name and the one arriving are in the same place. A is against the "&" on its left (right-aligned), B on its right. */
+/**
+ * One side of the names' label: the names of `slot` in one cell, so a leaving name and the one arriving are in the same place. A is against the "&" on its left (right-aligned), B on its right.
+ * Each name is two texts, one shown at a time: the full name from `sm` up, and on a phone the family name (`item.label`, hero-items.ts). The label is decoration (`aria-hidden`): the stage's link is named by the full names.
+ */
 function NameColumn({ slot, names, reduced, onGone }: { slot: 0 | 1; names: readonly NameItem[]; reduced: boolean; onGone: (id: string) => void }) {
   return (
     <div className={`grid justify-items-center ${slot === 0 ? "sm:justify-items-end" : "sm:justify-items-start"}`}>
@@ -152,7 +155,8 @@ function NameColumn({ slot, names, reduced, onGone }: { slot: 0 | 1; names: read
         .filter((item) => item.slot === slot)
         .map((item) => (
           <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="col-start-1 row-start-1 sm:whitespace-nowrap">
-            {item.person.name}
+            <span className="sm:hidden">{item.label}</span>
+            <span className="max-sm:hidden">{item.person.name}</span>
           </Motion>
         ))}
     </div>
@@ -271,7 +275,7 @@ function Action({ items, reduced, onGone }: { items: readonly Item[]; reduced: b
         ))}
 
         {/*
-          The names, one label under the line, centred on the seam: "A & B", the "&" on the seam and the names balanced on either side of it (a grid of two equal columns round
+          The names, one label under the line, centred on the seam: "A & B" (on a phone their family names, "Anderson & Hoffman"; `NameColumn`), the "&" on the seam and the names balanced on either side of it (a grid of two equal columns round
           it, A against it on its left and B on its right), on one line. Each name is a piece of its own, so a swap of one person slides only their name; a column holds the leaving name
           and the arriving one in the same place. Under the names is the cue's line (`CueCall`), where a click goes: hidden until the cue (hero-cue.css), and on a touch screen, which has no
           hover, always there.

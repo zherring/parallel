@@ -135,6 +135,23 @@ export function headingNames(people: readonly HeadingPerson[], short = false): s
 }
 
 /**
+ * The two names of a pair as a phone's label sets them (the landing hero's: "Anderson" and "Hoffman", one on each side of the "&"): the family names. A pair that shares
+ * one ("Lana Wachowski" and "Lilly Wachowski", "Joel Coen" and "Ethan Coen") reads as the given names with the family name once, after the second ("Lana" & "Lilly Wachowski"),
+ * never "Wachowski & Wachowski". Where a given name cannot be told from the full name (a family name from the override table, or one with a suffix: "Park Chan-wook",
+ * "Robert Downey Jr.") or the two are alike, both keep their full names, as `headingNames` does.
+ */
+export function pairFamilyNames(a: HeadingPerson, b: HeadingPerson): [string, string] {
+  const familyA = shortName(a.name, a.id);
+  const familyB = shortName(b.name, b.id);
+  if (familyA !== familyB) return [familyA, familyB];
+  const given = (name: string, family: string) => (name.endsWith(` ${family}`) ? name.slice(0, -family.length).trim() : "");
+  const givenA = given(a.name, familyA);
+  const givenB = given(b.name, familyB);
+  if (givenA && givenB && givenA !== givenB) return [givenA, `${givenB} ${familyB}`];
+  return [a.name, b.name];
+}
+
+/**
  * One or two people: full names ("A", "A & B"). Three or more: family names only, with an
  * Oxford comma before the ampersand ("Spielberg, Harrison, & Williams"); see `headingNames`.
  * `short` forces family names for one or two people as well (used when the full names are too long).
