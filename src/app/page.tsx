@@ -27,7 +27,7 @@ export default function Home() {
   const sections = buildGenreSections();
   const pills = genrePills(sections);
   return (
-    // The genre pills are in the top bar and their panels under it (the splash and its cards are Featured's): one provider holds the choice for both.
+    // The genre pills are in the top bar and their panels under it (the splash is Featured's, a genre's cards are its own panel's): one provider holds the choice for both.
     <GenreTabsProvider idBase="pairings" ids={pills.map((pill) => pill.id)}>
       {/* The root of the page, which the deep-link script marks with the genre before hydration (genre-deep-link.ts): hence the suppressed warning. */}
       <div {...{ [GENRE_ROOT]: "" }} suppressHydrationWarning>

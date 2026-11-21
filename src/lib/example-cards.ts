@@ -34,10 +34,10 @@ export interface GenreSection {
 }
 
 /**
- * Every two-person pairing as the landing hero's scene data (see hero-scenes.ts), in the
- * pairing's order of people. Posters are left out of ExampleCardData on purpose: the Featured tab
- * ships every card to the browser and has no use for them. Throws like buildGenreSections when
- * the generated JSON is stale.
+ * Every two-person pairing as the landing hero's scene data (see hero-scenes.ts), in the pairing's order of people.
+ * Posters are left out of ExampleCardData on purpose: a card shows its people and its count, and every genre's cards
+ * are in the page's markup (and their portraits' props), so posters would be sent for nothing; the hero's pool carries
+ * them to the stage, the one place that draws them. Throws like buildGenreSections when the generated JSON is stale.
  */
 export function buildHeroPairings(
   pairings: readonly Omit<ExamplePairing, "genre">[] = EXAMPLE_PAIRINGS,

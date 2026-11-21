@@ -23,7 +23,7 @@ export interface GenrePill {
   icon: ReactNode;
 }
 
-/** A panel of the genre tabs: Featured's is the splash and its cards, a genre's is its grid (each under the bar, in place of the others). */
+/** A panel of the genre tabs: Featured's is the splash alone, a genre's is its grid of cards (each under the bar, in place of the others). */
 export interface GenrePanel {
   id: string;
   panel: ReactNode;
@@ -252,7 +252,7 @@ export function GenreTablist({ label, tabs, className = "" }: { label: string; t
  * The panels of the genre tabs, all in the markup, so every link stays crawlable and works before JavaScript runs. Hidden panels are display:none, so
  * their lazy images do not load until the panel is shown; and what is heavy in a panel and only for its visitors (the cards' faces, the splash) is not drawn at all
  * until it has been shown (`WhenPanelShown`, `usePanelShown`), so the server's markup does not carry nine posters and an SVG for every face of every panel.
- * The default panel (Featured) holds the splash: it is one panel, the page's first screen and the cards under it.
+ * The default panel (Featured) holds the splash alone, the page's first screen; the cards are the genres' panels'.
  */
 export function GenrePanels({ panels }: { panels: readonly GenrePanel[] }) {
   const { idBase, selected, shown } = useGenreTabs();
