@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 import { test, expect } from "./fixtures";
 
 // The site's footer (src/components/site-footer.tsx), on the landing page and everywhere else: who made the site and where the code is, at the left; the credits at the right, in
-// small type (TMDB's notice with its small mark, then the awards data's source); below 768px the credits stack under the first line, at the left.
+// small type (TMDB's notice with its small mark inline at the start of it, then the awards data's source); below 768px the credits stack under the first line, at the left.
 
 const footer = (page: Page) => page.locator("body > footer");
 const box = async (locator: ReturnType<Page["locator"]>) => (await locator.boundingBox())!;
@@ -19,6 +19,15 @@ async function pieces(page: Page) {
     notice: await box(notice),
     awards: await box(awards),
     mark: await box(mark),
+    // The notice's first letter, where its text starts: the mark is beside it, on the notice's first line, whether the notice wraps or not.
+    first: await notice.evaluate((element) => {
+      const text = [...element.querySelectorAll("*"), element].flatMap((node) => [...node.childNodes]).find((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim());
+      const range = document.createRange();
+      range.setStart(text!, text!.textContent!.indexOf("T"));
+      range.setEnd(text!, text!.textContent!.indexOf("T") + 1);
+      const { x, y, width, height } = range.getBoundingClientRect();
+      return { x, y, width, height };
+    }),
     sizes: { project: await size(project), notice: await size(notice), awards: await size(awards) },
   };
 }
@@ -37,8 +46,8 @@ test("on a desktop the left line is at the left and the credits at the right, ri
   // The credits are right of the left line, the notice first and the awards line under it; the mark is before the notice, on its line.
   expect(p.notice.x).toBeGreaterThan(p.project.x + p.project.width);
   expect(p.awards.y).toBeGreaterThanOrEqual(p.notice.y + p.notice.height - 1);
-  expect(p.mark.x + p.mark.width).toBeLessThanOrEqual(p.notice.x);
-  expect(Math.abs(p.mark.y + p.mark.height / 2 - (p.notice.y + p.notice.height / 2))).toBeLessThanOrEqual(2);
+  expect(p.mark.x + p.mark.width).toBeLessThanOrEqual(p.first.x);
+  expect(Math.abs(p.mark.y + p.mark.height / 2 - (p.first.y + p.first.height / 2))).toBeLessThanOrEqual(2);
   // The same small type for both credits, smaller than the left line; the mark stays small (10px tall, less prominent than the site's own name).
   expect(p.sizes.notice).toBe(p.sizes.awards);
   expect(p.sizes.notice).toBeLessThan(p.sizes.project);
@@ -62,10 +71,28 @@ for (const [width, height] of [[320, 640], [390, 844], [640, 900]] as const) {
     expect(Math.abs(p.awards.x - 16)).toBeLessThanOrEqual(1);
     expect(p.mark.y).toBeGreaterThanOrEqual(p.project.y + p.project.height - 1);
     expect(p.awards.y).toBeGreaterThanOrEqual(p.notice.y + p.notice.height - 1);
-    expect(p.notice.x).toBeGreaterThanOrEqual(p.mark.x + p.mark.width);
+    expect(p.first.x).toBeGreaterThanOrEqual(p.mark.x + p.mark.width);
     // Inside the screen, whatever wraps.
     for (const part of [p.project, p.notice, p.awards]) expect(part.x + part.width).toBeLessThanOrEqual(width - 16 + 1);
     expect(p.sizes.notice).toBe(p.sizes.awards);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+  });
+}
+
+for (const width of [768, 1024]) {
+  test(`at ${width}px the mark is beside the notice's first line, a few px before its first letter and level with it, not floating between the left line and the credits`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    await expect(footer(page)).toBeVisible();
+    const p = await pieces(page);
+    // The notice may wrap here (at 768px it takes two lines): the mark is at the start of its first line, whatever the width of its box.
+    expect(p.first.x - (p.mark.x + p.mark.width)).toBeGreaterThanOrEqual(0);
+    expect(p.first.x - (p.mark.x + p.mark.width)).toBeLessThanOrEqual(10);
+    expect(Math.abs(p.mark.y + p.mark.height / 2 - (p.first.y + p.first.height / 2))).toBeLessThanOrEqual(3);
+    // It is with the credits, right of the left line by more than the gap between the groups, and the credits' right edge is the footer's content edge.
+    expect(p.mark.x).toBeGreaterThan(p.project.x + p.project.width + 16);
+    const right = width / 2 + Math.min(1152, width) / 2 - 16;
+    expect(Math.abs(p.awards.x + p.awards.width - right)).toBeLessThanOrEqual(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
   });
 }
