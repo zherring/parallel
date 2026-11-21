@@ -642,9 +642,9 @@ test.describe("at tablet widths (sm up to lg) the figures stand higher and the f
         expect(part.foot).toBeCloseTo(0.42, 2);
         expect(part.footInFront).toBe(true);
         expect(part.fades).toEqual([]);
-        // A cut stands on the bottom of the stage, a little past it, on a phone as on a desktop: it goes on well below the line (82% down, and the drop), not ending on it.
+        // A cut stands on the bottom of the stage, a little past it, on a desktop (3% past it); on a phone it is stood 18px higher, so its bottom is at the stage's (3% of it, less 18px, past it): either way it goes on well below the line (82% down, and the drop), not ending on it.
         if (part.cut) {
-          expect(part.bottom).toBeGreaterThan(1);
+          expect(part.bottom).toBeGreaterThan(width < 640 ? 0.97 : 1);
           expect(part.bottom).toBeGreaterThan(line + 0.1);
         }
       }
@@ -1599,8 +1599,11 @@ test.describe("a touch screen shows the cue's line under the names, still, and a
  * The figure was `min(90%, 165cqw)` of its core high (the half less the gutter, the stage's old height, `max(400, min(64svh, 560))`, for the 90%).
  */
 test.describe("on a phone the headline is over the figures' heads and the figures are 1.5 times as big, cropped by the screen's edge", () => {
-  const HEAD = 20 + 2 * 1.05 * 34 + 12 + 3 * 1.625 * 15 + 8; // the headline's box: padding, two lines of 34px, a gap, three lines of 15px, a gap
-  for (const [width, height] of [[320, 640], [390, 844], [600, 900]] as const) {
+  // The headline's box (`--head-h`): padding, two lines of 34px, a gap, three lines of 15px, and a gap of 20px under the copy: the figures are stood 18px higher (`--fig-lift`), and the gap is the lift and 2px, so that
+  // the tightest cut (its head is the photo's top edge, as for a third of the pool's people) is 2px under the copy's box, not over its last line.
+  const LIFT = 18;
+  const HEAD = 20 + 2 * 1.05 * 34 + 12 + 3 * 1.625 * 15 + LIFT + 2;
+  for (const [width, height] of [[320, 640], [390, 844], [430, 932], [600, 900]] as const) {
     test(`at ${width}px: the figures are 1.5 times as big, off the screen's edge by a third of their width at most, under the headline, and the page does not scroll sideways`, async ({ page }) => {
       await page.setViewportSize({ width, height });
       await page.goto("/");
@@ -1619,9 +1622,10 @@ test.describe("on a phone the headline is over the figures' heads and the figure
       const copy = await box(page.getByRole("heading", { level: 1 }).locator("xpath=following-sibling::p"));
       expect(h1.y).toBeGreaterThanOrEqual(stageBox.y);
       expect(copy.y + copy.height).toBeLessThanOrEqual(stageBox.y + HEAD);
-      // The copy wraps naturally to three lines (the box `--head-h` is sized for), and its box ends 8px above the headline box's bottom.
+      // The copy wraps naturally to three lines (the box `--head-h` is sized for), and its box ends 20px above the headline box's bottom.
       expect(Math.abs(copy.height - 3 * 1.625 * 15)).toBeLessThanOrEqual(1);
-      expect(Math.abs(stageBox.y + HEAD - 8 - (copy.y + copy.height))).toBeLessThanOrEqual(1.5);
+      expect(Math.abs(stageBox.y + HEAD - (LIFT + 2) - (copy.y + copy.height))).toBeLessThanOrEqual(1.5);
+      const frameBox = await box(stage(page).locator("[data-frame]").first());
 
       const figures = await stage(page).evaluate((root) =>
         [...root.querySelectorAll<HTMLElement>("[data-frame]")].map((frame) => {
@@ -1656,8 +1660,13 @@ test.describe("on a phone the headline is over the figures' heads and the figure
           expect(Math.abs(figure.right - figure.crop * figure.width - width)).toBeLessThanOrEqual(1.5);
           expect(figure.right - figure.width / 2).toBeLessThan(width);
         }
-        // Under the headline: the figure's top is the headline's bottom, so no head reaches it; a cut's eyes are well inside the stage.
-        expect(figure.top).toBeGreaterThanOrEqual(copy.y + copy.height - 1.5);
+        // Stood 18px higher than 3% past the halves' bottom (the foot, 42% of a half, covers the photo's bottom edge: it is within a few px of the halves' bottom, where the foot is the page's colour).
+        const figureBottom = figure.top + figure.height;
+        expect(Math.abs(figureBottom - (frameBox.y + frameBox.height + 0.03 * frameBox.height - LIFT)), `${width}px`).toBeLessThanOrEqual(1.5);
+        expect(figureBottom, `${width}px`).toBeGreaterThanOrEqual(frameBox.y + frameBox.height - 6);
+        expect(figureBottom, `${width}px`).toBeLessThanOrEqual(frameBox.y + frameBox.height + 0.03 * frameBox.height - LIFT + 1.5);
+        // Under the headline's copy: the figure's top (a head of the tightest cut is its photo's top edge) is 2px under the copy's box, so no head reaches the text; a cut's eyes are well inside the stage.
+        expect(figure.top, `${width}px`).toBeGreaterThanOrEqual(copy.y + copy.height + 1);
         if (figure.eye !== null) {
           const eyeY = figure.top + figure.eye * figure.height;
           expect(eyeY).toBeGreaterThan(copy.y + copy.height);
@@ -1668,7 +1677,7 @@ test.describe("on a phone the headline is over the figures' heads and the figure
     });
   }
 
-  test("below 320px the h1 takes three lines, and the copy is still three: the headline's box is 220px, and the copy ends 8px above its bottom", async ({ page }) => {
+  test("below 320px the h1 takes three lines, and the copy is still three: the headline's box is 232px, and the copy ends 20px above its bottom", async ({ page }) => {
     await page.setViewportSize({ width: 280, height: 640 });
     await page.goto("/");
     await ready(page);
@@ -1677,7 +1686,7 @@ test.describe("on a phone the headline is over the figures' heads and the figure
     const copy = await box(page.getByRole("heading", { level: 1 }).locator("xpath=following-sibling::p"));
     expect(Math.abs(h1.height - 3 * 1.05 * 34)).toBeLessThanOrEqual(1);
     expect(Math.abs(copy.height - 3 * 1.625 * 15)).toBeLessThanOrEqual(1);
-    expect(Math.abs(stageBox.y + (20 + 3 * 1.05 * 34 + 12 + 3 * 1.625 * 15 + 8) - 8 - (copy.y + copy.height))).toBeLessThanOrEqual(1.5);
+    expect(Math.abs(stageBox.y + (20 + 3 * 1.05 * 34 + 12 + 3 * 1.625 * 15 + LIFT + 2) - (LIFT + 2) - (copy.y + copy.height))).toBeLessThanOrEqual(1.5);
   });
 
   test("the headline is the same, unanimated element across a scene change, and does not move", async ({ page }) => {
