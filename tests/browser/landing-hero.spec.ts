@@ -172,6 +172,64 @@ test("the shared films' posters are a tight, fanned cluster over the seam, off t
   }
 });
 
+/** The posters a width shows, left to right: the pairing's own count of them, and each one's tilt (degrees) and size as drawn (hero-cue.css, by its place among the ones shown). */
+const shownFan = (page: Page) =>
+  stage(page)
+    .locator("[data-cue-poster]")
+    .evaluateAll((anchors) =>
+      anchors
+        .filter((anchor) => getComputedStyle(anchor).display !== "none")
+        .map((anchor) => {
+          const style = getComputedStyle(anchor.querySelector("[data-cue-tilt]")!);
+          return { slot: Number((anchor as HTMLElement).style.getPropertyValue("--slot")), count: Number((anchor as HTMLElement).style.getPropertyValue("--count")), tilt: parseFloat(style.rotate), scale: parseFloat(style.scale) };
+        })
+        .sort((a, b) => a.slot - b.slot),
+    );
+
+/** Steps the stage with the arrow key until its pairing has at least `atLeast` posters of its own (most have five, a width shows three to five of them). */
+async function stepToPairingWithPosters(page: Page, atLeast: number) {
+  const label = () => stageLink(page).getAttribute("aria-label");
+  for (let step = 0; step < 15; step += 1) {
+    await ready(page);
+    const fan = await shownFan(page);
+    if (fan[0].count >= atLeast) return fan[0].count;
+    const before = await label();
+    await page.keyboard.press("ArrowRight");
+    await expect.poll(label).not.toBe(before);
+  }
+  throw new Error(`no pairing with ${atLeast} posters in 15 steps`);
+}
+
+// A width that drops posters fans the ones it keeps, not the pairing's: a five-poster pairing on a phone shows its first three, which turn from left to right about the
+// middle one, not the left of five (-6.2, -1.3, -0.9 degrees: a cluster leaning left). The tilts are the fan's own step by a poster's place among those shown, and its own few degrees of jitter.
+for (const [width, shown] of [[390, 3], [800, 4], [1440, 5]] as const) {
+  test(`at ${width}px a pairing of five posters shows ${shown}, fanned about the middle of those ${shown}: the tilts and sizes mirror each other, within the jitter`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    expect(await stepToPairingWithPosters(page, 5)).toBe(5);
+    const fan = await shownFan(page);
+    expect(fan).toHaveLength(shown);
+    const last = fan.length - 1;
+    // Turned from left to right, the ends opposite, the middle (of an odd row) nearly level.
+    expect(fan[0].tilt).toBeLessThan(0);
+    expect(fan[last].tilt).toBeGreaterThan(0);
+    for (let i = 0; i < fan.length / 2; i += 1) {
+      const j = last - i;
+      if (i === j) {
+        expect(Math.abs(fan[i].tilt), "the middle poster is nearly level").toBeLessThanOrEqual(1.2);
+      } else {
+        // The jitters are within 1.4 degrees of level, so two mirrored posters' tilts cancel to within 2.5.
+        expect(Math.abs(fan[i].tilt + fan[j].tilt), `poster ${i + 1} and poster ${j + 1} mirror each other`).toBeLessThanOrEqual(2.5);
+      }
+      // Nearer (larger) at the middle of the row, equally smaller at each end.
+      expect(fan[i].scale).toBeCloseTo(fan[j].scale, 3);
+    }
+    expect(Math.max(...fan.map((poster) => poster.scale))).toBe(fan[Math.floor(last / 2)].scale);
+    // A desktop shows all five: the fan as it was drawn before the width's count mattered.
+    if (width === 1440) fan.forEach((poster, i) => expect(poster.tilt).toBeCloseTo([-6.2, -1.3, -0.9, 3.7, 3.7][i], 1));
+  });
+}
+
 test("the shared films' posters have a crisp white border at rest", async ({ page }) => {
   await page.goto("/");
   await ready(page);

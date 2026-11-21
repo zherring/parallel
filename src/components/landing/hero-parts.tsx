@@ -160,13 +160,13 @@ export function PanelParts({ person, color, slot }: { person: HeroPerson; color:
 
 /**
  * One shared film in the cluster over the timeline: its poster, standing on the cluster's baseline a little above the line, turned and offset a little
- * by its place in the row (hero-layout.ts `posterPlace`) so the row reads as a fanned hand of cards, each over the one before it. The anchor is a point
+ * by its place in the row (hero-layout.ts `posterPlace`, hero-cue.css for the fan) so the row reads as a fanned hand of cards, each over the one before it. The anchor is a point
  * on the baseline (hero-stage.tsx sets its `left` and `top`, its `--z`, and the `group/poster` that the hover styles read); the poster's bottom is on it.
  * Hovering the poster lifts it and shows its title and year in a label above it; the poster is not a link of its own (the whole stage is one), so this is
  * decoration, and nothing here is focusable.
  */
-export function PosterParts({ poster, src, slot, count }: { poster: HeroPoster; src: string; slot: number; count: number }) {
-  const place = posterPlace(slot, count);
+export function PosterParts({ poster, src, slot }: { poster: HeroPoster; src: string; slot: number }) {
+  const place = posterPlace(slot);
   return (
     <div
       data-part="poster"
@@ -178,7 +178,7 @@ export function PosterParts({ poster, src, slot, count }: { poster: HeroPoster; 
         <div
           data-cue-tilt=""
           className="aspect-[2/3] w-full origin-bottom overflow-hidden rounded-[6px] bg-surface shadow-[0_14px_22px_-8px_rgb(0_0_0/0.8),0_0_0_1.25px_#fff] sm:shadow-[0_14px_22px_-8px_rgb(0_0_0/0.8),0_0_0_1.5px_#fff]"
-          style={{ "--tilt": `${place.tilt}deg`, scale: place.scale } as CSSProperties}
+          style={{ "--tilt-jitter": `${place.jitter}deg` } as CSSProperties}
         >
           <img src={src} alt="" width={104} height={156} decoding="async" draggable={false} className="size-full select-none object-cover" />
         </div>

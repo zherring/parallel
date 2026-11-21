@@ -26,34 +26,26 @@ export function moreCount(pairing: HeroPairing, width: PosterWidth): number {
   return moreFilms(pairing, POSTER_CAPS[width]);
 }
 
-/** How one poster of the cluster sits: a little turned, a little off the cluster's baseline and a little larger or smaller, so the row reads as a hand-dealt fan. */
+/**
+ * How one poster of the cluster sits that is its own and not the fan's: a few degrees off the even fan and a few px off the cluster's baseline, so the row reads as a
+ * hand-dealt one. The fan itself (each poster turned a little more than the one before it, the middle of the row the largest) is CSS (hero-cue.css `--fan-tilt`, `--fan-depth`),
+ * from each poster's offset from the middle of the posters the width shows (`--off`, `--cap`): a width that drops posters fans the ones it keeps, not the pairing's.
+ */
 export interface PosterPlace {
-  /** Degrees, clockwise. */
-  tilt: number;
+  /** Degrees, clockwise, added to the fan's tilt (`--tilt-jitter`). */
+  jitter: number;
   /** Pixels below (positive) the cluster's baseline. */
   dy: number;
-  /** A multiplier of the poster's width. */
-  scale: number;
 }
 
-/** Each poster turns a little more than the one before it (a fan), and the jitter keeps the row from looking ruled. */
-const TILT_STEP = 2.4;
+/** The jitter keeps the row from looking ruled. */
 const TILT_JITTER = [-1.4, 1.1, -0.9, 1.3, -1.1];
 /** How far each poster sits off the baseline (alternating up and down), in px at the full-size cluster. */
 const DEAL_OFFSET = [3, -3, 2, -4, 1];
-/** The depth: the middle of the row a little larger (nearer), the ends a little smaller (farther). */
-const DEPTH_SCALE = [0.95, 1, 1.04, 1, 0.96];
 
-/**
- * The place of poster `slot` in a cluster of `count` posters (chronological, left to right). A shorter cluster is centred, so its tilts are
- * the fan of its own middle; the offsets and depths are by slot, so a poster keeps its place from arrival to departure.
- */
-export function posterPlace(slot: number, count: number): PosterPlace {
-  return {
-    tilt: Math.round(((slot - (count - 1) / 2) * TILT_STEP + (TILT_JITTER[slot] ?? 0)) * 10) / 10,
-    dy: DEAL_OFFSET[slot] ?? 0,
-    scale: DEPTH_SCALE[slot] ?? 1,
-  };
+/** The place of poster `slot` (chronological, left to right). It is by slot alone, so a poster keeps its place from arrival to departure, whatever the width shows. */
+export function posterPlace(slot: number): PosterPlace {
+  return { jitter: TILT_JITTER[slot] ?? 0, dy: DEAL_OFFSET[slot] ?? 0 };
 }
 
 /**

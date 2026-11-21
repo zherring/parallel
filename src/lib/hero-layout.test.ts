@@ -74,28 +74,24 @@ describe("moreCount", () => {
 });
 
 describe("posterPlace", () => {
-  it("fans the cluster: the row turns from left-leaning to right-leaning about its middle, each poster a little off the even fan", () => {
-    const tilts = [0, 1, 2, 3, 4].map((slot) => posterPlace(slot, 5).tilt);
-    expect(tilts[0]).toBeLessThan(0);
-    expect(tilts[4]).toBeGreaterThan(0);
-    // The jitter breaks the ruled look: the tilts are not evenly spaced.
-    const gaps = tilts.slice(1).map((tilt, i) => Math.round((tilt - tilts[i]) * 10) / 10);
-    expect(new Set(gaps).size).toBeGreaterThan(1);
-    // Small tilts: a hand of cards, not a scatter.
-    expect(tilts.every((tilt) => Math.abs(tilt) <= 7)).toBe(true);
+  it("jitters each poster a little off the even fan, unevenly, so the row is not ruled; a hand of cards, not a scatter", () => {
+    const jitters = [0, 1, 2, 3, 4].map((slot) => posterPlace(slot).jitter);
+    expect(new Set(jitters).size).toBeGreaterThan(1);
+    expect(jitters.every((jitter) => Math.abs(jitter) <= 2)).toBe(true);
+    // Neighbours go different ways, as a hand dealt by hand does.
+    for (let slot = 1; slot < jitters.length; slot += 1) expect(Math.sign(jitters[slot])).not.toBe(Math.sign(jitters[slot - 1]));
   });
 
-  it("offsets the posters alternately up and down, and puts the middle of the row nearest", () => {
-    const places = [0, 1, 2, 3, 4].map((slot) => posterPlace(slot, 5));
-    expect(places[0].dy).toBeGreaterThan(0);
-    expect(places[1].dy).toBeLessThan(0);
-    expect(Math.max(...places.map((place) => place.scale))).toBe(places[2].scale);
-    expect(places.every((place) => place.scale > 0.9 && place.scale < 1.1)).toBe(true);
+  it("offsets the posters alternately up and down", () => {
+    const dys = [0, 1, 2, 3, 4].map((slot) => posterPlace(slot).dy);
+    expect(dys[0]).toBeGreaterThan(0);
+    expect(dys[1]).toBeLessThan(0);
+    for (let slot = 1; slot < dys.length; slot += 1) expect(Math.sign(dys[slot])).not.toBe(Math.sign(dys[slot - 1]));
+    expect(dys.every((dy) => Math.abs(dy) <= 5)).toBe(true);
   });
 
-  it("keeps a poster's offset and depth by its slot, whatever the count, so it keeps its place from arrival to departure", () => {
-    expect(posterPlace(1, 3).dy).toBe(posterPlace(1, 5).dy);
-    expect(posterPlace(1, 3).scale).toBe(posterPlace(1, 5).scale);
+  it("is level for a slot past the table", () => {
+    expect(posterPlace(7)).toEqual({ jitter: 0, dy: 0 });
   });
 });
 

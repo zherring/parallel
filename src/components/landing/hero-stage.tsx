@@ -127,7 +127,7 @@ function Motion({
 const posterAnchor = (slot: number, count: number) =>
   ({
     left: `calc(50% + (${slot} - (min(${count}, var(--cap)) - 1) / 2) * var(--step))`,
-    top: `calc(var(--line-y) - var(--poster-gap) + ${posterPlace(slot, count).dy}px)`,
+    top: `calc(var(--line-y) - var(--poster-gap) + ${posterPlace(slot).dy}px)`,
     "--z": slot,
     "--slot": slot,
     "--count": count,
@@ -231,7 +231,7 @@ function Action({ items, reduced, onGone }: { items: readonly Item[]; reduced: b
             style={posterAnchor(item.slot, item.count)}
           >
             <Motion item={item} reduced={reduced} onGone={onGone} className="absolute left-0 top-0">
-              <PosterParts poster={item.poster} src={posterImageUrl(item.poster.path)} slot={item.slot} count={item.count} />
+              <PosterParts poster={item.poster} src={posterImageUrl(item.poster.path)} slot={item.slot} />
             </Motion>
           </div>
         ))}
