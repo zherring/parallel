@@ -56,7 +56,7 @@ export function posterPlace(slot: number): PosterPlace {
 }
 
 /**
- * On a phone and on a tablet (below `lg`) each figure is pushed out toward the edge of the screen it stands by, so that its outer part hangs off it and is cut by it (the half's frame clips it), and the
+ * On a phone (below `sm`) each figure is pushed out toward the edge of the screen it stands by, so that its outer part hangs off it and is cut by it (the half's frame clips it), and the
  * face sits beside the poster cluster, not behind it. `FIGURE_OVERHANG` is how much of the figure's width goes off the screen; `HEAD_CROP_MAX` how much of the head's width the
  * screen's edge may take, whatever the overhang, so that a face never loses more than a quarter of itself, however wide the head is in its photo or however near the outer
  * edge it stands (a tight crop of a face is the whole photo's width).
@@ -65,7 +65,7 @@ export const FIGURE_OVERHANG = 1 / 3;
 export const HEAD_CROP_MAX = 0.25;
 
 /**
- * The share of a figure's width that goes off the screen's edge on a phone or a tablet: `FIGURE_OVERHANG`, less where the head would be cut by more than `HEAD_CROP_MAX` of its own
+ * The share of a figure's width that goes off the screen's edge on a phone: `FIGURE_OVERHANG`, less where the head would be cut by more than `HEAD_CROP_MAX` of its own
  * width. `head` is where the head is across the figure's photo (shares of its width, `headSpan` in portrait-treatment.ts) and `slot` the side the figure stands on (0, the left,
  * has its outer edge at the photo's left; 1, the right). The head's outer edge is `outer` in from the photo's edge, and that much of the figure can go off before the head is
  * touched; the rule lets a quarter of the head's width go with it.
@@ -74,6 +74,77 @@ export function figureOverhang(head: { centre: number; width: number }, slot: Sl
   const outer = slot === 0 ? head.centre - head.width / 2 : 1 - (head.centre + head.width / 2);
   return Math.max(0, Math.min(FIGURE_OVERHANG, outer + HEAD_CROP_MAX * head.width));
 }
+
+/** How far in from the photo's outer edge the head's outer edge is, as a share of the photo's width: `figureOverhang`'s `outer`. */
+export function headOuter(head: { centre: number; width: number }, slot: Slot): number {
+  return slot === 0 ? head.centre - head.width / 2 : 1 - (head.centre + head.width / 2);
+}
+
+/**
+ * On a tablet (`sm` up to below `lg`) a figure is cropped by the screen's edge as a phone's is (pushed out, anchored by its feet, the body and shoulders cut), but **the whole
+ * head stays on the screen**: the figure is pushed out until its head's outer edge (`headSpan`: hair and ears included) is `margin` px in from the screen's edge, and no
+ * further, so a head near its photo's outer edge is pushed out less (or, with the head at the very edge of its photo, in by a few px) and a head far from it more. The head is whole, so
+ * it takes room, and the figure is no larger than the head's room allows (the least of these, each by formula, `tabletFigure`):
+ * - what it was: `max(0.7 x stage, min(0.9 x stage, 165cqw))` (a figure about 1.1 times its core's width, up to 0.9 of the stage, and never under 0.7 of it);
+ * - `seamClear` px of room between the head's inner edge and the seam, so the two heads do not touch;
+ * - the copy: the headline is over the seam, as wide as its widest line (`copyHalfEm` em of the h1's font-size each side of the seam, "Watch filmmakers") down to its bottom (`copyTop` of the stage
+ *   to the h1's two lines, the gap and the p's three lines); the head is either beside it (the head's inner edge `copyClear` px short of that line's end) or under it (the crown `copyClear` px under
+ *   the copy's bottom): whichever allows the larger figure, so a head is never over the copy's text.
+ * The eyes' rule is the lowest of them (`eyeLine`): a figure the copy's room makes smaller than the poster cluster needs has its eyes beside the cluster's first poster, not above it, see the README.
+ */
+export const TABLET_FIGURE = {
+  margin: 16,
+  seamClear: 8,
+  copyClear: 6,
+  copyHalfEm: 4.1,
+  copyTop: 0.17,
+  copyLinesEm: 2.1,
+  /** px under the h1's lines to the copy's bottom: the gap (16px) and the p's three lines (3 x 26px). */
+  copyBelow: 94,
+} as const;
+
+const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
+
+/**
+ * A tablet figure's size and place, in px, for a stage `width` px wide and `scene` px high (the halves' height, `--scene-h`): `height` of its box, `edge` (where its outer edge is, from the
+ * screen's edge, negative past it), the head's `outer` and `inner` edges from the screen's edge, and the head's `crown` and `chin` from the stage's top. The CSS is `TABLET_FIGURE_HEIGHT_CSS` and
+ * `TABLET_FIGURE_OUT_CSS`; this is the same rule in numbers, as `bandWidth` is for the band, so that the pool's every head can be tested. The stage's own numbers it needs are rules of the
+ * stage (hero.tsx and hero-stage.tsx): the gutter `clamp(12px, 5vw, 88px)`, the drop `clamp(0px, 0.18 x scene - 90px, 50px)` (the figures' half of it) and the h1's `clamp(34px, min(4.6vw, 0.105 x scene), 68px)`.
+ */
+export function tabletFigure(width: number, scene: number, head: { top: number; centre: number; width: number }, slot: Slot) {
+  const t = TABLET_FIGURE;
+  const half = (width - 12) / 2;
+  const core = half - clamp(0.05 * width, 12, 88);
+  const h1 = clamp(Math.min(0.046 * width, 0.105 * scene), 34, 68);
+  const bottom = 1.03 * scene + clamp(0.18 * scene - 90, 0, 50) / 2;
+  const was = Math.max(0.7 * scene, Math.min(0.9 * scene, 1.65 * core));
+  const seam = (1.5 * (half - t.margin - t.seamClear)) / head.width;
+  const beside = (1.5 * (width / 2 - t.copyHalfEm * h1 - t.copyClear - t.margin)) / head.width;
+  const under = (bottom - (t.copyTop * scene + t.copyLinesEm * h1 + t.copyBelow) - t.copyClear) / (1 - head.top);
+  const height = Math.min(was, seam, Math.max(beside, under));
+  const w = (height * 2) / 3;
+  return {
+    height,
+    edge: t.margin - headOuter(head, slot) * w,
+    outer: t.margin,
+    inner: t.margin + head.width * w,
+    crown: bottom - height + head.top * height,
+    chin: bottom - height + (head.top + 0.3 * (1 - head.top)) * height,
+  };
+}
+
+/** The tablet figure's `--fig-h-t` (its box's height), by CSS: `tabletFigure`'s `height`, from `--head-w` and `--head-top` (the head's width across, and its top down, as shares of its photo; set per figure). */
+export const TABLET_FIGURE_HEIGHT_CSS = (() => {
+  const t = TABLET_FIGURE;
+  const half = "(100cqw + var(--core-pad))";
+  const seamCap = `1.5 * (${half} - ${t.margin + t.seamClear}px) / var(--head-w)`;
+  const beside = `1.5 * (${half} + var(--seam) / 2 - ${t.copyHalfEm} * var(--h1-fs) - ${t.margin + t.copyClear}px) / var(--head-w)`;
+  const under = `(1.03 * var(--scene-h) + var(--fig-drop) - (${t.copyTop} * var(--scene-h) + ${t.copyLinesEm} * var(--h1-fs) + ${t.copyBelow}px) - ${t.copyClear}px) / (1 - var(--head-top))`;
+  return `min(max(0.7 * var(--scene-h), min(0.9 * var(--scene-h), 165cqw)), ${seamCap}, max(${beside}, ${under}))`;
+})();
+
+/** The tablet figure's `--fig-out-t`: where its box's outer edge is from its core's outer edge (`edge`, less the core's `--core-pad` from the screen's edge), from `--head-out` (`headOuter`, set per figure). */
+export const TABLET_FIGURE_OUT_CSS = `calc(${TABLET_FIGURE.margin}px - var(--head-out) * var(--fig-h-t) * 2 / 3 - var(--core-pad))`;
 
 /** The decoded years of the pairing's timeline, for everything that reads them. */
 export interface DecodedYears {

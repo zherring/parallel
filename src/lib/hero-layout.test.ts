@@ -10,20 +10,27 @@ import {
   LABEL_GAP,
   POSTER_CAPS,
   POSTER_WIDTHS,
+  TABLET_FIGURE,
+  TABLET_FIGURE_HEIGHT_CSS,
+  TABLET_FIGURE_OUT_CSS,
   type PosterWidth,
   axisFraction,
   bandWidth,
   decodedYears,
   dotScale,
   figureOverhang,
+  headOuter,
   labelYears,
   moreCount,
   posterHiddenClass,
   posterPlace,
   stripOf,
+  tabletFigure,
   yearAxis,
 } from "@/lib/hero-layout";
-import type { HeroPairing } from "@/lib/hero-scenes";
+import { buildHeroPairings } from "@/lib/example-cards";
+import { heroPool, type HeroPairing } from "@/lib/hero-scenes";
+import { headSpan, treatmentShape } from "@/lib/portrait-treatment";
 
 function pairing(posterCount: number, sharedCount: number): HeroPairing {
   return {
@@ -240,7 +247,7 @@ describe("the dots' size and the year labels in the band's axis", () => {
   });
 });
 
-describe("figureOverhang: how much of a figure goes off the screen's edge on a phone", () => {
+describe("figureOverhang: how much of a figure goes off the screen's edge on a phone (a tablet keeps the whole head: tabletFigure)", () => {
   it("is a third of the figure's width for a head with room to spare, on either side", () => {
     // A head 0.6 of the photo's width across, in the middle: 0.2 of room on each side, and a quarter of the head (0.15) more.
     expect(figureOverhang({ centre: 0.5, width: 0.6 }, 0)).toBeCloseTo(FIGURE_OVERHANG, 10);
@@ -268,5 +275,83 @@ describe("figureOverhang: how much of a figure goes off the screen's edge on a p
     expect(figureOverhang(head, 0)).toBeCloseTo(FIGURE_OVERHANG, 10);
     expect(figureOverhang(head, 1)).toBeCloseTo(0.05 + HEAD_CROP_MAX * 0.7, 10);
     expect(figureOverhang(head, 1)).toBeLessThan(figureOverhang(head, 0));
+  });
+});
+
+/** Every cut in the hero's pool (a person with no cut is a tear, which has no head to place): where its head is in its photo. */
+function poolHeads() {
+  const heads = new Map<number, { top: number; centre: number; width: number }>();
+  for (const pairing of heroPool(buildHeroPairings())) {
+    for (const person of pairing.people) {
+      const shape = treatmentShape(person.id, person.profilePath);
+      if (!shape.tear) heads.set(person.id, headSpan(shape));
+    }
+  }
+  return [...heads.values()];
+}
+
+describe("tabletFigure: a tablet's figure keeps its whole head on the screen, clear of the seam and of the headline's text", () => {
+  const head = { top: 0.04, centre: 0.5, width: 0.7 };
+
+  it("puts the head's outer edge `margin` px in from the screen's edge, whatever the photo's room, and pushes a head near its photo's edge out less", () => {
+    const wide = tabletFigure(768, 876, { ...head, centre: 0.5 }, 0);
+    expect(wide.outer).toBe(TABLET_FIGURE.margin);
+    // The head's outer edge is 0.15 in from the photo's: the figure's box goes off the screen by that much of its width, less the margin.
+    expect(wide.edge).toBeCloseTo(TABLET_FIGURE.margin - 0.15 * ((wide.height * 2) / 3), 6);
+    const leaning = tabletFigure(768, 876, { ...head, centre: 0.4 }, 0);
+    expect(headOuter({ ...head, centre: 0.4 }, 0)).toBeCloseTo(0.05, 10);
+    expect(leaning.edge).toBeGreaterThan(wide.edge);
+    // A head at the very edge of its photo is pushed in, not out: its box starts `margin` px in.
+    const flush = tabletFigure(768, 876, { top: 0, centre: 0.35, width: 0.7 }, 0);
+    expect(flush.edge).toBeCloseTo(TABLET_FIGURE.margin, 6);
+    // The right side is the mirror: the same head leans the other way.
+    const right = tabletFigure(768, 876, { ...head, centre: 0.6 }, 1);
+    expect(right.edge).toBeCloseTo(tabletFigure(768, 876, { ...head, centre: 0.4 }, 0).edge, 6);
+  });
+
+  it("is never larger than the figure was (max(0.7 x stage, min(0.9 x stage, 165cqw))), and smaller for a wide head on a narrow screen", () => {
+    const was = (width: number, scene: number) => Math.max(0.7 * scene, Math.min(0.9 * scene, 1.65 * ((width - 12) / 2 - Math.min(88, Math.max(12, 0.05 * width)))));
+    expect(tabletFigure(768, 876, head, 0).height).toBeCloseTo(was(768, 876), 6);
+    const widest = tabletFigure(640, 876, { top: 0, centre: 0.5, width: 0.95 }, 0);
+    expect(widest.height).toBeLessThan(was(640, 876));
+    // Both heads still fit, 8px short of the seam each.
+    expect(widest.inner).toBeCloseTo((640 - 12) / 2 - TABLET_FIGURE.seamClear, 6);
+  });
+
+  it("holds for every cut in the pool, at 640 to 1023px on stages from 540 to 880px high, both sides", () => {
+    const heads = poolHeads();
+    expect(heads.length).toBeGreaterThan(100);
+    for (const width of [640, 700, 768, 840, 900, 960, 1023]) {
+      for (const scene of [540, 716, 876, 880]) {
+        const h1 = Math.min(68, Math.max(34, Math.min(0.046 * width, 0.105 * scene)));
+        const copyLeft = width / 2 - TABLET_FIGURE.copyHalfEm * h1;
+        const copyBottom = TABLET_FIGURE.copyTop * scene + TABLET_FIGURE.copyLinesEm * h1 + TABLET_FIGURE.copyBelow;
+        for (const head of heads) {
+          for (const slot of [0, 1] as const) {
+            const place = tabletFigure(width, scene, head, slot);
+            const at = `${width}px, stage ${scene}, head ${JSON.stringify(head)}, slot ${slot}`;
+            // The whole head is on the screen, with its margin, and short of the seam.
+            expect(place.outer, at).toBe(TABLET_FIGURE.margin);
+            expect(place.inner, at).toBeLessThanOrEqual((width - 12) / 2 - TABLET_FIGURE.seamClear + 1e-6);
+            // The head is beside the copy's widest line or under the copy's bottom: never over its text.
+            const beside = place.inner <= copyLeft - TABLET_FIGURE.copyClear + 1e-6;
+            const under = place.crown >= copyBottom + TABLET_FIGURE.copyClear - 1e-6;
+            expect(beside || under, at).toBe(true);
+            // Never a figure too small to stand on the stage.
+            expect(place.height, at).toBeGreaterThan(0.45 * scene);
+          }
+        }
+      }
+    }
+  });
+
+  it("is the same rule in CSS: the margin, the seam's room, the copy's clearance and the copy's height are in the strings", () => {
+    const { margin, seamClear, copyClear, copyHalfEm, copyTop, copyLinesEm, copyBelow } = TABLET_FIGURE;
+    expect(TABLET_FIGURE_HEIGHT_CSS).toContain(`${margin + seamClear}px`);
+    expect(TABLET_FIGURE_HEIGHT_CSS).toContain(`${margin + copyClear}px`);
+    expect(TABLET_FIGURE_HEIGHT_CSS).toContain(`${copyHalfEm} * var(--h1-fs)`);
+    expect(TABLET_FIGURE_HEIGHT_CSS).toContain(`${copyTop} * var(--scene-h) + ${copyLinesEm} * var(--h1-fs) + ${copyBelow}px`);
+    expect(TABLET_FIGURE_HEIGHT_CSS).toContain("max(0.7 * var(--scene-h), min(0.9 * var(--scene-h), 165cqw))");
+    expect(TABLET_FIGURE_OUT_CSS).toContain(`${margin}px - var(--head-out)`);
   });
 });

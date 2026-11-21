@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { buildHeroPairings } from "../../src/lib/example-cards";
 import { heroPool } from "../../src/lib/hero-scenes";
+import { TABLET_FIGURE, tabletFigure } from "../../src/lib/hero-layout";
 import { pairFamilyNames } from "../../src/lib/short-name";
 import { test, expect } from "./fixtures";
 
@@ -623,6 +624,8 @@ test.describe("the foot is 84% of a half at every width; at tablet widths (sm up
           height: rect.height,
           core: box.parentElement!.getBoundingClientRect().width,
           crop: parseFloat(box.style.getPropertyValue("--crop")),
+          // Where the head is in the photo (shares of its width and height, `headSpan`): its outer edge's distance in from the photo's outer edge, its width, its top.
+          head: { out: parseFloat(box.style.getPropertyValue("--head-out")), width: parseFloat(box.style.getPropertyValue("--head-w")), top: parseFloat(box.style.getPropertyValue("--head-top")) },
           clipPath: getComputedStyle(box).clipPath,
           frameOverflow: getComputedStyle(frame).overflow,
           bottom: (rect.bottom - rootBox.top) / rootBox.height,
@@ -632,20 +635,35 @@ test.describe("the foot is 84% of a half at every width; at tablet widths (sm up
         };
       });
       // The posters this width shows (a hidden one has no box).
-      const posters = [...root.querySelectorAll<HTMLElement>("[data-part='poster']")].map((poster) => poster.getBoundingClientRect()).filter((rect) => rect.width > 0).map((rect) => rect.top);
-      return { parts, posterTop: Math.min(...posters), frame: { top: rootBox.top, height: rootBox.height } };
+      const posters = [...root.querySelectorAll<HTMLElement>("[data-part='poster']")].map((poster) => poster.getBoundingClientRect()).filter((rect) => rect.width > 0);
+      // The headline's text, line by line (the h1's and the p's), as boxes from the stage's top.
+      const lines = [...document.querySelectorAll("h1, h1 + p")].flatMap((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        return [...range.getClientRects()].filter((rect) => rect.width > 4).map((rect) => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }));
+      });
+      return {
+        parts,
+        posterTop: Math.min(...posters.map((rect) => rect.top)),
+        posterLeft: Math.min(...posters.map((rect) => rect.left)),
+        posterRight: Math.max(...posters.map((rect) => rect.right)),
+        lines,
+        frame: { top: rootBox.top, height: rootBox.height },
+      };
     });
   }
 
-  // Pairs that are cuts at the extremes of the pool: Cameron and Weaver (the case the owner saw: a photo's bottom edge showing above the timeline), Burton and Elfman (Elfman's eyes are the lowest in his photo of any cut's, 0.45 of its height), Lemmon (the tallest headroom of the pool)
-  // and Matthau, and Preminger and Saul Bass (tight crops: heads that fill the photo's width).
+  // Pairs that are cuts at the extremes of the pool: Donner and Gibson (the owner's screenshot at 727px: faces cut by the screen's edges), Cameron and Weaver (a photo's bottom edge showing above the timeline), Burton and Elfman (Elfman's eyes are the lowest in his photo of any cut's, 0.45 of its height),
+  // Lemmon and Matthau (Lemmon has the tallest headroom of the pool), Preminger and Saul Bass (tight crops: heads that fill the photo's width) and Scorsese and Schoonmaker.
   for (const [key, label] of [
+    ["2461+7187", "Donner and Gibson"],
     ["2710+10205", "Cameron and Weaver"],
     ["510+531", "Burton and Elfman"],
     ["3151+6837", "Lemmon and Matthau"],
     ["834+19460", "Preminger and Saul Bass"],
+    ["1032+3661", "Scorsese and Schoonmaker"],
   ] as const) {
-    test(`${label}: the figures at 640 to 1000px stand on the stage's bottom, under the foot (no photo edge above the timeline), are 0.7 to 0.9 of the stage tall, cropped by the screen's edge, with their eyes over the poster cluster`, async ({ page }) => {
+    test(`${label}: the figures at 640 to 1000px stand on the stage's bottom, under the foot (no photo edge above the timeline), cropped by the screen's edge with the whole head on the screen, clear of the seam and of the headline's text`, async ({ page }) => {
       const pool = heroPool(buildHeroPairings());
       const index = pool.findIndex((pairing) => pairing.key === key);
       expect(index, key).toBeGreaterThanOrEqual(0);
@@ -656,35 +674,51 @@ test.describe("the foot is 84% of a half at every width; at tablet widths (sm up
       for (const width of [640, 768, 900, 1000]) {
         await page.setViewportSize({ width, height: 960 });
         await expect.poll(() => page.evaluate(() => document.documentElement.clientWidth)).toBe(width);
-        const { parts, posterTop, frame } = await figures(page);
+        const { parts, posterTop, posterLeft, posterRight, lines, frame } = await figures(page);
         const scene = frame.height;
-        // By formula (hero-parts.tsx): the figure was `min(0.9 x stage, 165cqw)` of its core's width, and is never less than 0.7 of the stage. The timeline is dropped by `--drop` (0 to 50px, from the stage's height), the figures by half of it.
+        // The timeline is dropped by `--drop` (0 to 50px, from the stage's height), the figures by half of it.
         const drop = Math.min(50, Math.max(0, 0.18 * scene - 90));
         expect(parts).toHaveLength(2);
+        expect(lines.length, "the headline's lines").toBeGreaterThanOrEqual(4);
         for (const [slot, part] of parts.entries()) {
-          const at = `${label} at ${width}px`;
+          const at = `${label} at ${width}px, ${slot === 0 ? "left" : "right"}`;
           expect(part.cut, at).toBe(true);
-          const height = Math.max(0.7 * scene, Math.min(0.9 * scene, 1.65 * part.core));
-          expect(Math.abs(part.height - height), at).toBeLessThanOrEqual(1.5);
-          expect(Math.abs(part.width - (height * 2) / 3), at).toBeLessThanOrEqual(1.5);
+          // By formula (hero-layout.ts `tabletFigure`, which hero-parts.tsx has in CSS): never more than what the figure was, `max(0.7 x stage, min(0.9 x stage, 165cqw))`, and less where the head's width asks for room.
+          const head = { top: part.head.top, width: part.head.width, centre: slot === 0 ? part.head.out + part.head.width / 2 : 1 - part.head.out - part.head.width / 2 };
+          const place = tabletFigure(width, scene, head, slot as 0 | 1);
+          expect(Math.abs(part.height - place.height), at).toBeLessThanOrEqual(1.5);
+          expect(Math.abs(part.width - (place.height * 2) / 3), at).toBeLessThanOrEqual(1.5);
+          expect(part.height, at).toBeLessThanOrEqual(Math.max(0.7 * scene, Math.min(0.9 * scene, 1.65 * part.core)) + 1.5);
+          expect(part.height, at).toBeGreaterThan(0.5 * scene);
           // Anchored by the feet, as a desktop's: 3% and half the drop past the stage's bottom, so the photo's bottom edge is under the foot and no line of it shows above the timeline. No clip.
           expect(Math.abs(part.top + part.height - (frame.top + scene + 0.03 * scene + drop / 2)), at).toBeLessThanOrEqual(2);
           expect(part.bottom, at).toBeGreaterThan(1.02);
           expect(part.clipPath, at).toBe("none");
-          // Pushed out toward its own side so that its outer part is off the screen's edge (a third of its width at most) and the half's frame cuts it; the middle of the figure, where the face is, stays on screen.
-          expect(part.crop, at).toBeGreaterThan(0.1);
-          expect(part.crop, at).toBeLessThanOrEqual(1 / 3 + 0.0001);
           expect(part.frameOverflow, at).toBe("hidden");
-          if (slot === 0) {
-            expect(Math.abs(part.left + part.crop * part.width), at).toBeLessThanOrEqual(1.5);
-            expect(part.left + part.width / 2, at).toBeGreaterThan(0);
-          } else {
-            expect(Math.abs(part.right - part.crop * part.width - width), at).toBeLessThanOrEqual(1.5);
-            expect(part.right - part.width / 2, at).toBeLessThan(width);
+          // The head's box on the screen: across, from its outer edge (in from the photo's by `head.out` of its width) to its inner edge; down, the head's top (the crown) to the bottom of its band (`headSpan`).
+          const outerX = slot === 0 ? part.left + part.head.out * part.width : part.right - part.head.out * part.width;
+          const innerX = slot === 0 ? outerX + part.head.width * part.width : outerX - part.head.width * part.width;
+          const crown = part.top + part.head.top * part.height;
+          const chin = part.top + (part.head.top + 0.3 * (1 - part.head.top)) * part.height;
+          // The whole head is on the screen with its margin (16px; the body and the shoulders may be cut by the edge), and the heads do not touch at the seam.
+          const margin = slot === 0 ? outerX : width - outerX;
+          expect(Math.abs(margin - TABLET_FIGURE.margin), at).toBeLessThanOrEqual(1.5);
+          expect(slot === 0 ? width / 2 - innerX : innerX - width / 2, at).toBeGreaterThanOrEqual(TABLET_FIGURE.seamClear - 1.5);
+          // The figure's box goes past the edge, or not: it is cut only where the head is not (the box's outer edge is at or past the head's margin).
+          expect(slot === 0 ? part.left : width - part.right, at).toBeLessThanOrEqual(TABLET_FIGURE.margin + 1.5);
+          // The head's box is clear of every line of the headline's text (the h1's and the p's): beside it or under it.
+          const left = Math.min(outerX, innerX);
+          const right = Math.max(outerX, innerX);
+          for (const line of lines) {
+            const apart = Math.max(line.left - right, left - line.right, line.top - chin, crown - line.bottom);
+            expect(apart, `${at}: head over the headline's text ${JSON.stringify(line)}`).toBeGreaterThanOrEqual(0);
           }
-          // The head is on the stage (the box's top is under the stage's top), and the eyes are over the poster cluster, not under it.
+          // The head is on the stage (the box's top is under the stage's top), and the eyes are over the poster cluster, not under it: above its top or, where a wide head leaves the figure small on a narrow screen, beside its first poster.
           expect(part.top, at).toBeGreaterThan(frame.top);
-          expect(part.eyeY!, at).toBeLessThan(posterTop);
+          const eyeX = (outerX + innerX) / 2;
+          const beside = slot === 0 ? eyeX < posterLeft : eyeX > posterRight;
+          if (width >= 768) expect(part.eyeY!, at).toBeLessThan(posterTop);
+          else expect(part.eyeY! < posterTop || beside, `${at}: eyes at ${Math.round(part.eyeY!)} (cluster's top ${Math.round(posterTop)}), x ${Math.round(eyeX)} (cluster ${Math.round(posterLeft)} to ${Math.round(posterRight)})`).toBe(true);
           expect(part.foot, at).toBeCloseTo(0.84, 2);
           expect(part.footInFront, at).toBe(true);
           expect(part.fades, at).toEqual([]);

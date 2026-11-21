@@ -4,7 +4,7 @@ import { useId, type CSSProperties } from "react";
 import { Duotone, TreatedPortrait } from "@/components/treated-portrait";
 import { MONTAGE_SIZE, PERSON_SIZE } from "@/components/landing/use-hero-rotation";
 import { EXTENSION_COLUMNS, MONTAGE_ROWS } from "@/lib/backdrop-posters";
-import { FIGURE_OVERHANG, POSTER_WIDTHS, figureOverhang, moreCount, posterPlace, type PosterWidth } from "@/lib/hero-layout";
+import { FIGURE_OVERHANG, POSTER_WIDTHS, TABLET_FIGURE_HEIGHT_CSS, TABLET_FIGURE_OUT_CSS, figureOverhang, headOuter, moreCount, posterPlace, type PosterWidth } from "@/lib/hero-layout";
 import { extensionPosters } from "@/lib/hero-backdrop";
 import type { HeroPairing, HeroPerson, HeroPoster } from "@/lib/hero-scenes";
 import { tmdbImage } from "@/lib/images";
@@ -59,15 +59,25 @@ export function PanelParts({ person, color, slot }: { person: HeroPerson; color:
   const tear = shape.tear === true;
   // Where the cut's eyes are in its photo (a share of its height), `--eye`: the styles do not read it, the browser tests do (the eyes are over the poster cluster, not under it).
   const eye = tear ? 0 : eyeLine(shape);
-  // On a phone and on a tablet the figure is pushed out so that part of it is off the screen (`--crop`, a share of its width): `FIGURE_OVERHANG`, less where the head would lose more than a quarter of itself (a tear has no head to keep: its strip runs on to the screen's edge).
-  const crop = tear ? FIGURE_OVERHANG : figureOverhang(headSpan(shape), slot);
+  // On a phone the figure is pushed out so that part of it is off the screen (`--crop`, a share of its width): `FIGURE_OVERHANG`, less where the head would lose more than a quarter of itself (a tear has no head to keep: its strip runs on to the screen's edge).
+  const head = tear ? null : headSpan(shape);
+  const crop = head ? figureOverhang(head, slot) : FIGURE_OVERHANG;
   const figureStyle: Record<string, string> = {
     "--crop": crop.toFixed(4),
     "--fig-out": "calc(-1 * var(--core-pad) - var(--crop) * var(--fig-h) * 2 / 3)",
-    ...(tear
-      ? // The strip fades out toward the seam, where the headline is (on a larger screen), so it never sits under the copy, and at its outer end too, as the photo ends there and the montage goes on.
-        { maskImage: `linear-gradient(to ${slot === 0 ? "right" : "left"}, transparent, #000 9%, #000 58%, transparent 97%)` }
-      : { "--fig-in": FIGURE_CENTRE, "--eye": eye.toFixed(4) }),
+    ...(head
+      ? {
+          "--fig-in": FIGURE_CENTRE,
+          "--eye": eye.toFixed(4),
+          // On a tablet the whole head stays on the screen (hero-layout.ts `tabletFigure`): the head's outer edge's place and width in its photo, and its top, size the figure and push it out only as far as its head's margin allows.
+          "--head-out": headOuter(head, slot).toFixed(4),
+          "--head-w": head.width.toFixed(4),
+          "--head-top": head.top.toFixed(4),
+          "--fig-h-t": TABLET_FIGURE_HEIGHT_CSS,
+          "--fig-out-t": TABLET_FIGURE_OUT_CSS,
+        }
+      : // The strip fades out toward the seam, where the headline is (on a larger screen), so it never sits under the copy, and at its outer end too, as the photo ends there and the montage goes on.
+        { maskImage: `linear-gradient(to ${slot === 0 ? "right" : "left"}, transparent, #000 9%, #000 58%, transparent 97%)` }),
   };
   // The core: this half less its extension past the decoration box, on its outer side.
   const core: CSSProperties = slot === 0 ? { left: "var(--core-pad)", right: 0 } : { left: 0, right: "var(--core-pad)" };
@@ -122,9 +132,9 @@ export function PanelParts({ person, color, slot }: { person: HeroPerson; color:
       {/*
         A cut is anchored to the core's bottom (a little past it, and `--fig-drop` further, half of how far the timeline is dropped, which on a phone is no further: its lower body goes on past the line, behind the timeline and the names, and the foot melts it into the page) and, from `lg` up, centred `FIGURE_CENTRE` of the core's width in from its outer edge, so the seam's side stays clear.
         A tear (a person with no cut) is a strip across the whole photo, so from `sm` up it spans the core's width, as it spans a card's, with its strip at the height of a cut's head.
-        Below `lg` (a phone and a tablet) the figure is `--fig-h` high and pushed out toward the screen's edge by `--crop` of its width (`figureOverhang`, from the head's place in its photo): `--fig-out` is where its outer edge is, past the screen's, so that the half's frame cuts the outer part off, and the face (a third of the figure at most is off, a quarter of the head at most) is beside the poster cluster and, on a tablet, beside the headline's copy. A tear's strip runs on past the screen's edge the same way on a phone.
-        On a phone (below `sm`) `--fig-h` is set by the section (hero.tsx: 1.5 times what the figure was, `min(90%, 165cqw)` of the core, and the stage is as tall as the headline above it and the figure need), and the figure stands on the core's bottom 18px higher than it was (`--fig-lift`: 3% past the bottom less the lift, so the photo's bottom edge is at the bottom, under the foot). The headline is over the figure's top, which is a headline's height under the stage's, less the lift (the box has that much gap under the copy, and 2px more): the heads never reach the copy.
-        On a tablet (`sm` up to `lg`) the headline is over the seam, and the figure is anchored as a desktop's is (3% and `--fig-drop` past the bottom, under the foot, so the photo's bottom edge never shows, whatever the cut's headroom) with `--fig-h` set here, by formula from the stage's height (`--scene-h`) and the core's width: `max(0.7 x stage, min(0.9 x stage, 165cqw))`. The middle term is what the figure was (a figure about 1.1 times its core's width, up to 0.9 of the stage); the 0.7 of the stage is the least that stands the eyes of the lowest-eyed cut in the pool (`eyeLine`, 0.45 of the figure's height) over the poster cluster, which is a fixed share of the stage, where the core is narrow and 165cqw would be less. The figure is then wider than its core where it is the 0.7, and its outer part is off the screen, as a phone's is, so the head is beside the copy and not under it.
+        On a phone (below `sm`) the figure is `--fig-h` high and pushed out toward the screen's edge by `--crop` of its width (`figureOverhang`, from the head's place in its photo): `--fig-out` is where its outer edge is, past the screen's, so that the half's frame cuts the outer part off, and the face (a third of the figure at most is off, a quarter of the head at most) is beside the poster cluster. A tear's strip runs on past the screen's edge the same way.
+        On a phone `--fig-h` is set by the section (hero.tsx: 1.5 times what the figure was, `min(90%, 165cqw)` of the core, and the stage is as tall as the headline above it and the figure need), and the figure stands on the core's bottom 18px higher than it was (`--fig-lift`: 3% past the bottom less the lift, so the photo's bottom edge is at the bottom, under the foot). The headline is over the figure's top, which is a headline's height under the stage's, less the lift (the box has that much gap under the copy, and 2px more): the heads never reach the copy.
+        On a tablet (`sm` up to `lg`) the headline is over the seam, and the figure is anchored as a desktop's is (3% and `--fig-drop` past the bottom, under the foot, so the photo's bottom edge never shows, whatever the cut's headroom). It is cropped by the screen's edge as a phone's is, but the whole head stays on the screen: `--fig-out-t` puts the head's outer edge (from `--head-out`, where it is in the photo) 16px in from the edge, and the figure is pushed out no further, so the body and shoulders are cut and the head is not. `--fig-h-t` is the figure's height, per figure, from the head's width and top in its photo (`--head-w`, `--head-top`): `min(max(0.7 x stage, min(0.9 x stage, 165cqw)), the room to the seam, max(the room beside the copy, the room under it))` (hero-layout.ts `TABLET_FIGURE_HEIGHT_CSS`, `tabletFigure` is the same in numbers): what the figure was, no wider than leaves the head clear of the seam, and clear of the headline's copy, beside it or under it. Where the cut's head is wide in its photo and the screen narrow, that is smaller than the old figure, and the eyes may be beside the poster cluster's first poster rather than above it.
         The figure is never faded: only the foot, the page's colour over it, darkens it.
       */}
       <div className="pointer-events-none absolute inset-y-0 [container-type:inline-size]" style={core}>
@@ -132,7 +142,7 @@ export function PanelParts({ person, color, slot }: { person: HeroPerson; color:
           className={
             tear
               ? `absolute aspect-[2/3] sm:inset-x-0 sm:top-[calc(38%_+_var(--fig-drop))] sm:-translate-y-[42%] max-sm:bottom-[calc(-3%_+_var(--fig-lift))] max-sm:h-(--fig-h) ${slot === 0 ? "max-sm:left-(--fig-out)" : "max-sm:right-(--fig-out)"}`
-              : `absolute bottom-[calc(-3%_-_var(--fig-drop))] aspect-[2/3] h-[min(90%,165cqw)] max-sm:bottom-[calc(-3%_+_var(--fig-lift))] max-lg:h-(--fig-h) sm:max-lg:[--fig-h:max(0.7*var(--scene-h),min(0.9*var(--scene-h),165cqw))] ${slot === 0 ? "left-(--fig-in) -translate-x-1/2 max-lg:left-(--fig-out) max-lg:translate-x-0" : "right-(--fig-in) translate-x-1/2 max-lg:right-(--fig-out) max-lg:translate-x-0"}`
+              : `absolute bottom-[calc(-3%_-_var(--fig-drop))] aspect-[2/3] h-[min(90%,165cqw)] max-sm:bottom-[calc(-3%_+_var(--fig-lift))] max-sm:h-(--fig-h) sm:max-lg:h-(--fig-h-t) ${slot === 0 ? "left-(--fig-in) -translate-x-1/2 max-lg:translate-x-0 max-sm:left-(--fig-out) sm:max-lg:left-(--fig-out-t)" : "right-(--fig-in) translate-x-1/2 max-lg:translate-x-0 max-sm:right-(--fig-out) sm:max-lg:right-(--fig-out-t)"}`
           }
           style={figureStyle as CSSProperties}
         >

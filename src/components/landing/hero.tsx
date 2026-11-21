@@ -32,7 +32,7 @@ export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
   return (
     <section
       aria-labelledby="hero-heading"
-      className="relative flex flex-col overflow-x-clip [--gutter:clamp(12px,5vw,88px)] [--seam:6px] [--stage-h0:max(400px,min(64svh,560px))] [--fig-lift:18px] [--head-h:calc(20px+2*1.05*34px+12px+3*1.625*15px+var(--fig-lift)+2px)] max-[319px]:[--head-h:calc(20px+3*1.05*34px+12px+3*1.625*15px+var(--fig-lift)+2px)] [--fig-h:calc(1.5*min(0.9*var(--stage-h0),1.65*(50vw-var(--seam)/2-var(--gutter))))] [--scene-h:max(var(--stage-h0),calc((var(--head-h)+var(--fig-h))/1.03))] [--name-fs:clamp(11px,calc(100vw/24),18px)] [--cue-fs:calc(var(--name-fs)*0.85)] [--row-gap:6px] [--row-body:calc(3*1.15*var(--name-fs)+var(--row-gap)+1.25*var(--cue-fs))] [--row-h:calc(22px+var(--row-body)+10px)] [--stage-h:max(var(--scene-h),calc(0.82*var(--scene-h)+var(--row-h)))] sm:[--seam:12px] sm:[--scene-h:var(--stage-h)] sm:[--stage-h:clamp(540px,calc(100svh-84px),880px)]"
+      className="relative flex flex-col overflow-x-clip [--gutter:clamp(12px,5vw,88px)] [--seam:6px] [--stage-h0:max(400px,min(64svh,560px))] [--fig-lift:18px] [--head-h:calc(20px+2*1.05*34px+12px+3*1.625*15px+var(--fig-lift)+2px)] max-[319px]:[--head-h:calc(20px+3*1.05*34px+12px+3*1.625*15px+var(--fig-lift)+2px)] [--fig-h:calc(1.5*min(0.9*var(--stage-h0),1.65*(50vw-var(--seam)/2-var(--gutter))))] [--scene-h:max(var(--stage-h0),calc((var(--head-h)+var(--fig-h))/1.03))] [--h1-fs:clamp(34px,min(4.6vw,calc(var(--stage-h)*0.105)),68px)] [--name-fs:clamp(11px,calc(100vw/24),18px)] [--cue-fs:calc(var(--name-fs)*0.85)] [--row-gap:6px] [--row-body:calc(3*1.15*var(--name-fs)+var(--row-gap)+1.25*var(--cue-fs))] [--row-h:calc(22px+var(--row-body)+10px)] [--stage-h:max(var(--scene-h),calc(0.82*var(--scene-h)+var(--row-h)))] sm:[--seam:12px] sm:[--scene-h:var(--stage-h)] sm:[--stage-h:clamp(540px,calc(100svh-84px),880px)]"
     >
       {/*
         First in the markup (it is what the section is named by), over the seam on a screen wide enough, across the top of the stage on a phone (its box is `--head-h` high, which the stage's height has room for). Its box lets the pointer through to what is
@@ -42,7 +42,7 @@ export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
       <div className="pointer-events-none absolute inset-x-0 top-0 z-30 h-(--head-h) px-4 pt-5 text-center sm:top-[17%] sm:h-auto sm:p-0">
         <h1
           id="hero-heading"
-          className="pointer-events-auto mx-auto max-w-[11.5em] text-balance text-[length:clamp(34px,min(4.6vw,calc(var(--stage-h)*0.105)),68px)] font-semibold leading-[1.05] tracking-[-0.03em] text-white [text-shadow:0_2px_28px_rgb(0_0_0/0.55)]"
+          className="pointer-events-auto mx-auto max-w-[11.5em] text-balance text-[length:var(--h1-fs)] font-semibold leading-[1.05] tracking-[-0.03em] text-white [text-shadow:0_2px_28px_rgb(0_0_0/0.55)]"
         >
           Watch filmmakers cross paths
         </h1>
