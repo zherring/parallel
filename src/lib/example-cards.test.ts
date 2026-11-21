@@ -90,6 +90,17 @@ describe("buildHeroPairings", () => {
     expect(() => buildHeroPairings(pairings, stale)).toThrow(/examples:refresh/);
   });
 
+  it("throws the same refresh message for an entry with the old shape of years (a `span`, none, or lists missing), not a TypeError", () => {
+    const entry = data["3+4"];
+    const withYears = (years: unknown) => ({ ...data, "3+4": { ...entry, years } }) as unknown as GeneratedExamples;
+    const noYears: Record<string, unknown> = { ...entry };
+    delete noYears.years;
+    const oldShape = { ...data, "3+4": { ...noYears, span: [1989, 1992] } } as unknown as GeneratedExamples;
+    for (const stale of [oldShape, withYears(undefined), withYears({}), withYears({ own: [[1989], [1992]] }), withYears({ own: [1989, 1992], together: [] }), withYears({ own: [[1989], [1992]], together: 1992 })]) {
+      expect(() => buildHeroPairings(pairings, stale)).toThrow(/out of date for pairing 3,4: run `npm run examples:refresh`/);
+    }
+  });
+
   it("builds an entry with three to five posters for every real pairing", () => {
     const all = buildHeroPairings();
     expect(all).toHaveLength(EXAMPLE_PAIRINGS.length);

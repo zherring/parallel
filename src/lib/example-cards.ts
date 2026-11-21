@@ -7,6 +7,7 @@ import {
   pairingKey,
   type ExamplePairing,
   type GeneratedExamples,
+  type GeneratedPairing,
   type Genre,
 } from "@/lib/examples";
 
@@ -19,6 +20,12 @@ export interface ExampleCardData {
   sharedCount: number;
   /** TMDB's canonical names and photos (profile paths), in the pairing's order. */
   people: { id: number; name: string; profilePath: string }[];
+}
+
+/** Whether an entry has the timeline's years in the shape `npm run examples:refresh` writes now (`own`, a list per person, and `together`); an older JSON has `span`, or nothing. */
+function hasYears(entry: GeneratedPairing): boolean {
+  const years: Partial<GeneratedPairing["years"]> | undefined = entry.years;
+  return Array.isArray(years?.own) && years.own.every(Array.isArray) && Array.isArray(years.together);
 }
 
 export interface GenreSection {
@@ -40,7 +47,7 @@ export function buildHeroPairings(
   for (const pairing of pairings) {
     const entry = data[pairingKey(pairing)];
     const wanted = pairing.people.map((person) => person.id).join(",");
-    if (!entry || entry.people.map((person) => person.id).join(",") !== wanted) {
+    if (!entry || entry.people.map((person) => person.id).join(",") !== wanted || !hasYears(entry)) {
       throw new Error(
         `examples.generated.json is out of date for pairing ${wanted}: run \`npm run examples:refresh\``,
       );
