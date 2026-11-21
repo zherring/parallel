@@ -87,7 +87,7 @@ const FACE_DROP = 0.85;
 
 /**
  * How far below the top of the cut the eyes are, as a multiple of the head's width: a little above the middle of the face (`FACE_DROP`, eyes to mouth). Fitted by eye
- * on the landing hero's tablet widths, where the figures are stood so that their eyes are on a line down the stage (`eyeLine`).
+ * on the landing hero's figures, where `eyeLine` is the measure the browser tests place a face by (over the poster cluster, not under it).
  */
 const EYE_DROP = 0.65;
 
@@ -107,7 +107,7 @@ export function headSpan(shape: TreatmentShape): { top: number; centre: number; 
 
 /**
  * Where the eyes of the cut `shape` are, as a share (0 to 1) of the photo's height from its top: the head's top, plus `EYE_DROP` head-widths (the head, by the points of the
- * cut's top `HEAD_BAND`, as `headCrop` has it). Not a measure (the cuts carry no face), a rule: it lets the hero stand figures of any headroom with their eyes at one height.
+ * cut's top `HEAD_BAND`, as `headCrop` has it). Not a measure (the cuts carry no face), a rule: it lets the hero's tests place the face of a cut of any headroom.
  */
 export function eyeLine(shape: TreatmentShape): number {
   const [w, h] = shape.size;

@@ -56,7 +56,7 @@ export function posterPlace(slot: number): PosterPlace {
 }
 
 /**
- * On a phone each figure is pushed out toward the edge of the screen it stands by, so that its outer part hangs off it and is cut by it (the half's frame clips it), and the
+ * On a phone and on a tablet (below `lg`) each figure is pushed out toward the edge of the screen it stands by, so that its outer part hangs off it and is cut by it (the half's frame clips it), and the
  * face sits beside the poster cluster, not behind it. `FIGURE_OVERHANG` is how much of the figure's width goes off the screen; `HEAD_CROP_MAX` how much of the head's width the
  * screen's edge may take, whatever the overhang, so that a face never loses more than a quarter of itself, however wide the head is in its photo or however near the outer
  * edge it stands (a tight crop of a face is the whole photo's width).
@@ -65,7 +65,7 @@ export const FIGURE_OVERHANG = 1 / 3;
 export const HEAD_CROP_MAX = 0.25;
 
 /**
- * The share of a figure's width that goes off the screen's edge on a phone: `FIGURE_OVERHANG`, less where the head would be cut by more than `HEAD_CROP_MAX` of its own
+ * The share of a figure's width that goes off the screen's edge on a phone or a tablet: `FIGURE_OVERHANG`, less where the head would be cut by more than `HEAD_CROP_MAX` of its own
  * width. `head` is where the head is across the figure's photo (shares of its width, `headSpan` in portrait-treatment.ts) and `slot` the side the figure stands on (0, the left,
  * has its outer edge at the photo's left; 1, the right). The head's outer edge is `outer` in from the photo's edge, and that much of the figure can go off before the head is
  * touched; the rule lets a quarter of the head's width go with it.
