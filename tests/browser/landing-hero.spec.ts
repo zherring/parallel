@@ -565,8 +565,9 @@ test.describe("at tablet widths (sm up to lg) the figures stand higher and the f
   /** What the figures and the foot of the stage are: the eye line of each cut (where the eyes of its photo are, as a share of the stage's height), the foot's height, and any fade on a figure. */
   async function figures(page: Page) {
     return stage(page).evaluate((root) => {
-      const rootBox = root.getBoundingClientRect();
       const frames = [...root.querySelectorAll<HTMLElement>("[data-frame]")];
+      // The halves' box, the scene: the stage's own, but on a phone the stage has the names' row under it.
+      const rootBox = frames[0].getBoundingClientRect();
       const parts = frames.map((frame) => {
         const figure = frame.querySelector<HTMLElement>("[data-part='figure']")!;
         const foot = frame.querySelector<HTMLElement>("[data-part='foot']")!;
@@ -620,7 +621,7 @@ test.describe("at tablet widths (sm up to lg) the figures stand higher and the f
       await page.goto("/");
       await ready(page);
       const { parts } = await figures(page);
-      const root = await box(stage(page));
+      const root = await box(stage(page).locator("[data-frame]").first());
       const line = (centreY(await box(stage(page).locator("[data-line]"))) - root.y) / root.height;
       for (const part of parts) {
         expect(part.foot).toBeCloseTo(0.42, 2);
@@ -669,7 +670,8 @@ test.describe("at tablet widths (sm up to lg) the figures stand higher and the f
 
 /** The stage's box and the geometry the timeline's content is in, for the band and drop tests below. */
 async function bandGeometry(page: Page) {
-  const root = await box(stage(page));
+  // The stage's box, with the halves' height (the scene's): the stage's own, but on a phone it has the names' row under the halves.
+  const root = { ...(await box(stage(page))), height: (await box(stage(page).locator("[data-frame]").first())).height };
   const link = await box(stageLink(page));
   const line = await box(stage(page).locator("[data-line]"));
   const caps = stage(page).locator("span.tabular-nums.text-strong");
@@ -787,7 +789,7 @@ test.describe("the timeline's content is in a band centred on the seam, and the 
         expect(x).toBeGreaterThan(g.leftCap.x + g.leftCap.width);
         expect(x).toBeLessThan(g.rightCap.x);
       }
-      // No drop on a phone: the line is at 82% of the stage.
+      // No drop on a phone: the line is at 82% of the halves' height (the scene's; the stage has the names' row under it).
       expect(Math.abs(g.lineY - g.root.y - 0.82 * g.root.height)).toBeLessThanOrEqual(1);
     });
 
@@ -1228,22 +1230,38 @@ test.describe("the genre pills are tabs of views", () => {
   });
 });
 
+/** The phone's names row (hero.tsx `--name-fs`, `--row-body`, `--row-h`): the names' size from the width of a third of the screen, and the height of the row, which is 22px under the line and has room for four lines of names. */
+function phoneRow(width: number) {
+  const nameFs = Math.min(16, Math.max(11, width / 27));
+  const body = 4 * 1.15 * nameFs;
+  return { nameFs, body, height: 22 + body + 10 };
+}
+
+/** Where the names are, as the block the keycaps are level with. */
+async function namesBlock(page: Page) {
+  const names = await box(stage(page).locator("[data-names]"));
+  return { top: names.y, bottom: names.y + names.height, centre: names.y + names.height / 2, names };
+}
+
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 320, height: 640 }, hasTouch: true, isMobile: true });
 
-  test("the names wrap to two centred lines: A on the first and '& B' on the second", async ({ page }) => {
+  test("the names wrap in the middle third: A on the first line and '& B' after it, centred, at a size from the width of a third", async ({ page }) => {
     await page.goto("/");
     await ready(page);
     const { container, a, amp, b } = await nameBoxes(page);
     const link = await box(stageLink(page));
-    // A is above the "&" and B; the "&" is beside B, on the second line, and the two lines are centred under the line.
+    // A is above the "&" and B; the "&" is beside B, on its first line, and the lines are centred under the line.
     expect(a.y + a.height).toBeLessThanOrEqual(b.y + 2);
-    expect(Math.abs(centreY(amp) - centreY(b))).toBeLessThanOrEqual(3);
+    expect(Math.abs(amp.y - b.y)).toBeLessThanOrEqual(3);
     expect(Math.abs(centreX(a) - centreX(link))).toBeLessThanOrEqual(3);
     expect(Math.abs((amp.x + (b.x + b.width - amp.x) / 2) - centreX(link))).toBeLessThanOrEqual(3);
-    expect(a.x).toBeGreaterThanOrEqual(link.x);
-    expect(b.x + b.width).toBeLessThanOrEqual(link.x + link.width);
-    expect(await container.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBe(16);
+    // In the middle third of the screen: the names and the "&", whatever they wrap to.
+    for (const rect of [a, amp, b]) {
+      expect(rect.x).toBeGreaterThanOrEqual(320 / 3 - 1);
+      expect(rect.x + rect.width).toBeLessThanOrEqual((320 * 2) / 3 + 1);
+    }
+    expect(Math.abs((await container.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))) - phoneRow(320).nameFs)).toBeLessThanOrEqual(0.1);
     const stageBox = await box(stage(page));
     expect(b.y + b.height).toBeLessThanOrEqual(stageBox.y + stageBox.height);
   });
@@ -1290,6 +1308,114 @@ test.describe("on a phone", () => {
 });
 
 /**
+ * On a phone Previous and Next are in the names' row under the timeline (not on the faces): the row is in thirds of the screen, Previous centred in the left, the names (and, on a touch screen,
+ * the cue's line) in the middle and Next in the right, and the keycaps are centred on the names' block. They stay separate controls, outside the link, 44px square.
+ */
+test.describe("on a phone the keycaps are in the names' row, on either side of the names", () => {
+  for (const [width, height] of [[390, 844], [320, 640]] as const) {
+    test.describe(`at ${width}px`, () => {
+      test.use({ viewport: { width, height }, hasTouch: true });
+
+      test("Previous is centred in the left third and Next in the right, under the timeline, level with the names and clear of the faces; 44px, and not in the link", async ({ page }) => {
+        await page.goto("/");
+        await ready(page);
+        const prev = await box(stage(page).getByRole("button", { name: "Previous pairing", exact: true }));
+        const next = await box(stage(page).getByRole("button", { name: "Next pairing", exact: true }));
+        const lineY = centreY(await box(stage(page).locator("[data-line]")));
+        const block = await namesBlock(page);
+        for (const key of [prev, next]) {
+          expect(Math.abs(key.width - 44)).toBeLessThanOrEqual(0.5);
+          expect(Math.abs(key.height - 44)).toBeLessThanOrEqual(0.5);
+          // Under the timeline, never over the faces or the cluster above it, and level with the names' block.
+          expect(key.y).toBeGreaterThan(lineY);
+          expect(Math.abs(centreY(key) - block.centre)).toBeLessThanOrEqual(1.5);
+          // Not on the names: the keycap's box is clear of the names'.
+          expect(key.x + key.width <= block.names.x || block.names.x + block.names.width <= key.x).toBe(true);
+        }
+        expect(Math.abs(centreX(prev) - width / 6)).toBeLessThanOrEqual(1);
+        expect(Math.abs(centreX(next) - (width * 5) / 6)).toBeLessThanOrEqual(1);
+        expect(Math.abs(centreX(block.names) - width / 2)).toBeLessThanOrEqual(2);
+        // The faces are above the cluster, which is above the line: the eyes of each cut are well clear over the keycaps.
+        const eyes = await stage(page).evaluate((root) =>
+          [...root.querySelectorAll<HTMLElement>("[data-frame]")].flatMap((frame) => {
+            const figure = frame.querySelector<HTMLElement>("[data-part='figure']")!.parentElement!.parentElement!;
+            const eye = parseFloat(figure.style.getPropertyValue("--eye"));
+            const rect = figure.getBoundingClientRect();
+            return Number.isFinite(eye) ? [rect.top + eye * rect.height] : [];
+          }),
+        );
+        for (const eye of eyes) expect(eye).toBeLessThan(prev.y - 40);
+        // Both are in the stage, outside the link: no control is nested in it, and the link is not what a tap on one of them reaches.
+        await expect(stageLink(page).getByRole("button")).toHaveCount(0);
+        const stageBox = await box(stage(page));
+        expect(prev.y + prev.height).toBeLessThanOrEqual(stageBox.y + stageBox.height);
+        expect(prev.x).toBeGreaterThanOrEqual(0);
+        expect(next.x + next.width).toBeLessThanOrEqual(width);
+      });
+
+      test("a tap on Next steps the scene and stays on the page; the buttons keep their names and the keyboard still steps", async ({ page }) => {
+        await page.goto("/");
+        await ready(page);
+        const before = await stageLink(page).getAttribute("aria-label");
+        await stage(page).getByRole("button", { name: "Next pairing", exact: true }).tap();
+        await expect.poll(() => stageLink(page).getAttribute("aria-label")).not.toBe(before);
+        expect(new URL(page.url()).pathname).toBe("/");
+        const second = await stageLink(page).getAttribute("aria-label");
+        await stage(page).getByRole("button", { name: "Previous pairing", exact: true }).tap();
+        await expect.poll(() => stageLink(page).getAttribute("aria-label")).not.toBe(second);
+        expect(new URL(page.url()).pathname).toBe("/");
+        const third = await stageLink(page).getAttribute("aria-label");
+        await page.keyboard.press("ArrowRight");
+        await expect.poll(() => stageLink(page).getAttribute("aria-label")).not.toBe(third);
+      });
+
+      test("the longest names wrap inside the middle third, never inside a word, and the row (keycaps level with it) holds them within the stage", async ({ page }) => {
+        await page.goto("/");
+        await ready(page);
+        // Whatever scene it is, the names are set to the worst wraps of the pool: three words and a three-word name (4 lines), then the longest single word beside the "&".
+        const measure = (names: readonly [string, string]) =>
+          stage(page).evaluate((root, [first, second]) => {
+            const row = root.querySelector<HTMLElement>("[data-names-row]")!;
+            const slots = [...root.querySelectorAll<HTMLElement>("[data-names] .grid")].map((column) => column.firstElementChild as HTMLElement);
+            const saved = slots.map((element) => element.textContent);
+            slots[0].textContent = first;
+            slots[1].textContent = second;
+            const rects = (element: Element) => {
+              const range = document.createRange();
+              range.selectNodeContents(element);
+              return [...range.getClientRects()].map((rect) => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }));
+            };
+            const lines = rects(slots[1]).length;
+            const out = {
+              text: rects(row),
+              row: row.getBoundingClientRect().toJSON() as { left: number; right: number; top: number; bottom: number },
+              stage: root.getBoundingClientRect().toJSON() as { bottom: number },
+              lines,
+              keys: [...root.querySelectorAll<HTMLElement>("[data-keycap]")].map((key) => key.getBoundingClientRect().toJSON() as { left: number; right: number; top: number; bottom: number }),
+            };
+            slots.forEach((element, index) => (element.textContent = saved[index]));
+            return out;
+          }, names);
+        for (const names of [["Paul Thomas Anderson", "Philip Seymour Hoffman"], ["Arnold Schwarzenegger", "Schwarzenegger"]] as const) {
+          const got = await measure(names);
+          for (const rect of got.text) {
+            expect(rect.left).toBeGreaterThanOrEqual(width / 3 - 1);
+            expect(rect.right).toBeLessThanOrEqual((width * 2) / 3 + 1);
+            // Inside the row's box, so inside the stage; the keycaps are the next thing over, not touching.
+            expect(rect.top).toBeGreaterThanOrEqual(got.row.top - 1);
+            expect(rect.bottom).toBeLessThanOrEqual(got.row.bottom + 1);
+            expect(rect.bottom).toBeLessThanOrEqual(got.stage.bottom);
+            for (const key of got.keys) expect(rect.right <= key.left || key.right <= rect.left).toBe(true);
+          }
+          // The longest word is one line: it is not broken to fit.
+          if (names[1] === "Schwarzenegger") expect(got.lines).toBe(1);
+        }
+      });
+    });
+  }
+});
+
+/**
  * A phone: the headline is across the top of the stage, over the montage, and the figures stand under it, 1.5 times as big as they were, each pushed out toward its own side of the
  * screen so that its outer part hangs off the screen's edge (the half's frame clips it: nothing scrolls sideways). The stage is as tall as the headline's box and the figure need.
  * The figure was `min(90%, 165cqw)` of its core high (the half less the gutter, the stage's old height, `max(400, min(64svh, 560))`, for the 90%).
@@ -1307,8 +1433,10 @@ test.describe("on a phone the headline is over the figures' heads and the figure
       const figureHeight = 1.5 * Math.min(0.9 * oldStage, 1.65 * core);
 
       const stageBox = await box(stage(page));
-      // The stage holds the headline's box and the figure, which stands 3% past its foot; never shorter than it was.
-      expect(Math.abs(stageBox.height - Math.max(oldStage, (HEAD + figureHeight) / 1.03))).toBeLessThanOrEqual(1.5);
+      // The halves (the scene) hold the headline's box and the figure, which stands 3% past its foot; never shorter than it was. The stage is the scene, or the names' row if that has not room under the line.
+      const scene = Math.max(oldStage, (HEAD + figureHeight) / 1.03);
+      expect(Math.abs((await box(stage(page).locator("[data-frame]").first())).height - scene)).toBeLessThanOrEqual(1.5);
+      expect(Math.abs(stageBox.height - Math.max(scene, 0.82 * scene + phoneRow(width).height))).toBeLessThanOrEqual(1.5);
       const h1 = await box(page.getByRole("heading", { level: 1 }));
       const copy = await box(page.getByRole("heading", { level: 1 }).locator("xpath=following-sibling::p"));
       expect(h1.y).toBeGreaterThanOrEqual(stageBox.y);

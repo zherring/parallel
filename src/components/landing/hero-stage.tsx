@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {
-  Fragment,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -47,6 +46,9 @@ function sceneLabel(scene: Scene): string {
 
 const sceneHref = (scene: Scene) =>
   `/p/${buildPeopleSlug(scene.people.map(({ id, name }) => ({ id, name })))}`;
+
+/** A keycap's height on the stage: the middle of the names' row on a phone (22px under the line, and half of the row's box: `Action`'s `data-names-row`), the stage's middle from `sm` up. */
+const KEYCAP_ROW = "top-[calc(var(--line-y)+22px+var(--row-body)/2)] z-20 -translate-y-1/2 sm:top-1/2";
 
 const subscribeNever = () => () => {};
 const noop = () => {};
@@ -171,7 +173,7 @@ function Backdrop({ items, reduced, onGone }: { items: readonly Item[]; reduced:
         <div
           key={slot}
           data-frame=""
-          className={`absolute inset-y-0 isolate overflow-hidden bg-[#0b0d10] ${halfCorners(slot)}`}
+          className={`absolute top-0 bottom-[calc(var(--stage-h)_-_var(--scene-h))] isolate overflow-hidden bg-[#0b0d10] ${halfCorners(slot)}`}
           style={halfBox(slot)}
         >
           {panels
@@ -237,30 +239,23 @@ function Action({ items, reduced, onGone }: { items: readonly Item[]; reduced: b
         ))}
 
         {labels.map((item) => (
-          <Fragment key={item.id}>
-            {/* To the right of the cluster, on the posters' middle (not the line's). */}
-            <div
-              data-cue-more=""
-              className="absolute size-0"
-              style={
-                {
-                  left: `calc(50% + (min(${item.count}, var(--cap)) - 1) / 2 * var(--step) + var(--pw) / 2 + 14px)`,
-                  top: "calc(var(--line-y) - var(--poster-gap) - var(--pw) * 0.75)",
-                  "--count": item.count,
-                } as CSSProperties
-              }
-            >
-              <Motion item={item} reduced={reduced} onGone={onGone} className="absolute left-0 top-0 -translate-y-1/2">
-                <MoreLabel pairing={item.pairing} />
-              </Motion>
-            </div>
-            {/* The cue's line, under the names (their box: from 22px under the line, one line of their size, then a gap): hidden until the cue (hero-cue.css), and on a phone, which has no room under its two lines of names. */}
-            <div className="absolute inset-x-0 top-[calc(var(--line-y)+34px+1.15*clamp(16px,1.6vw,24px))] flex justify-center max-sm:hidden">
-              <Motion item={item} reduced={reduced} onGone={onGone} className="">
-                <CueCall count={item.pairing.sharedCount} />
-              </Motion>
-            </div>
-          </Fragment>
+          // To the right of the cluster, on the posters' middle (not the line's).
+          <div
+            key={item.id}
+            data-cue-more=""
+            className="absolute size-0"
+            style={
+              {
+                left: `calc(50% + (min(${item.count}, var(--cap)) - 1) / 2 * var(--step) + var(--pw) / 2 + 14px)`,
+                top: "calc(var(--line-y) - var(--poster-gap) - var(--pw) * 0.75)",
+                "--count": item.count,
+              } as CSSProperties
+            }
+          >
+            <Motion item={item} reduced={reduced} onGone={onGone} className="absolute left-0 top-0 -translate-y-1/2">
+              <MoreLabel pairing={item.pairing} />
+            </Motion>
+          </div>
         ))}
 
         {years.map((item) => (
@@ -277,18 +272,32 @@ function Action({ items, reduced, onGone }: { items: readonly Item[]; reduced: b
 
         {/*
           The names, one label under the line, centred on the seam: "A & B", the "&" on the seam and the names balanced on either side of it (a grid of two equal columns round
-          it, A against it on its left and B on its right), on one line. On a phone it wraps: A on the first line and "& B" on the second, centred. Each name is a piece
-          of its own, so a swap of one person slides only their name; a column holds the leaving name and the arriving one in the same place.
+          it, A against it on its left and B on its right), on one line. Each name is a piece of its own, so a swap of one person slides only their name; a column holds the leaving name
+          and the arriving one in the same place. Under the names is the cue's line (`CueCall`), where a click goes: hidden until the cue (hero-cue.css), and on a phone, which has no room under
+          its names for it, not there.
+          On a phone the row under the line is in thirds of the screen: Previous (stage level, outside the link) centred in the left, this block in the middle third and Next in the right. The block is
+          a box of the row's height (`--row-body`, hero.tsx: room for the longest wrap) and its content is centred in it, so the keycaps, centred on the same box, are centred on the names whatever they
+          wrap to. The names wrap in the third (A on the first line, "& B" on the second, each wrapped further when it does not fit, at the size `--name-fs`).
         */}
-        <div data-names="" className="absolute inset-x-0 top-[calc(var(--line-y)+22px)] flex flex-col items-center text-center text-[length:clamp(16px,1.6vw,24px)] font-semibold leading-[1.15] tracking-[-0.02em] text-white [text-shadow:0_1px_14px_rgb(0_0_0/0.65)] sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-baseline sm:gap-x-[0.45em]">
-          <NameColumn slot={0} names={names} reduced={reduced} onGone={onGone} />
-          <div className="flex items-baseline justify-center gap-[0.35em] sm:contents">
-            {amps.map((item) => (
-              <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="font-normal text-white/70">
-                &amp;
+        <div data-names-row="" className="absolute left-1/2 top-[calc(var(--line-y)+22px)] flex h-(--row-body) w-[calc(100cqw/3)] -translate-x-1/2 flex-col items-center justify-center sm:inset-x-0 sm:block sm:h-auto sm:w-auto sm:translate-x-0">
+          <div data-names="" className="flex flex-col items-center text-center text-[length:var(--name-fs)] font-semibold leading-[1.15] tracking-[-0.02em] text-white [overflow-wrap:anywhere] [text-shadow:0_1px_14px_rgb(0_0_0/0.65)] sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-baseline sm:gap-x-[0.45em] sm:text-[length:clamp(16px,1.6vw,24px)] sm:[overflow-wrap:normal]">
+            <NameColumn slot={0} names={names} reduced={reduced} onGone={onGone} />
+            <div className="flex items-baseline justify-center gap-[0.35em] sm:contents">
+              {amps.map((item) => (
+                <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="font-normal text-white/70">
+                  &amp;
+                </Motion>
+              ))}
+              <NameColumn slot={1} names={names} reduced={reduced} onGone={onGone} />
+            </div>
+          </div>
+          {/* From `sm` up the line is under the names' box (12px; they are one line), centred on the stage; on a phone there is none. */}
+          <div className="hidden justify-items-center sm:absolute sm:inset-x-0 sm:top-full sm:mt-3 sm:grid">
+            {labels.map((item) => (
+              <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="col-start-1 row-start-1">
+                <CueCall count={item.pairing.sharedCount} />
               </Motion>
             ))}
-            <NameColumn slot={1} names={names} reduced={reduced} onGone={onGone} />
           </div>
         </div>
       </div>
@@ -299,7 +308,7 @@ function Action({ items, reduced, onGone }: { items: readonly Item[]; reduced: b
 /**
  * The stage's one link, and its box is the action zone: the poster cluster (a poster is 1.5 times its width tall) padded 56px above, as wide as the timeline's band, down to the
  * stage's bottom, which takes in the posters, "+N more", the line and its dots, the years, the names and the cue's line. Hover cue, keyboard focus and click are all this box:
- * the faces, the montage and the headline are not in a link (no pointer cursor, no click), and the focus ring wraps the zone. `--zone-top` is its top, set on the stage (in px, from the stage's height, as the line's 82% is: a percentage would be of the link's own box where it is used for the content's offset). Its content
+ * the faces, the montage and the headline are not in a link (no pointer cursor, no click), and the focus ring wraps the zone. `--zone-top` is its top, set on the stage (in px, from the line's, which is from the scene's height: a percentage would be of the link's own box where it is used for the content's offset). Its content
  * (`Action`) is drawn on the stage's own coordinates: a box as big as the stage's, centred on the zone (which is centred on the stage), as it was when the link was the whole stage.
  */
 const ZONE_CLASS =
@@ -473,14 +482,15 @@ function Stage({ root, pool, initial }: { root: RefObject<HTMLDivElement | null>
 
   return (
     <>
-      {/* Previous and Next sit 8px in from the decoration box's outer edges (`--core-pad` in from the screen's) at the stage's middle, outside the link, so no control is nested in it. */}
+      {/* Previous and Next are outside the link, so no control is nested in it. From `sm` up they sit 8px in from the decoration box's outer edges (`--core-pad` in from the screen's) at the stage's middle. On a phone
+          they are in the names' row, under the line: Previous centred in the left third of the screen, Next in the right, on the middle of the row (`--row-body`, the box the names are centred in), clear of the faces. */}
       {canStep && (
         <KeycapButton
           direction="prev"
           label="Previous pairing"
           pressed={pressed === "prev"}
           onClick={navigate("prev")}
-          className={`left-[calc(var(--core-pad)+8px)] top-1/2 z-20 -translate-y-1/2 ${keycapIn}`}
+          className={`${KEYCAP_ROW} left-[calc(100cqw/6-22px)] sm:left-[calc(var(--core-pad)+8px)] ${keycapIn}`}
           onPhoto
           {...focusHandlers}
         />
@@ -507,7 +517,7 @@ function Stage({ root, pool, initial }: { root: RefObject<HTMLDivElement | null>
           label="Next pairing"
           pressed={pressed === "next"}
           onClick={navigate("next")}
-          className={`right-[calc(var(--core-pad)+8px)] top-1/2 z-20 -translate-y-1/2 ${keycapIn}`}
+          className={`${KEYCAP_ROW} right-[calc(100cqw/6-22px)] sm:right-[calc(var(--core-pad)+8px)] ${keycapIn}`}
           onPhoto
           {...focusHandlers}
         />
@@ -539,7 +549,7 @@ function LiveStage({ root, pool }: { root: RefObject<HTMLDivElement | null>; poo
  * as the screen and a size container, so `--core-pad` (what `100cqw` makes of it) is how far in from the screen's edges the stage's decoration box is (and
  * its content, the keycaps, the figures and the montage's first tile, which stand in it): the gutter, or, past 1600px of width, the gutter and half of what is left.
  * Each half runs out past the box all the way to the screen's edge (`--core-pad` further), and so does the timeline's line. `--pw` is a poster's width, from the box (its height, and on a phone its width), `--step` the distance
- * between posters of the cluster; `--line-y` is the line's place down the stage (82% and `--drop`), `--poster-gap` how far the
+ * between posters of the cluster; `--line-y` is the line's place down the stage (82% of the scene, `--scene-h` (hero.tsx: the stage, but on a phone less the names' row under the halves), and `--drop`), `--poster-gap` how far the
  * posters' bottoms are above it. `--drop` is how far the line and all that stands on it (the cluster, "+N more", the dots, years, caps and the names) are moved down
  * from 82%: 50px on a stage 816px high (a 1440 x 900 screen), less on a shorter one so that the names keep about 40px above the stage's bottom edge
  * (`0.18 x stage - 90px`, between 0 and 50px), and nothing on a phone, whose names would not fit; the figures are dropped half as far (`--fig-drop`). `--band-w` is
@@ -557,7 +567,7 @@ export function HeroStage({ pool, fallback }: Props) {
     <div
       ref={root}
       data-hero-stage=""
-      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size] [--drop:0px] sm:[--drop:clamp(0px,calc(var(--stage-h)_*_0.18_-_90px),50px)] [--fig-drop:calc(var(--drop)_/_2)] [--line-y:calc(82%_+_var(--drop))] [--core-pad:max(var(--gutter),calc((100cqw_-_1600px)/2_+_var(--gutter)))] [--axis-pad:54px] [--axis-w:calc(var(--band-w)_-_2_*_var(--axis-pad))] [--foot-h:42%] sm:[--foot-h:84%] lg:[--foot-h:42%] [--eye-line:44%] [--zone-top:calc(var(--stage-h)_*_0.82_+_var(--drop)_-_var(--poster-gap)_-_var(--pw)_*_1.5_-_56px)] [--poster-gap:22px] [--pw:min(68px,calc(var(--stage-h)*0.15),17cqw)] [--step:calc(var(--pw)*0.76)] sm:[--poster-gap:26px] sm:[--pw:min(92px,calc(var(--stage-h)*0.15))] lg:[--pw:min(100px,calc(var(--stage-h)*0.15))] sm:[--axis-pad:64px]"
+      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size] [--drop:0px] sm:[--drop:clamp(0px,calc(var(--stage-h)_*_0.18_-_90px),50px)] [--fig-drop:calc(var(--drop)_/_2)] [--line-y:calc(var(--scene-h)_*_0.82_+_var(--drop))] [--core-pad:max(var(--gutter),calc((100cqw_-_1600px)/2_+_var(--gutter)))] [--axis-pad:54px] [--axis-w:calc(var(--band-w)_-_2_*_var(--axis-pad))] [--foot-h:42%] sm:[--foot-h:84%] lg:[--foot-h:42%] [--eye-line:44%] [--zone-top:calc(var(--line-y)_-_var(--poster-gap)_-_var(--pw)_*_1.5_-_56px)] [--poster-gap:22px] [--pw:min(68px,calc(var(--stage-h)*0.15),17cqw)] [--step:calc(var(--pw)*0.76)] sm:[--poster-gap:26px] sm:[--pw:min(92px,calc(var(--stage-h)*0.15))] lg:[--pw:min(100px,calc(var(--stage-h)*0.15))] sm:[--axis-pad:64px]"
       style={{ "--band-w": BAND_WIDTH_CSS } as CSSProperties}
     >
       {live && shown ? <LiveStage root={root} pool={pool} /> : null}
