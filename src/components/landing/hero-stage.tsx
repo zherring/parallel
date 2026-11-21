@@ -147,6 +147,7 @@ const halfCorners = (slot: 0 | 1) => (slot === 0 ? "rounded-r-[9px]" : "rounded-
 /**
  * One side of the names' label: the names of `slot` in one cell, so a leaving name and the one arriving are in the same place. A is against the "&" on its left (right-aligned), B on its right.
  * Each name is two texts, one shown at a time: the full name from `sm` up, and on a phone the family name (`item.label`, hero-items.ts). The label is decoration (`aria-hidden`): the stage's link is named by the full names.
+ * On a phone B is left-aligned in its column, so that where it wraps ("Lilly" over "Wachowski") its first line stays beside the "&"; a name on one line is as wide as its column, so it is centred as before.
  */
 function NameColumn({ slot, names, reduced, onGone }: { slot: 0 | 1; names: readonly NameItem[]; reduced: boolean; onGone: (id: string) => void }) {
   return (
@@ -154,7 +155,7 @@ function NameColumn({ slot, names, reduced, onGone }: { slot: 0 | 1; names: read
       {names
         .filter((item) => item.slot === slot)
         .map((item) => (
-          <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="col-start-1 row-start-1 sm:whitespace-nowrap">
+          <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className={`col-start-1 row-start-1 sm:whitespace-nowrap ${slot === 1 ? "max-sm:text-left" : ""}`}>
             <span className="sm:hidden">{item.label}</span>
             <span className="max-sm:hidden">{item.person.name}</span>
           </Motion>
