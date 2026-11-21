@@ -4,7 +4,7 @@ import { heroPool } from "../../src/lib/hero-scenes";
 import { pairFamilyNames } from "../../src/lib/short-name";
 import { test, expect } from "./fixtures";
 
-// The landing page's first screen: the sticky top bar (the wordmark, the search that opens the universal search, and the genre pills) over the stage (two portrait halves with
+// The landing page's first screen: the sticky top bar (the genre pills and the search that opens the universal search; no wordmark) over the stage (two portrait halves with
 // the headline over the seam, the timeline of everyone's films, and the shared films' posters in a cluster over it). The stage is drawn in the browser once its images are in (or after 2.5s, TMDB's host being out of reach here).
 // The genre pills are tabs that choose the view under the bar: Featured (the splash, and nothing under it) or one genre's grid (and "How it works" under that).
 
@@ -49,29 +49,47 @@ test("the headline is the one h1, the stage is one labelled link to a pair, and 
   await expect.poll(() => bar(page).evaluate((element) => Math.round(element.getBoundingClientRect().top))).toBe(0);
 });
 
-test("the top bar reads wordmark, then the genre pills taking the width left, then the search pinned to the right end; the pills fade at the edge by the search and never run under it", async ({ page }) => {
+test("the top bar reads the genre pills taking the width left, then the search pinned to the right end, and no wordmark; the pills fade at the edge by the search and never run under it", async ({ page }) => {
   await page.goto("/");
   await expect(stageLink(page)).toBeVisible();
-  const home = await box(bar(page).getByRole("link", { name: "Parallel home", exact: true }));
+  // The bar has no wordmark and no link at all: on this page it would only link to the page itself (the site's header, hidden here, has it).
+  await expect(bar(page).getByRole("link")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Parallel home", exact: true })).toHaveCount(0);
+  // The page is still named: its title says the site's name.
+  await expect(page).toHaveTitle(/^Parallel/);
   // The strip the pills scroll in (the tablist inside it is as wide as all of them, and runs on past the strip's edge).
   const strip = bar(page).getByRole("tablist").locator("xpath=..");
   const pills = await box(strip);
   const search = await box(bar(page).getByRole("button", { name: /Search any film artist/ }));
-  expect(home.x + home.width).toBeLessThanOrEqual(pills.x);
   expect(pills.x + pills.width).toBeLessThanOrEqual(search.x - 8);
-  // One row: the three are on the same middle.
-  expect(Math.abs(centreY(home) - centreY(search))).toBeLessThanOrEqual(3);
+  // One row: the two are on the same middle.
   expect(Math.abs(centreY(pills) - centreY(search))).toBeLessThanOrEqual(4);
-  // The search keeps its width (a quarter of the screen's, 240 to 340px) and sits at the bar's right end, as far in as its left padding keeps the wordmark.
+  // The search keeps its width (a quarter of the screen's, 240 to 340px) and sits at the bar's right end, as far in as its padding keeps the pills' start.
   expect(search.width).toBeGreaterThanOrEqual(240);
   expect(search.width).toBeLessThanOrEqual(340);
   const row = bar(page).locator(":scope > div");
   const rowBox = await box(row);
   const padding = await row.evaluate((element) => parseFloat(getComputedStyle(element).paddingRight));
   expect(Math.abs(search.x + search.width - (rowBox.x + rowBox.width - padding))).toBeLessThanOrEqual(1);
+  // The pills start at the bar's left padding (the first pill's edge is the gutter, as the stage's is) and take the width the search leaves: no gap between them and the search but the bar's own.
+  const first = await box(bar(page).getByRole("tab").first());
+  const left = await row.evaluate((element) => parseFloat(getComputedStyle(element).paddingLeft));
+  expect(Math.abs(first.x - (rowBox.x + left))).toBeLessThanOrEqual(1);
+  expect(Math.abs(search.x - 16 - (pills.x + pills.width))).toBeLessThanOrEqual(1);
   // The pills scroll in their own strip, and its end edge, the one by the search, fades.
   expect(await strip.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
   expect(await strip.evaluate((element) => getComputedStyle(element).maskImage)).toMatch(/calc\(100% - 40px\), rgba\(0, 0, 0, 0\)\)$/);
+});
+
+test("the Tab order is the picture's: the selected genre pill, then the search, then Previous (there is no wordmark before the pills)", async ({ page }) => {
+  await page.goto("/");
+  await ready(page);
+  await page.keyboard.press("Tab");
+  await expect(bar(page).getByRole("tab", { selected: true })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(bar(page).getByRole("button", { name: /Search any film artist/ })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(stage(page).getByRole("button", { name: "Previous pairing", exact: true })).toBeFocused();
 });
 
 test("the timeline has every film as a dot on the one line, as the pair page's does: each person's in their colour, the shared films larger and white, and a cap at each end", async ({ page }) => {
@@ -1470,11 +1488,10 @@ test.describe("on a phone", () => {
     const search = await box(bar(page).getByRole("button", { name: /Search any film artist/ }));
     const pills = await box(bar(page).getByRole("tablist"));
     expect(pills.y).toBeGreaterThanOrEqual(search.y + search.height - 1);
-    // Row one is the wordmark at the left and the search taking the rest, to the right.
-    const home = await box(bar(page).getByRole("link", { name: "Parallel home", exact: true }));
-    expect(home.x + home.width).toBeLessThanOrEqual(search.x);
-    expect(Math.abs(centreY(home) - centreY(search))).toBeLessThanOrEqual(4);
-    expect(search.x + search.width).toBeLessThanOrEqual(320 - 8);
+    // Row one is the search alone, across the bar between its gutters (no wordmark beside it, so no empty gap at its left), and the pills are the row under it.
+    await expect(bar(page).getByRole("link")).toHaveCount(0);
+    expect(Math.abs(search.x - Math.max(12, 0.05 * 320))).toBeLessThanOrEqual(1);
+    expect(Math.abs(search.x + search.width - (320 - Math.max(12, 0.05 * 320)))).toBeLessThanOrEqual(1);
     expect(await bar(page).getByRole("tablist").evaluate((list) => list.parentElement!.scrollWidth > list.parentElement!.clientWidth)).toBe(true);
   });
 });

@@ -75,7 +75,9 @@ test("the landing page's top bar replaces the header: its search field opens uni
   await expect(page.getByRole("banner")).toHaveCount(0);
   await expect(page.getByRole("combobox")).toHaveCount(0);
   const bar = page.locator("[data-landing-bar]");
-  await expect(bar.getByRole("link", { name: "Parallel home", exact: true })).toBeVisible();
+  // It has the genre pills and the search, and no wordmark: there it would only link to the page itself.
+  await expect(bar.getByRole("tablist", { name: "Genres", exact: true })).toBeVisible();
+  await expect(bar.getByRole("link")).toHaveCount(0);
   const trigger = bar.getByRole("button", { name: /Search any film artist/ });
   await expect(trigger).toBeVisible();
   await expect(trigger).toContainText(/⌘K|Ctrl K/);
@@ -262,11 +264,11 @@ test("starts a timeline from search, and the next search starts empty", async ({
 
 test("one shortcut follows soft navigation and browser history without keeping the old page's search", async ({ page }) => {
   await page.goto("/");
-  // On the landing page the wordmark in the top bar is the way home (the site's header is hidden there).
-  const home = page.locator("[data-landing-bar]").getByRole("link", { name: "Parallel home", exact: true });
+  // On the landing page the focus is on the selected genre pill (the top bar has no wordmark, and the site's header is hidden there).
+  const pill = page.locator("[data-landing-bar]").getByRole("tab", { selected: true });
   // The page is live once the bar's search button is (it is disabled until its handler is hydrated): the shortcut's listener is too.
   await expect(page.locator("[data-landing-bar]").getByRole("button", { name: /Search any film artist/ })).toBeEnabled();
-  await home.focus();
+  await pill.focus();
   await page.keyboard.press(SHORTCUT);
   const dialog = searchDialog(page);
   await expect(dialog).toBeVisible();
@@ -290,7 +292,7 @@ test("one shortcut follows soft navigation and browser history without keeping t
 
   await page.getByRole("link", { name: "Back to Parallel home", exact: true }).click();
   await expect(page).toHaveURL("/");
-  await home.focus();
+  await pill.focus();
   await page.keyboard.press(SHORTCUT);
   await expect(dialog).toBeVisible();
   await expect(peopleDialog(page)).toHaveCount(0);
@@ -310,7 +312,7 @@ test("one shortcut follows soft navigation and browser history without keeping t
 
   await page.goBack();
   await expect(page).toHaveURL("/");
-  await home.focus();
+  await pill.focus();
   await page.keyboard.press(SHORTCUT);
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("combobox")).toHaveValue("");

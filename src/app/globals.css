@@ -98,7 +98,7 @@ body:has([data-people-bar]) > header {
 }
 
 /*
- * The landing page's top bar (src/components/landing/landing-bar.tsx) is its header: the wordmark, the search and the genre pills, sticky at the top. The
+ * The landing page's top bar (src/components/landing/landing-bar.tsx) is its header: the genre pills and the search, sticky at the top. The
  * site's header would be a second bar above it (and the stage's height counts on the first 56px of the screen being the bar's), so it leaves for as
  * long as that bar is on the page: hidden from the first paint, since the bar is in the server's markup.
  */
