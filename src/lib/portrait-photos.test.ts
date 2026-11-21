@@ -26,6 +26,12 @@ describe("PROFILE_OVERRIDES", () => {
     for (const id of Object.keys(PROFILE_OVERRIDES).map(Number)) expect(known.has(id), `override for ${id} is for nobody in the examples or PORTRAIT_IDS`).toBe(true);
   });
 
+  it("each has a cut made from it (an override changed without `npm run portraits:cut` would show a tear)", () => {
+    for (const [id, path] of Object.entries(PROFILE_OVERRIDES)) {
+      expect(CUTS[id]?.profilePath, `override for ${id}: run npm run portraits:cut`).toBe(path);
+    }
+  });
+
   it("holds TMDB profile paths", () => {
     for (const [id, path] of Object.entries(PROFILE_OVERRIDES)) expect(path, `override for ${id}`).toMatch(/^\/[\w-]+\.(jpg|png)$/);
   });
