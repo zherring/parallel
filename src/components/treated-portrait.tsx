@@ -87,6 +87,7 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
   return (
     <span aria-hidden="true" data-treated-portrait data-treated-failed={failed ? "" : undefined} className={cn("relative inline-flex shrink-0 select-none", className)} style={{ containerType: "inline-size", borderRadius: radius, filter: grey ? "grayscale(1) brightness(0.72)" : undefined }}>
       <span
+        data-treated-frame
         className="absolute inset-0 overflow-hidden"
         style={{
           borderRadius: radius,
