@@ -14,3 +14,14 @@ const CUTS = cuts as unknown as PortraitCuts;
 export function profilePathFor(personId: number, tmdbPath: string | null): string | null {
   return PROFILE_OVERRIDES[personId] ?? CUTS[String(personId)]?.profilePath ?? tmdbPath;
 }
+
+/**
+ * People read from somewhere other than TMDB's live API (the committed people index, written by `npm run people:refresh`) with the photo the app shows
+ * (`profilePathFor`), so a search avatar never shows an older photo than the person's cut-out, even before the index is refreshed.
+ */
+export function withShownPhotos<T extends { id: number; profilePath: string | null }>(people: readonly T[]): T[] {
+  return people.map((person) => {
+    const profilePath = profilePathFor(person.id, person.profilePath);
+    return profilePath === person.profilePath ? person : { ...person, profilePath };
+  });
+}
