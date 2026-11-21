@@ -6,6 +6,8 @@ import { preloadImage } from "@/components/landing/hero-motion";
 import type { NavDirection } from "@/lib/hero-history";
 import type { HeroPairing, HeroPerson, Scene, Transition } from "@/lib/hero-scenes";
 import { tmdbImage } from "@/lib/images";
+import { MONTAGE_ROWS, extensionColumnsFor } from "@/lib/backdrop-posters";
+import { extensionPosters } from "@/lib/hero-backdrop";
 import { MONTAGE_POSTERS, treatmentShape } from "@/lib/portrait-treatment";
 
 interface Options {
@@ -24,15 +26,21 @@ export const MONTAGE_SIZE = "w185";
 
 export const personImageUrl = (path: string) => tmdbImage(path, PERSON_SIZE) ?? "";
 export const posterImageUrl = (path: string) => tmdbImage(path, POSTER_SIZE) ?? "";
-/** The montage behind a person: the posters of their own films, from the same call the panel draws them with (`treatmentShape`). */
-export const montageImageUrls = (person: HeroPerson): string[] =>
-  treatmentShape(person.id, person.profilePath).posters.slice(0, MONTAGE_POSTERS).map((path) => tmdbImage(path, MONTAGE_SIZE) ?? "");
+/**
+ * The montage behind a person: the posters of their own films, from the same calls the panel draws them with (`treatmentShape`, `extensionPosters`): the 3 x 3 core and the
+ * columns past it that this screen shows (`screenWidth`, the stage's own), so that a scene's montage is drawn whole, not filled in as its extension's posters arrive.
+ */
+export const montageImageUrls = (person: HeroPerson, screenWidth: number = typeof document === "undefined" ? 0 : document.documentElement.clientWidth): string[] => {
+  const core = treatmentShape(person.id, person.profilePath).posters.slice(0, MONTAGE_POSTERS);
+  const extension = extensionPosters(person.id, core).slice(0, extensionColumnsFor(screenWidth) * MONTAGE_ROWS);
+  return [...core, ...extension].map((path) => tmdbImage(path, MONTAGE_SIZE) ?? "");
+};
 
 /** Loads (and decodes) a scene's two portraits and their montages, and its posters. */
 export function preloadScene(scene: Scene, timeoutMs?: number): Preload {
   const handles = [
     ...scene.people.map((person) => personImageUrl(person.profilePath)),
-    ...scene.people.flatMap(montageImageUrls),
+    ...scene.people.flatMap((person) => montageImageUrls(person)),
     ...scene.pairing.posters.map((poster) => posterImageUrl(poster.path)),
   ].map((url) => preloadImage(url, timeoutMs));
   return {

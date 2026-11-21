@@ -1793,3 +1793,48 @@ test.describe("on a phone the headline is over the figures' heads and the figure
     expect(after).toEqual(before);
   });
 });
+
+// The montage behind each person (hero-parts.tsx `PanelParts`): their 3 x 3 core and the columns past it out to the screen's edge, from their own films' posters (src/lib/backdrop-posters.ts):
+// no poster on two tiles that touch (side by side, above and below, diagonally), which the old repeating of nine posters did (Bill Murray's half showed Grand Budapest, Zombieland and Groundhog Day
+// twice, and Sam Raimi's was all Spider-Man), and the columns reach the edge at the widest screen they are drawn for.
+for (const [key, label] of [
+  ["7623+11357", "Sam Raimi and Bruce Campbell"],
+  ["1524+1532", "Harold Ramis and Bill Murray"],
+] as const) {
+  test(`${label}: the montage has no poster on touching tiles and runs to the screen's edge, at 1920, 2560 and 3840px`, async ({ page }) => {
+    const pool = heroPool(buildHeroPairings());
+    const index = pool.findIndex((pairing) => pairing.key === key);
+    expect(index, key).toBeGreaterThanOrEqual(0);
+    await page.addInitScript((value) => (Math.random = () => value), (index + 0.5) / pool.length);
+    await page.setViewportSize({ width: 1920, height: 1000 });
+    await page.goto("/");
+    await ready(page);
+    for (const width of [1920, 2560, 3840]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await expect.poll(() => page.evaluate(() => document.documentElement.clientWidth)).toBe(width);
+      const halves = await page.evaluate(() =>
+        [...document.querySelectorAll("[data-hero-stage] [data-frame]")].map((frame) => ({
+          tiles: [...frame.querySelectorAll("[data-part='backdrop'] img")].map((image) => {
+            const rect = image.getBoundingClientRect();
+            return { src: image.getAttribute("src") ?? "", x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+          }),
+        })),
+      );
+      expect(halves, `${width}px`).toHaveLength(2);
+      for (const [slot, { tiles }] of halves.entries()) {
+        const at = `${label}, half ${slot}, ${width}px`;
+        // The core's nine and the extension's eighteen, each in its own place on the grid of three rows.
+        expect(tiles, at).toHaveLength(27);
+        for (const [i, a] of tiles.entries()) {
+          for (const b of tiles.slice(i + 1)) {
+            const touching = Math.abs(a.x - b.x) <= a.width * 1.1 && Math.abs(a.y - b.y) <= a.height * 1.1;
+            if (touching) expect(a.src, `${at}: tiles at ${Math.round(a.x)},${Math.round(a.y)} and ${Math.round(b.x)},${Math.round(b.y)} touch`).not.toBe(b.src);
+          }
+        }
+        // The columns run on to the screen's edge on the outer side of the half: the left half's leftmost tile starts at the screen's left, the right half's rightmost ends at its right.
+        if (slot === 0) expect(Math.min(...tiles.map((tile) => tile.x)), at).toBeLessThanOrEqual(1);
+        else expect(Math.max(...tiles.map((tile) => tile.x + tile.width)), at).toBeGreaterThanOrEqual(width - 1);
+      }
+    }
+  });
+}

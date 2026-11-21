@@ -3,7 +3,9 @@
 import { useId, type CSSProperties } from "react";
 import { Duotone, TreatedPortrait } from "@/components/treated-portrait";
 import { MONTAGE_SIZE, PERSON_SIZE } from "@/components/landing/use-hero-rotation";
+import { EXTENSION_COLUMNS, MONTAGE_ROWS } from "@/lib/backdrop-posters";
 import { FIGURE_OVERHANG, POSTER_WIDTHS, figureOverhang, moreCount, posterPlace, type PosterWidth } from "@/lib/hero-layout";
+import { extensionPosters } from "@/lib/hero-backdrop";
 import type { HeroPairing, HeroPerson, HeroPoster } from "@/lib/hero-scenes";
 import { tmdbImage } from "@/lib/images";
 import { MONTAGE_POSTERS, eyeLine, headSpan, treatmentShape } from "@/lib/portrait-treatment";
@@ -41,19 +43,18 @@ const TOP_SHADE =
  */
 const FOOT = `linear-gradient(to top, var(--bg), color-mix(in srgb, var(--bg) 93%, transparent) 14%, color-mix(in srgb, var(--bg) 74%, transparent) 33%, color-mix(in srgb, var(--bg) 42%, transparent) 55%, color-mix(in srgb, var(--bg) 14%, transparent) 78%, transparent)`;
 
-/** How many columns of posters are tiled past the first tile (three columns) on the outer side: enough for a viewport of about 3000px. */
-const EXTENSION_COLUMNS = 4;
-
 /**
  * The person's side of the stage: the montage of their films' posters (the look `TreatedPortrait` gives behind a cut: the same `duotoneMatrix` filter
  * and the same posters from `treatmentShape`) filling the half, the cut-out figure standing on its bottom edge and running a little off it, the foot gradient
- * over them both. The montage's 3 x 3 tile is followed outward by more columns of the same posters, repeating the list when it runs out, under the same
- * duotone. The figure has no outline: the cut is its own edge against the montage. A person with no posters is their colour, darkened.
+ * over them both. The montage's 3 x 3 tile is followed outward by more columns, as many as the widest screen needs (`EXTENSION_COLUMNS`), of the person's other films'
+ * posters (`extensionPosters`: no poster repeated unless they have too few films, and none beside itself or a film of its own franchise), under the same
+ * duotone; the 3 x 3 tile is their best-known, the same nine as a card's. The figure has no outline: the cut is its own edge against the montage. A person with no posters is their colour, darkened.
  */
 export function PanelParts({ person, color, slot }: { person: HeroPerson; color: string; slot: 0 | 1 }) {
   const filter = `hero-duo-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const shape = treatmentShape(person.id, person.profilePath);
   const posters = shape.posters.slice(0, MONTAGE_POSTERS);
+  const extension = extensionPosters(person.id, posters);
   const montage = posters.length > 0;
   const tear = shape.tear === true;
   // Where the cut's eyes are in its photo (a share of its height), `--eye`: the styles do not read it, the browser tests do (the eyes are over the poster cluster, not under it).
@@ -81,11 +82,11 @@ export function PanelParts({ person, color, slot }: { person: HeroPerson; color:
             </svg>
             <div className="absolute inset-y-0" style={core}>
               <div className="absolute inset-0 grid grid-cols-3 grid-rows-3" style={{ filter: `url(#${filter})` }}>
-                {posters.map((path) => (
-                  <img key={path} src={tmdbImage(path, MONTAGE_SIZE) ?? ""} alt="" decoding="async" draggable={false} className="size-full select-none object-cover" />
+                {posters.map((path, index) => (
+                  <img key={`${index}-${path}`} src={tmdbImage(path, MONTAGE_SIZE) ?? ""} alt="" decoding="async" draggable={false} className="size-full select-none object-cover" />
                 ))}
               </div>
-              {/* The tile goes on outward: its columns by distance from the first tile, each cell the next poster of the list (the list again when it runs out). */}
+              {/* The tile goes on outward: its columns by distance from the first tile, each cell the next poster of the extension's list (column by column, each top to bottom). */}
               <div
                 className="absolute inset-y-0 grid grid-rows-3"
                 style={{
@@ -95,10 +96,9 @@ export function PanelParts({ person, color, slot }: { person: HeroPerson; color:
                   filter: `url(#${filter})`,
                 }}
               >
-                {Array.from({ length: EXTENSION_COLUMNS * 3 }, (_, index) => {
-                  const column = Math.floor(index / 3);
-                  const row = index % 3;
-                  const path = posters[(MONTAGE_POSTERS + index) % posters.length];
+                {extension.map((path, index) => {
+                  const column = Math.floor(index / MONTAGE_ROWS);
+                  const row = index % MONTAGE_ROWS;
                   return (
                     <img
                       key={index}
