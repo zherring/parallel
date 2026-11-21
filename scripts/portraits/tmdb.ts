@@ -33,6 +33,12 @@ export function fetchPerson(id: number): Promise<Person> {
   return tmdb<Person>(`/person/${id}?append_to_response=movie_credits`);
 }
 
+/** The file path of every profile photo TMDB lists for the person (`/person/{id}/images`): what an override in `PROFILE_OVERRIDES` must be one of. */
+export async function fetchProfilePaths(id: number): Promise<string[]> {
+  const { profiles } = await tmdb<{ profiles: { file_path: string }[] }>(`/person/${id}/images`);
+  return profiles.map((profile) => profile.file_path);
+}
+
 /** Poster paths of the person's most-voted films, crew and cast, each film once: the montage background. */
 export function topPosters(person: Person, count: number): string[] {
   const seen = new Set<number>();

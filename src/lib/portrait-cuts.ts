@@ -45,11 +45,11 @@ export interface PortraitCut {
   profilePath: string;
   /** The segmentation model that ran (birefnet-portrait, or the isnet-general-use fallback). */
   model: string;
-  /** Pixel size of the w500 image the points were computed on. */
+  /** Pixel size of the image the points were computed on (w500 for the cuts made before the cutter took w780, which is 780 wide); the points are normalized, so only its shape matters. */
   size: [w: number, h: number];
   /** Share of the frame the raw mask covers, a rough failure signal. */
   coverage: number;
-  /** Set when birefnet-portrait's mask fell under 5% and the isnet-general-use fallback's result was kept as is (the owner likes the look). */
+  /** Set when birefnet-portrait's mask fell under 5% and the isnet-general-use fallback's result was kept as is (the cutter no longer keeps one: it fails the run). */
   flagged?: true;
   flagReason?: string;
   variants: Record<VertexCount, CutPoint[]>;
