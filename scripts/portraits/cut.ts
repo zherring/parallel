@@ -9,14 +9,20 @@
  * The run fails (exit code 1, the people named) when an override is not among the person's TMDB images, or when birefnet-portrait found nothing and the
  * isnet-general-use fallback cut instead: that cut is not kept (the fallback made Gene Wilder's garbage). Cuts that did succeed are saved either way.
  *
+ * `npm run portraits:cut -- --posters [ids]` refreshes only each person's posters (posters.ts: their best-known, varied films' posters, the core `posters` here and
+ * the extension in portrait-backdrops.json) and cuts no one: the polygons, the photos and everything else in the file stay as they are, and it needs neither Python nor the venv.
+ * A normal run gives the people it has just cut the same lists.
+ *
  * Setup once: python3 -m venv scripts/portraits/.venv && scripts/portraits/.venv/bin/python -I -m pip install "rembg[cpu]" opencv-python-headless numpy
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { BACKDROP_POSTERS } from "../../src/lib/backdrop-posters";
 import { PORTRAIT_IDS, type PortraitCut, type PortraitCuts } from "../../src/lib/portrait-cuts";
 import { PROFILE_OVERRIDES } from "../../src/lib/profile-overrides";
+import { posterLists, readBackdrops, writeBackdrops } from "./posters";
 import { fetchPerson, fetchProfilePaths, requireTmdbToken, topPosters, type Person } from "./tmdb";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -40,7 +46,15 @@ const BATCH = 8;
 
 type CutResult = Omit<PortraitCut, "name" | "profilePath" | "posters"> | { error: string } | null;
 
-/** Flags fallback cuts and writes the file in PORTRAIT_IDS order (so diffs stay readable). */
+/** Writes the file in PORTRAIT_IDS order (so diffs stay readable) and returns what it wrote. */
+function write(existing: PortraitCuts): PortraitCuts {
+  const ordered: PortraitCuts = {};
+  for (const id of PORTRAIT_IDS) if (existing[id]) ordered[id] = existing[id];
+  writeFileSync(outFile, `${JSON.stringify(ordered)}\n`);
+  return ordered;
+}
+
+/** Flags fallback cuts and writes the file. */
 function save(existing: PortraitCuts): PortraitCuts {
   // The run no longer keeps a fallback cut (`PRIMARY_MODEL`); this flags one stored before that rule (model is stored), so it stays listed at the end of a run.
   for (const cut of Object.values(existing)) {
@@ -52,20 +66,57 @@ function save(existing: PortraitCuts): PortraitCuts {
       cut.flagReason = `birefnet-portrait mask under 5%; kept the ${cut.model} fallback`;
     }
   }
-  const ordered: PortraitCuts = {};
-  for (const id of PORTRAIT_IDS) if (existing[id]) ordered[id] = existing[id];
-  writeFileSync(outFile, `${JSON.stringify(ordered)}\n`);
-  return ordered;
+  return write(existing);
+}
+
+/**
+ * Replaces `posters` (the core) of each of `ids` in `existing` and writes the extension, from `posterLists`; a person it could not make a list of keeps theirs. Returns the lines
+ * to print: the problems, the people whose list repeats a poster (fewer films than tiles) and those whose collections could not all be kept apart.
+ */
+async function refreshPosters(existing: PortraitCuts, ids: readonly number[]): Promise<{ lines: string[]; ok: boolean }> {
+  const { lists, problems } = await posterLists(ids);
+  const backdrops = readBackdrops();
+  const short: string[] = [];
+  const relaxed: string[] = [];
+  for (const [id, list] of lists) {
+    const cut = existing[id];
+    cut.posters = list.core;
+    backdrops[id] = list.extension;
+    if (list.distinct < BACKDROP_POSTERS) short.push(`  ${id} ${cut.name}: ${list.distinct} different posters (${list.films} films)`);
+    if (list.relaxed !== "none") relaxed.push(`  ${id} ${cut.name}: ${list.relaxed} touch (${list.films} films)`);
+  }
+  writeBackdrops(backdrops);
+  const out = [`${lists.size} posters lists made`];
+  if (short.length > 0) out.push(`${short.length} with fewer than ${BACKDROP_POSTERS} different posters (a poster repeats, never on a tile beside itself):`, ...short);
+  if (relaxed.length > 0) out.push(`${relaxed.length} whose collections or posters could not all be kept apart:`, ...relaxed);
+  if (problems.length > 0) out.push(`${problems.length} problems:`, ...problems.map((line) => `  ${line}`));
+  return { lines: out, ok: problems.length === 0 };
+}
+
+/** `--posters`: only the posters. The ids after it, if any, are the people refreshed; else everyone in the file. */
+async function mainPosters(argv: readonly string[]) {
+  const existing: PortraitCuts = existsSync(outFile) ? JSON.parse(readFileSync(outFile, "utf8")) : {};
+  const named = argv.filter((arg) => /^\d+$/.test(arg)).map(Number);
+  const ids = (named.length > 0 ? named : PORTRAIT_IDS).filter((id) => existing[id]);
+  console.log(`${ids.length} people`);
+  const { lines, ok } = await refreshPosters(existing, ids);
+  // Written as it was read, only `posters` changed: no flagging, no dropping of anyone's polygons.
+  write(existing);
+  for (const line of lines) console.log(line);
+  if (!ok) process.exitCode = 1;
 }
 
 async function main() {
   requireTmdbToken();
+  const argv = process.argv.slice(2);
+  if (argv.includes("--posters")) return mainPosters(argv);
   const started = Date.now();
   const existing: PortraitCuts = existsSync(outFile) ? JSON.parse(readFileSync(outFile, "utf8")) : {};
   mkdirSync(cacheDir, { recursive: true });
   const noPhoto: string[] = [];
   const failed: string[] = [];
   const fellBack: string[] = [];
+  const cutIds: number[] = [];
 
   // An override that TMDB does not list for the person would 404 or show another photo: fail before cutting anything.
   const unlisted: string[] = [];
@@ -145,11 +196,16 @@ async function main() {
           continue;
         }
         existing[id] = { name: person.name, profilePath: photo, ...result, posters: topPosters(person, 9) };
+        cutIds.push(id);
         console.log(`${id} ${person.name}: cut with ${result.model} (mask covers ${Math.round(result.coverage * 100)}% of the frame)`);
       }
       save(existing);
       console.log(`[${Math.min(at + BATCH, pending.length)}/${pending.length}] saved`);
     }
+    // The people cut now get the new lists of posters too (their `topPosters` above is only a stand-in).
+    const refreshed = await refreshPosters(existing, cutIds);
+    for (const line of refreshed.lines) console.log(line);
+    if (!refreshed.ok) process.exitCode = 1;
   }
 
   const ordered = save(existing);

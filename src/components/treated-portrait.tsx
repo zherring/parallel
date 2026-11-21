@@ -101,8 +101,8 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
           <>
             {montage && (
               <span className="absolute inset-0 grid grid-cols-3 grid-rows-3" style={{ filter: `url(#duo-${id})` }}>
-                {posters.slice(0, 9).map((path) => (
-                  <img key={path} src={tmdbImage(path, posterSize)!} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                {posters.slice(0, 9).map((path, index) => (
+                  <img key={`${index}-${path}`} src={tmdbImage(path, posterSize)!} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                 ))}
               </span>
             )}

@@ -53,7 +53,10 @@ export interface PortraitCut {
   flagged?: true;
   flagReason?: string;
   variants: Record<VertexCount, CutPoint[]>;
-  /** Poster paths of the artist's most-voted films, for the montage background. */
+  /**
+   * The montage's 3 x 3 core, nine poster paths row by row: the artist's best-known films, at most one of a collection, none beside itself (`npm run portraits:cut -- --posters`,
+   * backdrop-posters.ts). The landing hero's columns past the core are portrait-backdrops.json.
+   */
   posters: string[];
 }
 

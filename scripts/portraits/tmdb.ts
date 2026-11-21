@@ -1,6 +1,7 @@
 /**
- * Spike (zherring/spike-portraits): the TMDB reads shared by `npm run portraits:cut` (cut.ts) and `npm run portraits:testset` (testset.ts).
+ * Spike (zherring/spike-portraits): the TMDB reads shared by `npm run portraits:cut` (cut.ts, and its `--posters` mode, posters.ts) and `npm run portraits:testset` (testset.ts).
  */
+import type { RawMovieCredits } from "../../src/lib/tmdb-types";
 
 export interface Credit {
   id: number;
@@ -10,7 +11,28 @@ export interface Credit {
 export interface Person {
   name: string;
   profile_path: string | null;
-  movie_credits: { cast: Credit[]; crew: Credit[] };
+  /** The credits as the app reads them (`RawMovieCredits`), so `normalizeMovieCredits` can say which are minor; a `Credit` is what `topPosters` needs of each. */
+  movie_credits: RawMovieCredits;
+}
+
+/** What the montage reads of a film (`/movie/{id}`): its collection (a franchise, as TMDB groups them; credits lists do not carry it) and its runtime, for the shorts. */
+export interface MovieDetails {
+  id: number;
+  runtime?: number | null;
+  belongs_to_collection?: { id: number; name: string } | null;
+}
+
+/** `/movie/{id}`, retried after a 429 (TMDB's rate limit, which a long run meets) or a 5xx, so a run over thousands of films does not die on one hiccup. */
+export async function fetchMovieDetails(id: number, attempts = 5): Promise<MovieDetails> {
+  for (let attempt = 1; ; attempt++) {
+    const response = await fetch(`https://api.themoviedb.org/3/movie/${id}`, {
+      headers: { Authorization: `Bearer ${requireTmdbToken()}`, Accept: "application/json" },
+    });
+    if (response.ok) return (await response.json()) as MovieDetails;
+    if (attempt >= attempts || !(response.status === 429 || response.status >= 500)) throw new Error(`TMDB /movie/${id} answered ${response.status}`);
+    const wait = Number(response.headers.get("retry-after")) || attempt;
+    await new Promise((resolve) => setTimeout(resolve, wait * 1000));
+  }
 }
 
 /** The read token from .env; throws when it is missing, so a script can fail before its loop. */
