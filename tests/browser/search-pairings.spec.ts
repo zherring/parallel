@@ -301,7 +301,8 @@ test("the contextual People search never offers a shortcut that would replace th
   await dialog.getByRole("combobox").fill("Scroll Alpha");
   await expect(dialog.getByRole("option")).toHaveCount(2);
   await expect(dialog.getByText("Related pairings", { exact: true })).toHaveCount(0);
-  await expect(page).toHaveURL(PEOPLE_PATH);
+  // `openPeople` named the Timeline (a plain address opens Films), and nothing replaced it.
+  await expect(page).toHaveURL(`${PEOPLE_PATH}?view=timeline`);
 });
 
 test.describe("on a narrow phone", () => {

@@ -515,9 +515,9 @@ test.describe("at tablet widths (sm up to lg) the figures stand higher and the f
         const box = figure.parentElement!.parentElement!;
         const eye = parseFloat(box.style.getPropertyValue("--eye"));
         const rect = box.getBoundingClientRect();
-        // Every element from the figure up to the frame: none of them fades the figure (a mask, or less than full opacity).
+        // Every element from the figure up to the frame: none of them fades a cut (a mask, or less than full opacity). A tear (a person with no cut) is a strip that fades toward the seam and at its outer end by design.
         const fades: string[] = [];
-        for (let element: HTMLElement | null = figure; element && element !== frame; element = element.parentElement) {
+        for (let element: HTMLElement | null = Number.isFinite(eye) ? figure : null; element && element !== frame; element = element.parentElement) {
           const style = getComputedStyle(element);
           if (style.maskImage !== "none" || style.opacity !== "1") fades.push(`${element.tagName}.${style.maskImage}.${style.opacity}`);
         }
