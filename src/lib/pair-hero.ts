@@ -10,7 +10,7 @@
  *    their main roles and active years (`soloRolesLabel`, `activeYears`);
  *  - the film chips, in release order, as many of the first three as fit whole on one line and a "+N more" for the rest (`orderChips`, `visibleChips`, `fitChipCount`); for one person the
  *    best known first (`bestKnownChips`);
- *  - when the hero is expanded and when it has collapsed into the compact bar (`heroCollapsed`).
+ *  - when the hero is expanded and when it has collapsed into the compact bar, for good until the view changes (`heroCollapsed`, `nextHeroState`).
  */
 
 import { bioSnippet, stripBiographyCredit } from "@/lib/biography";
@@ -326,10 +326,28 @@ export function visibleChips<T>(chips: readonly T[], expanded: boolean, limit = 
 export const COLLAPSE_PX = 48;
 
 /**
- * Whether the hero is collapsed into the compact bar: the view's main scroller is `COLLAPSE_PX` or more from where it started (`landing`: its
- * offset when the view opened: the top, 0, for Films, the Table and the Quotes; the Timeline's left end, and its bottom where it scrolls down), in either direction. Back
- * within that of the start it is expanded again.
+ * Whether the view's main scroller is far enough from where it started to collapse the hero into the compact bar: `COLLAPSE_PX` or more from `landing` (its
+ * offset when the view opened: the top, 0, for the Table and the Quotes; where the pair's first collaboration is for Films and the Timeline (its card a card's width in from the left edge on the Timeline; the start, the top or the left end, only for a page without one), and the Timeline's bottom where it scrolls down too), in either direction.
+ * This says only where the scroller is. The hero does not follow it back: it collapses once and stays collapsed (see `nextHeroState`), since Films and the Timeline land mid-track and
+ * a hero that unfurled again whenever the scroller passed that spot would do it midway through the page.
  */
 export function heroCollapsed(offset: number, landing: number, threshold = COLLAPSE_PX): boolean {
   return Math.abs(offset - landing) >= threshold;
+}
+
+/** The pair hero's collapse as a view holds it: whether it has collapsed, and `key`, the view that is about (a flag left over from another view is not this one's). */
+export interface HeroState {
+  key: string;
+  collapsed: boolean;
+}
+
+/**
+ * The hero's state after the view `key` has been looked at. `moved` says that the visitor has moved the view away from where it landed: its scroller is `COLLAPSE_PX` or more from it
+ * (`heroCollapsed`), or a scroller that cannot move was pressed or wheeled, or a chip took them to a film. The hero is expanded when a view opens, collapses the first time `moved` is true,
+ * and then stays collapsed: a latch, which scrolling back to where the view landed does not release. What does release it is another view (a `key` that is not the state's: that view starts
+ * expanded) and a page load. Returns `prev` itself when nothing changes, so that a state update with it renders nothing.
+ */
+export function nextHeroState(prev: HeroState, key: string, moved: boolean): HeroState {
+  const collapsed = (prev.key === key && prev.collapsed) || moved;
+  return prev.key === key && prev.collapsed === collapsed ? prev : { key, collapsed };
 }

@@ -18,6 +18,7 @@ import {
   LINE_TO_CARD,
   MAX_ZOOM,
   MIN_ZOOM,
+  OPENING_BUFFER,
   OVERFLOW_ROW,
   POSTER_HEIGHT,
   QUIET_CARD_WIDTH,
@@ -58,6 +59,8 @@ import {
   yearFraction,
   zoomForPeriod,
   scrollLeftForYearStart,
+  firstCollaborationX,
+  scrollLeftForCardStart,
 } from "@/lib/timeline-layout";
 import type { Credit, Film, PersonTimeline } from "@/lib/types";
 
@@ -1275,6 +1278,49 @@ describe("zoom", () => {
       const scale = makeScale({ startYear: 1960, endYear: 2030 }, 56);
       expect(scrollLeftForYearStart(1960, scale)).toBe(0);
       expect(scrollLeftForYearStart(1950, scale)).toBe(0);
+    });
+  });
+
+  describe("the first collaboration, where the timeline opens", () => {
+    const lanes = [
+      [
+        { film: { id: 1 }, x: 100 },
+        { film: { id: 2 }, x: 900 },
+        { film: { id: 3 }, x: 500 },
+      ],
+      [
+        { film: { id: 3 }, x: 500 },
+        { film: { id: 2 }, x: 900 },
+        { film: { id: 4 }, x: 40 },
+      ],
+    ];
+
+    it("is the earliest of the shared films, whatever the order of the lanes' films", () => {
+      expect(firstCollaborationX(lanes, new Set([2, 3]))).toBe(500);
+      expect(firstCollaborationX(lanes, new Set([2]))).toBe(900);
+    });
+
+    it("is null when nothing is shared, or none of the shared films is placed", () => {
+      expect(firstCollaborationX(lanes, new Set())).toBeNull();
+      expect(firstCollaborationX(lanes, new Set([99]))).toBeNull();
+      expect(firstCollaborationX([], new Set([1]))).toBeNull();
+    });
+
+    it("scrolls so that its card starts one card's width (OPENING_BUFFER) in from the left edge, so a sliver of the films before it shows", () => {
+      expect(OPENING_BUFFER).toBe(CARD_WIDTH);
+      const left = scrollLeftForCardStart(500);
+      expect(left).toBe(500 - CARD_WIDTH / 2 - OPENING_BUFFER);
+      // The card is centred on x, so its left edge is half a card before it: that is the buffer from the edge.
+      expect(500 - CARD_WIDTH / 2 - left).toBe(OPENING_BUFFER);
+    });
+
+    it("opens a track's earliest card with less of a buffer rather than before the start: never a negative scrollLeft", () => {
+      // The earliest card of a track is centred on TRACK_PAD (its left edge CARD_GAP in from the start): too near the start for a whole buffer.
+      expect(scrollLeftForCardStart(TRACK_PAD)).toBe(0);
+      expect(scrollLeftForCardStart(OPENING_BUFFER + CARD_WIDTH / 2)).toBe(0);
+      expect(scrollLeftForCardStart(OPENING_BUFFER + CARD_WIDTH / 2 + 1)).toBe(1);
+      expect(scrollLeftForCardStart(10)).toBe(0);
+      expect(scrollLeftForCardStart(0)).toBe(0);
     });
   });
 

@@ -70,12 +70,16 @@ describe("extendedPeople / extendedPeopleHref", () => {
     );
   });
 
-  it("leaves the href plain when they add a person from a page that named no view, which opens the same view for the new pair on the same device", () => {
+  it("leaves the href plain when they add a person from a page that named no view, which opens Films for the new pair, as the page they leave did", () => {
     expect(extendedPeopleHref([fincher], pitt, "")).toBe("/p/7467-david-fincher+287-brad-pitt");
-    expect(extendedPeopleHref([fincher], pitt, "?from=1990&to=2000")).toBe("/p/7467-david-fincher+287-brad-pitt");
+    expect(extendedPeopleHref([fincher], pitt, "?utm_source=x")).toBe("/p/7467-david-fincher+287-brad-pitt");
   });
 
-  it("keeps the timeline when the page they leave names it (on a phone a plain address would be Films)", () => {
+  it("keeps the timeline when the page they leave names only a period, which names the Timeline (the period itself belongs to the old page's films, so it stays behind)", () => {
+    expect(extendedPeopleHref([fincher], pitt, "?from=1990&to=2000")).toBe("/p/7467-david-fincher+287-brad-pitt?view=timeline");
+  });
+
+  it("keeps the timeline when the page they leave names it (a plain address is Films, so a link to the Timeline has to name it)", () => {
     expect(extendedPeopleHref([fincher], pitt, "?view=timeline")).toBe("/p/7467-david-fincher+287-brad-pitt?view=timeline");
     expect(extendedPeopleHref([fincher], pitt, "?view=timeline&sort=rating&dir=desc")).toBe(
       "/p/7467-david-fincher+287-brad-pitt?view=timeline",
