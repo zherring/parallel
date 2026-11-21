@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+import cuts from "@/lib/portrait-cuts.json";
+import { PROFILE_OVERRIDES } from "@/lib/profile-overrides";
 import {
   TmdbError,
   getFilmCredits,
@@ -15,6 +17,8 @@ import {
 } from "@/lib/tmdb";
 
 const TOKEN = "test-token-123";
+/** The first of the ids the search tests use: none has a cut-out or an override, so its photo is TMDB's own. */
+const PLAIN_ID = 900_001;
 const fetchMock = vi.fn<typeof fetch>();
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -95,18 +99,31 @@ describe("searchPeople", () => {
       {},
     ];
     fetchMock.mockResolvedValueOnce(
-      json({ results: Array.from({ length: 20 }, (_, i) => person(i + 1, { known_for })) }),
+      json({ results: Array.from({ length: 20 }, (_, i) => person(PLAIN_ID + i, { known_for })) }),
     );
     const results = await searchPeople("x");
 
     expect(results).toHaveLength(8);
     expect(results[0]).toEqual({
-      id: 1,
-      name: "Person 1",
+      id: PLAIN_ID,
+      name: `Person ${PLAIN_ID}`,
       profilePath: null,
       knownFor: "Directing",
       knownForTitles: ["Fight Club", "A TV Show", "Se7en"],
     });
+  });
+
+  it("shows the photo of a person's cut-out, or our override, in place of TMDB's current one", async () => {
+    fetchMock.mockResolvedValueOnce(
+      json({ results: [person(1032, { profile_path: "/moved-on.jpg" }), person(3460, { profile_path: "/moved-on.jpg" }), person(PLAIN_ID, { profile_path: "/theirs.jpg" })] }),
+    );
+    const results = await searchPeople("x");
+
+    expect(results.map((result) => result.profilePath)).toEqual([
+      (cuts as Record<string, { profilePath: string }>)["1032"].profilePath,
+      PROFILE_OVERRIDES[3460],
+      "/theirs.jpg",
+    ]);
   });
 });
 
@@ -122,15 +139,15 @@ describe("searchPeopleWithPopularity", () => {
 
   it("returns every hit TMDB sent, each with its popularity (0 when missing)", async () => {
     fetchMock.mockResolvedValueOnce(
-      json({ results: Array.from({ length: 20 }, (_, i) => raw(i + 1, i === 0 ? undefined : i * 1.5)) }),
+      json({ results: Array.from({ length: 20 }, (_, i) => raw(PLAIN_ID + i, i === 0 ? undefined : i * 1.5)) }),
     );
     const results = await searchPeopleWithPopularity("x");
 
     expect(results).toHaveLength(20);
     expect(results[0]).toEqual({
-      id: 1,
-      name: "Person 1",
-      profilePath: "/1.jpg",
+      id: PLAIN_ID,
+      name: `Person ${PLAIN_ID}`,
+      profilePath: `/${PLAIN_ID}.jpg`,
       knownFor: "Acting",
       knownForTitles: ["A Film"],
       popularity: 0,

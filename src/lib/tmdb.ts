@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { normalizeFilmDetails, normalizeMovieCredits, normalizePerson } from "@/lib/normalize";
+import { profilePathFor } from "@/lib/profile-path";
 import { MIN_ATTEMPT_MS, classifyConnectionError, retryDelayMs, retryFits } from "@/lib/retry";
 import { Semaphore } from "@/lib/semaphore";
 import type {
@@ -374,7 +375,7 @@ function toSearchResult(p: RawSearchPerson): PersonSearchResult {
   return {
     id: p.id,
     name: p.name,
-    profilePath: p.profile_path,
+    profilePath: profilePathFor(p.id, p.profile_path),
     knownFor: p.known_for_department || null,
     knownForTitles: (p.known_for ?? [])
       .map((k) => k.title ?? k.name)
