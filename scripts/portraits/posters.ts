@@ -17,6 +17,7 @@ import { PORTRAIT_IDS } from "../../src/lib/portrait-cuts";
 import { mapLimited } from "../../src/lib/map-limited";
 import { normalizeMovieCredits } from "../../src/lib/normalize";
 import { isReleased, todayIso } from "../../src/lib/released";
+import { SHORT_MAX_MINUTES } from "../../src/lib/short-film";
 import { fetchMovieDetails, fetchPerson, type MovieDetails } from "./tmdb";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -27,8 +28,6 @@ export const backdropsFile = join(resolve(here, "../.."), "src/lib/portrait-back
 const MAX_CANDIDATES = 80;
 /** TMDB allows about 40 requests a second; this many at once, each about 150ms, stays under it. */
 const CONCURRENCY = 6;
-/** The app's rule (src/lib/tmdb.ts `SHORT_MAX_MINUTES`): a film this many minutes long or less is a short, and a minor credit whatever the person did on it. */
-const SHORT_MAX_MINUTES = 39;
 
 interface CachedFilm {
   collection: number | null;

@@ -4,6 +4,7 @@ import { normalizeFilmDetails, normalizeMovieCredits, normalizePerson } from "@/
 import { profilePathFor } from "@/lib/profile-path";
 import { MIN_ATTEMPT_MS, classifyConnectionError, retryDelayMs, retryFits } from "@/lib/retry";
 import { Semaphore } from "@/lib/semaphore";
+import { SHORT_MAX_MINUTES } from "@/lib/short-film";
 import type {
   RawDiscoverMovies,
   RawFilmCredits,
@@ -57,8 +58,6 @@ const NEGATIVE_CACHE_SIZE = 500;
 const CREDENTIALS_LOG_INTERVAL_MS = 60 * 1000;
 /** Says who is calling, as TMDB's API terms ask. No contact details in it on purpose. */
 const USER_AGENT = "Parallel/1.0 (+https://github.com/zherring/parallel)";
-/** Anything shorter than this many minutes is a "short" and counts as a minor credit. */
-const SHORT_MAX_MINUTES = 39;
 /**
  * Discover hits with at least this many votes get their runtime checked (see `lookUpShortMovies`):
  * discover lists some features among the shorts (North by Northwest, 137 minutes, 4700+ votes), and
