@@ -207,8 +207,10 @@ export function GenreTablist({ label, tabs, className = "" }: { label: string; t
 
   return (
     <div className={`relative min-w-0 ${className}`}>
+      {/* tabIndex -1: Firefox makes a scroller that overflows a Tab stop of its own, an unlabelled one before the selected pill; the tablist's one stop is that pill. */}
       <div
         ref={stripRef}
+        tabIndex={-1}
         className="overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         style={{ maskImage: mask, WebkitMaskImage: mask }}
       >
