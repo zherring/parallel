@@ -11,6 +11,8 @@ vi.mock("@/lib/tmdb", async (importOriginal) => ({
   searchPeopleWithPopularity: vi.fn(),
 }));
 
+vi.mock("@/lib/worked-with", () => ({ filmsTogether: vi.fn() }));
+
 import { GET } from "@/app/api/search/route";
 import { buildGenreSections } from "@/lib/example-cards";
 import { loadPeopleMatchIndex } from "@/lib/people-index";
@@ -18,6 +20,7 @@ import { EXAMPLE_PAIRINGS, GENRES, pairingHref } from "@/lib/examples";
 import { buildMatchIndex, type MatchablePerson } from "@/lib/people-match";
 import { TmdbError, searchPeopleWithPopularity } from "@/lib/tmdb";
 import type { PeopleSearchResponse } from "@/lib/types";
+import { filmsTogether } from "@/lib/worked-with";
 
 const loadIndex = vi.mocked(loadPeopleMatchIndex);
 const tmdbSearch = vi.mocked(searchPeopleWithPopularity);
@@ -270,5 +273,46 @@ describe("GET /api/search: when the curated corpus is stale", () => {
     expect(body.results.map((person) => person.id)).toEqual([488]);
     expect(body.pairings).toEqual([]);
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining("Related pairings unavailable"));
+  });
+});
+
+describe("GET /api/search: a mode's search (with)", () => {
+  const together = vi.mocked(filmsTogether);
+  const getWith = (q: string, withId: string) =>
+    GET(new Request(`http://localhost/api/search?q=${encodeURIComponent(q)}&with=${encodeURIComponent(withId)}`));
+
+  afterEach(() => together.mockReset());
+
+  it("says for every result how many films it shares with that person, and offers no pairings", async () => {
+    together.mockResolvedValue(new Map<number, number | null>([[488, 2], [1884, 0]]));
+    const res = await getWith("steven", "4724");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as PeopleSearchResponse;
+    expect(body.results.map((result) => [result.name, result.together])).toEqual([
+      ["Steven Spielberg", 2],
+      ["Steven Soderbergh", 0],
+    ]);
+    expect(body.pairings).toEqual([]);
+    const [subject, ids, signal] = together.mock.calls[0];
+    expect(subject).toBe(4724);
+    expect(ids).toEqual([488, 1884]);
+    expect(signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("answers null for a result that was not checked", async () => {
+    together.mockResolvedValue(new Map<number, number | null>([[488, null]]));
+    const body = (await (await getWith("spielberg", "4724")).json()) as PeopleSearchResponse;
+    expect(body.results[0].together).toBeNull();
+  });
+
+  it("rejects a with that is not a person id, and leaves plain searches without the field", async () => {
+    for (const bad of ["", "0", "abc", "4724x", "-1"]) {
+      const res = await getWith("spielberg", bad);
+      expect(res.status, bad).toBe(400);
+      expect(await res.json()).toEqual({ error: "with must be a positive integer" });
+    }
+    expect(together).not.toHaveBeenCalled();
+    const plain = (await (await get("spielberg")).json()) as PeopleSearchResponse;
+    expect(plain.results[0]).not.toHaveProperty("together");
   });
 });

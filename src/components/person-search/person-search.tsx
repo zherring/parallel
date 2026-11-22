@@ -24,6 +24,23 @@ import {
   type ApiErrorKind,
 } from "@/lib/api-client";
 import {
+  BACON,
+  BACON_ENTERED_MESSAGE,
+  BACON_FULL_MESSAGE,
+  BACON_LEFT_MESSAGE,
+  BACON_MODE_LABEL,
+  BACON_MODE_MAX,
+  BACON_MODE_RULE,
+  BACON_SUGGESTIONS_LABEL,
+  baconAddedMessage,
+  baconModeOffer,
+  baconPlaceholder,
+  orderForMode,
+  togetherNote,
+  workedWithBacon,
+  type ModeOption,
+} from "@/lib/bacon-mode";
+import {
   CHIPS_HINT,
   FULL_MESSAGE,
   addChip,
@@ -112,7 +129,7 @@ export interface PersonSearchProps {
 
 /** What picking an option needs, whether it is a search result or a suggested collaborator. */
 export type PickedPerson = Pick<PersonSearchResult, "id" | "name" | "profilePath">;
-type SearchOption = PickedPerson | PairingSearchResult;
+type SearchOption = PickedPerson | PairingSearchResult | ModeOption;
 
 const DEBOUNCE_MS = 200;
 const CACHE_LIMIT = 50;
@@ -163,11 +180,14 @@ export function PersonSearch({
   const [data, setData] = useState<SearchData | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [chips, setChips] = useState<ChipPerson[]>([]);
+  // Kevin Bacon mode (src/lib/bacon-mode.ts): entered from the row a search for him offers, left by removing his chip.
+  const [bacon, setBacon] = useState(false);
   const [announcement, setAnnouncement] = useState<{ id: number; text: string } | null>(null);
   const [isNavigating, startNavigation] = useTransition();
   // The suggestions are asked for the first time the field is focused, never before.
   const [asked, setAsked] = useState(false);
-  const collaborators = useCollaborators(suggestFor ?? null, asked);
+  // In the mode the empty field offers the people he works with most, as a one-person page's field does.
+  const collaborators = useCollaborators(suggestFor ?? (bacon ? BACON.id : null), asked || bacon);
 
   const hero = size === "hero";
   const chipsMode = mode === "chips";
@@ -175,33 +195,43 @@ export function PersonSearch({
   const added = chipsMode ? chips : peopleInView;
   const q = normalizeQuery(query);
   const searchable = q.length >= MIN_QUERY_LENGTH;
-  const full = isTimelineFull(added);
+  const cap = bacon ? BACON_MODE_MAX : MAX_PEOPLE;
+  const full = isTimelineFull(added, cap);
+  const fullMessage = bacon ? BACON_FULL_MESSAGE : FULL_MESSAGE;
   // Data is "fresh" only for the query currently typed; older data is shown dimmed and inert.
   const fresh = searchable && data?.query === q;
   const loading = searchable && !fresh;
-  const results = searchable && data ? data.results : [];
+  // In the mode, the people who have worked with him come first; the others are listed but cannot be added.
+  const results = searchable && data ? (bacon ? orderForMode(data.results) : data.results) : [];
+  // A search for Kevin Bacon offers the mode, straight after him.
+  const modeOffer = chipsMode && searchable ? baconModeOffer(results, { chipCount: chips.length, active: bacon }) : null;
   // Pairing shortcuts start a new timeline; never replace chips or a page's staged people.
   const availablePairings = searchable && data && chipsMode && chips.length === 0 ? data.pairings : [];
   const hasCategories = chipsMode && chips.length === 0 && searchable;
   // Keep stale rows in their old order, inert, until the new query's response replaces them.
-  const sections = searchSections(data?.query ?? q, results, availablePairings, hasCategories ? category : "all");
+  const sections = searchSections(data?.query ?? q, results, availablePairings, hasCategories ? category : "all", modeOffer);
   const searchOptions = sections.flatMap((section) => section.options);
   const pairingCount = searchOptions.filter((option) => "href" in option).length;
-  const artistCount = searchOptions.length - pairingCount;
+  const artistCount = searchOptions.filter((option) => !("href" in option) && !("mode" in option)).length;
   const failure = fresh && data ? data.error : null;
 
   // With no text, a one-person page's field offers the frequent collaborators; any text is a search.
   const onSuggestions =
-    panelSection(suggestFor !== undefined && !chipsMode, q, collaborators.status) === "suggestions";
+    panelSection((suggestFor !== undefined && !chipsMode) || (bacon && !full), q, collaborators.status) === "suggestions";
+  const suggestionsLabel = bacon ? BACON_SUGGESTIONS_LABEL : SUGGESTIONS_LABEL;
   const suggestions = collaborators.status === "ready" ? listedSuggestions(collaborators.results) : [];
   // The options on screen, whichever list they belong to: the keyboard rows (activeIndex) index this one.
   const options: readonly SearchOption[] = onSuggestions ? suggestions : searchOptions;
 
+  /** Why a person's row cannot be picked, if it cannot: no room or already added, or (a search result in the mode) no film with him. */
+  const blocked = (option: PickedPerson) =>
+    addState(added, option.id, cap) !== "can-add" || (bacon && !onSuggestions && !workedWithBacon(option as PersonSearchResult));
   const disabledFlags = options.map(
-    (option) => (!onSuggestions && !fresh) || (!("href" in option) && addState(added, option.id) !== "can-add"),
+    (option) => (!onSuggestions && !fresh) || (!("href" in option) && !("mode" in option) && blocked(option)),
   );
   const listVisible = open && options.length > 0;
-  const showPanel = open && (searchable || full || onSuggestions);
+  // The mode's dropdown always has its rule to show.
+  const showPanel = open && (searchable || full || onSuggestions || bacon);
   const activeId = listVisible && activeIndex >= 0 ? optionId(activeIndex) : undefined;
 
   const keyContext: KeyContext = {
@@ -223,20 +253,22 @@ export function PersonSearch({
 
     const controller = new AbortController();
     const timer = setTimeout(async () => {
-      const cached = resultCache.get(q);
+      // The mode's answers are their own: each result says whether it has a film with him.
+      const cacheKey = bacon ? `with:${BACON.id}:${q}` : q;
+      const cached = resultCache.get(cacheKey);
       if (cached) {
         setData({ query: q, ...cached, error: null });
         return;
       }
       try {
         const body = await getJson<PeopleSearchResponse>(
-          `/api/search?q=${encodeURIComponent(q)}`,
+          `/api/search?q=${encodeURIComponent(q)}${bacon ? `&with=${BACON.id}` : ""}`,
           controller.signal,
         );
         // A newer keystroke aborts this controller, so late responses never overwrite newer state.
         if (controller.signal.aborted) return;
         const response = { results: body.results, pairings: body.pairings ?? [] };
-        remember(q, response);
+        remember(cacheKey, response);
         setData({ query: q, ...response, error: null });
       } catch (error) {
         if (controller.signal.aborted || isAbortError(error)) return;
@@ -249,7 +281,7 @@ export function PersonSearch({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [q, attempt]);
+  }, [q, attempt, bacon]);
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus({ preventScroll: true });
@@ -270,13 +302,9 @@ export function PersonSearch({
 
   /** Chips mode: turn a suggestion into a chip. The input clears and keeps focus. */
   function addPerson(result: PickedPerson) {
-    const outcome = addChip(chips, {
-      id: result.id,
-      name: result.name,
-      profilePath: result.profilePath,
-    });
+    const outcome = addChip(chips, { id: result.id, name: result.name, profilePath: result.profilePath }, cap);
     if (!outcome.ok) {
-      announce(refusedMessage(outcome.reason, result.name));
+      announce(bacon && outcome.reason === "full" ? `${BACON_FULL_MESSAGE}.` : refusedMessage(outcome.reason, result.name));
       return;
     }
     setChips(outcome.chips);
@@ -284,14 +312,34 @@ export function PersonSearch({
     setQuery("");
     setOpen(false);
     setActiveIndex(-1);
-    announce(addedMessage(result.name, outcome.chips.length));
+    announce(bacon ? baconAddedMessage(result.name) : addedMessage(result.name, outcome.chips.length));
     inputRef.current?.focus({ preventScroll: true });
   }
 
   function removePerson(outcome: { chips: ChipPerson[]; removed: ChipPerson | null }) {
     if (!outcome.removed) return;
     setChips(outcome.chips);
-    announce(removedMessage(outcome.removed.name, outcome.chips.length));
+    if (bacon && outcome.removed.id === BACON.id) {
+      // Without him there is no mode: the field is the ordinary one again, with whoever else was in it.
+      setBacon(false);
+      setData(null);
+      announce(BACON_LEFT_MESSAGE);
+    } else {
+      announce(removedMessage(outcome.removed.name, outcome.chips.length));
+    }
+    inputRef.current?.focus({ preventScroll: true });
+  }
+
+  /** Chips mode: Kevin Bacon mode starts with him in the field, and the list open on the people he works with most. */
+  function enterBaconMode(option: ModeOption) {
+    setBacon(true);
+    setChips([{ ...option.person }]);
+    setData(null);
+    setCategory("all");
+    setQuery("");
+    setOpen(true);
+    setActiveIndex(-1);
+    announce(BACON_ENTERED_MESSAGE);
     inputRef.current?.focus({ preventScroll: true });
   }
 
@@ -336,6 +384,10 @@ export function PersonSearch({
   }
 
   function selectOption(option: SearchOption) {
+    if ("mode" in option) {
+      enterBaconMode(option);
+      return;
+    }
     if (!("href" in option)) {
       select(option);
       return;
@@ -373,7 +425,7 @@ export function PersonSearch({
     // Anything but "none" is ours; Tab and Shift+Tab always move focus without selecting.
     if (action.type === "none") {
       // Enter on a name when there is no room left: say why nothing happened.
-      if (chipsMode && event.key === "Enter" && full && q) announce(refusedMessage("full", ""));
+      if (chipsMode && event.key === "Enter" && full && q) announce(`${fullMessage}.`);
       return;
     }
     event.preventDefault();
@@ -427,19 +479,16 @@ export function PersonSearch({
               : [artistCount ? `${artistCount} ${artistCount === 1 ? "artist" : "artists"}` : "", pairingCount ? `${pairingCount} ${pairingCount === 1 ? "pairing" : "pairings"}` : ""].filter(Boolean).join(" and ")
           : "";
   // The panel shows "Up to 4 people." when the field is full; say it too.
-  const status = chipsMode && full ? `${FULL_MESSAGE}. ${searchStatus}`.trim() : searchStatus;
+  const status = chipsMode && full ? `${fullMessage}. ${searchStatus}`.trim() : searchStatus;
 
   const busy = loading || isNavigating;
 
   // One text line: the input and chips sit on rows this tall, so a one-row field is exactly as
   // tall as the old single-line input (h-14 hero, h-9 compact) and wrapped rows stay even.
   const rowHeight = hero ? "h-10" : "h-7";
-  const copy = placeholderCopy({
-    mode,
-    size,
-    peopleInViewCount: dedupePeople(peopleInView).length,
-    chipCount: chips.length,
-  });
+  const copy = bacon
+    ? baconPlaceholder(chips.length)
+    : placeholderCopy({ mode, size, peopleInViewCount: dedupePeople(peopleInView).length, chipCount: chips.length });
   // With chips the input shares its row, so the hint swaps wording by the input's own width
   // (container queries) instead of being cut off mid-sentence by a native placeholder.
   const overlayPlaceholder = chipsMode && chips.length > 0;
@@ -448,6 +497,8 @@ export function PersonSearch({
   return (
     <div
       className="relative w-full"
+      // The mode's colours: inside this element the action colour is the orange (globals.css).
+      data-bacon-mode={bacon ? "" : undefined}
       onBlur={(event) => {
         if (event.currentTarget.contains(event.relatedTarget)) return;
         setOpen(false);
@@ -548,11 +599,15 @@ export function PersonSearch({
 
           {chipsMode && chips.length > 0 && (
             <ul role="list" aria-label="Selected people" className="contents">
-              {chips.map((chip) => (
+              {chips.map((chip) => {
+                // His chip is the mode's own: orange, and removing it leaves the mode.
+                const modeChip = bacon && chip.id === BACON.id;
+                return (
                 <li
                   key={chip.id}
                   role="listitem"
-                  className={`order-1 inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full bg-border text-strong ${
+                  data-mode-chip={modeChip ? "" : undefined}
+                  className={`order-1 inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full ${modeChip ? "bg-accent-orange text-on-accent" : "bg-border text-strong"} ${
                     hero ? "h-8 pl-1 pr-1 text-sm sm:text-base" : "h-6 pl-0.5 pr-0.5 text-xs"
                   }`}
                 >
@@ -564,14 +619,16 @@ export function PersonSearch({
                   <span className="min-w-0 truncate font-medium">{chip.name}</span>
                   <button
                     type="button"
-                    aria-label={`Remove ${chip.name}`}
+                    aria-label={modeChip ? `Remove ${chip.name} and leave ${BACON_MODE_LABEL}` : `Remove ${chip.name}`}
                     // Pointer clicks must not pull focus out of the input and close the list.
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => removePerson(removeChip(chips, chip.id))}
                     // The hero's 24px button gets a 44px-wide hit area; it is 36px tall because
                     // chip rows are 36px apart (32px chip + 4px gap), so each reaches only the
                     // middle of the gap and wrapped chips' hit areas never overlap.
-                    className={`grid shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-surface hover:text-strong ${
+                    className={`grid shrink-0 place-items-center rounded-full transition-colors ${
+                      modeChip ? "text-on-accent hover:bg-on-accent/15" : "text-muted hover:bg-surface hover:text-strong"
+                    } ${
                       hero
                         ? "relative h-6 w-6 before:absolute before:-inset-x-2.5 before:-inset-y-1.5"
                         : "h-5 w-5"
@@ -580,7 +637,8 @@ export function PersonSearch({
                     <X aria-hidden="true" className={hero ? "h-4 w-4" : "h-3.5 w-3.5"} />
                   </button>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </div>
@@ -660,7 +718,15 @@ export function PersonSearch({
             role={hasCategories ? "tabpanel" : undefined}
             aria-labelledby={hasCategories ? `${baseId}-tab-${category}` : undefined}
           >
-            {full && (
+            {bacon && (
+              <p data-mode-rule className="border-b border-border px-3 py-2.5 text-body">
+                <span className="font-medium text-accent-orange">{BACON_MODE_LABEL}</span>
+                <span aria-hidden="true"> · </span>
+                {full ? `${BACON_FULL_MESSAGE}. Press Enter to see their films together.` : BACON_MODE_RULE}
+              </p>
+            )}
+
+            {full && !bacon && (
               <p className="border-b border-border px-3 py-2.5 text-body">
                 Up to {MAX_PEOPLE} people{chipsMode ? "." : " on a timeline."}
               </p>
@@ -701,7 +767,7 @@ export function PersonSearch({
             {onSuggestions && collaborators.status === "loading" && (
               // Skeleton rows hold the place of the first request's answer; they are not options.
               <div aria-hidden="true" className="py-1">
-                <p className="px-3 pb-1 pt-2 text-xs font-medium text-muted">{SUGGESTIONS_LABEL}</p>
+                <p className="px-3 pb-1 pt-2 text-xs font-medium text-muted">{suggestionsLabel}</p>
                 {Array.from({ length: SKELETON_ROWS }, (_, row) => (
                   <div key={row} className="flex items-center gap-3 px-3 py-2.5">
                     <span className="size-10 shrink-0 rounded-full bg-border motion-safe:animate-pulse" />
@@ -718,7 +784,7 @@ export function PersonSearch({
               <div id={listId} role="listbox" aria-label="People">
                 <div role="group" aria-labelledby={groupLabelId}>
                   <p id={groupLabelId} className="px-3 pb-1 pt-2.5 text-xs font-medium text-muted">
-                    {SUGGESTIONS_LABEL}
+                    {suggestionsLabel}
                   </p>
                   {suggestions.map((suggestion, index) => {
                     const disabled = disabledFlags[index];
@@ -774,12 +840,13 @@ export function PersonSearch({
                     const index = section.startIndex + row;
                     return (
                       <SearchResultOption
-                        key={"href" in option ? option.href : option.id}
+                        key={"href" in option ? option.href : "mode" in option ? "mode" : option.id}
                         option={option}
                         id={optionId(index)}
                         active={index === activeIndex}
                         disabled={disabledFlags[index]}
-                        state={"href" in option ? "can-add" : addState(added, option.id)}
+                        state={"href" in option || "mode" in option ? "can-add" : addState(added, option.id, cap)}
+                        note={bacon && !("href" in option) && !("mode" in option) && option.id !== BACON.id ? togetherNote(option.together) : undefined}
                         chipsMode={chipsMode}
                         keyHint={target?.index === index}
                         onHighlight={() => setActiveIndex(index)}

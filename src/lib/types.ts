@@ -107,6 +107,11 @@ export interface PersonSearchResult {
   knownFor: string | null;
   /** Up to three titles from TMDB's known_for list. */
   knownForTitles: string[];
+  /**
+   * Only on a search made for a mode (`/api/search?q=…&with={id}`, see `bacon-mode.ts`): the released, non-minor films this
+   * person shares with the mode's person (the pair page's count), or null when that could not be checked.
+   */
+  together?: number | null;
 }
 
 /** A curated pairing, offered below people in a new-timeline search. */

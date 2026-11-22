@@ -46,6 +46,17 @@
   --conn-7: #ffb48a;
 }
 
+/*
+ * Kevin Bacon mode (src/lib/bacon-mode.ts): inside a search field that is in the mode, the action colour is the orange. The Show
+ * timeline button, the highlighted row's bar and the focus ring all read these three, so nothing in the field names a colour
+ * of its own. The dark --on-green on the orange is 7.6:1, and the orange is 7.4:1 on --surface.
+ */
+[data-bacon-mode] {
+  --green: var(--orange);
+  --green-hover: #e67300;
+  --focus: var(--orange);
+}
+
 /* Steps for the landing hero collage, which grows with the room left of the headline. */
 @theme {
   --breakpoint-wide: 90rem;

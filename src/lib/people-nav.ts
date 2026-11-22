@@ -24,15 +24,15 @@ export function dedupePeople(people: readonly PersonRef[]): PersonRef[] {
   return kept.slice(0, MAX_PEOPLE);
 }
 
-/** True when the timeline cannot take another person. */
-export function isTimelineFull(inView: readonly PersonRef[]): boolean {
-  return dedupePeople(inView).length >= MAX_PEOPLE;
+/** True when the timeline cannot take another person. `max` is a lower cap than MAX_PEOPLE (Kevin Bacon mode holds two). */
+export function isTimelineFull(inView: readonly PersonRef[], max: number = MAX_PEOPLE): boolean {
+  return dedupePeople(inView).length >= Math.min(max, MAX_PEOPLE);
 }
 
 /** "in-view" wins over "full" so people already on the timeline keep their badge. */
-export function addState(inView: readonly PersonRef[], personId: number): AddState {
+export function addState(inView: readonly PersonRef[], personId: number, max: number = MAX_PEOPLE): AddState {
   if (inView.some((p) => p.id === personId)) return "in-view";
-  return isTimelineFull(inView) ? "full" : "can-add";
+  return isTimelineFull(inView, max) ? "full" : "can-add";
 }
 
 /** `[...inView, picked]` deduped by id and capped, or null when picking would be a no-op. */
