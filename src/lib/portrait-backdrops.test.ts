@@ -23,6 +23,9 @@ const distinctOf = (id: number) => new Set([...CUTS[String(id)].posters, ...BACK
  * The landing people with fewer than `BACKDROP_POSTERS` different posters, and how many they have: they have fewer films than the montage has tiles (a non-minor credit, released, with
  * a poster, not a short, at most two of a franchise: Brad Bird has seven), so a poster repeats on the outer columns of a very wide screen (past 2560px for most), never on a tile
  * beside itself. A new name here is a person who has too few films, not a list gone wrong; `npm run portraits:cut -- --posters` names the short ones.
+ *
+ * To keep it: after a refresh (`npm run portraits:cut -- --posters`, or a cut of someone new), the script ends its report with "ACCEPTED_SHORT_LISTS ... paste these over the table's entries": exactly the
+ * lines below, as `id: count, // Name`, for the stored data (the landing page's people with fewer than `BACKDROP_POSTERS` different posters, fewest first). Paste them over the entries here.
  */
 const ACCEPTED_SHORT_LISTS: Record<number, number> = {
   7087: 7, // Brad Bird

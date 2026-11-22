@@ -18,7 +18,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BACKDROP_POSTERS, CORE_POSTERS, arrangeBackdrop, type BackdropFilm, type Relaxation } from "../../src/lib/backdrop-posters";
-import { PORTRAIT_IDS } from "../../src/lib/portrait-cuts";
+import { PORTRAIT_IDS, type PortraitCuts } from "../../src/lib/portrait-cuts";
 import { mapLimited } from "../../src/lib/map-limited";
 import { normalizeMovieCredits } from "../../src/lib/normalize";
 import { isReleased, todayIso } from "../../src/lib/released";
@@ -66,6 +66,20 @@ export function readBackdrops(): Backdrops {
 export function writeBackdrops(backdrops: Backdrops): void {
   const lines = PORTRAIT_IDS.filter((id) => backdrops[id]).map((id) => `  "${id}": ${JSON.stringify(backdrops[id])}`);
   writeFileSync(backdropsFile, `{\n${lines.join(",\n")}\n}\n`);
+}
+
+/**
+ * The lines of `ACCEPTED_SHORT_LISTS` (src/lib/portrait-backdrops.test.ts) that the stored data needs, in that table's own form so that they can be pasted over its entries: the people of
+ * `landingIds` whose two lists (the core in `cuts`, the extension in `backdrops`) hold fewer than `BACKDROP_POSTERS` different posters, fewest first, a person to a line as `  id: count, // Name`.
+ * Read from what is stored, not from a run, so it is the same for a run of a few people as of everyone.
+ */
+export function acceptedShortLists(cuts: PortraitCuts, backdrops: Backdrops, landingIds: Iterable<number>): string[] {
+  return [...new Set(landingIds)]
+    .filter((id) => cuts[id] && backdrops[id])
+    .map((id) => ({ id, name: cuts[id].name, distinct: new Set([...cuts[id].posters, ...backdrops[id]]).size }))
+    .filter((person) => person.distinct < BACKDROP_POSTERS)
+    .sort((a, b) => a.distinct - b.distinct || a.id - b.id)
+    .map(({ id, name, distinct }) => `  ${id}: ${distinct}, // ${name}`);
 }
 
 function readCache(): Record<string, CachedFilm> {

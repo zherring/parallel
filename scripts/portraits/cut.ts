@@ -20,9 +20,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BACKDROP_POSTERS } from "../../src/lib/backdrop-posters";
+import { buildHeroPairings } from "../../src/lib/example-cards";
+import { heroPool } from "../../src/lib/hero-scenes";
 import { PORTRAIT_IDS, type PortraitCut, type PortraitCuts } from "../../src/lib/portrait-cuts";
 import { PROFILE_OVERRIDES } from "../../src/lib/profile-overrides";
-import { posterLists, readBackdrops, writeBackdrops } from "./posters";
+import { acceptedShortLists, posterLists, readBackdrops, writeBackdrops } from "./posters";
 import { fetchPerson, fetchProfilePaths, requireTmdbToken, topPosters, type Person } from "./tmdb";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -89,6 +91,9 @@ async function refreshPosters(existing: PortraitCuts, ids: readonly number[]): P
   const out = [`${lists.size} posters lists made`];
   if (short.length > 0) out.push(`${short.length} with fewer than ${BACKDROP_POSTERS} different posters (a poster repeats, never on a tile beside itself):`, ...short);
   if (relaxed.length > 0) out.push(`${relaxed.length} whose collections or posters could not all be kept apart:`, ...relaxed);
+  // The stored lists of everyone (not only this run's people), in the form of the test's table: paste these over its entries.
+  const landingIds = heroPool(buildHeroPairings()).flatMap((pairing) => pairing.people.map((person) => person.id));
+  out.push(`ACCEPTED_SHORT_LISTS in src/lib/portrait-backdrops.test.ts, as this data needs it (the landing page's people with fewer than ${BACKDROP_POSTERS} different posters); paste these over the table's entries:`, ...acceptedShortLists(existing, backdrops, landingIds));
   if (problems.length > 0) out.push(`${problems.length} problems:`, ...problems.map((line) => `  ${line}`));
   return { lines: out, ok: problems.length === 0 };
 }
