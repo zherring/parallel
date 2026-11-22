@@ -14,6 +14,7 @@ import {
   type RefObject,
 } from "react";
 import "@/components/landing/hero-cue.css";
+import "@/components/landing/hero-stage.css";
 import { KeycapButton } from "@/components/landing/keycap-button";
 import { CueCall, MoreLabel, PanelParts, PosterParts, YearCap } from "@/components/landing/hero-parts";
 import { arrive, depart, drawLine, wipeFrames, type ItemKind } from "@/components/landing/hero-motion";
@@ -281,7 +282,7 @@ function Action({ items, reduced, onGone }: { items: readonly Item[]; reduced: b
           and the arriving one in the same place. Under the names is the cue's line (`CueCall`), where a click goes: hidden until the cue (hero-cue.css), and on a touch screen, which has no
           hover, always there.
           On a phone the row under the line is in thirds of the screen: Previous (stage level, outside the link) centred in the left, this block in the middle third and Next in the right. The block is
-          a box of the row's height (`--row-body`, hero.tsx: room for the longest wrap) and its content is centred in it, so the keycaps, centred on the same box, are centred on the names whatever they
+          a box of the row's height (`--row-body`, hero-stage.css: room for the longest wrap) and its content is centred in it, so the keycaps, centred on the same box, are centred on the names whatever they
           wrap to. The names are one run of text, "A & B", centred on the third, on one line where it fits the room between the keycaps (two thirds of the screen less the two 44px keycaps and 12px clear of each, as the cue's line is wider than the third and between them) and wrapping at its spaces where it does not (between the names, "A" over "& B", the "&" kept with B by a no-break space; a name of two words wraps inside its own box; never inside a word; at the size `--name-fs`: the longest word of the pool's labels fills the third, and its "&" beside it pokes out of the third a little, into the room before the keycap), and the cue's line under them, one line, wider than the third (`CueCall`): it is between the keycaps, which are centred on the same box.
         */}
         <div data-names-row="" className="absolute left-1/2 top-[calc(var(--line-y)+22px)] flex h-(--row-body) w-[calc(100cqw/3)] -translate-x-1/2 flex-col items-center justify-center sm:inset-x-0 sm:block sm:h-auto sm:w-auto sm:translate-x-0">
@@ -315,7 +316,7 @@ function Action({ items, reduced, onGone }: { items: readonly Item[]; reduced: b
 /**
  * The stage's one link, and its box is the action zone: the poster cluster (a poster is 1.5 times its width tall) padded 56px above, as wide as the timeline's band, down to the
  * stage's bottom, which takes in the posters, "+N more", the line and its dots, the years, the names and the cue's line. Hover cue, keyboard focus and click are all this box:
- * the faces, the montage and the headline are not in a link (no pointer cursor, no click), and the focus ring wraps the zone. `--zone-top` is its top, set on the stage (in px, from the line's, which is from the scene's height: a percentage would be of the link's own box where it is used for the content's offset). Its content
+ * the faces, the montage and the headline are not in a link (no pointer cursor, no click), and the focus ring wraps the zone. `--zone-top` is its top, set on the stage (hero-stage.css; in px, from the line's, which is from the scene's height: a percentage would be of the link's own box where it is used for the content's offset). Its content
  * (`Action`) is drawn on the stage's own coordinates: a box as big as the stage's, centred on the zone (which is centred on the stage), as it was when the link was the whole stage.
  */
 const ZONE_CLASS =
@@ -552,16 +553,10 @@ function LiveStage({ root, pool }: { root: RefObject<HTMLDivElement | null>; poo
  * It does not go live at all until the genre tabs have shown it once (a page opened on `/#horror` shows the genre's grid and never the splash, so the splash's
  * images are not fetched, and its reveal plays when the visitor first comes to it).
  *
- * Its size and spacing come from the variables its section sets (hero.tsx): `--stage-h`, `--gutter` and `--seam`; the rest are derived here. The stage is as wide
- * as the screen and a size container, so `--core-pad` (what `100cqw` makes of it) is how far in from the screen's edges the stage's decoration box is (and
- * its content, the keycaps, the figures and the montage's first tile, which stand in it): the gutter, or, past 1600px of width, the gutter and half of what is left.
- * Each half runs out past the box all the way to the screen's edge (`--core-pad` further), and so does the timeline's line. `--pw` is a poster's width, from the box (its height, and on a phone its width), `--step` the distance
- * between posters of the cluster; `--line-y` is the line's place down the stage (82% of the scene, `--scene-h` (hero.tsx: the stage, but on a phone less the names' row under the halves), and `--drop`), `--poster-gap` how far the
- * posters' bottoms are above it. `--drop` is how far the line and all that stands on it (the cluster, "+N more", the dots, years, caps and the names) are moved down
- * from 82%: 50px on a stage 816px high (a 1440 x 900 screen), less on a shorter one so that the names keep about 40px above the stage's bottom edge
- * (`0.18 x stage - 90px`, between 0 and 50px), and nothing on a phone, whose names would not fit; the figures are dropped half as far (`--fig-drop`). `--band-w` is
- * the width of the band the timeline's content is in, centred on the seam (hero-layout.ts `BAND`), `--axis-pad` how far in from each end of the band the dots' axis
- * starts (past the year cap, whose outer edge is the band's; 54px, and 64px from `sm` up, here and nowhere else: the timeline measures the axis), and `--axis-w` the axis's width.
+ * Its size and spacing come from the variables its section sets (hero.tsx): `--stage-h`, `--gutter` and `--seam`; the rest are derived from them in hero-stage.css, each with its reasons: the stage is as wide as
+ * the screen and a size container, so `--core-pad` (what `100cqw` makes of it) is how far in from the screen's edges its decoration box is; `--line-y` is the timeline's line's place down it, `--drop` how far
+ * that and all that stands on it is moved down, `--pw` and `--step` the poster cluster's size and spacing, `--axis-pad` and `--axis-w` the dots' axis. `--band-w`, the width of the band the timeline's content
+ * is in (hero-layout.ts `BAND`), is set here, from the same TS that the timeline's numbers come from.
  */
 export function HeroStage({ pool, fallback }: Props) {
   // False on the server and for the hydrating render, true from the next one: the random pick
@@ -574,7 +569,7 @@ export function HeroStage({ pool, fallback }: Props) {
     <div
       ref={root}
       data-hero-stage=""
-      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size] [--drop:0px] sm:[--drop:clamp(0px,calc(var(--stage-h)_*_0.18_-_90px),50px)] [--fig-drop:calc(var(--drop)_/_2)] [--line-y:calc(var(--scene-h)_*_0.82_+_var(--drop))] [--core-pad:max(var(--gutter),calc((100cqw_-_1600px)/2_+_var(--gutter)))] [--axis-pad:54px] [--axis-w:calc(var(--band-w)_-_2_*_var(--axis-pad))] [--foot-h:84%] [--zone-top:calc(var(--line-y)_-_var(--poster-gap)_-_var(--pw)_*_1.5_-_56px)] [--poster-gap:22px] [--pw:min(68px,calc(var(--stage-h)*0.15),17cqw)] [--step:calc(var(--pw)*0.76)] sm:[--poster-gap:26px] sm:[--pw:min(92px,calc(var(--stage-h)*0.15))] lg:[--pw:min(100px,calc(var(--stage-h)*0.15))] sm:[--axis-pad:64px]"
+      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size]"
       style={{ "--band-w": BAND_WIDTH_CSS } as CSSProperties}
     >
       {live && shown ? <LiveStage root={root} pool={pool} /> : null}

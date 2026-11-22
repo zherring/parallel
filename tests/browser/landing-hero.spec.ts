@@ -1462,7 +1462,7 @@ test.describe("the genre pills are tabs of views", () => {
   });
 });
 
-/** The phone's names row (hero.tsx `--name-fs`, `--cue-fs`, `--row-body`, `--row-h`): the names' size from the width of a third of the screen (over 8em, the longest word of the pool's family names), the cue's (0.85 of it, one line), and the height of the row, which is 22px under the line and has room for three lines of names and the cue's one. */
+/** The phone's names row (hero-stage.css `--name-fs`, `--cue-fs`, `--row-body`, `--row-h`): the names' size from the width of a third of the screen (over 8em, the longest word of the pool's family names), the cue's (0.85 of it, one line), and the height of the row, which is 22px under the line and has room for three lines of names and the cue's one. */
 function phoneRow(width: number) {
   const nameFs = Math.min(18, Math.max(11, width / 24));
   const cueFs = nameFs * 0.85;

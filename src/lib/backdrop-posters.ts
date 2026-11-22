@@ -204,7 +204,7 @@ export function arrangeBackdrop(films: readonly BackdropFilm[]): Arrangement {
   return { posters, distinct: new Set(posters).size, relaxed: "posters" };
 }
 
-/** The screen's columns a half's extension needs at a screen `width` wide, from the stage's CSS (hero-stage.tsx `--core-pad`, hero.tsx `--gutter` and `--seam`). */
+/** The screen's columns a half's extension needs at a screen `width` wide, from the stage's CSS (hero-stage.css `--core-pad`, `--gutter` and `--seam`). */
 export function extensionColumnsFor(width: number): number {
   const gutter = Math.min(88, Math.max(12, width * 0.05));
   const corePad = Math.max(gutter, (width - 1600) / 2 + gutter);

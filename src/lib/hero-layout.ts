@@ -1,6 +1,6 @@
 /**
  * What the landing hero's timeline and poster cluster show at each width, as plain numbers, so it can be tested. The geometry itself (the panels, the
- * line, the cluster's size) is CSS sized from the stage's box (hero-stage.tsx and the variables its section sets); only what depends on the pairing's
+ * line, the cluster's size) is CSS sized from the stage's box (hero-stage.tsx and the variables hero-stage.css sets); only what depends on the pairing's
  * data is here: how many posters fit and so what "+N more" says, how each poster sits in the cluster, and where each film's dot and each year's label are on the axis.
  */
 
@@ -109,7 +109,7 @@ const clamp = (value: number, low: number, high: number) => Math.min(high, Math.
  * A tablet figure's size and place, in px, for a stage `width` px wide and `scene` px high (the halves' height, `--scene-h`): `height` of its box, `edge` (where its outer edge is, from the
  * screen's edge, negative past it), the head's `outer` and `inner` edges from the screen's edge, and the head's `crown` and `chin` from the stage's top. The CSS is `TABLET_FIGURE_HEIGHT_CSS` and
  * `TABLET_FIGURE_OUT_CSS`; this is the same rule in numbers, as `bandWidth` is for the band, so that the pool's every head can be tested. The stage's own numbers it needs are rules of the
- * stage (hero.tsx and hero-stage.tsx): the gutter `clamp(12px, 5vw, 88px)`, the drop `clamp(0px, 0.18 x scene - 90px, 50px)` (the figures' half of it) and the h1's `clamp(34px, min(4.6vw, 0.105 x scene), 68px)`.
+ * stage (hero-stage.css): the gutter `clamp(12px, 5vw, 88px)`, the drop `clamp(0px, 0.18 x scene - 90px, 50px)` (the figures' half of it) and the h1's `clamp(34px, min(4.6vw, 0.105 x scene), 68px)`.
  */
 export function tabletFigure(width: number, scene: number, head: { top: number; centre: number; width: number }, slot: Slot) {
   const t = TABLET_FIGURE;
@@ -207,7 +207,7 @@ const css = (value: number) => String(Math.round(value * 10000) / 10000);
 export const BAND_WIDTH_CSS = `max(${css(BAND.wideShare * 100)}cqw, min(${css(BAND.maxShare * 100)}cqw, calc(${css(BAND_SLOPE * 100)}cqw + ${css(BAND_BASE)}px)))`;
 
 /**
- * The dots' axis is the band less the year caps' room at each end (`--axis-pad`, 54px on a phone and 64px from `sm` up, set on the stage in hero-stage.tsx and nowhere
+ * The dots' axis is the band less the year caps' room at each end (`--axis-pad`, 54px on a phone and 64px from `sm` up, set on the stage in hero-stage.css and nowhere
  * else): the timeline measures the axis it is given (hero-timeline.tsx), so `dotScale` and `labelYears` take its width and nothing here knows the padding.
  */
 

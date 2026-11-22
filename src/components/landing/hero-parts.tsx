@@ -15,7 +15,7 @@ import { MONTAGE_POSTERS, eyeLine, headSpan, treatmentShape } from "@/lib/portra
  * that hero-motion.ts animates; the pointer parallax is the `translate` of the wrapper above a part, which reads `--px` and `--py`
  * (-1 to 1, set on the stage while the pointer is over it, see `useParallax`).
  *
- * A half of the stage is one person's side and runs out to the screen's edge. The stage's decoration box is inset from the screen by `--core-pad` (hero-stage.tsx),
+ * A half of the stage is one person's side and runs out to the screen's edge. The stage's decoration box is inset from the screen by `--core-pad` (hero-stage.css),
  * and a half reaches `--core-pad` past it on its outer side. The figure and the montage's first tile are in the "core": the half less that extension on its outer
  * side, where a panel inset from the screen's edges would be.
  */
@@ -38,7 +38,7 @@ const TOP_SHADE =
 
 /**
  * The foot: the page's canvas colour rising from the half's bottom, over the montage and the figure alike, so that the figure's lower body, the photo's hard
- * bottom edge and the montage all melt into the page. The timeline, the posters and the names sit above it. Its height is the stage's `--foot-h` (hero-stage.tsx: one value, 84% of the half's
+ * bottom edge and the montage all melt into the page. The timeline, the posters and the names sit above it. Its height is the stage's `--foot-h` (hero-stage.css: one value, 84% of the half's
  * height, at every width), and the stops are shares of that, so the easing is the same at any.
  *
  * Its strength is the page colour's share at each stop. The bottom, where the names, the line with its dots and caps, "+N more", the phone's cue and the keycaps are and where the photo's bottom
@@ -140,7 +140,7 @@ export function PanelParts({ person, color, slot }: { person: HeroPerson; color:
         A cut is anchored to the core's bottom (a little past it, and `--fig-drop` further, half of how far the timeline is dropped, which on a phone is no further: its lower body goes on past the line, behind the timeline and the names, and the foot melts it into the page) and, from `lg` up, centred `FIGURE_CENTRE` of the core's width in from its outer edge, so the seam's side stays clear.
         A tear (a person with no cut) is a strip across the whole photo, so from `sm` up it spans the core's width, as it spans a card's, with its strip at the height of a cut's head.
         On a phone (below `sm`) the figure is `--fig-h` high and pushed out toward the screen's edge by `--crop` of its width (`figureOverhang`, from the head's place in its photo): `--fig-out` is where its outer edge is, past the screen's, so that the half's frame cuts the outer part off, and the face (a third of the figure at most is off, a quarter of the head at most) is beside the poster cluster. A tear's strip runs on past the screen's edge the same way.
-        On a phone `--fig-h` is set by the section (hero.tsx: 1.5 times what the figure was, `min(90%, 165cqw)` of the core, and the stage is as tall as the headline above it and the figure need), and the figure stands on the core's bottom 18px higher than it was (`--fig-lift`: 3% past the bottom less the lift, so the photo's bottom edge is at the bottom, under the foot). The headline is over the figure's top, which is a headline's height under the stage's, less the lift (the box has that much gap under the copy, and 2px more): the heads never reach the copy.
+        On a phone `--fig-h` is set by the section (hero-stage.css: 1.5 times what the figure was, `min(90%, 165cqw)` of the core, and the stage is as tall as the headline above it and the figure need), and the figure stands on the core's bottom 18px higher than it was (`--fig-lift`: 3% past the bottom less the lift, so the photo's bottom edge is at the bottom, under the foot). The headline is over the figure's top, which is a headline's height under the stage's, less the lift (the box has that much gap under the copy, and 2px more): the heads never reach the copy.
         On a tablet (`sm` up to `lg`) the headline is over the seam, and the figure is anchored as a desktop's is (3% and `--fig-drop` past the bottom, under the foot, so the photo's bottom edge never shows, whatever the cut's headroom). It is cropped by the screen's edge as a phone's is, but the whole head stays on the screen: `--fig-out-t` puts the head's outer edge (from `--head-out`, where it is in the photo) 16px in from the edge, and the figure is pushed out no further, so the body and shoulders are cut and the head is not. `--fig-h-t` is the figure's height, per figure, from the head's width and top in its photo (`--head-w`, `--head-top`): `min(max(0.7 x stage, min(0.9 x stage, 165cqw)), the room to the seam, max(the room beside the copy, the room under it))` (hero-layout.ts `TABLET_FIGURE_HEIGHT_CSS`, `tabletFigure` is the same in numbers): what the figure was, no wider than leaves the head clear of the seam, and clear of the headline's copy, beside it or under it. Where the cut's head is wide in its photo and the screen narrow, that is smaller than the old figure, and the eyes may be beside the poster cluster's first poster rather than above it.
         The figure is never faded: only the foot, the page's colour over it, darkens it.
       */}
@@ -251,7 +251,7 @@ export function MoreLabel({ pairing }: { pairing: HeroPairing }) {
 /**
  * The cue's line under the names, "See all 11 films together →" (hero-cue.css fades it in and slides it up while the cue shows, and nudges the arrow twice; on a touch screen, which has no hover,
  * it is always there, still): where the click on the stage goes. Decorative, like all of the stage (the link's own name says the films); no box behind it, as it is over the page's foot gradient.
- * On a phone it is one line, centred under the names, at `--cue-fs` (hero.tsx): wider than the names' third (it would be under 10px in it), between the two keycaps, which it clears by 18px or more; from `sm` up it is one line of 15px.
+ * On a phone it is one line, centred under the names, at `--cue-fs` (hero-stage.css): wider than the names' third (it would be under 10px in it), between the two keycaps, which it clears by 18px or more; from `sm` up it is one line of 15px.
  */
 export function CueCall({ count }: { count: number }) {
   return (
