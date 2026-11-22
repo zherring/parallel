@@ -1,7 +1,9 @@
+import type { CSSProperties } from "react";
 import { preconnect } from "react-dom";
 import "@/components/landing/hero-stage.css";
 import { HeroStage } from "@/components/landing/hero-stage";
 import { defaultScene, type HeroPairing } from "@/lib/hero-scenes";
+import { SECTION_GEOMETRY } from "@/lib/stage-geometry";
 
 /**
  * The landing page's first screen, the Featured tab's splash: the stage (two portrait halves, the pair's films on a timeline and the shared ones in a
@@ -10,7 +12,8 @@ import { defaultScene, type HeroPairing } from "@/lib/hero-scenes";
  *
  * The section sets the stage's sizes, from the screen, by formula: its height, a gutter and a seam, the headline's and the names' sizes, and on a phone a stage taller than the screen's share (the headline's box and
  * the figure stand on its foot, and the names' row hangs below the halves). They are custom properties on the section, `data-landing-hero`, written one to a line, each with its reasons, in hero-stage.css, which
- * also has the stage's (hero-stage.tsx). Text is sized from them (the headline from the stage's width and height) so that nothing needs checking pair by pair.
+ * also has the stage's (hero-stage.tsx); the gutter and the seams are the numbers of stage-geometry.ts, which the montage's column count and the tablet figure's size are worked from too, set here as inline style.
+ * Text is sized from them (the headline from the stage's width and height) so that nothing needs checking pair by pair.
  */
 export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
   // The stage's first images come from TMDB's image host; open the connection early.
@@ -24,6 +27,7 @@ export function Hero({ pool }: { pool: readonly HeroPairing[] }) {
       aria-labelledby="hero-heading"
       data-landing-hero=""
       className="relative flex flex-col overflow-x-clip"
+      style={SECTION_GEOMETRY as CSSProperties}
     >
       {/*
         First in the markup (it is what the section is named by), over the seam on a screen wide enough, across the top of the stage on a phone (its box is `--head-h` high, which the stage's height has room for). Its box lets the pointer through to what is

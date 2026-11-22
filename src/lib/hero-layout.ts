@@ -5,6 +5,7 @@
  */
 
 import { moreFilms, type HeroPairing, type HeroYears, type Slot } from "@/lib/hero-scenes";
+import { SEAM, gutterAt } from "@/lib/stage-geometry";
 import { labelStep } from "@/lib/timeline-layout";
 import { decodeYears } from "@/lib/year-list";
 
@@ -109,12 +110,12 @@ const clamp = (value: number, low: number, high: number) => Math.min(high, Math.
  * A tablet figure's size and place, in px, for a stage `width` px wide and `scene` px high (the halves' height, `--scene-h`): `height` of its box, `edge` (where its outer edge is, from the
  * screen's edge, negative past it), the head's `outer` and `inner` edges from the screen's edge, and the head's `crown` and `chin` from the stage's top. The CSS is `TABLET_FIGURE_HEIGHT_CSS` and
  * `TABLET_FIGURE_OUT_CSS`; this is the same rule in numbers, as `bandWidth` is for the band, so that the pool's every head can be tested. The stage's own numbers it needs are rules of the
- * stage (hero-stage.css): the gutter `clamp(12px, 5vw, 88px)`, the drop `clamp(0px, 0.18 x scene - 90px, 50px)` (the figures' half of it) and the h1's `clamp(34px, min(4.6vw, 0.105 x scene), 68px)`.
+ * stage (hero-stage.css): the gutter (stage-geometry.ts `GUTTER`), the drop `clamp(0px, 0.18 x scene - 90px, 50px)` (the figures' half of it) and the h1's `clamp(34px, min(4.6vw, 0.105 x scene), 68px)`.
  */
 export function tabletFigure(width: number, scene: number, head: { top: number; centre: number; width: number }, slot: Slot) {
   const t = TABLET_FIGURE;
-  const half = (width - 12) / 2;
-  const core = half - clamp(0.05 * width, 12, 88);
+  const half = (width - SEAM.wide) / 2;
+  const core = half - gutterAt(width);
   const h1 = clamp(Math.min(0.046 * width, 0.105 * scene), 34, 68);
   const bottom = 1.03 * scene + clamp(0.18 * scene - 90, 0, 50) / 2;
   const was = Math.max(0.7 * scene, Math.min(0.9 * scene, 1.65 * core));

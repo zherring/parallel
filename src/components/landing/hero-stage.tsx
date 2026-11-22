@@ -31,6 +31,7 @@ import type { NavDirection } from "@/lib/hero-history";
 import { BAND_WIDTH_CSS, CAP_VAR_CLASS, posterHiddenClass, posterPlace, stripOf } from "@/lib/hero-layout";
 import { isRunning, pickFirstScene, type HeroPairing, type Scene } from "@/lib/hero-scenes";
 import { buildPeopleSlug } from "@/lib/slug";
+import { CORE_PAD_CSS } from "@/lib/stage-geometry";
 
 interface Props {
   /** Every pairing the hero can rotate through. */
@@ -556,7 +557,7 @@ function LiveStage({ root, pool }: { root: RefObject<HTMLDivElement | null>; poo
  * Its size and spacing come from the variables its section sets (hero.tsx): `--stage-h`, `--gutter` and `--seam`; the rest are derived from them in hero-stage.css, each with its reasons: the stage is as wide as
  * the screen and a size container, so `--core-pad` (what `100cqw` makes of it) is how far in from the screen's edges its decoration box is; `--line-y` is the timeline's line's place down it, `--drop` how far
  * that and all that stands on it is moved down, `--pw` and `--step` the poster cluster's size and spacing, `--axis-pad` and `--axis-w` the dots' axis. `--band-w`, the width of the band the timeline's content
- * is in (hero-layout.ts `BAND`), is set here, from the same TS that the timeline's numbers come from.
+ * is in (hero-layout.ts `BAND`), and `--core-pad` (stage-geometry.ts) are set here, from the same TS that the timeline's and the montage's numbers come from.
  */
 export function HeroStage({ pool, fallback }: Props) {
   // False on the server and for the hydrating render, true from the next one: the random pick
@@ -570,7 +571,7 @@ export function HeroStage({ pool, fallback }: Props) {
       ref={root}
       data-hero-stage=""
       className="group/stage relative h-(--stage-h) w-full [container-type:inline-size]"
-      style={{ "--band-w": BAND_WIDTH_CSS } as CSSProperties}
+      style={{ "--band-w": BAND_WIDTH_CSS, "--core-pad": CORE_PAD_CSS } as CSSProperties}
     >
       {live && shown ? <LiveStage root={root} pool={pool} /> : null}
       <noscript>

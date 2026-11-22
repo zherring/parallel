@@ -8,6 +8,8 @@
  * arrangement has to hold on both.
  */
 
+import { corePadAt, seamAt } from "@/lib/stage-geometry";
+
 /** The montage's rows, the same at every width: a tile is a third of the half's height. */
 export const MONTAGE_ROWS = 3;
 /** The core's columns: its 3 x 3 tile is what a card shows behind a cut. */
@@ -204,12 +206,10 @@ export function arrangeBackdrop(films: readonly BackdropFilm[]): Arrangement {
   return { posters, distinct: new Set(posters).size, relaxed: "posters" };
 }
 
-/** The screen's columns a half's extension needs at a screen `width` wide, from the stage's CSS (hero-stage.css `--core-pad`, `--gutter` and `--seam`). */
+/** The screen's columns a half's extension needs at a screen `width` wide, from the stage's geometry (stage-geometry.ts: the gutter, the seam and `--core-pad` that the CSS is set from). */
 export function extensionColumnsFor(width: number): number {
-  const gutter = Math.min(88, Math.max(12, width * 0.05));
-  const corePad = Math.max(gutter, (width - 1600) / 2 + gutter);
-  const seam = width >= 640 ? 12 : 6;
-  const core = width / 2 - seam / 2 - corePad;
+  const corePad = corePadAt(width);
+  const core = width / 2 - seamAt(width) / 2 - corePad;
   // A width too small to have a core (or none given) is drawn whole.
   return core > 0 ? Math.ceil(corePad / (core / CORE_COLUMNS)) : EXTENSION_COLUMNS;
 }

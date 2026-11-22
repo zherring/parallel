@@ -3,8 +3,8 @@
  * width (a phone first, then what `sm` (640px, 40rem) and `lg` (1024px, 64rem) change, the later block winning as they are the same selector):
  * - the section's (hero.tsx, `data-landing-hero`): the stage's height, from the screen, and the sizes the headline and the names' row are set from;
  * - the stage's (hero-stage.tsx, `data-hero-stage`): what it derives from those, the box's inset and the timeline's line, the poster cluster and the axis.
- * What cannot be written here comes from the TS that also uses it, as an inline style: `--band-w` on the stage (hero-layout.ts `BAND_WIDTH_CSS`), the tablet figure's `--fig-h-t` and `--fig-out-t`
- * (`TABLET_FIGURE_HEIGHT_CSS`, `TABLET_FIGURE_OUT_CSS`, hero-parts.tsx) and the cluster's `--cap` (`CAP_VAR_CLASS`). Namespaced by the hero's attributes, as Next keeps global styles between pages.
+ * What is generated from TS that also uses it is not written here, but set as an inline style or a class: `--gutter`, `--seam-phone` and `--seam-wide` on the section and `--core-pad` on the stage (stage-geometry.ts),
+ * `--band-w` on the stage (hero-layout.ts `BAND_WIDTH_CSS`), the tablet figure's `--fig-h-t` and `--fig-out-t` (`TABLET_FIGURE_HEIGHT_CSS`, `TABLET_FIGURE_OUT_CSS`, hero-parts.tsx) and the cluster's `--cap` (`CAP_VAR_CLASS`). Namespaced by the hero's attributes, as Next keeps global styles between pages.
  *
  * The section sets the stage's sizes, from the screen: its height fills what the bar leaves of the first screen, less a sliver of the next section, a gutter on each side that the halves and the
  * timeline line run out over to the screen's edge, and a narrow seam divides them. Text is sized from these (the headline from the stage's width and height).
@@ -12,10 +12,13 @@
 
 /* ---- The section: a phone's, from 320px (narrower, the headline's box is a line taller: below). ---- */
 [data-landing-hero] {
-  /* The gutter on each side of the stage: the halves and the timeline line run out over it to the screen's edge. */
-  --gutter: clamp(12px, 5vw, 88px);
+  /*
+   * The gutter on each side of the stage (the halves and the timeline line run out over it to the screen's edge), `--gutter`, and the seams, `--seam-phone` and `--seam-wide`, are
+   * set on the section from TS (hero.tsx, stage-geometry.ts `SECTION_GEOMETRY`): clamp(12px, 5vw, 88px), 6px and 12px. The montage's column count and the tablet figure's size are worked from the
+   * same numbers, so they are written once.
+   */
   /* The narrow seam that divides the halves. */
-  --seam: 6px;
+  --seam: var(--seam-phone);
 
   /*
    * A phone's stage is taller than that, by formula, so that the heads clear the headline whatever the width: `--scene-h` = (the headline's box + the figure) / 1.03, below.
@@ -74,7 +77,7 @@
 @media (min-width: 40rem) {
   [data-landing-hero] {
     /* A wider seam between the halves. */
-    --seam: 12px;
+    --seam: var(--seam-wide);
     /* The stage is the scene: the halves are as tall as the stage, with no names row hanging under them. */
     --scene-h: var(--stage-h);
     /* The stage's height: what the bar leaves of the first screen, less a sliver of the next section (the first screen less 84px), between 540 and 880px. */
@@ -94,10 +97,10 @@
   /* The line's place down the stage: 82% of the scene (`--scene-h`: the stage, but on a phone less the names' row under the halves) and `--drop`. */
   --line-y: calc(var(--scene-h) * 0.82 + var(--drop));
   /*
-   * How far in from the screen's edges the stage's decoration box is (and its content, the keycaps, the figures and the montage's first tile, which stand in it): the gutter, or, past 1600px of width,
-   * the gutter and half of what is left (what `100cqw` makes of the stage). Each half runs out past the box all the way to the screen's edge (`--core-pad` further), and so does the timeline's line.
+   * `--core-pad` is how far in from the screen's edges the stage's decoration box is (and its content, the keycaps, the figures and the montage's first tile, which stand in it): the gutter, or, past 1600px of width,
+   * the gutter and half of what is left (what `100cqw` makes of the stage). Each half runs out past the box all the way to the screen's edge (`--core-pad` further), and so does the timeline's line. It is set on
+   * the stage from TS (hero-stage.tsx, stage-geometry.ts `CORE_PAD_CSS`): `max(var(--gutter), calc((100cqw - 1600px) / 2 + var(--gutter)))`.
    */
-  --core-pad: max(var(--gutter), calc((100cqw - 1600px) / 2 + var(--gutter)));
   /* How far in from each end of the band the dots' axis starts (past the year cap, whose outer edge is the band's); 54px, and 64px from `sm` up, here and nowhere else: the timeline measures the axis. */
   --axis-pad: 54px;
   /* The axis's width: the band (`--band-w`, set on the stage from hero-layout.ts `BAND_WIDTH_CSS`: the band the timeline's content is in, centred on the seam) less `--axis-pad` at each end. */
