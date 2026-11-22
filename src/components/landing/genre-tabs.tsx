@@ -230,7 +230,7 @@ export function GenreTablist({ label, tabs, className = "" }: { label: string; t
                 tabIndex={isSelected ? 0 : -1}
                 onClick={() => select(tab.id)}
                 onKeyDown={(event) => onKeyDown(event, index)}
-                className={`group inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
+                className={`group inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
                   isSelected
                     ? "border-transparent bg-white text-black"
                     : "border-transparent text-muted hover:bg-surface/60 hover:text-strong"
