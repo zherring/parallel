@@ -14,6 +14,11 @@ export interface MotionOptions {
    * bottom left), -1 mirrors it for Previous. Reduced motion has no travel to mirror.
    */
   dir?: 1 | -1;
+  /**
+   * The card was swiped this far sideways (stage pixels) when it was sent away: it leaves from there and carries on the
+   * way the finger was taking it.
+   */
+  swipe?: number;
 }
 
 export type CardKind = "person" | "poster" | "label";
@@ -92,7 +97,7 @@ export function arrive(el: HTMLElement, kind: CardKind, { reduced, delay = 0, di
  * settled starts from rest, as before; one the visitor sends away mid-arrival (Next pressed again
  * in quick succession) leaves from where it is instead of jumping to its resting place first.
  */
-export function depart(el: HTMLElement, kind: CardKind, { reduced, delay = 0, dir = 1 }: MotionOptions): Animation[] {
+export function depart(el: HTMLElement, kind: CardKind, { reduced, delay = 0, dir = 1, swipe = 0 }: MotionOptions): Animation[] {
   if (kind === "label") {
     return [el.animate({ opacity: 0 }, { duration: TIMING.labelLeave, delay, easing: "ease-in", fill: "forwards" })];
   }
@@ -101,7 +106,17 @@ export function depart(el: HTMLElement, kind: CardKind, { reduced, delay = 0, di
   }
   const person = kind === "person";
   const duration = person ? TIMING.leave : TIMING.posterLeave;
+  // A swiped card is already moving: it keeps going that way as it fades, with no wait.
+  const carried = swipe
+    ? [
+        el.animate(
+          { translate: `${swipe + Math.sign(swipe) * SWIPE_CARRY}px 0` },
+          { duration: duration + delay, easing: EASE_OUT, fill: "forwards" },
+        ),
+      ]
+    : [];
   return [
+    ...carried,
     el.animate(
       {
         transform: person
@@ -113,6 +128,18 @@ export function depart(el: HTMLElement, kind: CardKind, { reduced, delay = 0, di
     ),
     el.animate({ opacity: 0 }, { duration: duration * 0.72, delay, easing: EASE_IN_OUT, fill: "forwards" }),
   ];
+}
+
+/** How much further (stage pixels) a swiped card travels as it leaves. */
+const SWIPE_CARRY = 90;
+
+/**
+ * A card that stays through a swipe's change of scene: it was dragged `from` stage pixels with the rest and springs back to
+ * its place (at once with reduced motion: there is nothing to play).
+ */
+export function swingBack(el: HTMLElement, from: number, { reduced }: MotionOptions): Animation | null {
+  if (reduced || !from) return null;
+  return el.animate([{ translate: `${from}px 0` }, { translate: "0px 0" }], { duration: TIMING.arrive, easing: springEasing() });
 }
 
 /** The person who stays acknowledges the change: a small scale up and back. */

@@ -14,6 +14,7 @@ import {
 import { createPortal } from "react-dom";
 import { pickOpener } from "@/lib/panel-opener";
 import { trapTab, useModalPage } from "./modal-page";
+import { useSwipeDismiss } from "./use-swipe-dismiss";
 
 const TRIGGER_SELECTOR = "button, a[href], [role='button'], [tabindex]";
 
@@ -126,7 +127,8 @@ export interface SidePanelProps {
  * (md and up) or from the bottom, over a dimmed backdrop. It slides in and, once `closing`, back out
  * (neither for visitors who prefer reduced motion), takes focus, makes the rest of the page inert and
  * locks its scroll, closes on Esc or a click on the backdrop and hands focus back to the control that
- * opened it, as soon as it starts to slide away.
+ * opened it, as soon as it starts to slide away. A finger can also drag it away the way it came (down, or
+ * to the right): it follows the touch and closes when let go far enough or flicked (`useSwipeDismiss`).
  */
 export function SidePanel(props: SidePanelProps) {
   const mounted = useSyncExternalStore(
@@ -169,6 +171,9 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
     );
   }, []);
 
+  // A finger can drag it away the way it came; let go far enough, it closes like any other way of closing it.
+  const flung = useSwipeDismiss({ panelRef, backdropRef, enabled: !closing, onDismiss: () => onCloseRef.current() });
+
   // And back out the way it came when it is closed (X, Escape, a press outside, or the parent letting go of the content).
   // The dialog stays until the animation ends and `onExited` removes it; with reduced motion that is at once.
   useLayoutEffect(() => {
@@ -178,12 +183,16 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
       return;
     }
     const toSide = window.matchMedia("(min-width: 48rem)").matches;
+    // Only where it ends: it starts from where it is, which is at rest unless a finger dragged it part of the way
+    // (then it is already moving, so it eases out instead of in).
+    const dragged = flung.current;
     const animations = [
-      backdropRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: "ease-in", fill: "forwards" }),
-      panelRef.current?.animate(
-        [{ transform: "none" }, { transform: toSide ? "translateX(100%)" : "translateY(100%)" }],
-        { duration: 200, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" },
-      ),
+      backdropRef.current?.animate([{ opacity: 0 }], { duration: 160, easing: dragged ? "ease-out" : "ease-in", fill: "forwards" }),
+      panelRef.current?.animate([{ transform: toSide ? "translateX(100%)" : "translateY(100%)" }], {
+        duration: 200,
+        easing: dragged ? "cubic-bezier(0.2, 0.8, 0.2, 1)" : "cubic-bezier(0.4, 0, 1, 1)",
+        fill: "forwards",
+      }),
     ].filter((animation) => animation !== undefined);
     let cancelled = false;
     // A cancelled animation (reopened, unmounted) rejects: nothing to do then.
@@ -197,7 +206,7 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
       cancelled = true;
       animations.forEach((animation) => animation.cancel());
     };
-  }, [closing]);
+  }, [closing, flung]);
 
   // Focus in on open. This must run before the inert effect below: making the page inert blurs
   // whatever has focus, so the opener has to be read first. Focus goes to the scroll container, not
@@ -264,6 +273,8 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
         onKeyDown={(event) => trapTab(event, panelRef.current, scrollRef.current)}
         className="absolute inset-x-0 bottom-0 flex max-h-[90dvh] flex-col rounded-t-2xl border-t border-border bg-canvas shadow-2xl shadow-black/60 outline-none! md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-[30rem] md:rounded-none md:border-l md:border-t-0"
       >
+        {/* The bottom sheet's grabber: it can be pulled down from anywhere, and this says so. */}
+        <span aria-hidden="true" data-side-panel-grabber className="pointer-events-none absolute left-1/2 top-1.5 h-1 w-9 -translate-x-1/2 rounded-full bg-muted/40 md:hidden" />
         <div className="flex shrink-0 items-center justify-between border-b border-border py-1.5 pl-4 pr-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</span>
           <button

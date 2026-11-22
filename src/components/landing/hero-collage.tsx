@@ -18,10 +18,11 @@ import { PAIR_WASH_A, PAIR_WASH_B, PAIR_WASH_IMAGE, pairWashTransition, register
 import { TreatedPortrait } from "@/components/treated-portrait";
 import { pairPortraitColors } from "@/lib/portrait-cuts";
 import { KeycapButton } from "@/components/landing/keycap-button";
-import { TIMING, arrive, depart, float, nod } from "@/components/landing/hero-motion";
+import { TIMING, arrive, depart, float, nod, swingBack } from "@/components/landing/hero-motion";
 import { personImageUrl, posterImageUrl, preloadScene, useHeroRotation } from "@/components/landing/use-hero-rotation";
 import { useHeroKeys } from "@/components/landing/use-hero-keys";
 import { useHeroPause } from "@/components/landing/use-hero-pause";
+import { SWIPE_VAR, useHeroSwipe } from "@/components/landing/use-hero-swipe";
 import { useKeycapPress } from "@/components/landing/use-keycap-press";
 import type { NavDirection } from "@/lib/hero-history";
 import {
@@ -83,6 +84,11 @@ interface Item {
   person?: HeroPerson;
   /** The person beside them in the current scene, for the pair's colours (`pairPortraitColors`); kept up to date while they stay. */
   partner?: HeroPerson;
+  /**
+   * The card was swiped this far sideways (stage pixels) when transition `seq` took it over: one that leaves goes on from
+   * there, one that stays springs back. Unset for a card no swipe has moved.
+   */
+  swipe?: { x: number; seq: number };
 }
 
 interface State {
@@ -149,10 +155,15 @@ function initialState(scene: Scene): State {
 /**
  * Marks what leaves, lets the staying person nod, and adds what arrives. It works from any state,
  * also one whose last transition is still playing: what was arriving is sent away from where it
- * is, and what was already leaving carries on.
+ * is, and what was already leaving carries on. `swipe` is how far a finger has dragged the cards (stage pixels, 0 for none):
+ * the transition takes them over from there.
  */
-function applyTransition(state: State, transition: Transition, dir: Dir): State {
+function applyTransition(state: State, transition: Transition, dir: Dir, swipe = 0): State {
   const seq = state.seq + 1;
+  const swiped = swipe ? { x: swipe, seq } : undefined;
+  // A card sent away takes the offset it has now (none, without a swipe); one that stays only notes a new one.
+  const leave = (item: Item, delay: number): Item => ({ ...item, phase: "leaving", delay, dir, swipe: swiped });
+  const stay = (item: Item): Item => (swiped ? { ...item, swipe: swiped } : item);
   const { scene } = transition;
   const posters = scene.pairing.posters;
   // The row is centred, so a poster holds its place only if the row is as long as it was.
@@ -162,15 +173,15 @@ function applyTransition(state: State, transition: Transition, dir: Dir): State 
 
   const items = state.items.map((item): Item => {
     if (item.phase === "leaving") return item;
-    if (item.type === "label") return sameMore ? item : { ...item, phase: "leaving", delay: 0, dir };
+    if (item.type === "label") return sameMore ? stay(item) : leave(item, 0);
     if (item.type === "person") {
-      if (transition.changed.includes(item.slot as 0 | 1)) return { ...item, phase: "leaving", delay: 0, dir };
+      if (transition.changed.includes(item.slot as 0 | 1)) return leave(item, 0);
       const partner = item.partner?.id === scene.people[item.slot === 0 ? 1 : 0].id ? item.partner : scene.people[item.slot === 0 ? 1 : 0];
-      if (transition.stayed === item.slot) return { ...item, nod: seq, partner };
-      return partner === item.partner ? item : { ...item, partner };
+      if (transition.stayed === item.slot) return stay({ ...item, nod: seq, partner });
+      return stay(partner === item.partner ? item : { ...item, partner });
     }
-    if (samePoster(item.slot)) return item;
-    return { ...item, phase: "leaving", delay: item.slot * TIMING.posterLeaveStagger, dir };
+    if (samePoster(item.slot)) return stay(item);
+    return leave(item, item.slot * TIMING.posterLeaveStagger);
   });
 
   for (const slot of transition.changed) {
@@ -273,6 +284,8 @@ function Motion({
   const ref = useRef<HTMLDivElement>(null);
   const kind = item.type;
   const { phase, delay, nod: nodAt, dir } = item;
+  const swipeX = item.swipe?.x ?? 0;
+  const swipeSeq = item.swipe?.seq ?? 0;
 
   useLayoutEffect(() => {
     const element = ref.current;
@@ -286,13 +299,23 @@ function Motion({
   useLayoutEffect(() => {
     const element = ref.current;
     if (phase !== "leaving" || !element) return;
-    const animations = depart(element, kind, { reduced, delay, dir });
+    const animations = depart(element, kind, { reduced, delay, dir, swipe: swipeX });
     Promise.all(animations.map((animation) => animation.finished)).then(
       () => onGone(item.id),
       () => {}, // cancelled by an unmount
     );
     return () => animations.forEach((animation) => animation.cancel());
-  }, [phase, kind, reduced, delay, dir, onGone, item.id]);
+  }, [phase, kind, reduced, delay, dir, swipeX, onGone, item.id]);
+
+  // It stayed through a swipe's change of scene: back to its place from where the finger left it.
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!swipeSeq || phase === "leaving" || !element) return;
+    const animation = swingBack(element, swipeX, { reduced });
+    return () => animation?.cancel();
+    // Once for each swipe: a later render must not restart it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [swipeSeq]);
 
   useLayoutEffect(() => {
     const element = ref.current;
@@ -302,7 +325,8 @@ function Motion({
   }, [nodAt, reduced]);
 
   return (
-    <div ref={ref} className="absolute inset-0">
+    // A finger drags every card on the stage by the stage's offset (see use-hero-swipe.ts); one that is leaving has gone its own way.
+    <div ref={ref} className="absolute inset-0" style={{ translate: phase === "leaving" ? `${swipeX}px 0` : `var(${SWIPE_VAR}, 0px) 0` }}>
       {children}
     </div>
   );
@@ -505,7 +529,7 @@ const SIDE_BUTTON_STYLE: CSSProperties = { top: `calc(var(--s) * ${PERSON_MID_Y}
 
 /**
  * The live collage: a scene picked at random once this mounts in the browser, then the automatic
- * rotation and the visitor's Previous and Next (buttons and arrow keys), and a polite live region
+ * rotation and the visitor's Previous and Next (buttons, arrow keys and, on a touch screen, a swipe), and a polite live region
  * that names the scene after a button or key, never after the rotation. All the ways to hold the
  * rotation still (there is no pause button) are in useHeroPause; the controls call `go`.
  */
@@ -521,6 +545,9 @@ function Collage({
   const reduced = useReducedMotion();
 
   const stage = useRef<HTMLDivElement>(null);
+  const link = useRef<HTMLAnchorElement>(null);
+  /** Where a finger has dragged the cards, read when the scene changes (set below, once the swipe exists). */
+  const swipeOffset = useRef<() => number>(() => 0);
   const [state, setState] = useState(() => initialState(initial));
   const [announcement, setAnnouncement] = useState("");
   // The scene fades in once its images are in, so the cards never show empty.
@@ -533,7 +560,8 @@ function Collage({
     initial,
     running,
     onTransition: (transition, direction, cause) => {
-      setState((current) => applyTransition(current, transition, direction === "prev" ? -1 : 1));
+      const swipe = swipeOffset.current();
+      setState((current) => applyTransition(current, transition, direction === "prev" ? -1 : 1, swipe));
       // Said after a button or key; an automatic change empties the region instead, so it never
       // holds the name of a scene that is no longer on screen.
       setAnnouncement(cause === "manual" ? `Showing ${sceneLabel(transition.scene)}` : "");
@@ -550,6 +578,18 @@ function Collage({
     [press, go],
   );
   useHeroKeys({ heroVisible: !reasons.offscreen, onNavigate: step });
+
+  // With a single pairing in the pool there is nowhere to step to.
+  const canStep = pool.length > 1;
+  // A finger swipes the collage as the arrows step it. Past the point where letting go would step, the matching keycap is down.
+  const [armed, setArmed] = useState<NavDirection | null>(null);
+  const swipe = useHeroSwipe({ surface: link, stage, stageWidth: STAGE.width, enabled: canStep, reduced, onStep: step, onArmed: setArmed, onStart: warm });
+  useEffect(() => {
+    swipeOffset.current = swipe.offset;
+  }, [swipe.offset]);
+  // The scene changed: its cards have taken over whatever offset the stage had (after the cards' own layout effects, before the paint).
+  const resetSwipe = swipe.reset;
+  useLayoutEffect(() => resetSwipe(), [state.seq, resetSwipe]);
 
   useEffect(() => rememberFirstKey(initial.pairing.key), [initial]);
 
@@ -663,8 +703,6 @@ function Collage({
   usePairWash(root, pairPortraitColors(scene.people[0].id, scene.people[1].id), reduced);
 
   const navigate = (direction: NavDirection) => () => step(direction);
-  // With a single pairing in the pool there is nowhere to step to.
-  const canStep = pool.length > 1;
 
   return (
     <>
@@ -673,7 +711,7 @@ function Collage({
         <KeycapButton
           direction="prev"
           label="Previous pairing"
-          pressed={pressed === "prev"}
+          pressed={pressed === "prev" || armed === "prev"}
           onClick={navigate("prev")}
           className="right-full mr-[3px] -translate-y-1/2"
           style={SIDE_BUTTON_STYLE}
@@ -683,11 +721,13 @@ function Collage({
 
       {/* The whole collage is one link to the pair; its decorative images carry no text of their own. */}
       <Link
+        ref={link}
         href={sceneHref(scene)}
         prefetch={false}
         aria-label={sceneLabel(scene)}
         {...focusHandlers}
-        className="group absolute inset-0 block rounded-3xl outline-none!"
+        // Up and down is the page's scroll; sideways is the swipe between pairings.
+        className="group absolute inset-0 block touch-pan-y rounded-3xl outline-none!"
       >
         <Stage
           items={state.items}
@@ -702,7 +742,7 @@ function Collage({
         <KeycapButton
           direction="next"
           label="Next pairing"
-          pressed={pressed === "next"}
+          pressed={pressed === "next" || armed === "next"}
           onClick={navigate("next")}
           className="left-full ml-[3px] -translate-y-1/2"
           style={SIDE_BUTTON_STYLE}
