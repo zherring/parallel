@@ -39,6 +39,7 @@ import { postersLeftOut } from "@/lib/poster-cap";
 import { montagePosters } from "@/lib/portrait-treatment";
 import type { ShareInput } from "@/lib/share";
 import { sharedFilms, type PairShared } from "@/lib/shared";
+import { filmNeighbours } from "@/lib/film-sequence";
 import { filmIdOf, openFilm, openPerson, personIdOf, type PanelTarget } from "@/lib/side-panel";
 import { centerYear, scrollLeftForCenter } from "@/lib/timeline-layout";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
@@ -224,6 +225,18 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
     setPanel(openFilm(id));
   }, []);
 
+  // The panel's Previous and Next (and a swipe on a phone): the films either side of the open one, of those in the scene. The opener stays the poster that
+  // opened the panel, so closing it hands focus back there.
+  const handleStepFilm = useCallback((id: number) => setPanel(openFilm(id)), []);
+  const openFilmId = filmIdOf(panel);
+  const neighbours = useMemo(
+    () =>
+      openFilmId === null
+        ? undefined
+        : filmNeighbours(layout.films.map(({ film, shared }) => ({ id: film.id, releaseDate: film.releaseDate, shared })), openFilmId),
+    [openFilmId, layout.films],
+  );
+
   const handleOpenPerson = useCallback((id: number, trigger?: Element | null) => {
     rememberOpener(trigger ?? null);
     setPanel(openPerson(id));
@@ -332,7 +345,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
         shared={railFilms.shared}
         ticks={railFilms.ticks}
       />
-      <FilmPanel filmId={filmIdOf(panel)} peopleInView={people} onClose={handleClose} />
+      <FilmPanel filmId={filmIdOf(panel)} peopleInView={people} onClose={handleClose} neighbours={neighbours} onStep={handleStepFilm} />
       <PersonPanel
         entry={personEntries.find((entry) => entry.person.id === personIdOf(panel)) ?? null}
         peopleInView={people}

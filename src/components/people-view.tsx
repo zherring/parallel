@@ -38,6 +38,7 @@ import { montagePosters } from "@/lib/portrait-treatment";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import type { ShareInput } from "@/lib/share";
 import { sharedFilms, sharedFilmsPairwise, upcomingSharedFilms, type PairShared } from "@/lib/shared";
+import { filmNeighbours } from "@/lib/film-sequence";
 import { filmIdOf, openFilm, openPerson, personIdOf, type PanelTarget, type PersonPanelAccess } from "@/lib/side-panel";
 import type { PersonTimeline, SharedFilm } from "@/lib/types";
 
@@ -188,6 +189,19 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
     rememberOpener(trigger ?? null);
     setPanel(openFilm(id));
   }, []);
+
+  // The panel's Previous and Next (and a swipe on a phone): the films either side of the open one, of those the page shows. The opener stays the control that
+  // opened the panel, so closing it hands focus back there.
+  const handleStepFilm = useCallback((id: number) => setPanel(openFilm(id)), []);
+  const openFilmId = filmIdOf(panel);
+  const neighbours = useMemo(() => {
+    if (openFilmId === null) return undefined;
+    const sharedIds = new Set(multi ? sharedNow.map((film) => film.id) : []);
+    return filmNeighbours(
+      visibleLanes.flatMap((lane) => lane.films.map((film) => ({ id: film.id, releaseDate: film.releaseDate, shared: sharedIds.has(film.id) }))),
+      openFilmId,
+    );
+  }, [openFilmId, multi, sharedNow, visibleLanes]);
 
   const handleOpenPerson = useCallback((id: number, trigger?: Element | null) => {
     rememberOpener(trigger ?? null);
@@ -407,7 +421,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
           />
         )}
       </div>
-      <FilmPanel filmId={filmIdOf(panel)} peopleInView={people} onClose={handleClose} />
+      <FilmPanel filmId={filmIdOf(panel)} peopleInView={people} onClose={handleClose} neighbours={neighbours} onStep={handleStepFilm} />
       <PersonPanel
         entry={personPanel.entries.find((entry) => entry.person.id === personIdOf(panel)) ?? null}
         peopleInView={people}

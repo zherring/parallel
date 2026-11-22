@@ -2,6 +2,8 @@
 
 import { usePeopleStaging, useStagingSurface } from "@/components/people-staging";
 import { SidePanel, useSlideOut } from "@/components/side-panel/side-panel";
+import type { PanelStepper } from "@/components/side-panel/use-swipe-step";
+import type { FilmNeighbours } from "@/lib/film-sequence";
 import { Spinner } from "@/components/spinner";
 import { errorMessage } from "@/lib/api-client";
 import type { PersonRow } from "@/lib/film-people";
@@ -15,9 +17,12 @@ export interface FilmPanelProps {
   /** People on the timeline now, so the panel can mark them and offer "add" for everyone else. */
   peopleInView: { id: number; name: string }[];
   onClose: () => void;
+  /** The films before and after this one in the view (`filmNeighbours`), and what shows one of them: the panel's Previous and Next, and a swipe on a phone. */
+  neighbours?: FilmNeighbours;
+  onStep?: (filmId: number) => void;
 }
 
-export function FilmPanel({ filmId, peopleInView, onClose }: FilmPanelProps) {
+export function FilmPanel({ filmId, peopleInView, onClose, neighbours, onStep }: FilmPanelProps) {
   // The dialog stays mounted for as long as its exit animation takes (see `useSlideOut`).
   const { shown, session, closing, exited } = useSlideOut(filmId);
   if (shown === null) return null;
@@ -29,6 +34,9 @@ export function FilmPanel({ filmId, peopleInView, onClose }: FilmPanelProps) {
       closing={closing}
       onExited={exited}
       onClose={onClose}
+      // While it slides away there is no film to step from.
+      neighbours={filmId === null ? undefined : neighbours}
+      onStep={onStep}
     />
   );
 }
@@ -39,8 +47,12 @@ function FilmDialog({
   closing,
   onExited,
   onClose,
+  neighbours,
+  onStep,
 }: {
   filmId: number;
+  neighbours?: FilmNeighbours;
+  onStep?: (filmId: number) => void;
   peopleInView: FilmPanelProps["peopleInView"];
   /** The panel was closed: it slides out (and the page is the visitor's again at once), then `onExited` removes it. */
   closing: boolean;
@@ -60,8 +72,20 @@ function FilmDialog({
     else staging.addPerson({ id: person.id, name: person.name, profilePath: person.profilePath });
   }
 
+  const { prev = null, next = null } = neighbours ?? {};
+  const stepper: PanelStepper | undefined =
+    onStep && (prev !== null || next !== null)
+      ? {
+          prev: prev === null ? null : () => onStep(prev),
+          next: next === null ? null : () => onStep(next),
+          prevLabel: "Previous film",
+          nextLabel: "Next film",
+        }
+      : undefined;
+
   return (
     <SidePanel
+      stepper={stepper}
       label="Film"
       closeLabel="Close film details"
       busy={state.status === "loading"}

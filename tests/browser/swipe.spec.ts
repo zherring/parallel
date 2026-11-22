@@ -232,3 +232,150 @@ test.describe("a details sheet", () => {
     await expect(dialog(page)).toBeVisible();
   });
 });
+
+test.describe("a film's sheet", () => {
+  const filmDialog = (page: Page, id: number) => page.getByRole("dialog", { name: `Scroll Film ${id}`, exact: true });
+  // The films the pair made together, in release order: 100 to 107 (2000 and 2001), then 200 (2020).
+  const filmButton = (page: Page, id: number) => page.getByRole("button", { name: new RegExp(`^Scroll Film ${id}, \\d{4}\\.`) }).first();
+
+  async function openFilm(page: Page, id: number) {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    // The film's details, which the fixtures do not serve: a title to tell one film from the next is all the sheet needs here.
+    await page.route("**/api/movie/*", (route) => {
+      const film = Number(new URL(route.request().url()).pathname.split("/").pop());
+      return route.fulfill({
+        json: { id: film, title: `Scroll Film ${film}`, year: 2000, releaseDate: "2000-01-01", posterPath: null, backdropPath: null, runtime: 100, tagline: null, overview: "A film.", genres: [], cast: [], crew: [] },
+      });
+    });
+    await page.goto(`${PEOPLE_PATH}?view=timeline`);
+    const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+    await page.getByRole("button", { name: "Settings", exact: true }).tap();
+    await expect(settings).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(settings).toBeHidden();
+    await filmButton(page, id).tap();
+    await expect(filmDialog(page, id)).toBeVisible();
+    await expect.poll(() => filmDialog(page, id).evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0);
+    return boxOf(filmDialog(page, id));
+  }
+
+  test("swiped left it shows the next film they made together, and right the one before, in the same sheet", async ({ page }) => {
+    const rest = await openFilm(page, 101);
+    const touch = await finger(page);
+    const x = rest.x + rest.width / 2;
+    const y = rest.y + rest.height / 2;
+    const content = filmDialog(page, 101).locator("[data-side-panel-scroll]");
+    const before = await boxOf(content);
+
+    // The content follows the finger (less the 4px it took to know it was a swipe); the sheet itself stays.
+    await touch.down(x, y);
+    await touch.move(x - 60, y);
+    expect(before.x - (await boxOf(content)).x).toBeCloseTo(56, 0);
+    expect((await boxOf(filmDialog(page, 101))).x).toBe(rest.x);
+    await touch.move(x - 180, y, { steps: 10 });
+    await touch.up(160);
+    await expect(filmDialog(page, 102)).toBeVisible();
+    await expect(filmDialog(page, 101)).toHaveCount(0);
+
+    await touch.flick(x, y, 60, 0);
+    await expect(filmDialog(page, 101)).toBeVisible();
+    // Closing it hands focus back to the film that opened it, whichever film it shows by then.
+    await touch.flick(x, y, 60, 0);
+    await expect(filmDialog(page, 100)).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(filmButton(page, 101)).toBeFocused();
+  });
+
+  test("a short swipe springs back, and at the first film there is nothing before it: the content only gives a little", async ({ page }) => {
+    const rest = await openFilm(page, 100);
+    const touch = await finger(page);
+    const x = rest.x + rest.width / 2;
+    const y = rest.y + rest.height / 2;
+    const dialog = filmDialog(page, 100);
+    const content = dialog.locator("[data-side-panel-scroll]");
+    const before = await boxOf(content);
+    await expect(dialog.getByRole("button", { name: "Previous film", exact: true })).toHaveAttribute("aria-disabled", "true");
+
+    await touch.down(x, y);
+    await touch.move(x + 204, y, { steps: 12 });
+    expect((await boxOf(content)).x - before.x).toBeCloseTo(50, 0);
+    await touch.up(160);
+    await expect.poll(async () => (await boxOf(content)).x).toBe(before.x);
+    await expect(dialog).toBeVisible();
+
+    await touch.down(x, y);
+    await touch.move(x - 40, y);
+    await touch.up(160);
+    await expect.poll(async () => (await boxOf(content)).x).toBe(before.x);
+    await expect(dialog).toBeVisible();
+  });
+
+  test("the header's arrows step too, and a pull down still closes the sheet", async ({ page }) => {
+    const rest = await openFilm(page, 100);
+    await filmDialog(page, 100).getByRole("button", { name: "Next film", exact: true }).tap();
+    await expect(filmDialog(page, 101)).toBeVisible();
+    await filmDialog(page, 101).getByRole("button", { name: "Previous film", exact: true }).tap();
+    await expect(filmDialog(page, 100)).toBeVisible();
+    const touch = await finger(page);
+    const now = await boxOf(filmDialog(page, 100));
+    await touch.flick(rest.x + rest.width / 2, now.y + 20, 0, 60);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+});
+
+test.describe("the Timeline's track", () => {
+  const zoomLabel = (page: Page) => page.getByRole("group", { name: "Zoom", exact: true }).locator("[aria-live]");
+
+  /** Two fingers either side of (x, y), from `from` px apart to `to` px apart, through the browser's input pipeline. */
+  async function pinch(page: Page, x: number, y: number, from: number, to: number) {
+    const cdp = await page.context().newCDPSession(page);
+    const points = (gap: number) => [{ x: x - gap / 2, y, id: 0 }, { x: x + gap / 2, y, id: 1 }];
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: points(from) });
+    for (let step = 1; step <= 10; step++) {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: points(from + ((to - from) * step) / 10) });
+      await page.waitForTimeout(12);
+    }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  }
+
+  /** The film whose card is nearest `x` on screen, and how far its middle is from it. */
+  const nearestFilm = (page: Page, x: number, id?: string) =>
+    page.evaluate(
+      ([at, wanted]) => {
+        const track = [...document.querySelectorAll<HTMLElement>('[aria-label^="Film timeline. Scroll sideways"]')].find((element) => element.getClientRects().length > 0)!;
+        const cards = [...track.querySelectorAll<HTMLElement>("[data-film]")].map((card) => {
+          const box = card.getBoundingClientRect();
+          return { id: card.dataset.film!, dx: box.left + box.width / 2 - (at as number) };
+        });
+        const pool = wanted ? cards.filter((card) => card.id === wanted) : cards;
+        return pool.sort((a, b) => Math.abs(a.dx) - Math.abs(b.dx))[0];
+      },
+      [x, id ?? null] as const,
+    );
+
+  test("two fingers spread zoom it in a step at a time about the point between them, and pinched zoom it back out", async ({ page }) => {
+    await page.goto(`${PEOPLE_PATH}?view=timeline`);
+    const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+    await page.getByRole("button", { name: "Settings", exact: true }).tap();
+    await expect(settings).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(settings).toBeHidden();
+    await expect(zoomLabel(page)).toHaveText(/100%/);
+
+    const x = 150;
+    const y = 400;
+    const before = await nearestFilm(page, x);
+    // 1.5 times apart: past 133% (the next step) and not yet 60% of the way on to 178%.
+    await pinch(page, x, y, 120, 180);
+    await expect(zoomLabel(page)).toHaveText(/133%/);
+    // The year under the fingers stayed under them: the film that was nearest is 4/3 as far from the point, no more.
+    const after = await nearestFilm(page, x, before.id);
+    expect(Math.abs(after.dx - before.dx * (96 / 72))).toBeLessThan(3);
+    // The page itself did not zoom.
+    expect(await page.evaluate(() => window.visualViewport!.scale)).toBe(1);
+
+    await pinch(page, x, y, 240, 120);
+    await expect(zoomLabel(page)).toHaveText(/78%/);
+  });
+});

@@ -599,6 +599,24 @@ export function nextZoom(current: number, direction: "in" | "out"): number {
   return [...ZOOM_STEPS].reverse().find((step) => step < current) ?? MIN_ZOOM;
 }
 
+/** How far (0 to 1, in proportion) a pinch has to go towards the next zoom step before the track takes it. */
+const PINCH_COMMIT = 0.6;
+
+/**
+ * The zoom step a pinch is at: `current` is the step on screen and `target` the zoom the fingers ask for (the step the pinch
+ * began on times how far they have spread). The track only has ZOOM_STEPS, so it snaps: it moves on to the next step once the
+ * fingers are 60% of the way there (in proportion), as many steps as they have gone, and so goes back only once they are 60% of
+ * the way back. Between the two nothing changes, and fingers that waver at a boundary do not flip the track back and forth.
+ */
+export function pinchZoomStep(current: number, target: number): number {
+  let index = ZOOM_STEPS.reduce((best, step, at) => (Math.abs(step - current) < Math.abs(ZOOM_STEPS[best] - current) ? at : best), 0);
+  if (!(target > 0)) return ZOOM_STEPS[index];
+  const reached = (to: number) => Math.log(target / ZOOM_STEPS[index]) / Math.log(to / ZOOM_STEPS[index]) >= PINCH_COMMIT;
+  while (index < ZOOM_STEPS.length - 1 && reached(ZOOM_STEPS[index + 1])) index++;
+  while (index > 0 && reached(ZOOM_STEPS[index - 1])) index--;
+  return ZOOM_STEPS[index];
+}
+
 /**
  * The zoom step a link to a period opens at: the nearest of ZOOM_STEPS (in proportion) to the
  * zoom at which the period's years just fill `viewportTrackWidth`, never one that would spill

@@ -78,6 +78,7 @@ import type { OpenPerson } from "@/lib/side-panel";
 import { isSenderPeriod } from "./use-period";
 import { scrollBehavior } from "./scroll-behavior";
 import { useDragPan } from "./use-drag-pan";
+import { usePinchZoom } from "./use-pinch-zoom";
 
 export interface LaneData {
   person: PersonSummary;
@@ -266,6 +267,8 @@ export function Timeline({
   // Click-and-drag on the empty surface pans the scroller; starting one closes the hover card.
   const { isPanning } = useDragPan(scrollerRef, hidePopover, embed ? { axis: "x" } : undefined);
   const pendingCenter = useRef<number | null>(null);
+  /** How far (px) from the middle of the visible track the kept year belongs: 0 for the middle itself, the pinch's point for a pinch. */
+  const pendingShift = useRef(0);
   /** A period link's first year and the zoom it needs: scrolled to once that zoom is the one on screen. */
   const pendingStart = useRef<{ from: number; zoom: number } | null>(null);
   /** The period (as "from-to") the timeline last opened on, so each one is applied once. */
@@ -614,7 +617,8 @@ export function Timeline({
     const scroller = scrollerRef.current;
     if (year === null || !scroller) return;
     pendingCenter.current = null;
-    scroller.scrollLeft = scrollLeftForCenter(year, scroller.clientWidth - (cornerRef.current?.offsetWidth ?? 0), scale);
+    scroller.scrollLeft = scrollLeftForCenter(year, scroller.clientWidth - (cornerRef.current?.offsetWidth ?? 0), scale) - pendingShift.current;
+    pendingShift.current = 0;
     remember();
   });
 
@@ -661,6 +665,18 @@ export function Timeline({
     rememberCenter();
     setPxPerYear(next);
   };
+
+  // Two fingers zoom the track about the point between them: the year under it stays under it (the buttons keep the middle's).
+  const zoomAbout = (next: number, clientX: number) => {
+    const scroller = scrollerRef.current;
+    if (!scroller || next === pxPerYear) return;
+    const visible = viewportTrackWidth();
+    const shift = clientX - scroller.getBoundingClientRect().left - (cornerRef.current?.offsetWidth ?? 0) - visible / 2;
+    pendingShift.current = shift;
+    pendingCenter.current = centerYear(scroller.scrollLeft + shift, visible, scale);
+    setPxPerYear(next);
+  };
+  usePinchZoom(scrollerRef, { enabled: active && !embed, zoom: pxPerYear, onZoom: zoomAbout, onStart: hidePopover });
 
   // ---- hover, focus and keyboard ------------------------------------------
   //
@@ -880,7 +896,8 @@ export function Timeline({
             // starts on the frame, nor `pan-x pan-y`, which names no `pinch-zoom` and so takes the pinch from a visitor who zooms in on a small frame.
             embed
               ? "overflow-x-auto overflow-y-hidden [overscroll-behavior-x:contain] [overscroll-behavior-y:auto] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [touch-action:manipulation]"
-              : "overflow-auto overscroll-contain [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin]",
+              : // Two fingers zoom the track itself (`usePinchZoom`), so the browser's pinch-zoom is left out here: a pan either way is all it does.
+                "overflow-auto overscroll-contain [scrollbar-color:var(--text-muted)_transparent] [scrollbar-width:thin] [touch-action:pan-x_pan-y]",
           )}
         >
           {/* Row 1 starts clear of the page bar, with a little room: the top padding is the bar's bottom edge and 10px, less the lane's own 18px. */}
