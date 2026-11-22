@@ -25,7 +25,7 @@ export function PairingCard({ card }: Props) {
       href={card.href}
       prefetch={false}
       data-landing-card=""
-      className="group flex h-full min-h-[150px] gap-4 overflow-hidden rounded-lg border border-border bg-surface p-4 no-underline transition-colors [container-type:inline-size] hover:border-accent-green/70 sm:min-h-[160px]"
+      className="group flex h-full min-h-[150px] gap-4 overflow-hidden rounded-lg border border-border bg-surface p-4 no-underline transition-colors [container-type:inline-size] hover:border-white/70 sm:min-h-[160px]"
     >
       <div aria-hidden="true" data-card-cell="" className="relative shrink-0 self-stretch" style={{ width: `${CELL_CQW}cqw`, marginBlock: -CELL_BLEED_PX }}>
         <CardPortraits people={card.people} colors={colors} />
