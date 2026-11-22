@@ -1846,6 +1846,15 @@ test.describe("a touch screen shows the cue's line under the names, still, and a
     expect(await page.evaluate(() => matchMedia("(hover: none)").matches)).toBe(false);
     expect(await opacityOf(cueLine(page))).toBe("0");
   });
+
+  test("at a phone's width it is shown at rest even with a mouse: the phone layout has no hover to wait for", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await ready(page);
+    expect(await page.evaluate(() => matchMedia("(hover: none)").matches)).toBe(false);
+    expect(await opacityOf(cueLine(page))).toBe("1");
+    await expect(cueLine(page)).toBeVisible();
+  });
 });
 
 /**

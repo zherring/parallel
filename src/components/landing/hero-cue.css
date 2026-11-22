@@ -6,7 +6,7 @@
  * still pointer settles the new scene's pieces straight into the open state (a piece that is just mounted has no earlier style to transition from). Namespaced by the
  * stage's attribute, as Next keeps global styles between pages.
  *
- * Reduced motion: nothing moves; the line fades in and the dots light up. Touch (`hover: none`): the line is always shown, still (below).
+ * Reduced motion: nothing moves; the line fades in and the dots light up. Touch (`hover: none`) and a phone's width: the line is always shown, still (below).
  */
 
 [data-hero-stage] {
@@ -121,11 +121,11 @@
 }
 
 /*
- * A touch screen has no hover (`hover: none`, the device's, not the width's), so the cue's line is there all the time, still: "See all N films together →" under the names, where
- * the link's tap goes. Nothing about it moves (no fade, no slide, no nudge of the arrow, whatever the motion setting); the rest of the cue (the posters, the dots) is the hover's alone.
+ * A touch screen has no hover (`hover: none`), and a phone's layout (below `sm`, 40rem, whatever the pointer) is one, so on either the cue's line is there all the time,
+ * still: "See all N films together →" under the names, where the link's tap goes. Nothing about it moves (no fade, no slide, no nudge of the arrow, whatever the motion setting); the rest of the cue (the posters, the dots) is the hover's alone.
  * A tap that leaves the link "hovered" (touch browsers hold `:hover` on what was last touched) changes nothing of the line, as it is already as the cue has it.
  */
-@media (hover: none) {
+@media (hover: none), (width < 40rem) {
   [data-hero-stage] [data-cue-cta],
   [data-hero-stage]:has([data-stage-link]:is(:hover, :focus-visible)) [data-cue-cta] {
     opacity: 1;
