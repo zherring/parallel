@@ -1,13 +1,13 @@
 "use client";
 
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent } from "react";
 import { rememberOpener } from "@/components/side-panel/side-panel";
 import type { ClippingsVoice } from "@/lib/clippings";
 import { parseQuoteId } from "@/lib/clippings-view";
 import type { ReadingItem } from "@/lib/critics";
 import { INTERACTIVE_SELECTOR, OVERLAY_SELECTOR } from "@/lib/interaction-target";
-import { exhibitSpaceAction, nextExhibitIndex, quoteExhibitQuoteSearch, quoteFit, quotePaneCanScroll } from "@/lib/quote-exhibit";
+import { exhibitSpaceAction, nextExhibitIndex, paneSwipeAdvance, quoteExhibitQuoteSearch, quoteFit, quotePaneCanScroll } from "@/lib/quote-exhibit";
 import { QuoteLibraryPanel, type QuoteLibraryView } from "./quote-library-panel";
 import { quoteElementId } from "./pull-quote";
 import { QuoteExhibit, QuoteExhibitSlide } from "./quote-exhibit";
@@ -43,6 +43,11 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
   const currentRef = useRef(initial);
   const motionTarget = useRef<number | null>(null);
   const initialized = useRef(false);
+  /**
+   * A finger is on the deck: where it came down, and the quote's text pane under it as it was then, if that pane had room to scroll
+   * (the browser gives the touch to the pane; see `paneSwipeAdvance`).
+   */
+  const touch = useRef<{ id: number; y: number; top: number; pane: { scrollTop: number; scrollHeight: number; clientHeight: number } | null } | null>(null);
   const slideKey = slides.map((slide) => slide.id).join("+");
   // What each quote's type is fitted from: its text's width, and how much of the slide's height the lines under it take.
   const fits = useMemo(() => slides.map((slide) => quoteFit(slide.quote, slide.contextChars, slide.sourceChars)), [slides]);
@@ -116,8 +121,43 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
       if (Math.abs(scroller.scrollTop - motionTarget.current * scroller.clientHeight) > 1) return;
       motionTarget.current = null;
     }
+    // While a finger drags the deck nothing is redrawn under it: a quote halfway past is not yet the current one, and redrawing the deck
+    // (and the page, for the address) mid-drag is what makes a touch scroller re-snap or drop the drag. The finger lifting catches up.
+    if (touch.current) return;
     const index = Math.max(0, Math.min(slides.length - 1, Math.round(scroller.scrollTop / scroller.clientHeight)));
     if (index !== currentRef.current) publish(index);
+  }
+
+  function onTouchStart(event: TouchEvent<HTMLDivElement>) {
+    motionTarget.current = null;
+    if (event.touches.length !== 1) {
+      touch.current = null;
+      return;
+    }
+    const plate = (event.target as Element).closest<HTMLElement>(".quote-exhibit-plate");
+    const scrolls = plate !== null && plate.scrollHeight - plate.clientHeight > 1 && /auto|scroll/.test(getComputedStyle(plate).overflowY);
+    touch.current = {
+      id: event.touches[0].identifier,
+      y: event.touches[0].clientY,
+      top: event.currentTarget.scrollTop,
+      pane: scrolls ? { scrollTop: plate.scrollTop, scrollHeight: plate.scrollHeight, clientHeight: plate.clientHeight } : null,
+    };
+  }
+
+  function onTouchEnd(event: TouchEvent<HTMLDivElement>) {
+    const began = touch.current;
+    const lifted = began && Array.from(event.changedTouches).find((point) => point.identifier === began.id);
+    if (!began || !lifted) return;
+    touch.current = null;
+    const scroller = scrollerRef.current!;
+    // The deck where the drag left it: the scroll events from here on (the snap) keep it up to date as before.
+    onScroll();
+    if (!began.pane || event.type !== "touchend") return;
+    // The touch was the text pane's, so the deck has not moved: a swipe that went well past what the pane had to scroll moves it on.
+    // (Where the browser passed the swipe on to the deck itself, the deck has moved and there is nothing to add.)
+    if (Math.abs(scroller.scrollTop - began.top) > 1) return;
+    const next = currentRef.current + paneSwipeAdvance(began.y - lifted.clientY, began.pane);
+    if (next !== currentRef.current && slides[next]) goTo(next);
   }
 
   return (
@@ -131,7 +171,9 @@ export function QuoteExhibitDeck({ slides, quoteId, people, reading }: Props) {
           className="quote-exhibit-scroller"
           onScroll={onScroll}
           onWheel={() => { motionTarget.current = null; }}
-          onTouchStart={() => { motionTarget.current = null; }}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+          onTouchCancel={onTouchEnd}
           onPointerDown={(event) => {
             if (!(event.target as Element).closest(`${INTERACTIVE_SELECTOR},.quote-exhibit-plate`)) event.currentTarget.focus({ preventScroll: true });
           }}
