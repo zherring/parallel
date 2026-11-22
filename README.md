@@ -60,6 +60,11 @@ No analytics scripts or tracking cookies are needed for Search Console.
 | `npm run people:refresh` | Rebuild the local people search index and the collaborator graph from TMDB (see "People search index" and "Frequent collaborators") |
 | `npm run people:eval` | Measure how well the search finds people for ~50 realistic queries |
 | `npm run awards:refresh` | Rebuild the Oscar / festival awards data from Wikidata (see "Awards data"); `-- --validate` checks the live endpoint |
+| `npm run portraits:cut -- --posters` | Re-read each cut-out person's films from TMDB and rewrite the montage's posters (`portrait-cuts.json`, `portrait-backdrops.json`); cold cache: ~5,700 TMDB calls, 3 to 4 minutes, 429s retried (see below) |
+
+### Refreshing the montage's posters
+
+`npm run portraits:cut -- --posters [ids]` (needs `TMDB_READ_ACCESS_TOKEN`) replaces the posters behind each cut-out person on the cards, the pair pages and the landing hero, without cutting anyone again: it reads each person's films, then each film's collection and runtime, and arranges them (`scripts/portraits/posters.ts`, `src/lib/backdrop-posters.ts`). The film details are cached in `scripts/portraits/.cache/movie-details.json` (gitignored; delete it to read them again), so only a cold cache is slow: for the 186 people about 5,700 TMDB calls (a person each, and about 5,500 films: each person's best-known 50), 3 to 4 minutes at six at a time; a warm run takes seconds. TMDB's rate limit (429) and server errors on a film are retried up to five times, after the wait TMDB names; a film that still fails is listed under "problems" (exit code 1) and the next run reads only it.
 
 ### Browser regressions
 

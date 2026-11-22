@@ -8,6 +8,11 @@
  * (src/lib/backdrop-posters.ts: at most two films of a collection, the first of each before any second, and no poster or collection on touching tiles).
  * The first nine of the list are the core (`posters` in portrait-cuts.json, what the cards and the pair pages draw), the next eighteen the extension the landing hero draws out to
  * the screen's edge (portrait-backdrops.json).
+ *
+ * Cost: a film's details are read once and kept in .cache/movie-details.json (gitignored), so only a cold cache is slow. For the 186 people that is 186 person reads and about 5,500 film
+ * reads (`MAX_CANDIDATES` 50; it was 80, about 7,200 reads), 3 to 4 minutes at `CONCURRENCY` 6 (3m35s measured, 2026-11); a warm cache reads only a new person's and new films, a few seconds.
+ * TMDB's 429 (and a 5xx) on a film is retried (tmdb.ts `fetchMovieDetails`: up to five attempts, each after the `Retry-After` the response names, else one second more than the last); a person's
+ * read is not retried, and a film that still fails is named under "problems" (the run exits 1) and left out of the cache, so running again reads only it.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -24,8 +29,13 @@ const here = dirname(fileURLToPath(import.meta.url));
 const cacheFile = join(here, ".cache/movie-details.json");
 export const backdropsFile = join(resolve(here, "../.."), "src/lib/portrait-backdrops.json");
 
-/** How many of a person's most-voted films are read for their collection: more than any list needs, so a person's second-tier films can still stand in for a franchise's. */
-const MAX_CANDIDATES = 80;
+/**
+ * How many of a person's most-voted films are read for their collection and runtime: more than a list needs, so that a franchise's films (at most two of a collection count) and the
+ * shorts (dropped) do not leave it short. A list is made of `BACKDROP_POSTERS` + the arrangement's spares (backdrop-posters.ts `ARRANGEMENT_SPARES`), 36 films; the person of the 186 who needs
+ * the most candidates for the same list as with 80 needs their best 43 (a cap of 42 changes two people's lists), so 50 leaves some margin. The data is the same at 50, 60 and 80, so a new person who
+ * comes out with fewer posters than their films should give is the cap's doing: raise it, read again, and check that nobody else's list changes.
+ */
+const MAX_CANDIDATES = 50;
 /** TMDB allows about 40 requests a second; this many at once, each about 150ms, stays under it. */
 const CONCURRENCY = 6;
 
