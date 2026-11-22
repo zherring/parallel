@@ -97,9 +97,10 @@ export function PanelParts({ person, color, slot }: { person: HeroPerson; color:
               <Duotone id={filter} tint={color} />
             </svg>
             <div className="absolute inset-y-0" style={core}>
+              {/* The tiles stretch to their grid area (`self-stretch`), not `height: 100%`: Safari resolves that against the whole grid, three rows tall, so each poster is zoomed to a third of itself. */}
               <div className="absolute inset-0 grid grid-cols-3 grid-rows-3" style={{ filter: `url(#${filter})` }}>
                 {posters.map((path, index) => (
-                  <img key={`${index}-${path}`} src={tmdbImage(path, MONTAGE_SIZE) ?? ""} alt="" decoding="async" draggable={false} className="size-full select-none object-cover" />
+                  <img key={`${index}-${path}`} src={tmdbImage(path, MONTAGE_SIZE) ?? ""} alt="" decoding="async" draggable={false} className="w-full select-none self-stretch object-cover" />
                 ))}
               </div>
               {/* The tile goes on outward: its columns by distance from the first tile, each cell the next poster of the extension's list (column by column, each top to bottom). */}
@@ -123,7 +124,7 @@ export function PanelParts({ person, color, slot }: { person: HeroPerson; color:
                       loading="lazy"
                       decoding="async"
                       draggable={false}
-                      className="size-full select-none object-cover"
+                      className="w-full select-none self-stretch object-cover"
                       style={{ gridColumn: slot === 0 ? EXTENSION_COLUMNS - column : column + 1, gridRow: row + 1 }}
                     />
                   );
