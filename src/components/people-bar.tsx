@@ -2,10 +2,12 @@
 
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, ViewTransition, type ReactNode, type RefObject } from "react";
+import { BaconModeBadge } from "@/components/bacon-mode-badge";
 import { REDUCED_MOTION, useMediaQuery } from "@/components/depth/use-media";
 import { PeoplePill, flipTransform, type PillPerson } from "@/components/depth/people-pill";
 import { PairTitle } from "@/components/hero/pair-title";
 import { PeopleOverlay, PeopleSheetRow, usePeopleOverlayControl } from "@/components/people-overlay";
+import { usePeopleStaging } from "@/components/people-staging";
 import { springEasing } from "@/components/landing/hero-motion";
 import { HomeLink } from "@/components/home-link";
 import { cn } from "@/components/timeline/cn";
@@ -153,6 +155,8 @@ function PeopleBarBox({
   onOpenPeople: (opener: Element | null) => void;
 }) {
   const [status, setStatus] = useState("");
+  // Kevin Bacon mode (see `bacon-mode.ts`): the bar says so, and its attribute is what turns the page orange (globals.css).
+  const { baconPage } = usePeopleStaging();
   /** The gear, which the people search hands focus back to when it was opened from the gear's sheet (the sheet is gone by then). */
   const gearRef = useRef<HTMLButtonElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -229,6 +233,7 @@ function PeopleBarBox({
     <div
       ref={barRef}
       data-people-bar
+      data-bacon-page={baconPage ? "" : undefined}
       data-hero={expanded ? "expanded" : "collapsed"}
       data-hero-placement={overlay ? "band" : "page"}
       // The bar's controls are all `--bar-h` tall (the root's, see globals.css), so they line up.
@@ -303,6 +308,8 @@ function PeopleBarBox({
           The cluster takes no pointer events itself, so that what is between its controls does not shield what is under it.
         */}
         <div className={cn("pointer-events-none flex shrink-0 items-center gap-2", rail && "mr-[3.75rem] max-sm:mr-6", STEPS_ASIDE)}>
+          {/* Kevin Bacon mode, and the way out of it; under `lg` it is a row of the gear's sheet. */}
+          {baconPage && <BaconModeBadge className={cn("pointer-events-auto max-lg:hidden", FLOATING, "border-accent-orange/60")} />}
           <ViewTransition name="people-bar-views" share="bar-glide" default="none">
             <div className="pointer-events-auto max-sm:hidden">
               <ViewSwitcher view={view} quotes={clippings} hrefFor={hrefFor} onClickFor={clickFor} className={FLOATING} />
@@ -321,6 +328,12 @@ function PeopleBarBox({
                 onIncludeMinorChange={onIncludeMinorChange}
                 message={settingsMessage}
                 before={
+                  <>
+                  {baconPage && (
+                    <div data-close-sheet className="mb-3 lg:hidden">
+                      <BaconModeBadge sheet />
+                    </div>
+                  )}
                   <div className="sm:hidden">
                     <h2 className={sectionTitle}>Views</h2>
                     {/* Choosing a view on the flat page leaves the sheet over it: it closes (see `FilmSettings`). */}
@@ -329,6 +342,7 @@ function PeopleBarBox({
                     </div>
                     <hr className="my-3 border-border" />
                   </div>
+                  </>
                 }
                 after={
                   <div className="mt-3 border-t border-border pt-3">

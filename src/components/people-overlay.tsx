@@ -149,6 +149,7 @@ function PeopleDialog({ people, onOpenPerson, opener, onClose }: Omit<PeopleOver
               peopleInView={staging.people}
               ariaLabel="Add a person"
               suggestFor={staging.people.length === 1 ? staging.people[0].id : undefined}
+              baconMode={staging.bacon}
               onIdleEscape={onClose}
               onPick={staging.addPerson}
             />
@@ -173,7 +174,7 @@ function PeopleDialog({ people, onOpenPerson, opener, onClose }: Omit<PeopleOver
               visible
               onRemove={staging.removePerson}
               onRestore={staging.addPerson}
-              undoDisabled={!hasRoom(staging.current, staging.pending)}
+              undoDisabled={!hasRoom(staging.current, staging.pending, staging.max)}
             />
           ))}
         </ul>

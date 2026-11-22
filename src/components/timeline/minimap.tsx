@@ -645,8 +645,8 @@ export function MinimapBar({
                   className={cn("group absolute top-0 z-10 flex h-[62%] w-4 -translate-x-1/2 cursor-pointer items-center justify-center", MINIMAP_COLOR)}
                   style={{ left: `${fraction * 100}%` }}
                 >
-                  {/* On a pair's page (its palette) a film made together is a white node with no glow. */}
-                  <span className={cn("h-3.5 w-1 rounded-full group-hover:h-4", palette ? "bg-white" : "bg-lit shadow-[0_0_8px_var(--lit-glow)]")} />
+                  {/* On a pair's page (its palette) a film made together is a white node with no glow (`--together`: orange in Kevin Bacon mode). */}
+                  <span data-together={palette ? "" : undefined} className={cn("h-3.5 w-1 rounded-full group-hover:h-4", palette ? "bg-(--together)" : "bg-lit shadow-[0_0_8px_var(--lit-glow)]")} />
                 </button>
               ))}
 

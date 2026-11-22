@@ -149,6 +149,19 @@ export interface CollaboratorSuggestions {
   results: CollaboratorSuggestion[];
 }
 
+/** Two people who made films together with a third (`/api/teams/{id}`, see src/lib/teams.ts): a row of Kevin Bacon mode's "Teams". */
+export interface TeamSuggestion {
+  people: [Pick<PersonSearchResult, "id" | "name" | "profilePath">, Pick<PersonSearchResult, "id" | "name" | "profilePath">];
+  /** Released, non-minor films all three share: what the page of the three counts. */
+  sharedCount: number;
+  /** Up to three of those films, the most voted first. */
+  titles: string[];
+}
+
+export interface TeamSuggestions {
+  results: TeamSuggestion[];
+}
+
 /** The numbers TMDB holds for a film (`getMovieMetrics`). */
 export interface MovieMetrics {
   /** TMDB's 0-10 audience score; null when it has none. */

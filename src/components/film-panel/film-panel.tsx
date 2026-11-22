@@ -5,6 +5,7 @@ import { SidePanel, useSlideOut } from "@/components/side-panel/side-panel";
 import { Spinner } from "@/components/spinner";
 import { errorMessage } from "@/lib/api-client";
 import type { PersonRow } from "@/lib/film-people";
+import { BACON, BACON_FILM_TITLE, BACON_FULL_MESSAGE } from "@/lib/bacon-mode";
 import { isTimelineFull } from "@/lib/people-nav";
 import { FilmContent } from "./film-content";
 import { useFilmDetails } from "./use-film-details";
@@ -53,7 +54,11 @@ function FilmDialog({
   // redrawn. The page changes once, when the panel starts to close (see `PeopleStagingProvider`).
   const staging = usePeopleStaging();
   useStagingSurface(!closing);
-  const full = isTimelineFull(staging.people);
+  // In Kevin Bacon mode the page holds two, and only a film he is in can be added from: everyone in it has worked with him.
+  const outsideMode =
+    staging.bacon && state.status === "success" && ![...state.film.cast, ...state.film.crew].some((person) => person.id === BACON.id);
+  const full = isTimelineFull(staging.people, staging.max) || outsideMode;
+  const fullTitle = outsideMode ? BACON_FILM_TITLE : staging.bacon ? `${BACON_FULL_MESSAGE}` : undefined;
 
   function toggleAdd(person: PersonRow) {
     if (staging.pending.added.some((added) => added.id === person.id)) staging.removePerson(person.id);
@@ -79,6 +84,7 @@ function FilmDialog({
               peopleInView={peopleInView}
               added={staging.pending.added}
               full={full}
+              fullTitle={fullTitle}
               onToggleAdd={toggleAdd}
               scrollRef={scrollRef}
             />

@@ -190,7 +190,7 @@ const COMBINED_PERSON: PersonSummary = {
 
 const LIT_GLOW = { filter: "drop-shadow(0 0 3px var(--lit-glow))" };
 /** On a pair's page (its palette) the films made together are white, with no glow, where the app's are green (`--lit`). */
-const MADE_TOGETHER_WHITE = "#fff";
+const MADE_TOGETHER_WHITE = "var(--together)";
 /** Opacity of the connections the legend is not pointing at. */
 const DIMMED = 0.2;
 

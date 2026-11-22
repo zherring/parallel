@@ -20,6 +20,7 @@ import { PersonPaletteProvider, usePersonPalette, usePortraitPersonHexes } from 
 import type { ExportList } from "@/components/timeline/export-button";
 import { useFilmPrefs } from "@/components/timeline/use-film-prefs";
 import { useUrlPeriod } from "@/components/timeline/use-period";
+import { carryBaconMode } from "@/lib/bacon-mode";
 import { cardFilms } from "@/lib/card-films";
 import type { PairClippings } from "@/lib/clippings";
 import { combineLanes, combinedMinimapFilms, describeCombined } from "@/lib/combined-track";
@@ -57,7 +58,12 @@ interface Props {
   critics: PairCritics | null;
   /** What the pair hero says beside the portraits (the pair's first quote, a curated description or its blurb), worked out on the server; null for none. */
   heroNote: HeroNote | null;
+  /** The page is in Kevin Bacon mode (`?mode=bacon` with him on it, see `bacon-mode.ts`). */
+  baconMode?: boolean;
 }
+
+/** Staged changes to the people lead to the Films view of the final people (`view=depth`, always named), in Kevin Bacon mode still if the page is and he stays. */
+const carryDepth = (href: string) => carryBaconMode(withDepth(href), window.location.search);
 
 /** No film is minor: the usual scene. */
 const NO_MINOR: ReadonlySet<number> = new Set();
@@ -78,7 +84,7 @@ export function DepthView(props: Props) {
   const paletteHexes = usePortraitPersonHexes(props.timelines.map((t) => t.person.id));
   return (
     <PersonPaletteProvider hexes={paletteHexes}>
-      <PeopleStagingProvider key={key} people={people} carry={withDepth}>
+      <PeopleStagingProvider key={key} people={people} carry={carryDepth} bacon={props.baconMode}>
         <DepthViewInner key={key} {...props} />
       </PeopleStagingProvider>
     </PersonPaletteProvider>

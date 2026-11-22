@@ -11,8 +11,9 @@ import {
   type PendingPeople,
   type StagedPerson,
 } from "@/lib/pending-people";
+import { BACON, BACON_MODE_MAX } from "@/lib/bacon-mode";
 import { followsLink } from "@/lib/explicit-navigation";
-import type { PersonRef } from "@/lib/people-nav";
+import { MAX_PEOPLE, type PersonRef } from "@/lib/people-nav";
 
 interface PeopleStaging {
   /** The people the page has now. */
@@ -27,6 +28,12 @@ interface PeopleStaging {
   removePerson: (personId: number) => void;
   /** A panel that stages changes has opened; the returned function says it has closed. See `useStagingSurface`. */
   hold: () => () => void;
+  /** The page is in Kevin Bacon mode (see `bacon-mode.ts`): its colours, and the badge in the bar. */
+  baconPage: boolean;
+  /** The mode's rules hold for who can be added: the page is in the mode and he is still one of `people` (staged to leave, he takes the mode with him). */
+  bacon: boolean;
+  /** The most people the page can have: 4, or the mode's two. */
+  max: number;
 }
 
 const PeopleStagingContext = createContext<PeopleStaging | null>(null);
@@ -36,6 +43,8 @@ interface ProviderProps {
   people: readonly PersonRef[];
   /** Keeps the view the visitor is on in the address the staged changes lead to (see `pendingHref`). Stable; read when the changes are applied. */
   carry: (href: string) => string;
+  /** The page is in Kevin Bacon mode. */
+  bacon?: boolean;
   children: ReactNode;
 }
 
@@ -52,7 +61,7 @@ interface ProviderProps {
  *
  * It lives inside the page's keyed view, so a navigation to another set of people (this one's own, or any other) drops what was staged with it.
  */
-export function PeopleStagingProvider({ people, carry, children }: ProviderProps) {
+export function PeopleStagingProvider({ people, carry, bacon: baconPage = false, children }: ProviderProps) {
   const router = useRouter();
   const [pending, setPending] = useState<PendingPeople>(NOTHING_PENDING);
   // How many panels that stage changes are open now.
@@ -63,9 +72,16 @@ export function PeopleStagingProvider({ people, carry, children }: ProviderProps
   const inFlight = useRef<string | null>(null);
 
   const final = useMemo(() => finalPeople(people, pending), [people, pending]);
+  const bacon = baconPage && final.some((person) => person.id === BACON.id);
+  const max = bacon ? BACON_MODE_MAX : MAX_PEOPLE;
+  // The cap as it is when the person is added: read from the staged people then, not from this render.
+  const maxFor = useCallback(
+    (now: PendingPeople) => (baconPage && finalPeople(people, now).some((person) => person.id === BACON.id) ? BACON_MODE_MAX : MAX_PEOPLE),
+    [baconPage, people],
+  );
   // The visitor is going somewhere of their own: what is staged is dropped (the panel or the pill closing after it has nothing to apply).
   const abandon = useCallback(() => setPending((now) => (now === NOTHING_PENDING ? now : NOTHING_PENDING)), []);
-  const addPerson = useCallback((person: StagedPerson) => setPending((now) => stageAdd(people, now, person)), [people]);
+  const addPerson = useCallback((person: StagedPerson) => setPending((now) => stageAdd(people, now, person, maxFor(now))), [people, maxFor]);
   const removePerson = useCallback((personId: number) => setPending((now) => stageRemove(people, now, personId)), [people]);
   const hold = useCallback(() => {
     setHolders((now) => now + 1);
@@ -98,8 +114,8 @@ export function PeopleStagingProvider({ people, carry, children }: ProviderProps
   }, [navigating]);
 
   const value = useMemo<PeopleStaging>(
-    () => ({ current: people, pending, people: final, addPerson, removePerson, hold }),
-    [people, pending, final, addPerson, removePerson, hold],
+    () => ({ current: people, pending, people: final, addPerson, removePerson, hold, baconPage, bacon, max }),
+    [people, pending, final, addPerson, removePerson, hold, baconPage, bacon, max],
   );
   return <PeopleStagingContext.Provider value={value}>{children}</PeopleStagingContext.Provider>;
 }

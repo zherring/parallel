@@ -12,6 +12,7 @@ import {
   type MouseEvent,
 } from "react";
 import { useCollaborators } from "@/components/collaborators/use-collaborators";
+import { useTeams } from "@/components/collaborators/use-teams";
 import { PersonAvatar } from "@/components/person-avatar";
 import { SearchCategoryTabs } from "@/components/person-search/search-category-tabs";
 import { SearchResultOption } from "@/components/person-search/search-result-option";
@@ -32,9 +33,14 @@ import {
   BACON_MODE_MAX,
   BACON_MODE_RULE,
   BACON_SUGGESTIONS_LABEL,
+  BACON_TEAMS_LABEL,
   baconAddedMessage,
+  baconFullRule,
   baconModeOffer,
+  baconPageHref,
   baconPlaceholder,
+  carryBaconMode,
+  teamOption,
   orderForMode,
   togetherNote,
   workedWithBacon,
@@ -112,6 +118,11 @@ export interface PersonSearchProps {
    */
   wideMenu?: boolean;
   /**
+   * The page the field is on is in Kevin Bacon mode (see `bacon-mode.ts`), in "navigate" mode: the field keeps the mode's rules, as
+   * the landing field does once the mode is chosen there. Only people who share a film with him can be picked, and the page holds two.
+   */
+  baconMode?: boolean;
+  /**
    * Called when Escape is pressed with nothing in the field to dismiss: no text and no dropdown on screen. The key is
    * then the owner's (it is consumed here, so a document-level Escape listener does not also run); with text or a
    * dropdown, Escape clears or closes those first, as ever.
@@ -158,6 +169,7 @@ export function PersonSearch({
   ariaLabel = "Search people",
   suggestFor,
   wideMenu = false,
+  baconMode = false,
   onIdleEscape,
   onPick,
   onNavigate,
@@ -180,14 +192,17 @@ export function PersonSearch({
   const [data, setData] = useState<SearchData | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [chips, setChips] = useState<ChipPerson[]>([]);
-  // Kevin Bacon mode (src/lib/bacon-mode.ts): entered from the row a search for him offers, left by removing his chip.
-  const [bacon, setBacon] = useState(false);
+  // Kevin Bacon mode (src/lib/bacon-mode.ts): entered from the row a search for him offers, left by removing his chip. On a page that is in the mode, it is the page's.
+  const [entered, setEntered] = useState(false);
+  const bacon = entered || baconMode;
   const [announcement, setAnnouncement] = useState<{ id: number; text: string } | null>(null);
   const [isNavigating, startNavigation] = useTransition();
   // The suggestions are asked for the first time the field is focused, never before.
   const [asked, setAsked] = useState(false);
   // In the mode the empty field offers the people he works with most, as a one-person page's field does.
-  const collaborators = useCollaborators(suggestFor ?? (bacon ? BACON.id : null), asked || bacon);
+  const collaborators = useCollaborators(suggestFor ?? (bacon ? BACON.id : null), asked || entered);
+  // The teams (two people who made films with him together) are the landing field's, with him alone in it: a team opens the page of the three.
+  const teams = useTeams(entered ? BACON.id : null, entered);
 
   const hero = size === "hero";
   const chipsMode = mode === "chips";
@@ -220,8 +235,10 @@ export function PersonSearch({
     panelSection((suggestFor !== undefined && !chipsMode) || (bacon && !full), q, collaborators.status) === "suggestions";
   const suggestionsLabel = bacon ? BACON_SUGGESTIONS_LABEL : SUGGESTIONS_LABEL;
   const suggestions = collaborators.status === "ready" ? listedSuggestions(collaborators.results) : [];
-  // The options on screen, whichever list they belong to: the keyboard rows (activeIndex) index this one.
-  const options: readonly SearchOption[] = onSuggestions ? suggestions : searchOptions;
+  const teamsListed = onSuggestions && entered && chips.length === 1;
+  const teamOptions = teamsListed && teams.status === "ready" ? teams.results.map(teamOption) : [];
+  // The options on screen, whichever list they belong to: the keyboard rows (activeIndex) index this one. The teams follow the suggestions.
+  const options: readonly SearchOption[] = onSuggestions ? [...suggestions, ...teamOptions] : searchOptions;
 
   /** Why a person's row cannot be picked, if it cannot: no room or already added, or (a search result in the mode) no film with him. */
   const blocked = (option: PickedPerson) =>
@@ -321,7 +338,7 @@ export function PersonSearch({
     setChips(outcome.chips);
     if (bacon && outcome.removed.id === BACON.id) {
       // Without him there is no mode: the field is the ordinary one again, with whoever else was in it.
-      setBacon(false);
+      setEntered(false);
       setData(null);
       announce(BACON_LEFT_MESSAGE);
     } else {
@@ -332,7 +349,7 @@ export function PersonSearch({
 
   /** Chips mode: Kevin Bacon mode starts with him in the field, and the list open on the people he works with most. */
   function enterBaconMode(option: ModeOption) {
-    setBacon(true);
+    setEntered(true);
     setChips([{ ...option.person }]);
     setData(null);
     setCategory("all");
@@ -345,7 +362,8 @@ export function PersonSearch({
 
   /** Chips mode: open the timeline built from the chips. */
   function submit() {
-    const href = chipsHref(chips);
+    // The mode goes on to the page it opens.
+    const href = entered ? baconPageHref(chips) : chipsHref(chips);
     if (!href || isNavigating) return;
     setOpen(false);
     setActiveIndex(-1);
@@ -371,8 +389,9 @@ export function PersonSearch({
       return;
     }
     // The query of this page, read now: the new page opens on the tab (Timeline or Table) this one shows.
-    const href = extendedPeopleHref(peopleInView, { id: result.id, name: result.name }, window.location.search);
-    if (!href) return;
+    const extended = extendedPeopleHref(peopleInView, { id: result.id, name: result.name }, window.location.search);
+    if (!extended) return;
+    const href = carryBaconMode(extended, window.location.search);
     setOpen(false);
     setQuery("");
     setActiveIndex(-1);
@@ -487,7 +506,7 @@ export function PersonSearch({
   // tall as the old single-line input (h-14 hero, h-9 compact) and wrapped rows stay even.
   const rowHeight = hero ? "h-10" : "h-7";
   const copy = bacon
-    ? baconPlaceholder(chips.length)
+    ? baconPlaceholder(added.length, !chipsMode)
     : placeholderCopy({ mode, size, peopleInViewCount: dedupePeople(peopleInView).length, chipCount: chips.length });
   // With chips the input shares its row, so the hint swaps wording by the input's own width
   // (container queries) instead of being cut off mid-sentence by a native placeholder.
@@ -722,7 +741,7 @@ export function PersonSearch({
               <p data-mode-rule className="border-b border-border px-3 py-2.5 text-body">
                 <span className="font-medium text-accent-orange">{BACON_MODE_LABEL}</span>
                 <span aria-hidden="true"> · </span>
-                {full ? `${BACON_FULL_MESSAGE}. Press Enter to see their films together.` : BACON_MODE_RULE}
+                {full ? baconFullRule(!chipsMode) : BACON_MODE_RULE}
               </p>
             )}
 
@@ -780,8 +799,9 @@ export function PersonSearch({
               </div>
             )}
 
-            {onSuggestions && suggestions.length > 0 && (
-              <div id={listId} role="listbox" aria-label="People">
+            {onSuggestions && options.length > 0 && (
+              <div id={listId} role="listbox" aria-label={teamOptions.length > 0 ? "People and teams" : "People"}>
+                {suggestions.length > 0 && (
                 <div role="group" aria-labelledby={groupLabelId}>
                   <p id={groupLabelId} className="px-3 pb-1 pt-2.5 text-xs font-medium text-muted">
                     {suggestionsLabel}
@@ -818,7 +838,39 @@ export function PersonSearch({
                     );
                   })}
                 </div>
+                )}
+                {teamOptions.length > 0 && (
+                  <ul role="group" aria-labelledby={`${baseId}-teams`} className="m-0 list-none p-0">
+                    <li role="presentation" id={`${baseId}-teams`} className="border-t border-border px-3 pb-1 pt-2.5 text-xs font-medium text-muted">
+                      {BACON_TEAMS_LABEL}
+                    </li>
+                    {teamOptions.map((team, row) => {
+                      const index = suggestions.length + row;
+                      return (
+                        <SearchResultOption
+                          key={team.href}
+                          option={team}
+                          id={optionId(index)}
+                          active={index === activeIndex}
+                          disabled={false}
+                          state="can-add"
+                          chipsMode={chipsMode}
+                          keyHint={false}
+                          note={togetherNote(team.sharedCount)}
+                          onHighlight={() => setActiveIndex(index)}
+                          onSelect={() => selectOption(team)}
+                        />
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
+            )}
+
+            {teamsListed && teams.status === "loading" && collaborators.status !== "loading" && (
+              <p data-teams-loading className="flex items-center gap-2 border-t border-border px-3 py-2.5 text-xs text-muted">
+                <Spinner /> Finding the teams he has worked with most…
+              </p>
             )}
 
             {searchOptions.length > 0 && (

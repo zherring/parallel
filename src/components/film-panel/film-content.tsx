@@ -19,6 +19,8 @@ interface Props {
   added: readonly { id: number; name: string }[];
   /** The page will be full (`MAX_PEOPLE`) once the staged people join: no one else can be added. */
   full: boolean;
+  /** Why no one can be added, when it is not the usual four (Kevin Bacon mode's two, or a film he is not in). */
+  fullTitle?: string;
   /** Stages adding a person, or takes it back for one already staged. Nothing is redrawn until the panel closes. */
   onToggleAdd: (person: PersonRow) => void;
   /** The panel's scroll container, for the sticky cast/crew tabs. */
@@ -27,7 +29,7 @@ interface Props {
 
 const FULL_TITLE = `A timeline holds up to ${MAX_PEOPLE} people`;
 
-export function FilmContent({ film, titleId, peopleInView, added, full, onToggleAdd, scrollRef }: Props) {
+export function FilmContent({ film, titleId, peopleInView, added, full, fullTitle = FULL_TITLE, onToggleAdd, scrollRef }: Props) {
   const credits = groupFilmCredits(film, peopleInView);
   const addedIds = new Set(added.map((person) => person.id));
   const poster = tmdbImage(film.posterPath, "w342");
@@ -62,7 +64,7 @@ export function FilmContent({ film, titleId, peopleInView, added, full, onToggle
           <button
             type="button"
             aria-label={`Add ${person.name} to timeline`}
-            title={full ? FULL_TITLE : undefined}
+            title={full ? fullTitle : undefined}
             disabled={full}
             onClick={() => onToggleAdd(person)}
             className="shrink-0 rounded bg-accent-green px-3 py-1 text-xs font-semibold text-on-accent hover:bg-accent-green-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-accent-green"

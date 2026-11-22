@@ -31,6 +31,8 @@
   --focus: #40bcf4;
   --lit: #00e054;
   --lit-glow: rgb(0 224 84 / 0.45);
+  /* "Made together" on a page of two to four people, whose palette takes the green's place: white. Kevin Bacon mode makes it orange. */
+  --together: #fff;
   /*
    * Connections between some of 3+ people, one colour per pair of lanes (src/lib/connections.ts).
    * Every one is at least 6.9:1 on --bg and stays apart from --green and from each other under
@@ -55,6 +57,23 @@
   --green: var(--orange);
   --green-hover: #e67300;
   --focus: var(--orange);
+}
+/*
+ * A /p/ page in the mode (`?mode=bacon`, the page bar's `data-bacon-page`): the whole page, its panels and dialogs on the body
+ * included. "Made together" is orange where a pair's page has it white (`--together`) and a person's own page green (`--lit`),
+ * and so are the actions. White text needs a deeper orange (Share): 5.0:1 on --green-button, 5.9:1 on its hover. The first
+ * connection colour of three or more people is the orange itself, so it takes the green the mode has no other use for.
+ */
+:root:has([data-bacon-page]) {
+  --together: var(--orange);
+  --lit: var(--orange);
+  --lit-glow: rgb(255 128 0 / 0.45);
+  --green: var(--orange);
+  --green-hover: #e67300;
+  --green-button: #b35300;
+  --green-button-hover: #a34b00;
+  --focus: var(--orange);
+  --conn-1: #00e054;
 }
 
 /* Steps for the landing hero collage, which grows with the room left of the headline. */

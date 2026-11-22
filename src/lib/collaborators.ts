@@ -63,7 +63,7 @@ async function graphCandidates(personId: number): Promise<number[] | null> {
 }
 
 /** Throws the first failure when nothing succeeded, so a TMDB outage is an error and not "no results". */
-function fulfilledOrThrow<T>(settled: PromiseSettledResult<T>[]): T[] {
+export function fulfilledOrThrow<T>(settled: PromiseSettledResult<T>[]): T[] {
   const values: T[] = [];
   let firstError: unknown;
   let failed = false;

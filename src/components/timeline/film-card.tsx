@@ -163,7 +163,7 @@ function FilmCardImpl(props: FilmCardProps) {
             className={cn(
               "relative block overflow-hidden rounded-[4px] transition-shadow duration-150 motion-reduce:transition-none",
               quiet ? "bg-canvas" : "bg-surface",
-              tone === "lit" && !dimmed && (palette ? "shadow-[0_0_0_2px_#fff]" : emphasized ? "shadow-[0_0_0_2px_var(--lit),0_0_32px_6px_var(--lit-glow)]" : "shadow-lit"),
+              tone === "lit" && !dimmed && (palette ? "shadow-[0_0_0_2px_var(--together)]" : emphasized ? "shadow-[0_0_0_2px_var(--lit),0_0_32px_6px_var(--lit-glow)]" : "shadow-lit"),
               tone !== "lit" && emphasized && "ring-2 ring-strong/80",
               selected && "outline outline-2 outline-offset-2 outline-strong",
             )}

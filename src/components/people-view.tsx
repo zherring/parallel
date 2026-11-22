@@ -29,6 +29,7 @@ import type { PairCritics } from "@/lib/critics";
 import { pageViewHref } from "@/lib/depth-url";
 import { effectiveTrackMode } from "@/lib/film-prefs";
 import { personRows, sharedRows } from "@/lib/film-rows";
+import { carryBaconMode } from "@/lib/bacon-mode";
 import { carryView, hasClippingsTab, quoteIdsOf, showingMessage, type PageView } from "@/lib/films-view";
 import { laneSummary } from "@/lib/lanes";
 import { quoteHref, type HeroNote } from "@/lib/pair-hero";
@@ -59,10 +60,12 @@ interface Props {
   critics: PairCritics | null;
   /** What the pair hero says beside the portraits (the pair's first quote, a curated description or its blurb), worked out on the server; null for none. */
   heroNote: HeroNote | null;
+  /** The page is in Kevin Bacon mode (`?mode=bacon` with him on it, see `bacon-mode.ts`). */
+  baconMode?: boolean;
 }
 
 /** The flat page keeps the view the visitor is on (Timeline, Table; Films is another page) in the address that staged changes to the people lead to: read from the address bar when they are applied. */
-const carryCurrentView = (href: string) => carryView(href, window.location.search);
+const carryCurrentView = (href: string) => carryBaconMode(carryView(href, window.location.search), window.location.search);
 
 export function PeopleView(props: Props) {
   // A different set of people is a different page: start over (zoom, selection, scroll, and the people staged while a panel was open).
@@ -72,7 +75,7 @@ export function PeopleView(props: Props) {
   const paletteHexes = usePortraitPersonHexes(props.timelines.map((t) => t.person.id));
   return (
     <PersonPaletteProvider hexes={paletteHexes}>
-      <PeopleStagingProvider key={key} people={people} carry={carryCurrentView}>
+      <PeopleStagingProvider key={key} people={people} carry={carryCurrentView} bacon={props.baconMode}>
         <PeopleViewInner key={key} {...props} />
       </PeopleStagingProvider>
     </PersonPaletteProvider>

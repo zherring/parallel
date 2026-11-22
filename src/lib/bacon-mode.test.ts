@@ -2,12 +2,21 @@ import { describe, expect, it } from "vitest";
 import {
   BACON,
   BACON_MODE_MAX,
+  baconFullRule,
   baconModeOffer,
+  baconPageHref,
   baconPlaceholder,
+  carryBaconMode,
+  isBaconPage,
   orderForMode,
+  searchWithoutBaconMode,
+  teamOption,
   togetherNote,
+  withBaconMode,
   workedWithBacon,
 } from "@/lib/bacon-mode";
+import { depthSearch } from "@/lib/depth-url";
+import { NOTHING_PENDING, hasRoom, stageAdd } from "@/lib/pending-people";
 import { addChip } from "@/lib/chip-input";
 import { addState, isTimelineFull } from "@/lib/people-nav";
 import { searchSections } from "@/lib/search-sections";
@@ -103,5 +112,75 @@ describe("searchSections with the mode's row", () => {
   it("keeps the row out of the Artists and Pairings tabs", () => {
     expect(searchSections("kevin bacon", [kevin, costner], [], "artists", offer).flatMap((section) => section.options)).toEqual([kevin, costner]);
     expect(searchSections("kevin bacon", [kevin, costner], [], "pairings", offer)).toEqual([]);
+  });
+});
+
+describe("the mode in a page's address", () => {
+  it("is on only when the address says so and he is on the page", () => {
+    expect(isBaconPage({ mode: "bacon" }, [BACON.id, 31])).toBe(true);
+    expect(isBaconPage("?view=table&mode=bacon", [31, BACON.id])).toBe(true);
+    expect(isBaconPage({ mode: ["bacon", "x"] }, [BACON.id])).toBe(true);
+    expect(isBaconPage({ mode: "bacon" }, [31, 488])).toBe(false);
+    expect(isBaconPage({}, [BACON.id, 31])).toBe(false);
+    expect(isBaconPage({ mode: "other" }, [BACON.id])).toBe(false);
+  });
+
+  it("goes along to another page of people while he stays, and not to a page without him", () => {
+    expect(carryBaconMode("/p/4724-kevin-bacon+31-tom-hanks", "?mode=bacon")).toBe("/p/4724-kevin-bacon+31-tom-hanks?mode=bacon");
+    expect(carryBaconMode("/p/31-tom-hanks+4724-kevin-bacon?view=table", "mode=bacon&view=table")).toBe("/p/31-tom-hanks+4724-kevin-bacon?view=table&mode=bacon");
+    expect(carryBaconMode("/p/4724?view=depth#x", "?mode=bacon")).toBe("/p/4724?view=depth&mode=bacon#x");
+    expect(carryBaconMode("/p/31-tom-hanks", "?mode=bacon")).toBe("/p/31-tom-hanks");
+    // 47240 and 14724 are other people.
+    expect(carryBaconMode("/p/47240-someone+14724-other", "?mode=bacon")).toBe("/p/47240-someone+14724-other");
+    expect(carryBaconMode("/", "?mode=bacon")).toBe("/");
+    expect(carryBaconMode("/p/4724-kevin-bacon+31-tom-hanks", "?view=table")).toBe("/p/4724-kevin-bacon+31-tom-hanks");
+  });
+
+  it("is written once, and taken out without touching the rest of the query", () => {
+    expect(withBaconMode("/p/4724-kevin-bacon?mode=bacon")).toBe("/p/4724-kevin-bacon?mode=bacon");
+    expect(searchWithoutBaconMode("view=timeline&mode=bacon&from=1990")).toBe("?view=timeline&from=1990");
+    expect(searchWithoutBaconMode("?mode=bacon")).toBe("");
+  });
+
+  it("stays on the way to the Films view, which takes nothing else but the period", () => {
+    expect(depthSearch("?view=table&sort=year&mode=bacon&from=1990&to=2000")).toBe("?from=1990&to=2000&view=depth&mode=bacon");
+    expect(depthSearch("?view=table&sort=year")).toBe("?view=depth");
+  });
+
+  it("opens the field's chips as a page in the mode", () => {
+    expect(baconPageHref([BACON, { id: 31, name: "Tom Hanks" }])).toBe("/p/4724-kevin-bacon+31-tom-hanks?mode=bacon");
+  });
+
+  it("holds two people on the page too", () => {
+    const page = [{ id: BACON.id, name: BACON.name }, { id: 31, name: "Tom Hanks" }];
+    const extra = { id: 500, name: "Tom Cruise", profilePath: null };
+    expect(hasRoom(page, NOTHING_PENDING, BACON_MODE_MAX)).toBe(false);
+    expect(stageAdd(page, NOTHING_PENDING, extra, BACON_MODE_MAX)).toBe(NOTHING_PENDING);
+    const without = { added: [], removed: [31] };
+    expect(hasRoom(page, without, BACON_MODE_MAX)).toBe(true);
+    expect(stageAdd(page, without, extra, BACON_MODE_MAX).added).toEqual([extra]);
+    // The ordinary page still takes four.
+    expect(stageAdd(page, NOTHING_PENDING, extra).added).toEqual([extra]);
+  });
+
+  it("says what a full field means where it is", () => {
+    expect(baconPlaceholder(2, true).long).toBe("Kevin Bacon mode is full");
+    expect(baconPlaceholder(1, true).long).toBe("Who has worked with Kevin Bacon?");
+    expect(baconFullRule(true)).toContain("Remove the other person");
+    expect(baconFullRule(false)).toContain("Press Enter");
+  });
+});
+
+describe("a team as an option", () => {
+  it("is a row of the two that opens the three of them, in the mode", () => {
+    const option = teamOption({
+      people: [{ id: 6159, name: "Ron Howard", profilePath: "/rh.jpg" }, { id: 339, name: "Brian Grazer", profilePath: null }],
+      sharedCount: 2,
+      titles: ["Apollo 13", "Frost/Nixon"],
+    });
+    expect(option.href).toBe("/p/4724-kevin-bacon+6159-ron-howard+339-brian-grazer?mode=bacon");
+    expect(option.people.map((person) => person.name)).toEqual(["Ron Howard", "Brian Grazer"]);
+    expect(option.blurb).toBe("Apollo 13, Frost/Nixon");
+    expect(togetherNote(option.sharedCount)).toBe("2 films with Kevin Bacon");
   });
 });

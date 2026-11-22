@@ -13,7 +13,7 @@ interface Props {
   state: AddState;
   chipsMode: boolean;
   keyHint: boolean;
-  /** In a mode: the muted line of a person's row, in place of their known-for titles ("3 films with Kevin Bacon"). */
+  /** In a mode: the muted line of a person's row, in place of their known-for titles ("3 films with Kevin Bacon"); for a pairing (a team), in place of its count. */
   note?: string;
   onHighlight: () => void;
   onSelect: () => void;
@@ -62,7 +62,7 @@ export function SearchResultOption({ option, id, active, disabled, state, chipsM
           </span>
           <span className="min-w-0 flex-1">
             <span className="block font-medium text-strong">{option.people.map((person) => person.name).join(" × ")}</span>
-            <span className="block text-xs text-body">{filmCountLabel(option.sharedCount)} together</span>
+            <span className="block text-xs text-body">{note ?? `${filmCountLabel(option.sharedCount)} together`}</span>
             <span className="line-clamp-2 text-xs leading-snug text-muted">{option.blurb}</span>
           </span>
         </>

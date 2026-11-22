@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { userAgent } from "next/server";
 import { DepthView } from "@/components/depth/depth-view";
 import { PeopleView } from "@/components/people-view";
+import { BACON_MODE_VALUE, MODE_PARAM, isBaconPage, namesBaconMode } from "@/lib/bacon-mode";
 import { cardFilms } from "@/lib/card-films";
 import { canonicalPeoplePath } from "@/lib/canonical-people";
 import { getPairClippingSet } from "@/lib/clippings";
@@ -102,10 +103,11 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   };
 }
 
-/** The query a redirect to the canonical address keeps: the link's period (in canonical order), then its view, sort and quote as written. Nothing else is the page's. */
+/** The query a redirect to the canonical address keeps: the link's period (in canonical order), then its view, sort and quote as written, and Kevin Bacon mode. Nothing else is the page's. */
 function redirectSearch(query: Query): string {
   const params = new URLSearchParams(rawPeriodSearch(parsePeriodParams(query)));
   for (const [name, value] of viewParams(query)) params.set(name, value);
+  if (namesBaconMode(query)) params.set(MODE_PARAM, BACON_MODE_VALUE);
   const text = params.toString();
   return text ? `?${text}` : "";
 }
@@ -135,6 +137,8 @@ export default async function PeoplePage({ params, searchParams }: Props) {
     clippings: getPairClippingSet(timelines.map((t) => t.person.id)),
     critics: getPairCritics(timelines.map((t) => t.person.id)),
     heroNote: getHeroNote(timelines.map((t) => t.person.id), timelines[0]?.person.biography),
+    // Kevin Bacon mode (`?mode=bacon` on a page he is on, see `bacon-mode.ts`): decided here, so that the page is orange from its first paint.
+    baconMode: isBaconPage(query, timelines.map((t) => t.person.id)),
   };
   // `?view=depth` draws the same people and films as the vertical perspective scene (Films) instead of the Timeline, Table and Quotes. A link that names no
   // view opens Films, on every device (a crawler gets the flat page), decided here so that the page never flashes the other; a view the link names always wins.

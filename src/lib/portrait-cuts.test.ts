@@ -67,10 +67,10 @@ describe("portraitPersonHexes", () => {
     expect(personHex(2, hexes)).toBe(personHex(2));
   });
 
-  it("names the white of the Table's row flash only with the override", () => {
+  it("names the colour of the Table's row flash (the page's \"made together\": white, orange in Kevin Bacon mode) only with the override", () => {
     expect(personColorCss()).not.toContain("--row-flash");
     expect(personColorCss(null)).not.toContain("--row-flash");
-    expect(personColorCss(portraitPersonHexes([5026, 7450])!)).toContain("--row-flash:#fff;");
-    expect(personColorCss(portraitPersonHexes([380, 1032, 1037])!)).toContain("--row-flash:#fff;");
+    expect(personColorCss(portraitPersonHexes([5026, 7450])!)).toContain("--row-flash:var(--together);");
+    expect(personColorCss(portraitPersonHexes([380, 1032, 1037])!)).toContain("--row-flash:var(--together);");
   });
 });

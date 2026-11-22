@@ -45,17 +45,17 @@ export function isStagedRemoval(pending: PendingPeople, personId: number): boole
 }
 
 /** Whether there is room for one more person once the staged changes apply. */
-export function hasRoom(current: readonly PersonRef[], pending: PendingPeople): boolean {
-  return finalPeople(current, pending).length < MAX_PEOPLE;
+export function hasRoom(current: readonly PersonRef[], pending: PendingPeople, max: number = MAX_PEOPLE): boolean {
+  return finalPeople(current, pending).length < max;
 }
 
 /**
  * Stages adding a person. A person who is on the page and staged to leave is taken back (their place in the order is the one they had); anyone else joins at the end.
- * Nothing changes for a person the page will already have, or when it is full.
+ * Nothing changes for a person the page will already have, or when it is full (`max` people: 4, or the two of Kevin Bacon mode).
  */
-export function stageAdd(current: readonly PersonRef[], pending: PendingPeople, person: StagedPerson): PendingPeople {
+export function stageAdd(current: readonly PersonRef[], pending: PendingPeople, person: StagedPerson, max: number = MAX_PEOPLE): PendingPeople {
   const final = finalPeople(current, pending);
-  if (final.length >= MAX_PEOPLE) return pending;
+  if (final.length >= max) return pending;
   if (isStagedRemoval(pending, person.id)) return { ...pending, removed: pending.removed.filter((id) => id !== person.id) };
   if (final.some((onPage) => onPage.id === person.id)) return pending;
   return { ...pending, added: [...pending.added, person] };
