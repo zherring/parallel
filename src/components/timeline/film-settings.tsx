@@ -3,6 +3,9 @@
 import { Settings } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
+import { REDUCED_MOTION, useMediaQuery } from "@/components/depth/use-media";
+import { useSlideOut } from "@/components/side-panel/side-panel";
+import { useSwipeDismiss } from "@/components/side-panel/use-swipe-dismiss";
 import { placePopover, type Placement } from "@/lib/popover-position";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import { cn } from "./cn";
@@ -58,7 +61,14 @@ interface FilmSettingsPopupProps extends FilmSettingsProps {
   after?: ReactNode;
 }
 
-/** Both film-display preferences in a small, non-modal pop-up; checkbox changes keep it open. */
+/** A phone's width (under Tailwind's `sm`, where the page bar folds its views into the gear): the pop-up is a sheet from the bottom there. */
+const SHEET_QUERY = "(max-width: 39.9375rem)";
+
+/**
+ * Both film-display preferences in a small, non-modal pop-up; checkbox changes keep it open. It hangs from the gear, except on a phone, where it is a sheet
+ * from the bottom of the screen over a dimmed page, as the film and person details are: it slides up, a press on the page behind closes it, and a finger
+ * can pull it down, following the touch, to put it away (`useSwipeDismiss`).
+ */
 export function FilmSettings({
   showAll, onShowAllChange, includeMinor, onIncludeMinorChange, message,
   label = "Film settings", buttonClassName, buttonRef: sharedButtonRef, scrollable = true, before, after,
@@ -68,7 +78,50 @@ export function FilmSettings({
   const ownButtonRef = useRef<HTMLButtonElement>(null);
   const buttonRef = sharedButtonRef ?? ownButtonRef;
   const panelRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
+  const sheet = useMediaQuery(SHEET_QUERY);
+  // The sheet stays for as long as it takes to slide away; the pop-up is gone at once.
+  const { shown, closing, exited } = useSlideOut(open ? true : null);
+  const close = () => {
+    setOpen(false);
+    buttonRef.current?.focus({ preventScroll: true });
+  };
+  const pulled = useSwipeDismiss({ panelRef, backdropRef, enabled: open && sheet, onDismiss: close });
+
+  // The sheet slides up and the page dims (neither with reduced motion), and they go back the way they came, from wherever a finger left the sheet.
+  useLayoutEffect(() => {
+    if (!open || !sheet || window.matchMedia(REDUCED_MOTION).matches) return;
+    backdropRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: "ease-out" });
+    panelRef.current?.animate([{ transform: "translateY(100%)" }, { transform: "none" }], { duration: 240, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" });
+  }, [open, sheet]);
+  useLayoutEffect(() => {
+    if (!closing) return;
+    const panel = panelRef.current;
+    if (!sheet || !panel || window.matchMedia(REDUCED_MOTION).matches) {
+      exited();
+      return;
+    }
+    const animations = [
+      panel.animate([{ transform: "translateY(100%)" }], {
+        duration: 200,
+        easing: pulled.current ? "cubic-bezier(0.2, 0.8, 0.2, 1)" : "cubic-bezier(0.4, 0, 1, 1)",
+        fill: "forwards",
+      }),
+      backdropRef.current?.animate([{ opacity: 0 }], { duration: 160, easing: "ease-in", fill: "forwards" }),
+    ].filter((animation) => animation !== undefined);
+    let cancelled = false;
+    Promise.all(animations.map((animation) => animation.finished)).then(
+      () => {
+        if (!cancelled) exited();
+      },
+      () => {},
+    );
+    return () => {
+      cancelled = true;
+      animations.forEach((animation) => animation.cancel());
+    };
+  }, [closing, sheet, exited, pulled]);
 
   // Portal out of the timeline's clipping surface. Keep the pop-up aligned even when a preference
   // scrolls the track or changes the page's dimensions; don't dismiss while checking an option.
@@ -77,6 +130,12 @@ export function FilmSettings({
     const button = buttonRef.current;
     const panel = panelRef.current;
     if (!button || !panel) return;
+    if (sheet) {
+      // The sheet is at the bottom of the screen whatever the gear does: nothing to place.
+      panel.style.visibility = "visible";
+      panel.querySelector<HTMLElement>("input:not(:disabled), a[href], button:not(:disabled)")?.focus({ preventScroll: true });
+      return;
+    }
     const place = () => {
       const anchor = button.getBoundingClientRect();
       const size = panel.getBoundingClientRect();
@@ -101,12 +160,13 @@ export function FilmSettings({
       // Closed: forget where it was, so reopening does not paint one frame at the stale spot.
       setPosition(null);
     };
-  }, [open, buttonRef]);
+  }, [open, sheet, buttonRef]);
 
   useEffect(() => {
     if (!open) return;
+    // The sheet's backdrop closes it with its own click: closed on the press, it would be gone before the finger lifted, and the tap would land on the page under it.
     const outside = (target: EventTarget | null) => target instanceof Node &&
-      !buttonRef.current?.contains(target) && !panelRef.current?.contains(target);
+      !buttonRef.current?.contains(target) && !panelRef.current?.contains(target) && target !== backdropRef.current;
     const dismiss = (event: PointerEvent | FocusEvent) => {
       if (outside(event.target)) setOpen(false);
     };
@@ -141,17 +201,32 @@ export function FilmSettings({
       >
         <Settings aria-hidden="true" className="size-4" />
       </button>
-      {open && createPortal(
+      {shown && createPortal(
+        <>
+        {sheet && (
+          <div
+            ref={backdropRef}
+            aria-hidden="true"
+            data-settings-backdrop
+            onClick={close}
+            // No scroll of the page behind starts from here.
+            className={cn("fixed inset-0 z-[89] touch-none bg-black/70", closing && "pointer-events-none")}
+          />
+        )}
         <div
           ref={panelRef}
           id={panelId}
           role="dialog"
           aria-label={label}
+          inert={closing || undefined}
           className={cn(
-            "fixed z-[90] w-80 max-w-[calc(100vw-1rem)] rounded-lg border border-border bg-canvas p-3 text-sm text-body shadow-xl shadow-black/40",
+            "fixed z-[90] border-border bg-canvas text-sm text-body",
+            sheet
+              ? "inset-x-0 bottom-0 rounded-t-2xl border-t px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-6 shadow-2xl shadow-black/60"
+              : "w-80 max-w-[calc(100vw-1rem)] rounded-lg border p-3 shadow-xl shadow-black/40",
             scrollable && "max-h-[calc(100dvh-1rem)] overflow-y-auto",
           )}
-          style={position ? { left: position.left, top: position.top } : { visibility: "hidden" }}
+          style={sheet ? undefined : position ? { left: position.left, top: position.top } : { visibility: "hidden" }}
           // A choice that moves the page on (a view chosen in the sheet) closes it: the sheet would be left over the new view.
           onClick={(event) => {
             if (!(event.target instanceof Element) || !event.target.closest("[data-close-sheet]")) return;
@@ -159,6 +234,7 @@ export function FilmSettings({
             buttonRef.current?.focus({ preventScroll: true });
           }}
         >
+          {sheet && <span aria-hidden="true" data-settings-grabber className="pointer-events-none absolute left-1/2 top-2 h-1 w-9 -translate-x-1/2 rounded-full bg-muted/40" />}
           {before}
           <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">Film settings</h2>
           <FilmSettingsOptions
@@ -170,7 +246,8 @@ export function FilmSettings({
             posterHintId={`${panelId}-posters`}
           />
           {after}
-        </div>,
+        </div>
+        </>,
         document.body,
       )}
     </>

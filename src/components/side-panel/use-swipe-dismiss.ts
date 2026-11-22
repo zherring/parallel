@@ -40,6 +40,8 @@ export function useSwipeDismiss({ panelRef, backdropRef, enabled, onDismiss }: O
   useEffect(() => {
     const panel = panelRef.current;
     if (!panel || !enabled) return;
+    // A panel that is open (again) has not been dragged away.
+    flung.current = false;
 
     type Gesture =
       | { mode: "pending"; id: number; axis: "x" | "y"; startX: number; startY: number; startT: number }

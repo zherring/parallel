@@ -379,3 +379,86 @@ test.describe("the Timeline's track", () => {
     await expect(zoomLabel(page)).toHaveText(/78%/);
   });
 });
+
+test.describe("the gear's settings on a phone", () => {
+  const settings = (page: Page) => page.getByRole("dialog", { name: "Settings", exact: true });
+  const gear = (page: Page) => page.getByRole("button", { name: "Settings", exact: true });
+
+  async function openSettings(page: Page) {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto(`${PEOPLE_PATH}?view=timeline`);
+    // Live: the sheet opens, closes on Escape, and opens again.
+    await gear(page).tap();
+    await expect(settings(page)).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(settings(page)).toBeHidden();
+    await gear(page).tap();
+    await expect(settings(page)).toBeVisible();
+    await expect.poll(() => settings(page).evaluate((element) => element.getAnimations().length)).toBe(0);
+    return boxOf(settings(page));
+  }
+
+  test("are a sheet across the bottom of the screen, with a grabber, that a finger pulls down and lets settle back", async ({ page }) => {
+    const rest = await openSettings(page);
+    expect(rest.x).toBe(0);
+    expect(rest.width).toBe(390);
+    expect(rest.y + rest.height).toBe(740);
+    await expect(page.locator("[data-settings-grabber]")).toBeVisible();
+
+    const touch = await finger(page);
+    await touch.down(195, rest.y + 12);
+    await touch.move(195, rest.y + 12 + 50);
+    expect((await boxOf(settings(page))).y - rest.y).toBeCloseTo(50, 0);
+    await touch.up(160);
+    await expect.poll(async () => (await boxOf(settings(page))).y).toBe(rest.y);
+    await expect(settings(page)).toBeVisible();
+  });
+
+  test("pulled far enough, or flicked, they close and the gear has focus again; a tap on the page behind closes them without pressing what is there", async ({ page }) => {
+    const rest = await openSettings(page);
+    const touch = await finger(page);
+    await touch.down(195, rest.y + 12);
+    await touch.move(195, rest.y + 12 + 180, { steps: 14 });
+    await touch.up(160);
+    await expect(settings(page)).toBeHidden();
+    await expect(gear(page)).toBeFocused();
+
+    await gear(page).tap();
+    await expect(settings(page)).toBeVisible();
+    await expect.poll(() => settings(page).evaluate((element) => element.getAnimations().length)).toBe(0);
+    await touch.flick(195, rest.y + 12, 0, 60);
+    await expect(settings(page)).toBeHidden();
+
+    await gear(page).tap();
+    await expect(settings(page)).toBeVisible();
+    // Over the hero's portraits, which open a person's details when pressed.
+    await page.touchscreen.tap(60, 120);
+    await expect(settings(page)).toBeHidden();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("a checkbox in them still works, and the sheet stays open", async ({ page }) => {
+    await openSettings(page);
+    const minor = settings(page).getByRole("checkbox", { name: /shorts/i });
+    await minor.tap();
+    await expect(minor).toBeChecked();
+    await expect(settings(page)).toBeVisible();
+  });
+});
+
+test.describe("the gear's settings on a wider screen", () => {
+  test.use({ viewport: { width: 1280, height: 720 }, hasTouch: false, isMobile: false });
+
+  test("are still the pop-up that hangs from the gear", async ({ page }) => {
+    await page.goto(`${PEOPLE_PATH}?view=timeline`);
+    const gear = page.getByRole("button", { name: "Settings", exact: true });
+    const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+    await gear.click();
+    await expect(settings).toBeVisible();
+    const box = await boxOf(settings);
+    const anchor = await boxOf(gear);
+    expect(box.width).toBe(320);
+    expect(box.y).toBeGreaterThanOrEqual(anchor.y + anchor.height);
+    await expect(page.locator("[data-settings-backdrop], [data-settings-grabber]")).toHaveCount(0);
+  });
+});

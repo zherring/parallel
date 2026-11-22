@@ -1,7 +1,7 @@
 import { PEOPLE_PATH, expect, test } from "./fixtures";
 
-// The Share menu hangs from the Share button in the gear's sheet. On a short phone (600px tall) that button is low in the sheet, and a menu that always opened
-// downward ran off the bottom of the screen: "Copy image" in Chromium, "More..." in Safari too (src/components/timeline/share-menu.tsx, `fitMenu`).
+// The Share menu hangs from the Share button in the gear's sheet, which on a phone is at the bottom of the screen: the button is low on it, and a menu that
+// always opened downward ran off the bottom of the screen: "Copy image" in Chromium, "More..." in Safari too (src/components/timeline/share-menu.tsx, `fitMenu`).
 
 // Activate the server-side fetch fixtures before any test navigates to a people page.
 test.beforeEach(async ({ next }) => {
@@ -59,7 +59,7 @@ for (const view of ["timeline", "depth"] as const) {
   }
 }
 
-test("on a tall phone the menu still opens downward, under the Share button", async ({ page }) => {
+test("on a tall phone too the menu opens upward: the sheet is at the bottom of the screen, so the Share button always is", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${PEOPLE_PATH}?view=timeline`);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -70,5 +70,8 @@ test("on a tall phone the menu still opens downward, under the Share button", as
   const menu = sheet.getByRole("menu");
   await expect(menu).toBeVisible();
   const shareBox = (await share.boundingBox())!;
-  await expect.poll(async () => (await menu.locator("xpath=..").boundingBox())!.y).toBeGreaterThanOrEqual(shareBox.y + shareBox.height);
+  await expect.poll(async () => {
+    const box = (await menu.locator("xpath=..").boundingBox())!;
+    return box.y >= 0 && box.y + box.height <= shareBox.y;
+  }).toBe(true);
 });
