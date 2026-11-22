@@ -104,7 +104,9 @@ test("the timeline has every film as a dot on the one line, as the pair page's d
   const dots = await stage(page).locator("circle[data-dot]").evaluateAll((elements) =>
     elements.map((element) => {
       const rect = element.getBoundingClientRect();
-      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, size: rect.width, color: getComputedStyle(element).fill };
+      // The circle's own width on the screen (2r in user units, times the scale): Firefox's bounding box includes the stroke, Chromium's and Safari's do not.
+      const circle = element as unknown as SVGCircleElement;
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, size: 2 * circle.r.baseVal.value * circle.getScreenCTM()!.a, color: getComputedStyle(element).fill };
     }),
   );
   // Every dot is on the line itself, none in a lane above or below it.
@@ -1511,7 +1513,8 @@ test.describe("on a phone", () => {
           expect(Math.abs((a.x + (b.x + b.width - a.x) / 2) - centreX(link)), at).toBeLessThanOrEqual(3);
         } else {
           // Too long for one line: A over "& B", each line centred.
-          expect(a.y + a.height, at).toBeLessThanOrEqual(b.y + 2);
+          // (The two names' inline boxes are the font's ascent plus descent, taller than the 1.15 line, so they overlap a little: 1px in Chromium, up to 2.5px in Firefox.)
+          expect(a.y + a.height, at).toBeLessThanOrEqual(b.y + 3);
           expect(Math.abs(centreX(a) - centreX(link)), at).toBeLessThanOrEqual(3);
           expect(Math.abs((amp.x + (b.x + b.width - amp.x) / 2) - centreX(link)), at).toBeLessThanOrEqual(3);
         }
@@ -1533,7 +1536,7 @@ test.describe("on a phone", () => {
   }
 
   test("the names are sized from the width of a third and the longest word of the pool's family names: 16px and more at 390px, up to 18px", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+    // (Not resized before the page is open: with `isMobile` Playwright's Firefox never answers a resize of a blank page.)
     await page.goto("/");
     await ready(page);
     const size = () => stage(page).locator("[data-names]").evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
@@ -1547,7 +1550,6 @@ test.describe("on a phone", () => {
   });
 
   test("the cue is one line, at 0.85 of the names' size (never under 11px from 320px), wider than the middle third, and between the keycaps, clear of them", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
     await ready(page);
     const prev = stage(page).getByRole("button", { name: "Previous pairing", exact: true });
