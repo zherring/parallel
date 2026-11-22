@@ -9,15 +9,24 @@ import { CORE_POSTERS, EXTENSION_POSTERS, arrangeBackdrop } from "@/lib/backdrop
 
 const STORED = backdrops as Record<string, string[]>;
 
+/** The fallback's arrangements, by person and core: the search behind them is the montage's most expensive step, and the panel draws it again on every scene change. */
+const MADE = new Map<string, readonly string[]>();
+
 /**
  * The `EXTENSION_POSTERS` posters of the columns past the core of a person whose core is `core`, column by column from the core outward, each column top to bottom: the stored
  * list, else (a person the file does not list, which a data test holds to nobody on the landing page) the core's own posters arranged to keep like ones apart; none for a person with
- * no posters.
+ * no posters. An arrangement made is kept, so the search runs once for a person and a core, not on every render; the list is shared, so a caller must not change it.
  */
-export function extensionPosters(personId: number, core: readonly string[]): string[] {
+export function extensionPosters(personId: number, core: readonly string[]): readonly string[] {
   const stored = STORED[String(personId)];
   if (stored?.length === EXTENSION_POSTERS) return stored;
   if (core.length === 0) return [];
-  const films = core.map((poster, index) => ({ id: index, poster, votes: core.length - index, collection: null }));
-  return arrangeBackdrop(films).posters.slice(CORE_POSTERS);
+  const key = `${personId}:${core.join(",")}`;
+  let made = MADE.get(key);
+  if (!made) {
+    const films = core.map((poster, index) => ({ id: index, poster, votes: core.length - index, collection: null }));
+    made = arrangeBackdrop(films).posters.slice(CORE_POSTERS);
+    MADE.set(key, made);
+  }
+  return made;
 }

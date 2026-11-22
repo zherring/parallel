@@ -123,4 +123,30 @@ describe("extensionPosters", () => {
     expect(new Set(made).size).toBeGreaterThan(0);
     expect(extensionPosters(-1, [])).toEqual([]);
   });
+
+  describe("the fallback, for a person the file does not list", () => {
+    const coreOf = (count: number, prefix = "core") => Array.from({ length: count }, (_, index) => `/${prefix}${index}.jpg`);
+
+    it("searches once for a person and a core: the next render gets the same list, not another search", () => {
+      const core = coreOf(CORE_POSTERS, "memo");
+      expect(extensionPosters(-2, core)).toBe(extensionPosters(-2, core));
+    });
+
+    it("is not stale when the same person's core is another one, nor shared between people", () => {
+      const first = extensionPosters(-3, coreOf(CORE_POSTERS, "first"));
+      const second = extensionPosters(-3, coreOf(CORE_POSTERS, "second"));
+      expect(first.every((poster) => poster.startsWith("/first"))).toBe(true);
+      expect(second.every((poster) => poster.startsWith("/second"))).toBe(true);
+      expect(extensionPosters(-4, coreOf(CORE_POSTERS, "first"))).toEqual(first);
+    });
+
+    it("fills every tile from the core's own posters whatever the core's size, also for a person with two or three posters, whose search can only give up on keeping like ones apart", () => {
+      for (let count = 1; count <= CORE_POSTERS; count++) {
+        const core = coreOf(count, `n${count}x`);
+        const made = extensionPosters(-10 - count, core);
+        expect(made, `${count} posters`).toHaveLength(EXTENSION_POSTERS);
+        for (const poster of made) expect(core, `${count} posters`).toContain(poster);
+      }
+    });
+  });
 });
