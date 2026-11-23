@@ -33,6 +33,7 @@
 2636+2638  # Alfred Hitchcock & Cary Grant
 4110+6593  # John Huston & Humphrey Bogart
 1776+3084  # Francis Ford Coppola & Marlon Brando
+2636+19460  # Alfred Hitchcock & Saul Bass
 1060+11770  # John Carpenter & Dean Cundey
 138781+1135102  # Robert Eggers & Jarin Blaschke
 1145520+1650351  # Ari Aster & Pawel Pogorzelski
