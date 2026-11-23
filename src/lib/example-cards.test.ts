@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildGenreSections, buildHeroPairings } from "@/lib/example-cards";
 import {
+  BACON_GENRE,
   EXAMPLE_PAIRINGS,
   GENRES,
   HERO_POSTER_COUNT,
@@ -101,13 +102,20 @@ describe("buildHeroPairings", () => {
     }
   });
 
-  it("builds an entry with three to five posters for every real pairing", () => {
+  it("builds an entry with three to five posters for every real pairing, the Kevin Bacon tab's aside", () => {
     const all = buildHeroPairings();
-    expect(all).toHaveLength(EXAMPLE_PAIRINGS.length);
+    expect(all).toHaveLength(EXAMPLE_PAIRINGS.filter((pairing) => pairing.genre !== BACON_GENRE).length);
     for (const entry of all) {
       expect(entry.posters.length).toBeGreaterThanOrEqual(HERO_POSTER_MIN);
       expect(entry.posters.length).toBeLessThanOrEqual(HERO_POSTER_COUNT);
     }
+  });
+
+  it("leaves the Kevin Bacon tab's pairings out of the splash: they open in the mode, which the splash's link does not", () => {
+    const bacon = EXAMPLE_PAIRINGS.filter((pairing) => pairing.genre === BACON_GENRE);
+    expect(bacon.length).toBeGreaterThanOrEqual(5);
+    const inHero = new Set(buildHeroPairings().map((entry) => entry.key));
+    for (const pairing of bacon) expect(inHero.has(pairing.people.map((person) => person.id).sort((a, b) => a - b).join("+"))).toBe(false);
   });
 
   // heroPool only takes pairings that share a person with another one (so a single swap is always
@@ -165,5 +173,17 @@ describe("buildGenreSections", () => {
     const sections = buildGenreSections();
     expect(sections.map((s) => s.genre.id)).toEqual(GENRES.map((g) => g.id));
     expect(sections.flatMap((s) => s.cards)).toHaveLength(EXAMPLE_PAIRINGS.length);
+  });
+
+  it("has the Kevin Bacon tab last, each card the page of him and one other person (the tab's link adds the mode, the card's own href stays the page's, as the sitemap and the search list it)", () => {
+    const section = buildGenreSections().at(-1)!;
+    expect(section.genre).toEqual({ id: BACON_GENRE, label: "Kevin Bacon" });
+    expect(section.cards.length).toBeGreaterThanOrEqual(5);
+    expect(section.cards.length).toBeLessThanOrEqual(8);
+    for (const card of section.cards) {
+      expect(card.href).toMatch(/^\/p\/4724-kevin-bacon\+\d+-[a-z-]+$/);
+      expect(card.people[0].name).toBe("Kevin Bacon");
+      expect(card.href).not.toContain("mode=");
+    }
   });
 });
