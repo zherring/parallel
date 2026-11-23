@@ -45,15 +45,18 @@ export interface PortraitCut {
   profilePath: string;
   /** The segmentation model that ran (birefnet-portrait, or the isnet-general-use fallback). */
   model: string;
-  /** Pixel size of the w500 image the points were computed on. */
+  /** Pixel size of the image the points were computed on (w500 for the cuts made before the cutter took w780, which is 780 wide); the points are normalized, so only its shape matters. */
   size: [w: number, h: number];
   /** Share of the frame the raw mask covers, a rough failure signal. */
   coverage: number;
-  /** Set when birefnet-portrait's mask fell under 5% and the isnet-general-use fallback's result was kept as is (the owner likes the look). */
+  /** Set when birefnet-portrait's mask fell under 5% and the isnet-general-use fallback's result was kept as is (the cutter no longer keeps one: it fails the run). */
   flagged?: true;
   flagReason?: string;
   variants: Record<VertexCount, CutPoint[]>;
-  /** Poster paths of the artist's most-voted films, for the montage background. */
+  /**
+   * The montage's 3 x 3 core, nine poster paths row by row: the artist's best-known films, at most one of a collection, none beside itself (`npm run portraits:cut -- --posters`,
+   * backdrop-posters.ts). The landing hero's columns past the core are portrait-backdrops.json.
+   */
   posters: string[];
 }
 

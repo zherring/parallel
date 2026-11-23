@@ -1,4 +1,5 @@
 import { normalizeBiography } from "@/lib/biography";
+import { profilePathFor } from "@/lib/profile-path";
 import { ROLE_ORDER, isMinorCast, isMinorCrewRole, roleForJob } from "@/lib/roles";
 import type {
   Credit,
@@ -41,7 +42,7 @@ export function normalizePerson(raw: RawPerson): PersonSummary {
   return {
     id: raw.id,
     name: raw.name,
-    profilePath: raw.profile_path,
+    profilePath: profilePathFor(raw.id, raw.profile_path),
     knownFor: raw.known_for_department || null,
     birthday: raw.birthday || null,
     deathday: raw.deathday || null,
@@ -126,7 +127,7 @@ export function normalizeFilmDetails(raw: RawMovieDetails): FilmDetails {
     .map((c) => ({
       id: c.id,
       name: c.name,
-      profilePath: c.profile_path,
+      profilePath: profilePathFor(c.id, c.profile_path),
       job: "Actor",
       role: "actor" as const,
       ...(c.character ? { character: c.character } : {}),
@@ -143,7 +144,7 @@ export function normalizeFilmDetails(raw: RawMovieDetails): FilmDetails {
     const key = `${c.id}|${c.job}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    crew.push({ id: c.id, name: c.name, profilePath: c.profile_path, job: c.job, role });
+    crew.push({ id: c.id, name: c.name, profilePath: profilePathFor(c.id, c.profile_path), job: c.job, role });
   }
   // Array.prototype.sort is stable, so TMDB's own order holds within a role.
   crew.sort((a, b) => roleRank(a.role) - roleRank(b.role));

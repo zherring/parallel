@@ -7,7 +7,8 @@ import { initials } from "../../src/lib/person-labels";
 /**
  * The cut-out portraits (`TreatedPortrait`) in the app: what they show when the photo cannot be loaded, and what they sit on.
  * - Kevin Smith and Jason Mewes have no committed cut, so their portraits are tears (`portrait-tears.ts`), over a montage of their own films' posters.
- * - Scorsese and Schoonmaker are cut from the photo the page has (a real cut); Anderson and Murray are cut from another one, so their portraits are tears too.
+ * - Scorsese and Schoonmaker are cut from the photo TMDB gives the page; for Anderson and Murray TMDB has moved on to another photo since they were cut, and the page
+ *   keeps the photo of the cut (`profilePathFor`), so theirs are cut-outs too, never tears.
  * The last two pairs have Quotes.
  */
 
@@ -21,9 +22,12 @@ const names: Record<string, string> = {
   "5655": "Wes Anderson", "1532": "Bill Murray",
 };
 
-/** The photo TMDB gives each person: the one the committed cut was made from (a real cut), or another (a tear). */
+/** The photo TMDB gives each person: the one the committed cut was made from for Scorsese and Schoonmaker, another for the rest (Anderson and Murray have a cut of an earlier photo). */
 const COMMITTED_CUT = new Set(["1032", "3661"]);
-const profileOf = (id: string) => (COMMITTED_CUT.has(id) ? (cuts as Record<string, { profilePath: string }>)[id].profilePath : `/profile-${id}.jpg`);
+const CUT_FILE = cuts as Record<string, { profilePath: string; posters: string[] }>;
+const profileOf = (id: string) => (COMMITTED_CUT.has(id) ? CUT_FILE[id].profilePath : `/profile-${id}.jpg`);
+/** The photo the page shows: the photo of the person's cut, whatever TMDB gives now, else TMDB's. */
+const shownOf = (id: string) => CUT_FILE[id]?.profilePath ?? profileOf(id);
 
 /** Films of their own, best known first: the posters of the montage behind a tear are the first nine. */
 const OWN_FILMS = 10;
@@ -55,7 +59,7 @@ test.beforeEach(async ({ page, next }) => {
 
 /** Every portrait request is answered 404 (the posters still load): a photo that TMDB has lost, or that a blocker took. Later routes win over `beforeEach`'s. */
 async function failPortraits(page: Page) {
-  const photos = Object.keys(names).map(profileOf);
+  const photos = Object.keys(names).map(shownOf);
   await page.route((url) => url.hostname === "image.tmdb.org" && photos.some((path) => url.pathname.endsWith(path)), (route) => route.fulfill({ status: 404 }));
 }
 
@@ -100,7 +104,7 @@ test.describe("a portrait whose photo cannot be loaded is the person's colour an
     }
   });
 
-  test("in the Quotes, for people with a cut and for people with a tear", async ({ page }) => {
+  test("in the Quotes, for people with a cut and for people whose TMDB photo has changed since it", async ({ page }) => {
     await failPortraits(page);
     for (const [path, ids] of [[CUT, ["1032", "3661"]], [CHANGED, ["5655", "1532"]]] as const) {
       await page.goto(`${path}?view=clippings`);
@@ -154,13 +158,24 @@ test.describe("a portrait with no cut is torn over the montage of the person's o
       await expect.poll(() => montageOf(heroPortrait(page, id))).toEqual(ownMontage(id, "w92"));
     }
   });
+});
 
-  test("in the Quotes, for people whose photo is not the one they were cut from", async ({ page }) => {
-    // Anderson and Murray have Quotes, and a cut of a photo TMDB no longer has: their tear sits on the films the page has, not on the posters the cut file kept.
+test.describe("a person whose TMDB photo has changed since their cut keeps the photo of the cut, and is cut out of it, never torn", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("in the Quotes: the cut's photo over the cut's posters, not TMDB's new photo over the page's films", async ({ page }) => {
+    // Anderson and Murray have Quotes, and a cut of a photo TMDB no longer gives (the mock answers /profile-<id>.jpg): they stand cut out of the photo of the cut, on the posters the cut file kept.
+    const requested: string[] = [];
+    page.on("request", (request) => {
+      if (request.url().startsWith("https://image.tmdb.org/t/p/")) requested.push(new URL(request.url()).pathname);
+    });
     await page.goto(`${CHANGED}?view=clippings`);
     await expect(deck(page)).toBeVisible();
     for (const id of ["5655", "1532"]) {
-      await expect.poll(() => montageOf(quotesPortrait(page, id))).toEqual(ownMontage(id, "w185"));
+      const portrait = quotesPortrait(page, id);
+      await expect.poll(() => montageOf(portrait)).toEqual(CUT_FILE[id].posters.slice(0, 9).map((path) => `https://image.tmdb.org/t/p/w185${path}`));
+      await expect(portrait.locator("svg image")).toHaveAttribute("href", new RegExp(`${CUT_FILE[id].profilePath.replace(".", "\\.")}$`));
     }
+    expect(requested.some((path) => path.endsWith("/profile-5655.jpg") || path.endsWith("/profile-1532.jpg"))).toBe(false);
   });
 });

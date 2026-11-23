@@ -28,6 +28,7 @@ function pairing(a: number, b: number): HeroPairing {
   return {
     key: `${low}+${high}`,
     sharedCount: 4,
+    years: { own: [[1990, 2, 3], [1995, 4]], together: [2001, 1, 1] },
     people: [person(a), person(b)],
     posters: [1, 2, 3].map((n) => ({ path: `/f${a}-${b}-${n}.jpg`, title: `Film ${n}`, year: 2000 + n })),
   };

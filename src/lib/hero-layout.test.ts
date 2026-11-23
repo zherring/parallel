@@ -1,90 +1,357 @@
 import { describe, expect, it } from "vitest";
 import {
-  LINE_Y,
-  MORE_LEFT,
-  MORE_UNDER,
-  PERSON_MID_Y,
-  POSTER_SLOTS,
-  POSTER_TOP,
-  STAGE,
-  moreLabelPlace,
+  BAND,
+  BAND_WIDTH_CSS,
+  CAP_VAR_CLASS,
+  DOT_MIN_SCALE,
+  FIGURE_OVERHANG,
+  HEAD_CROP_MAX,
+  LABEL_END_CLEAR,
+  LABEL_GAP,
+  POSTER_CAPS,
+  POSTER_WIDTHS,
+  TABLET_FIGURE,
+  TABLET_FIGURE_HEIGHT_CSS,
+  TABLET_FIGURE_OUT_CSS,
+  type PosterWidth,
+  axisFraction,
+  bandWidth,
+  decodedYears,
+  dotScale,
+  figureOverhang,
+  headOuter,
+  labelYears,
+  moreCount,
+  posterHiddenClass,
   posterPlace,
-  posterSlotLeft,
+  stripOf,
+  tabletFigure,
+  yearAxis,
 } from "@/lib/hero-layout";
+import { buildHeroPairings } from "@/lib/example-cards";
+import { heroPool, type HeroPairing } from "@/lib/hero-scenes";
+import { headSpan, treatmentShape } from "@/lib/portrait-treatment";
 
-const COUNTS = Array.from({ length: POSTER_SLOTS - 2 }, (_, i) => i + 3); // 3, 4, 5
-
-/** The horizontal extent of the posters of a row of `count`, before their tilt. */
-function extent(count: number) {
-  const lefts = Array.from({ length: count }, (_, slot) => posterSlotLeft(slot) + posterPlace(slot, count).dx);
-  return { left: Math.min(...lefts), right: Math.max(...lefts) + STAGE.posterSize.width };
+function pairing(posterCount: number, sharedCount: number): HeroPairing {
+  return {
+    key: "1+2",
+    sharedCount,
+    years: { own: [[1990, 2, 3], [1995, 4]], together: [2001, 1, 1] },
+    people: [
+      { id: 1, name: "A", profilePath: "/a.jpg" },
+      { id: 2, name: "B", profilePath: "/b.jpg" },
+    ],
+    posters: Array.from({ length: posterCount }, (_, i) => ({ path: `/p${i}.jpg`, title: `Film ${i}`, year: 1990 + i })),
+  };
 }
 
+describe("POSTER_CAPS", () => {
+  it("shows up to five posters on a desktop, four on a tablet and three on a phone", () => {
+    expect(POSTER_CAPS).toEqual({ phone: 3, tablet: 4, desktop: 5 });
+  });
+});
+
+describe("CAP_VAR_CLASS and posterHiddenClass: the stage's markup, from the caps", () => {
+  it("sets --cap to each width's cap, from the phone up (sm is 640px, lg 1024px)", () => {
+    expect(CAP_VAR_CLASS).toBe(`[--cap:${POSTER_CAPS.phone}] sm:[--cap:${POSTER_CAPS.tablet}] lg:[--cap:${POSTER_CAPS.desktop}]`);
+  });
+
+  it("hides a poster at exactly the widths whose cap leaves it out", () => {
+    // The class's width: hidden below `sm` (phone only), below `lg` (phone and tablet), at every width, or never.
+    const hiddenAt = (slot: number): PosterWidth[] => {
+      const hidden = posterHiddenClass(slot);
+      if (hidden === "hidden") return ["phone", "tablet", "desktop"];
+      if (hidden === "max-lg:hidden") return ["phone", "tablet"];
+      if (hidden === "max-sm:hidden") return ["phone"];
+      return [];
+    };
+    for (const slot of [0, 1, 2, 3, 4, 5]) {
+      for (const width of POSTER_WIDTHS) expect(hiddenAt(slot).includes(width), `poster ${slot} on a ${width}`).toBe(slot >= POSTER_CAPS[width]);
+    }
+  });
+});
+
+describe("moreCount", () => {
+  it("counts every shared film the shown posters leave out, the dropped posters included", () => {
+    // Eleven films, five posters: six more on a desktop, seven on a tablet, eight on a phone.
+    expect(moreCount(pairing(5, 11), "desktop")).toBe(6);
+    expect(moreCount(pairing(5, 11), "tablet")).toBe(7);
+    expect(moreCount(pairing(5, 11), "phone")).toBe(8);
+  });
+
+  it("is 0 where the posters show every film", () => {
+    expect(moreCount(pairing(5, 5), "desktop")).toBe(0);
+    expect(moreCount(pairing(3, 3), "phone")).toBe(0);
+    expect(moreCount(pairing(3, 3), "desktop")).toBe(0);
+  });
+
+  it("says one more for the poster a narrower width drops from a pairing it shows whole on a desktop", () => {
+    expect(moreCount(pairing(5, 5), "tablet")).toBe(1);
+    expect(moreCount(pairing(5, 5), "phone")).toBe(2);
+  });
+});
+
 describe("posterPlace", () => {
-  it("centres the row on the stage for three, four and five posters", () => {
-    for (const count of COUNTS) {
-      const { left, right } = extent(count);
-      expect((left + right) / 2, `row of ${count}`).toBeCloseTo(STAGE.width / 2, 6);
-    }
+  it("jitters each poster a little off the even fan, unevenly, so the row is not ruled; a hand of cards, not a scatter", () => {
+    const jitters = [0, 1, 2, 3, 4].map((slot) => posterPlace(slot).jitter);
+    expect(new Set(jitters).size).toBeGreaterThan(1);
+    expect(jitters.every((jitter) => Math.abs(jitter) <= 2)).toBe(true);
+    // Neighbours go different ways, as a hand dealt by hand does.
+    for (let slot = 1; slot < jitters.length; slot += 1) expect(Math.sign(jitters[slot])).not.toBe(Math.sign(jitters[slot - 1]));
   });
 
-  it("overlaps neighbours a little, and keeps a full row inside the stage", () => {
-    const { left, right } = extent(POSTER_SLOTS);
-    expect(left).toBeGreaterThanOrEqual(0);
-    expect(right).toBeLessThanOrEqual(STAGE.width);
-    expect(posterSlotLeft(1) - posterSlotLeft(0)).toBeLessThan(STAGE.posterSize.width);
+  it("offsets the posters alternately up and down", () => {
+    const dys = [0, 1, 2, 3, 4].map((slot) => posterPlace(slot).dy);
+    expect(dys[0]).toBeGreaterThan(0);
+    expect(dys[1]).toBeLessThan(0);
+    for (let slot = 1; slot < dys.length; slot += 1) expect(Math.sign(dys[slot])).not.toBe(Math.sign(dys[slot - 1]));
+    expect(dys.every((dy) => Math.abs(dy) <= 5)).toBe(true);
   });
 
-  it("does not move a full row, and slides a shorter one in by half a step per missing poster", () => {
-    expect(posterPlace(2, POSTER_SLOTS).dx).toBe(0);
-    const step = posterSlotLeft(1) - posterSlotLeft(0);
-    expect(posterPlace(0, POSTER_SLOTS - 1).dx).toBeCloseTo(step / 2, 6);
-    expect(posterPlace(0, POSTER_SLOTS - 2).dx).toBeCloseTo(step, 6);
-  });
-
-  it("fans the tilt left to right, and keeps every poster within a few degrees of upright", () => {
-    for (const count of COUNTS) {
-      const tilts = Array.from({ length: count }, (_, slot) => posterPlace(slot, count).tilt);
-      expect(tilts[count - 1]).toBeGreaterThan(tilts[0]);
-      for (const tilt of tilts) expect(Math.abs(tilt)).toBeLessThanOrEqual(8);
-    }
-  });
-
-  it("keeps the line through the posters: each is within a few pixels of it", () => {
-    for (let slot = 0; slot < POSTER_SLOTS; slot++) {
-      const middle = POSTER_TOP + STAGE.posterSize.height / 2 + posterPlace(slot, POSTER_SLOTS).dy;
-      expect(Math.abs(middle - LINE_Y)).toBeLessThanOrEqual(5);
-    }
+  it("is level for a slot past the table", () => {
+    expect(posterPlace(7)).toEqual({ jitter: 0, dy: 0 });
   });
 });
 
-describe("moreLabelPlace", () => {
-  it("starts past the right end of a full row", () => {
-    expect(MORE_LEFT).toBeGreaterThan(extent(POSTER_SLOTS).right);
+describe("the timeline's axis and dots", () => {
+  // Delta-coded: Ford-like films 1977, 1977, 1981 / Lucas-like 1971, 1973 / together 1980, 1983, 2015.
+  const years = decodedYears({ own: [[1977, 0, 4], [1971, 2]], together: [1980, 3, 32] });
+
+  it("decodes each list", () => {
+    expect(years).toEqual({ own: [[1977, 1977, 1981], [1971, 1973]], together: [1980, 1983, 2015] });
   });
 
-  it("has a narrow-phone place centred on the stage, under the posters", () => {
-    expect(MORE_UNDER.x).toBe(STAGE.width / 2);
-    expect(MORE_UNDER.y).toBeGreaterThan(POSTER_TOP + STAGE.posterSize.height);
-    expect(MORE_UNDER.y).toBeLessThan(STAGE.height);
+  it("runs from the first film of either person to the last of either: the year caps", () => {
+    expect(yearAxis(years)).toEqual({ first: 1971, last: 2015 });
+    // A film of one person alone can be the end, not only a film they made together.
+    expect(yearAxis(decodedYears({ own: [[1950], [2024]], together: [1980] }))).toEqual({ first: 1950, last: 2024 });
+    expect(yearAxis(decodedYears({ own: [[], []], together: [] }))).toBeNull();
   });
 
-  it("follows the right end of a shorter row, and never moves the row", () => {
-    for (const count of COUNTS) {
-      const labelLeft = MORE_LEFT + moreLabelPlace(count).dx;
-      const gap = labelLeft - extent(count).right;
-      expect(gap, `row of ${count}`).toBeCloseTo(MORE_LEFT - extent(POSTER_SLOTS).right, 6);
-      expect(gap).toBeGreaterThan(0);
-    }
+  it("places a year across the axis in proportion, 0 at the first year and 1 at the last", () => {
+    const axis = { first: 1971, last: 2015 };
+    expect(axisFraction(1971, axis)).toBe(0);
+    expect(axisFraction(2015, axis)).toBe(1);
+    expect(axisFraction(1993, axis)).toBeCloseTo(0.5);
+    // One year only: the middle.
+    expect(axisFraction(1990, { first: 1990, last: 1990 })).toBe(0.5);
+  });
+
+  it("has one dot per person and year (two films of one person in a year are one dot over the other), and one per film made together", () => {
+    const strip = stripOf({ ...pairing(5, 9), years: { own: [[1977, 0, 4], [1971, 2]], together: [1980, 3, 32] } })!;
+    expect(strip.axis).toEqual({ first: 1971, last: 2015 });
+    expect(strip.own.map((dots) => dots.length)).toEqual([2, 2]);
+    expect(strip.own[0]).toEqual([axisFraction(1977, strip.axis), axisFraction(1981, strip.axis)]);
+    expect(strip.together).toEqual([axisFraction(1980, strip.axis), axisFraction(1983, strip.axis), 1]);
+    expect(stripOf({ ...pairing(5, 9), years: { own: [[], []], together: [] } })).toBeNull();
   });
 });
 
-describe("PERSON_MID_Y", () => {
-  it("is the middle of the two portraits, above the posters", () => {
-    const tops = STAGE.person.map((place) => place.top);
-    expect(PERSON_MID_Y).toBeGreaterThan(Math.min(...tops));
-    expect(PERSON_MID_Y).toBeLessThan(Math.max(...tops) + STAGE.personSize.height);
-    expect(PERSON_MID_Y).toBe(140);
-    expect(PERSON_MID_Y).toBeLessThan(POSTER_TOP);
+describe("the dots' size and the year labels, by the axis's width", () => {
+  const long = { first: 1940, last: 2018 };
+
+  it("keeps the pair page's dot size where the years are 9px apart or more, and shrinks them as the years come closer, never below half", () => {
+    expect(dotScale({ first: 1990, last: 2000 }, 1400)).toBe(1);
+    expect(dotScale(long, 1400)).toBe(1);
+    expect(dotScale(long, 78 * 9 * 0.8)).toBeCloseTo(0.8);
+    expect(dotScale(long, 262)).toBe(DOT_MIN_SCALE);
+    // Not measured yet, or one year only: full size.
+    expect(dotScale(long, 0)).toBe(1);
+    expect(dotScale({ first: 1990, last: 1990 }, 300)).toBe(1);
+  });
+
+  it("labels none until the axis is measured, and none within the caps' reach of either end", () => {
+    expect(labelYears(long, 0)).toEqual([]);
+    expect(labelYears({ first: 1990, last: 1990 }, 800)).toEqual([]);
+    const width = 1400;
+    const px = (year: number) => ((year - long.first) / (long.last - long.first)) * width;
+    const years = labelYears(long, width);
+    expect(years.length).toBeGreaterThan(0);
+    expect(years.every((year) => px(year) >= LABEL_END_CLEAR && width - px(year) >= LABEL_END_CLEAR)).toBe(true);
+  });
+
+  it("labels every ten years on a long career at desktop width, and thins out to twenty on a phone's", () => {
+    expect(labelYears(long, 1400)).toEqual([1950, 1960, 1970, 1980, 1990, 2000, 2010]);
+    const phone = labelYears(long, 262);
+    expect(phone.length).toBeLessThan(labelYears(long, 1400).length);
+    const gaps = phone.slice(1).map((year, index) => (year - phone[index]) * (262 / 78));
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(LABEL_GAP);
+  });
+
+  it("labels every year of a short career (the room each has, as the pair page's axis does)", () => {
+    expect(labelYears({ first: 1991, last: 1996 }, 1400)).toEqual([1992, 1993, 1994, 1995]);
+  });
+});
+
+describe("the band the timeline's content is in", () => {
+  it("is half of the screen from 1200px up, and 86% of it at 390px", () => {
+    expect(bandWidth(1200)).toBeCloseTo(600);
+    expect(bandWidth(1440)).toBeCloseTo(720);
+    expect(bandWidth(1920)).toBeCloseTo(960);
+    expect(bandWidth(390)).toBeCloseTo(0.86 * 390);
+  });
+
+  it("widens as the screen narrows, by a straight line in px between those two, so a phone's years have room", () => {
+    const share = (viewport: number) => bandWidth(viewport) / viewport;
+    expect(share(800)).toBeGreaterThan(0.5);
+    expect(share(800)).toBeLessThan(0.86);
+    const widths = [1200, 1000, 800, 600, 390].map(bandWidth);
+    expect(widths).toEqual([...widths].sort((a, b) => b - a));
+    // Half way along the line in px is half way between its two ends.
+    expect(bandWidth(795)).toBeCloseTo((bandWidth(1200) + bandWidth(390)) / 2);
+    // Narrower than a phone it is held to `maxShare`, so the caps keep clear of the screen's edge.
+    expect(bandWidth(320)).toBeCloseTo(BAND.maxShare * 320);
+    expect(bandWidth(200) / 200).toBeLessThanOrEqual(BAND.maxShare);
+  });
+
+  it("is the same rule in CSS, for the stage to set as --band-w", () => {
+    expect(BAND_WIDTH_CSS).toBe("max(50cqw, min(90cqw, calc(32.6667cqw + 208px)))");
+  });
+});
+
+describe("the dots' size and the year labels in the band's axis", () => {
+  const career = { first: 1972, last: 2023 };
+  // The axis the timeline measures at a screen width: the band less the caps' room at each end (the stage's `--axis-pad`: 64px from 640px up, 54px below). The browser spec holds
+  // the real axis to this at 1440px and 390px.
+  const axisWidth = (viewport: number) => bandWidth(viewport) - 2 * (viewport >= 640 ? 64 : 54);
+
+  it("sizes the dots from the band: full size on a desktop's axis for a long career, half on a phone's", () => {
+    expect(dotScale(career, axisWidth(1440))).toBe(1);
+    expect(dotScale(career, axisWidth(390))).toBe(DOT_MIN_SCALE);
+    // In between it is the formula's: smaller the narrower the band.
+    const tablet = dotScale(career, axisWidth(768));
+    expect(tablet).toBeGreaterThan(DOT_MIN_SCALE);
+    expect(tablet).toBeLessThan(1);
+  });
+
+  it("keeps two labels at least a gap apart, and the first and last clear of the caps' ends, on every screen width and career length", () => {
+    for (const viewport of [320, 390, 430, 640, 768, 1024, 1200, 1440, 1920]) {
+      const width = axisWidth(viewport);
+      for (const span of [4, 12, 30, 51, 80]) {
+        const axis = { first: 1940, last: 1940 + span };
+        const years = labelYears(axis, width);
+        const px = (year: number) => ((year - axis.first) / span) * width;
+        for (let index = 1; index < years.length; index += 1) expect(px(years[index]) - px(years[index - 1])).toBeGreaterThanOrEqual(LABEL_GAP - 1e-9);
+        for (const year of years) {
+          expect(px(year)).toBeGreaterThanOrEqual(LABEL_END_CLEAR);
+          expect(width - px(year)).toBeGreaterThanOrEqual(LABEL_END_CLEAR);
+        }
+      }
+    }
+  });
+
+  it("labels a long career every ten years at 1440px and on a phone (45px apart there), and every twenty on a phone once it is 80 years", () => {
+    expect(labelYears(career, axisWidth(1440))).toEqual([1980, 1990, 2000, 2010, 2020]);
+    expect(labelYears(career, axisWidth(390))).toEqual([1980, 1990, 2000, 2010]);
+    expect(labelYears({ first: 1940, last: 2020 }, axisWidth(390))).toEqual([1960, 1980, 2000]);
+  });
+});
+
+describe("figureOverhang: how much of a figure goes off the screen's edge on a phone (a tablet keeps the whole head: tabletFigure)", () => {
+  it("is a third of the figure's width for a head with room to spare, on either side", () => {
+    // A head 0.6 of the photo's width across, in the middle: 0.2 of room on each side, and a quarter of the head (0.15) more.
+    expect(figureOverhang({ centre: 0.5, width: 0.6 }, 0)).toBeCloseTo(FIGURE_OVERHANG, 10);
+    expect(figureOverhang({ centre: 0.5, width: 0.6 }, 1)).toBeCloseTo(FIGURE_OVERHANG, 10);
+  });
+
+  it("goes off by less where the head fills the photo (a tight crop of a face): the screen's edge may take a quarter of the head, no more", () => {
+    expect(figureOverhang({ centre: 0.5, width: 1 }, 0)).toBeCloseTo(HEAD_CROP_MAX, 10);
+    expect(figureOverhang({ centre: 0.5, width: 1 }, 1)).toBeCloseTo(HEAD_CROP_MAX, 10);
+    // Whatever the overhang, the head's outer edge is off the screen by `HEAD_CROP_MAX` of the head's width at most.
+    for (const width of [0.5, 0.7, 0.9, 1]) {
+      for (const centre of [0.4, 0.5, 0.6]) {
+        for (const slot of [0, 1] as const) {
+          const head = { centre, width };
+          const outer = slot === 0 ? centre - width / 2 : 1 - (centre + width / 2);
+          expect(figureOverhang(head, slot) - outer).toBeLessThanOrEqual(HEAD_CROP_MAX * width + 1e-9);
+          expect(figureOverhang(head, slot)).toBeLessThanOrEqual(FIGURE_OVERHANG);
+        }
+      }
+    }
+  });
+
+  it("goes off by less on the side the head leans toward: a head near the outer edge has less room", () => {
+    const head = { centre: 0.6, width: 0.7 }; // its left edge is 0.25 in from the photo's left and its right edge 0.05 in from the right
+    expect(figureOverhang(head, 0)).toBeCloseTo(FIGURE_OVERHANG, 10);
+    expect(figureOverhang(head, 1)).toBeCloseTo(0.05 + HEAD_CROP_MAX * 0.7, 10);
+    expect(figureOverhang(head, 1)).toBeLessThan(figureOverhang(head, 0));
+  });
+});
+
+/** Every cut in the hero's pool (a person with no cut is a tear, which has no head to place): where its head is in its photo. */
+function poolHeads() {
+  const heads = new Map<number, { top: number; centre: number; width: number }>();
+  for (const pairing of heroPool(buildHeroPairings())) {
+    for (const person of pairing.people) {
+      const shape = treatmentShape(person.id, person.profilePath);
+      if (!shape.tear) heads.set(person.id, headSpan(shape));
+    }
+  }
+  return [...heads.values()];
+}
+
+describe("tabletFigure: a tablet's figure keeps its whole head on the screen, clear of the seam and of the headline's text", () => {
+  const head = { top: 0.04, centre: 0.5, width: 0.7 };
+
+  it("puts the head's outer edge `margin` px in from the screen's edge, whatever the photo's room, and pushes a head near its photo's edge out less", () => {
+    const wide = tabletFigure(768, 876, { ...head, centre: 0.5 }, 0);
+    expect(wide.outer).toBe(TABLET_FIGURE.margin);
+    // The head's outer edge is 0.15 in from the photo's: the figure's box goes off the screen by that much of its width, less the margin.
+    expect(wide.edge).toBeCloseTo(TABLET_FIGURE.margin - 0.15 * ((wide.height * 2) / 3), 6);
+    const leaning = tabletFigure(768, 876, { ...head, centre: 0.4 }, 0);
+    expect(headOuter({ ...head, centre: 0.4 }, 0)).toBeCloseTo(0.05, 10);
+    expect(leaning.edge).toBeGreaterThan(wide.edge);
+    // A head at the very edge of its photo is pushed in, not out: its box starts `margin` px in.
+    const flush = tabletFigure(768, 876, { top: 0, centre: 0.35, width: 0.7 }, 0);
+    expect(flush.edge).toBeCloseTo(TABLET_FIGURE.margin, 6);
+    // The right side is the mirror: the same head leans the other way.
+    const right = tabletFigure(768, 876, { ...head, centre: 0.6 }, 1);
+    expect(right.edge).toBeCloseTo(tabletFigure(768, 876, { ...head, centre: 0.4 }, 0).edge, 6);
+  });
+
+  it("is never larger than the figure was (max(0.7 x stage, min(0.9 x stage, 165cqw))), and smaller for a wide head on a narrow screen", () => {
+    const was = (width: number, scene: number) => Math.max(0.7 * scene, Math.min(0.9 * scene, 1.65 * ((width - 12) / 2 - Math.min(88, Math.max(12, 0.05 * width)))));
+    expect(tabletFigure(768, 876, head, 0).height).toBeCloseTo(was(768, 876), 6);
+    const widest = tabletFigure(640, 876, { top: 0, centre: 0.5, width: 0.95 }, 0);
+    expect(widest.height).toBeLessThan(was(640, 876));
+    // Both heads still fit, 8px short of the seam each.
+    expect(widest.inner).toBeCloseTo((640 - 12) / 2 - TABLET_FIGURE.seamClear, 6);
+  });
+
+  it("holds for every cut in the pool, at 640 to 1023px on stages from 540 to 880px high, both sides", () => {
+    const heads = poolHeads();
+    expect(heads.length).toBeGreaterThan(100);
+    for (const width of [640, 700, 768, 840, 900, 960, 1023]) {
+      for (const scene of [540, 716, 876, 880]) {
+        const h1 = Math.min(68, Math.max(34, Math.min(0.046 * width, 0.105 * scene)));
+        const copyLeft = width / 2 - TABLET_FIGURE.copyHalfEm * h1;
+        const copyBottom = TABLET_FIGURE.copyTop * scene + TABLET_FIGURE.copyLinesEm * h1 + TABLET_FIGURE.copyBelow;
+        for (const head of heads) {
+          for (const slot of [0, 1] as const) {
+            const place = tabletFigure(width, scene, head, slot);
+            const at = `${width}px, stage ${scene}, head ${JSON.stringify(head)}, slot ${slot}`;
+            // The whole head is on the screen, with its margin, and short of the seam.
+            expect(place.outer, at).toBe(TABLET_FIGURE.margin);
+            expect(place.inner, at).toBeLessThanOrEqual((width - 12) / 2 - TABLET_FIGURE.seamClear + 1e-6);
+            // The head is beside the copy's widest line or under the copy's bottom: never over its text.
+            const beside = place.inner <= copyLeft - TABLET_FIGURE.copyClear + 1e-6;
+            const under = place.crown >= copyBottom + TABLET_FIGURE.copyClear - 1e-6;
+            expect(beside || under, at).toBe(true);
+            // Never a figure too small to stand on the stage.
+            expect(place.height, at).toBeGreaterThan(0.45 * scene);
+          }
+        }
+      }
+    }
+  });
+
+  it("is the same rule in CSS: the margin, the seam's room, the copy's clearance and the copy's height are in the strings", () => {
+    const { margin, seamClear, copyClear, copyHalfEm, copyTop, copyLinesEm, copyBelow } = TABLET_FIGURE;
+    expect(TABLET_FIGURE_HEIGHT_CSS).toContain(`${margin + seamClear}px`);
+    expect(TABLET_FIGURE_HEIGHT_CSS).toContain(`${margin + copyClear}px`);
+    expect(TABLET_FIGURE_HEIGHT_CSS).toContain(`${copyHalfEm} * var(--h1-fs)`);
+    expect(TABLET_FIGURE_HEIGHT_CSS).toContain(`${copyTop} * var(--scene-h) + ${copyLinesEm} * var(--h1-fs) + ${copyBelow}px`);
+    expect(TABLET_FIGURE_HEIGHT_CSS).toContain("max(0.7 * var(--scene-h), min(0.9 * var(--scene-h), 165cqw))");
+    expect(TABLET_FIGURE_OUT_CSS).toContain(`${margin}px - var(--head-out)`);
   });
 });

@@ -19,3 +19,8 @@ export const PanelShownProvider = PanelShownContext.Provider;
 export function WhenPanelShown({ children, placeholder = null }: { children: ReactNode; placeholder?: ReactNode }) {
   return useContext(PanelShownContext) ? children : placeholder;
 }
+
+/** Whether the panel this is in has been shown (the default, outside a panel, is yes): for what should not start until its visitor first sees it. */
+export function usePanelShown(): boolean {
+  return useContext(PanelShownContext);
+}

@@ -1,0 +1,136 @@
+/*
+ * The landing hero's layout, by formula: the custom properties every size on the first screen is derived from, so that nothing needs checking pair by pair. Two blocks, each grouped by
+ * width (a phone first, then what `sm` (640px, 40rem) and `lg` (1024px, 64rem) change, the later block winning as they are the same selector):
+ * - the section's (hero.tsx, `data-landing-hero`): the stage's height, from the screen, and the sizes the headline and the names' row are set from;
+ * - the stage's (hero-stage.tsx, `data-hero-stage`): what it derives from those, the box's inset and the timeline's line, the poster cluster and the axis.
+ * What is generated from TS that also uses it is not written here, but set as an inline style or a class: `--gutter`, `--seam-phone` and `--seam-wide` on the section and `--core-pad` on the stage (stage-geometry.ts),
+ * `--band-w` on the stage (hero-layout.ts `BAND_WIDTH_CSS`), the tablet figure's `--fig-h-t` and `--fig-out-t` (`TABLET_FIGURE_HEIGHT_CSS`, `TABLET_FIGURE_OUT_CSS`, hero-parts.tsx) and the cluster's `--cap` (`CAP_VAR_CLASS`). Namespaced by the hero's attributes, as Next keeps global styles between pages.
+ *
+ * The section sets the stage's sizes, from the screen: its height fills what the bar leaves of the first screen, less a sliver of the next section, a gutter on each side that the halves and the
+ * timeline line run out over to the screen's edge, and a narrow seam divides them. Text is sized from these (the headline from the stage's width and height).
+ */
+
+/* ---- The section: a phone's, from 320px (narrower, the headline's box is a line taller: below). ---- */
+[data-landing-hero] {
+  /*
+   * The gutter on each side of the stage (the halves and the timeline line run out over it to the screen's edge), `--gutter`, and the seams, `--seam-phone` and `--seam-wide`, are
+   * set on the section from TS (hero.tsx, stage-geometry.ts `SECTION_GEOMETRY`): clamp(12px, 5vw, 88px), 6px and 12px. The montage's column count and the tablet figure's size are worked from the
+   * same numbers, so they are written once.
+   */
+  /* The narrow seam that divides the halves. */
+  --seam: var(--seam-phone);
+
+  /*
+   * A phone's stage is taller than that, by formula, so that the heads clear the headline whatever the width: `--scene-h` = (the headline's box + the figure) / 1.03, below.
+   * What the stage was (the least it is): the bar leaves this much of the first screen, 64svh between 400 and 560px.
+   */
+  --stage-h0: max(400px, min(64svh, 560px));
+  /* The figures are stood this much higher, so the headline's box has this much more room under its copy. */
+  --fig-lift: 18px;
+  /*
+   * The headline's box (its height): its padding (20px), the h1's two lines (34px, 1.05 high), the gap (12px), the copy's three (15px, 1.625 high) and a gap under them of `--fig-lift` and 2px (the
+   * figures are stood `--fig-lift` higher, 18px, and the gap keeps the tightest cut, whose head is its photo's top edge, 2px under the copy's box): 196.5px, the same from 320px to `sm`, as the h1
+   * is 34px there and the copy's box is 34ch. Narrower the h1 takes three lines (below).
+   */
+  --head-h: calc(20px + 2 * 1.05 * 34px + 12px + 3 * 1.625 * 15px + var(--fig-lift) + 2px);
+  /*
+   * The figure's height: 1.5 times what the figure was, `min(90%, 165cqw)` of its core, from the screen's width. The core is the half less the gutter, `50vw - seam / 2 - gutter`, and a phone
+   * has no scrollbar to make `vw` and `cqw` differ.
+   */
+  --fig-h: calc(1.5 * min(0.9 * var(--stage-h0), 1.65 * (50vw - var(--seam) / 2 - var(--gutter))));
+  /*
+   * The scene is the halves' height (the line is 82% of it, and the halves end there): the headline's box and the figure stand on the stage's foot, 3% past it less the lift, with the figure's top
+   * at the headline's bottom less the lift, so `scene = (head + figure) / 1.03`, never less than the stage was (`--stage-h0`).
+   */
+  --scene-h: max(var(--stage-h0), calc((var(--head-h) + var(--fig-h)) / 1.03));
+  /* The headline's size, from the stage's width and height. */
+  --h1-fs: clamp(34px, min(4.6vw, calc(var(--stage-h) * 0.105)), 68px);
+
+  /*
+   * The names' size: a third of the screen's width over 8em, up to 18px, 8em being the widest word of a family name in the pool, "Schwarzenegger" (7.96em of the font), so that a name wraps in its
+   * third but never inside a word (its "&" beside it, 0.97em, reaches a little past the third into the room before the keycap).
+   */
+  --name-fs: clamp(11px, calc(100vw / 24), 18px);
+  /* The cue's size, 0.85 of the names': its one line, "See all 25 films together →", is 12.75em of the font, so about 11.3px at 320 and 13.8px at 390, and between the keycaps, 18px or more clear of them at any phone width from 320px. */
+  --cue-fs: calc(var(--name-fs) * 0.85);
+  /* The gap between the names and the cue's line. */
+  --row-gap: 6px;
+  /* The room for the longest wrap in the names' row: three lines of names, "Lana", "& Lilly", "Wachowski", and the cue's one line. */
+  --row-body: calc(3 * 1.15 * var(--name-fs) + var(--row-gap) + 1.25 * var(--cue-fs));
+  /* The names' row: 22px under the line, the room for the longest wrap and 10px under it. */
+  --row-h: calc(22px + var(--row-body) + 10px);
+  /*
+   * The stage's height. On a phone the stage is the scene and, if it has not room for them under the line, the names row too (`--row-h`), which hangs below the halves on the page's own colour:
+   * the scene, or 82% of it (down to the line) and the row, whichever is more.
+   */
+  --stage-h: max(var(--scene-h), calc(0.82 * var(--scene-h) + var(--row-h)));
+}
+
+/* Below about 320px (a screen narrower than 319px) the h1 takes three lines, 232px in all, and the copy is still three down to about 260px. */
+@media not (min-width: 319px) {
+  [data-landing-hero] {
+    --head-h: calc(20px + 3 * 1.05 * 34px + 12px + 3 * 1.625 * 15px + var(--fig-lift) + 2px);
+  }
+}
+
+/* ---- The section, from `sm` (640px): the stage is the scene, as before. ---- */
+@media (min-width: 40rem) {
+  [data-landing-hero] {
+    /* A wider seam between the halves. */
+    --seam: var(--seam-wide);
+    /* The stage is the scene: the halves are as tall as the stage, with no names row hanging under them. */
+    --scene-h: var(--stage-h);
+    /* The stage's height: what the bar leaves of the first screen, less a sliver of the next section (the first screen less 84px), between 540 and 880px. */
+    --stage-h: clamp(540px, calc(100svh - 84px), 880px);
+  }
+}
+
+/* ---- The stage: a phone's. It is as wide as the screen and a size container, so `cqw` is a share of the screen's width. ---- */
+[data-hero-stage] {
+  /*
+   * `--drop` is how far the line and all that stands on it (the cluster, "+N more", the dots, years, caps and the names) are moved down from 82%: nothing on a phone, whose names would not fit
+   * (from `sm` up: below).
+   */
+  --drop: 0px;
+  /* The figures are dropped half as far. */
+  --fig-drop: calc(var(--drop) / 2);
+  /* The line's place down the stage: 82% of the scene (`--scene-h`: the stage, but on a phone less the names' row under the halves) and `--drop`. */
+  --line-y: calc(var(--scene-h) * 0.82 + var(--drop));
+  /*
+   * `--core-pad` is how far in from the screen's edges the stage's decoration box is (and its content, the keycaps, the figures and the montage's first tile, which stand in it): the gutter, or, past 1600px of width,
+   * the gutter and half of what is left (what `100cqw` makes of the stage). Each half runs out past the box all the way to the screen's edge (`--core-pad` further), and so does the timeline's line. It is set on
+   * the stage from TS (hero-stage.tsx, stage-geometry.ts `CORE_PAD_CSS`): `max(var(--gutter), calc((100cqw - 1600px) / 2 + var(--gutter)))`.
+   */
+  /* How far in from each end of the band the dots' axis starts (past the year cap, whose outer edge is the band's); 54px, and 64px from `sm` up, here and nowhere else: the timeline measures the axis. */
+  --axis-pad: 54px;
+  /* The axis's width: the band (`--band-w`, set on the stage from hero-layout.ts `BAND_WIDTH_CSS`: the band the timeline's content is in, centred on the seam) less `--axis-pad` at each end. */
+  --axis-w: calc(var(--band-w) - 2 * var(--axis-pad));
+  /* The height of the foot (the page's colour rising from each half's bottom, hero-parts.tsx `FOOT`): one value, 84% of the half's height, at every width. */
+  --foot-h: 84%;
+  /* The action zone's top (hero-stage.tsx `ZONE_CLASS`), in px, from the line's, which is from the scene's height: 56px above the cluster, whose posters are 1.5 times their width tall. */
+  --zone-top: calc(var(--line-y) - var(--poster-gap) - var(--pw) * 1.5 - 56px);
+  /* How far the posters' bottoms are above the line. */
+  --poster-gap: 22px;
+  /* A poster's width, from the box (its height, and on a phone its width). */
+  --pw: min(68px, calc(var(--stage-h) * 0.15), 17cqw);
+  /* The distance between the posters of the cluster. */
+  --step: calc(var(--pw) * 0.76);
+}
+
+/* ---- The stage, from `sm` (640px). ---- */
+@media (min-width: 40rem) {
+  [data-hero-stage] {
+    /* 50px on a stage 816px high (a 1440 x 900 screen), less on a shorter one so that the names keep about 40px above the stage's bottom edge (`0.18 x stage - 90px`, between 0 and 50px). */
+    --drop: clamp(0px, calc(var(--stage-h) * 0.18 - 90px), 50px);
+    --axis-pad: 64px;
+    --poster-gap: 26px;
+    --pw: min(92px, calc(var(--stage-h) * 0.15));
+  }
+}
+
+/* ---- The stage, from `lg` (1024px). ---- */
+@media (min-width: 64rem) {
+  [data-hero-stage] {
+    --pw: min(100px, calc(var(--stage-h) * 0.15));
+  }
+}

@@ -86,6 +86,36 @@ const HEAD_BAND = 0.3;
 const FACE_DROP = 0.85;
 
 /**
+ * How far below the top of the cut the eyes are, as a multiple of the head's width: a little above the middle of the face (`FACE_DROP`, eyes to mouth). Fitted by eye
+ * on the landing hero's figures, where `eyeLine` is the measure the browser tests place a face by (over the poster cluster, not under it).
+ */
+const EYE_DROP = 0.65;
+
+/**
+ * Where the head of the cut `shape` is in its photo: its top (a share of the photo's height) and, across, its middle and its width (shares of the photo's width), by
+ * the points of the cut's top `HEAD_BAND` (hair and ears included, as `headCrop` has it).
+ */
+export function headSpan(shape: TreatmentShape): { top: number; centre: number; width: number } {
+  const ys = shape.points.map(([, y]) => y);
+  const top = Math.min(...ys);
+  const span = Math.max(...ys) - top;
+  const head = shape.points.filter(([, y]) => y <= top + span * HEAD_BAND).map(([x]) => x);
+  const left = Math.min(...head);
+  const right = Math.max(...head);
+  return { top, centre: (left + right) / 2, width: right - left };
+}
+
+/**
+ * Where the eyes of the cut `shape` are, as a share (0 to 1) of the photo's height from its top: the head's top, plus `EYE_DROP` head-widths (the head, by the points of the
+ * cut's top `HEAD_BAND`, as `headCrop` has it). Not a measure (the cuts carry no face), a rule: it lets the hero's tests place the face of a cut of any headroom.
+ */
+export function eyeLine(shape: TreatmentShape): number {
+  const [w, h] = shape.size;
+  const head = headSpan(shape);
+  return head.top + EYE_DROP * head.width * (w / h);
+}
+
+/**
  * The crop of a tile of aspect `aspect` (width / height) on the head of `shape`, centred across on the points of the cut's top `HEAD_BAND` (the head,
  * not the shoulders), kept inside the photo. A tile no wider than `HEAD_CROP_FULL_WIDTH_ASPECT` takes `HEAD_CROP_WIDTH` of the photo's width, its top a
  * little above the cut's. A wider tile is cropped tight: the photo's whole width, whatever it is, and so a height of only the tile's shape, which is
