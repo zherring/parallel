@@ -1,0 +1,69 @@
+{
+  "pair": ["Federico Fellini", "Nino Rota"],
+  "tmdb_ids": [4415, 3098],
+  "critics": [
+    {
+      "critic": "Mervyn Cooke",
+      "publication": "BBC Music Magazine",
+      "via": "classical-music.com",
+      "title": "Nino Rota",
+      "date": "2021-12-28",
+      "url": "https://www.classical-music.com/features/composers/rota-nino",
+      "kind": "feature",
+      "quote": "Rota would often fall asleep while viewing a rough cut of the film, and he would mostly ignore Fellini’s suggestions on the nature of the music the director had himself envisaged for a project.",
+      "why": "Rota scored Fellini's inner world rather than the footage, and largely ignored the director's musical ideas."
+    },
+    {
+      "critic": "Mervyn Cooke",
+      "publication": "BBC Music Magazine",
+      "via": "classical-music.com",
+      "title": "Nino Rota",
+      "date": "2021-12-28",
+      "url": "https://www.classical-music.com/features/composers/rota-nino",
+      "kind": "feature",
+      "quote": "In two very different films starring Fellini’s wife Giulietta Masina – La Strada (1954) and Giulietta degli spiriti (1960) – Rota used quasi-circus music to hint at melancholic depths in Fellini’s female protagonists, deftly combining sad moods with jaunty instrumental gestures to create the bittersweet quality characteristic of so much of his film music.",
+      "why": "Names the pair's signature device: circus music as a mask for sadness in Masina's characters."
+    },
+    {
+      "critic": "Francesco Dalla Vecchia",
+      "publication": "EBSCO Research Starters",
+      "via": null,
+      "title": "Nino Rota",
+      "date": "2024",
+      "url": "https://www.ebsco.com/research-starters/history/nino-rota/",
+      "kind": "academic",
+      "quote": "In Fellini’s films Rota’s music sometimes seems disconnected from the visual content, adding a supplementary layer of meaning. Perhaps this disconnection exists because Fellini often added Rota’s music only at a late stage of the editing and because Rota frequently adapted music from other compositions.",
+      "why": "Explains the music-image gap in Fellini's films by their working process: late addition and Rota's self-borrowing."
+    },
+    {
+      "critic": "Craig Lysy",
+      "publication": "Movie Music UK",
+      "via": null,
+      "title": "Nino Rota – Fathers of Film Music, Part 15",
+      "date": "2016-05-01",
+      "url": "https://moviemusicuk.us/2016/05/01/nino-rota-fathers-of-film-music-part-15/",
+      "kind": "feature",
+      "quote": "Also notable was the fact that Fellini’s musical knowledge was quite limited, as such he trusted in Rota’s talent, and gave him broad creative control of the musical scores. A testimonial to Fellini’s trust was that he often filmed to Rota’s music so as to acquire a certain rhythm, or to create a certain atmosphere for a scene.",
+      "why": "Fellini ceded the music to Rota and shot scenes to his music for rhythm and mood."
+    },
+    {
+      "critic": "Craig Lysy",
+      "publication": "Movie Music UK",
+      "via": null,
+      "title": "Nino Rota – Fathers of Film Music, Part 15",
+      "date": "2016-05-01",
+      "url": "https://moviemusicuk.us/2016/05/01/nino-rota-fathers-of-film-music-part-15/",
+      "kind": "feature",
+      "quote": "It was in the final analysis the power and facility of Rota’s music that unified Fellini’s disjointed, fragmentary narratives so as to achieve a cogent story. Without Rota, I believe Fellini would have been rendered to an obscure footnote in Italian cinematic history.",
+      "why": "A provocative claim: Rota's music held together Fellini's fragmentary films, and Fellini depended on it."
+    }
+  ],
+  "reading": [
+    { "title": "Party Time in Fellini Land", "author": null, "publication": "The Criterion Collection", "date": null, "url": "https://www.criterion.com/current/posts/6997-party-time-in-fellini-land", "paywalled": true },
+    { "title": "La dolce vita: Tuxedos at Dawn", "author": null, "publication": "The Criterion Collection", "date": null, "url": "https://www.criterion.com/current/posts/3335-la-dolce-vita-tuxedos-at-dawn", "paywalled": true },
+    { "title": "La Strada – Nino Rota", "author": "Craig Lysy", "publication": "Movie Music UK", "date": "2024-09-30", "url": "https://moviemusicuk.us/2024/09/30/la-strada-nino-rota/", "paywalled": false },
+    { "title": "Ironic Attachment: Nino Rota, Music and Film", "author": "Richard Dyer", "publication": "IKKM Weimar", "date": null, "url": "https://www.ikkm-weimar.de/en/former-fellows/richard-dyer/", "paywalled": false },
+    { "title": "The Sonic Circus: Music in the Films of Federico Fellini", "author": null, "publication": "Medium", "date": null, "url": "https://medium.com/@michael.landmankarny/the-sonic-circus-music-in-the-films-of-federico-fellini-eeeaefd99709", "paywalled": true }
+  ],
+  "notes": "The Criterion Current essays and the Medium piece returned a 403 or a JS challenge, so they're listed unread. Dyer's book and his Sight and Sound piece 'The Talented Mr. Rota' (2004) aren't openly readable online, and the La Strada review mostly repeats Lysy's earlier essay, so it's in reading only."
+}

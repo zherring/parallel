@@ -1,0 +1,77 @@
+{
+  "pair": ["John Woo", "Chow Yun-Fat"],
+  "tmdb_ids": [11401, 1619],
+  "clippings": [
+    {
+      "speaker": "John Woo",
+      "about": "Chow Yun-Fat",
+      "quote": "His movement is so elegant, he's just like Cary Grant.",
+      "film": null,
+      "said_year": 2026,
+      "publication": "BFI",
+      "via": null,
+      "title": "“I use musical theory to shoot an action sequence”: an exclusive online interview with John Woo",
+      "date": "2026-07-15",
+      "url": "https://www.bfi.org.uk/interviews/john-woo-better-tomorrow-killer-hard-boiled",
+      "context": "Asked whether different actors suit different action speeds, Woo names Chow first; the interview is about A Better Tomorrow, The Killer and Hard Boiled.",
+      "secondhand": false
+    },
+    {
+      "speaker": "John Woo",
+      "about": "Chow Yun-Fat",
+      "quote": "I came up with the idea of him having a twin brother.",
+      "film": "A Better Tomorrow II",
+      "said_year": 2026,
+      "publication": "BFI",
+      "via": null,
+      "title": "“I use musical theory to shoot an action sequence”: an exclusive online interview with John Woo",
+      "date": "2026-07-15",
+      "url": "https://www.bfi.org.uk/interviews/john-woo-better-tomorrow-killer-hard-boiled",
+      "context": "Woo explains how he got Chow back into the sequel after the studio said it could not sell the film without him; the twin-brother idea was his workaround.",
+      "secondhand": false
+    },
+    {
+      "speaker": "John Woo",
+      "about": "Chow Yun-Fat",
+      "quote": "reminded me of Alain Delon and Ken Takakura",
+      "film": null,
+      "said_year": 2022,
+      "publication": "Letterboxd",
+      "via": null,
+      "title": "Heroic Bloodshed: John Woo on action with a beating heart",
+      "date": "2022",
+      "url": "https://letterboxd.com/journal/heroic-bloodshed-john-woo-fantasia/",
+      "context": "Woo, in a Fantasia festival interview on his screen idols and the leading men he has cast, says Chow reminded him of these older stars; exact publication month not shown on the page.",
+      "secondhand": false
+    },
+    {
+      "speaker": "John Woo",
+      "about": "Chow Yun-Fat",
+      "quote": "Even though it didn't work out for Red Cliff, I'm looking forward to working with him again.",
+      "film": "Red Cliff",
+      "said_year": 2008,
+      "publication": "Time",
+      "via": null,
+      "title": "John Woo will now take your questions",
+      "date": "2008-07-10",
+      "url": "https://time.com/archive/6685431/john-woo-will-now-take-your-questions/",
+      "context": "Woo answers readers' questions about the Red Cliff cast after Chow left the production just before shooting began.",
+      "secondhand": false
+    },
+    {
+      "speaker": "John Woo",
+      "about": "Chow Yun-Fat",
+      "quote": "When we were doing 'A Better Tomorrow', Chow had failed.",
+      "film": "A Better Tomorrow",
+      "said_year": 2023,
+      "publication": "Yahoo Life Singapore",
+      "via": null,
+      "title": "John Woo on working with Chow Yun Fat again: It'd be difficult!",
+      "date": "2023-10-10",
+      "url": "https://sg.style.yahoo.com/john-woo-working-chow-yun-041400237.html",
+      "context": "Woo recalls that Chow's career was at a low when they made A Better Tomorrow, and that Woo, in a similar slump, wrote dialogue Chow felt was from the heart; the rest of that point is paraphrased in the article.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Woo-only: no Chow-about-Woo quote found on a fetchable page (SCMP, Bright Lights, Stranglehold press and Paste sources were blocked or lacked it; a forum repost was not used). Fetched text came through a summarizing tool, so wording of the BFI and Letterboxd lines should be checked against the page before publishing. Skipped the GKIDS Hard Boiled dynamite story because it is Woo's secondhand account and the source was not fetched."
+}

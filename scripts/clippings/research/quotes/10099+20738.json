@@ -1,0 +1,69 @@
+{
+  "pair": [
+    "Park Chan-wook",
+    "Song Kang-ho"
+  ],
+  "tmdb_ids": [
+    10099,
+    20738
+  ],
+  "clippings": [
+    {
+      "speaker": "Song Kang-ho",
+      "about": "Park Chan-wook",
+      "quote": "When I first heard of 'Thirst,' I was doubtful whether or not such a creative, fantastic and artistic movie could be realized.",
+      "film": "Thirst",
+      "said_year": 2009,
+      "publication": "Korea Times",
+      "via": null,
+      "title": "Park Chan-wook Explores Self, Dream in Thirst",
+      "date": "2009-03-31",
+      "url": "https://www.koreatimes.co.kr/amp/entertainment/films/20090331/park-chan-wook-explores-self-dream-in-thirst",
+      "context": "Song reacting to Park's pitch of Thirst, in a March 2009 Korea Times feature ahead of the film's release.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Song Kang-ho",
+      "about": "Park Chan-wook",
+      "quote": "I knew right away that he could bring the script to life.",
+      "film": "Joint Security Area",
+      "said_year": 2025,
+      "publication": "Korea Times",
+      "via": null,
+      "title": "'Joint Security Area' cast and director reunite after 25 years",
+      "date": "2025-02-06",
+      "url": "https://koreatimes.co.kr/www/art/2025/02/398_391639.html",
+      "context": "Song recalling why he agreed to Joint Security Area after first doubting the script, at the February 2025 anniversary reunion in Seoul.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Song Kang-ho",
+      "about": "Park Chan-wook",
+      "quote": "That's the genius of Park Chan-wook: He was able to show us a solution.",
+      "film": "Joint Security Area",
+      "said_year": 2019,
+      "publication": "IndieWire",
+      "via": "Yahoo",
+      "title": "'Parasite' Star Song Kang-ho Reflects on 'Mr. Vengeance,' 'Memories of Murder,' and the Role of His Life",
+      "date": "2019-10-11",
+      "url": "https://www.yahoo.com/entertainment/parasite-star-song-kang-ho-170012963.html",
+      "context": "Song on how Joint Security Area handled the pressure of its box-office success, in a David Ehrlich interview for IndieWire during the Parasite press cycle.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Park Chan-wook",
+      "about": "Song Kang-ho",
+      "quote": "Song Kang-ho didn't like either of them. But he ended up doing both.",
+      "film": "Thirst",
+      "said_year": 2009,
+      "publication": "Village Voice",
+      "via": null,
+      "title": "A Conversation With Thirst Director Park Chan-wook",
+      "date": "2009-07-28",
+      "url": "https://www.villagevoice.com/a-conversation-with-thirst-director-park-chan-wook/",
+      "context": "Park recalling how he pitched Thirst and Sympathy for Mr. Vengeance to Song over drinks after Joint Security Area wrapped, in a July 2009 Village Voice interview.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Two of the three Song quotes come from fetched syndications or retrospectives, and the Park-about-Song direction is thin: IndieLondon's undated Park praise (\"his acting is always very minimal\") was skipped for lack of a date, and Backstage, AllKPop and Filmmaker returned 403s."
+}

@@ -1,0 +1,21 @@
+{
+  "pair": ["Akira Kurosawa", "Takashi Shimura"],
+  "tmdb_ids": [5026, 7453],
+  "clippings": [
+    {
+      "speaker": "Akira Kurosawa",
+      "about": "Takashi Shimura",
+      "quote": "I was afraid he'd break.",
+      "film": "Kagemusha",
+      "said_year": 1980,
+      "publication": "Turner Classic Movies",
+      "via": null,
+      "title": "Kagemusha",
+      "date": "2009-03-18",
+      "url": "https://www.tcm.com/articles/235854/kagemusha",
+      "context": "Per Scott McGee's TCM article, Kurosawa wanted to give Shimura, 74 and in the advanced stages of emphysema, a bigger role in Kagemusha but was afraid he would break; the article gives no source for the remark.",
+      "secondhand": true
+    }
+  ],
+  "notes": "Only one usable quote found: no verbatim Shimura-on-Kurosawa line is attributed on a page I could read (MUBI and an IMDb quote are unattributed; the BFI Sight & Sound pieces, the 1964 Kurosawa interview PDFs, and the Richie book were unreachable or redirected). The BFI line 'Shimura played the doctor beautifully' was a fragment and was skipped. Budget exhausted at about 25 tool calls."
+}

@@ -1,0 +1,35 @@
+{
+  "pair": ["George Lucas", "Steven Spielberg"],
+  "tmdb_ids": [1, 488],
+  "clippings": [
+    {
+      "speaker": "Steven Spielberg",
+      "about": "George Lucas",
+      "quote": "George and I had big arguments about the MacGuffin. … But I am loyal to my best friend. When he writes a story he believes in—even if I don't believe in it—I'm going to shoot the movie the way George envisioned it.",
+      "film": "Indiana Jones and the Kingdom of the Crystal Skull",
+      "said_year": 2011,
+      "publication": "Empire",
+      "via": "The A.V. Club",
+      "title": "Steven Spielberg says you should blame George Lucas for that last Indiana Jones movie",
+      "date": "2011",
+      "url": "https://www.avclub.com/steven-spielberg-says-you-should-blame-george-lucas-for-1798228155",
+      "context": "Spielberg told Empire magazine in 2011 that he and Lucas argued over the crystal skull MacGuffin, as reported by The A.V. Club; the original Empire article was not readable (paywalled).",
+      "secondhand": true
+    },
+    {
+      "speaker": "Steven Spielberg",
+      "about": "George Lucas",
+      "quote": "When the phone rang and he found out that every single 10:30 a.m. show throughout the entire nation had been sold out, George became euphoric, to say the least, and, in his euphoria, immediately began thinking about the future. … And George said I've got something better than James Bond, it's called Raiders of the Lost Ark.",
+      "film": "Raiders of the Lost Ark",
+      "said_year": null,
+      "publication": "DGA Quarterly",
+      "via": null,
+      "title": "Age & Innocence",
+      "date": "2006",
+      "url": "https://www.dga.org/craft/dgaq/issues/0604-winter-2006/dga-interview-steven-spielberg",
+      "context": "Spielberg recalls the 1977 Hawaii beach conversation after Star Wars opened, when Lucas pitched what became Raiders, in a DGA Quarterly interview (Winter 2006 issue).",
+      "secondhand": false
+    }
+  ],
+  "notes": "Only two quotes, both Spielberg about Lucas; no Lucas-about-Spielberg quote could be verified. The Empire Raiders oral history returned HTTP 402 (paywalled). The 1977 LA Times repost has only 'It turned out real well. I liked it' (generic, so skipped). Famous lines (Duel 'really sharp', 'best boss I ever had') appear only in unsourced secondary pages, so skipped. The Empire article date is not confirmed; date uses the year only."
+}

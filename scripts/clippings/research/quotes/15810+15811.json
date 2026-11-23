@@ -1,0 +1,83 @@
+{
+  "pair": [
+    "Ron Clements",
+    "John Musker"
+  ],
+  "tmdb_ids": [
+    15810,
+    15811
+  ],
+  "clippings": [
+    {
+      "speaker": "Ron Clements",
+      "about": "John Musker",
+      "quote": "I’m more of a big picture guy. John’s more of a detail guy,",
+      "film": null,
+      "said_year": 2026,
+      "publication": "Laughing Place",
+      "via": null,
+      "title": "Interview: Ron Clements on the Magic Behind Disney Animation and the Stories Audiences Take to Heart",
+      "date": "2026-11-02",
+      "url": "https://www.laughingplace.com/disney-entertainment/ron-clements-interview-making-disney-magic/",
+      "context": "Clements, in a conversation with Laughing Place about his memoir, on how he and Musker divide their work.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Ron Clements",
+      "about": "John Musker",
+      "quote": "that was really John’s idea to do a movie set in the world of the Pacific Islands.",
+      "film": "Moana",
+      "said_year": 2016,
+      "publication": "Den of Geek",
+      "via": null,
+      "title": "Ron Clements & John Musker interview: Moana, Disney, animation",
+      "date": "2016-12-01",
+      "url": "https://www.denofgeek.com/movies/ron-clements-john-musker-interview-moana-disney-animation/",
+      "context": "Clements, in a joint interview about Moana, crediting Musker with the film's Pacific Islands setting.",
+      "secondhand": false
+    },
+    {
+      "speaker": "John Musker",
+      "about": "Ron Clements",
+      "quote": "And then they gave it a reprieve when they read the two-page treatment Ron wrote.",
+      "film": "The Little Mermaid",
+      "said_year": 2016,
+      "publication": "Yahoo Movies",
+      "via": null,
+      "title": "Directors John Musker and Ron Clements on Creating the World of 'Moana' — and How 'Little Mermaid' Almost Got Sunk",
+      "date": "2016-11-02",
+      "url": "https://www.yahoo.com/entertainment/directors-john-musker-and-ron-clements-on-creating-the-world-of-moana-and-how-little-mermaid-almost-got-sunk-140317848.html",
+      "context": "Musker, in a 2016 Yahoo Movies interview, recalling how Disney reversed its early rejection of The Little Mermaid after reading Clements's treatment.",
+      "secondhand": false
+    },
+    {
+      "speaker": "John Musker",
+      "about": "Ron Clements",
+      "quote": "It used to be in our system more so that we dealt one on one with the animators. We'd critique their animation, just he and I, look at the stuff and with maybe a supervisor.",
+      "film": "The Princess and the Frog",
+      "said_year": 2009,
+      "publication": "/Film",
+      "via": null,
+      "title": "Interview: The Princess And The Frog Directors Jon Musker And Ron Clements",
+      "date": "2009-10-21",
+      "url": "https://www.slashfilm.com/505783/interview-the-princess-and-the-frog-directors-jon-musker-and-ron-clements/",
+      "context": "Musker, in a 2009 round-table, on how he and Clements reviewed animators' work one-on-one before Pixar-style group dailies. \"he\" is Clements.",
+      "secondhand": false
+    },
+    {
+      "speaker": "John Musker",
+      "about": "Ron Clements",
+      "quote": "I mentioned this to him [pointing to Clements] and he started reading the stories as well.",
+      "film": "Moana",
+      "said_year": 2016,
+      "publication": "Animation World Network",
+      "via": null,
+      "title": "The Irascible Ron Clements and John Musker Talk ‘Moana’",
+      "date": "2016-11-23",
+      "url": "https://www.awn.com/animationworld/irascible-ron-clements-and-john-musker-talk-moana",
+      "context": "Musker, in a 2016 interview, on how the Moana idea began with the Polynesian myths he shared with Clements.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Clements-to-Musker is thin: a Golden Globes line could not be verified (page 404 on fetch) and Animation Magazine returned 403. Quotes checked against fetched page text."
+}

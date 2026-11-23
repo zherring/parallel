@@ -1,0 +1,77 @@
+{
+  "pair": ["Federico Fellini", "Marcello Mastroianni"],
+  "tmdb_ids": [4415, 5676],
+  "clippings": [
+    {
+      "speaker": "Federico Fellini",
+      "about": "Marcello Mastroianni",
+      "quote": "Marcello can play both very easy and very difficult characters. He has always been kind of a guide through the situation, a witness and a judge at the same time in the story.",
+      "film": "Ginger and Fred",
+      "said_year": 1986,
+      "publication": "GQ",
+      "via": "maureenorth.com",
+      "title": "Marcello Mastroianni",
+      "date": "1986-05",
+      "url": "https://maureenorth.com/1986/05/marcello-mastroianni/",
+      "context": "Said on set at Cinecitta during a Today show interview with Bryant Gumbel, as reported by Maureen Orth.",
+      "secondhand": true
+    },
+    {
+      "speaker": "Federico Fellini",
+      "about": "Marcello Mastroianni",
+      "quote": "a very normal face, a face with no personality, a face with no expression, a banal face – a face like yours.",
+      "film": "La Dolce Vita",
+      "said_year": null,
+      "publication": "Paste Magazine",
+      "via": null,
+      "title": "Film School: Marcello Mastroianni and Federico Fellini",
+      "date": "2024-09-10",
+      "url": "https://www.pastemagazine.com/movies/federico-fellini/film-school-marcello-mastroianni-federico-fellini",
+      "context": "Fellini's casting pitch to Mastroianni for La Dolce Vita, as retold by Paste; the article does not clearly cite where the words come from.",
+      "secondhand": true
+    },
+    {
+      "speaker": "Marcello Mastroianni",
+      "about": "Federico Fellini",
+      "quote": "he gave me a script with blank pages. There was nothing on them—only a cartoon Fellini had drawn of a man swimming with a huge penis that reached to the bottom of the sea.",
+      "film": "La Dolce Vita",
+      "said_year": 1986,
+      "publication": "GQ",
+      "via": "maureenorth.com",
+      "title": "Marcello Mastroianni",
+      "date": "1986-05",
+      "url": "https://maureenorth.com/1986/05/marcello-mastroianni/",
+      "context": "Mastroianni recalls arriving at Fellini's seaside villa to read for La Dolce Vita, as quoted by Maureen Orth.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Marcello Mastroianni",
+      "about": "Federico Fellini",
+      "quote": "Making a movie with Fellini was a non-stop party and as a director he was really easy.",
+      "film": null,
+      "said_year": 1994,
+      "publication": "Alain Elkann Interviews",
+      "via": null,
+      "title": "Marcello Mastroianni",
+      "date": "1994-06-15",
+      "url": "https://www.alainelkanninterviews.com/marcello-mastroianni/",
+      "context": "Answering Alain Elkann in Paris, asked what he remembers most about Fellini; the interview was dated 15 June 1994 and the page was posted later (2016 per the site).",
+      "secondhand": false
+    },
+    {
+      "speaker": "Marcello Mastroianni",
+      "about": "Federico Fellini",
+      "quote": "I did those two Fellini films not as an actor but as a man. I took part because I needed, as a man, to realize myself through them. They are the best mirror of my real self.",
+      "film": "8½",
+      "said_year": 1965,
+      "publication": "Playboy",
+      "via": "cinephiliabeyond.org",
+      "title": "Interview with Marcello Mastroianni",
+      "date": "1965",
+      "url": "https://cinephiliabeyond.org/8%C2%BD-federico-fellinis-daring-self-reflexive-masterpiece-intimate-exploration-cinema/",
+      "context": "About his two Fellini films, La Dolce Vita and 8½; the Cinephilia & Beyond page lists it as a 1965 Playboy interview, but I could not see the Playboy original.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Fellini-to-Mastroianni is thin: the Roger Ebert Fellini interview returned 403 to both WebFetch and curl, and the Criterion 1963 Bachmann audio page also 403'd, so I could not verify their Fellini lines. Two Fellini quotes come from secondhand retellings (GQ 1986 and Paste 2024). The Playboy and Paste titles/dates were taken from secondary pages and are not fully confirmed."
+}

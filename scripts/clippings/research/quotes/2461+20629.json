@@ -1,0 +1,49 @@
+{
+  "pair": ["George Miller", "Mel Gibson"],
+  "tmdb_ids": [20629, 2461],
+  "clippings": [
+    {
+      "speaker": "George Miller",
+      "about": "Mel Gibson",
+      "quote": "Mel and I never talked about making him an old guy.",
+      "film": "Mad Max: Fury Road",
+      "said_year": 2015,
+      "publication": "Time Out",
+      "via": null,
+      "title": "Mad Max: Fury Road director George Miller Q&A",
+      "date": "2015-05-11",
+      "url": "https://www.timeout.com/film/max-max-fury-roads-george-miller-on-his-post-apocalyptic-classics-and-mel-gibson",
+      "context": "Asked whether Gibson was comfortable with Max no longer being the same character, in a pre-release interview for Fury Road.",
+      "secondhand": false
+    },
+    {
+      "speaker": "George Miller",
+      "about": "Mel Gibson",
+      "quote": "Mel is someone who, in a sense, cannot lie.",
+      "film": "Mad Max: Fury Road",
+      "said_year": 2015,
+      "publication": "MovieWeb",
+      "via": null,
+      "title": "Mad Max Fury Road: Did Mel Gibson Love It or Hate It?",
+      "date": "2015-05-14",
+      "url": "https://movieweb.com/mad-max-fury-road-mel-gibson/",
+      "context": "Miller on Gibson's reaction when he sat beside him at the Fury Road premiere, where Gibson kept chuckling during the film.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Mel Gibson",
+      "about": "George Miller",
+      "quote": "He's a scientist, he's the Einstein of the edit and of being able to get the pieces necessary to make a truly compelling in-your-face action sequence.",
+      "film": "Mad Max: Fury Road",
+      "said_year": 2016,
+      "publication": "Collider",
+      "via": "Screen Rant",
+      "title": "Mel Gibson Offers Up His Opinion on Mad Max: Fury Road",
+      "date": "2016-10-27",
+      "url": "https://screenrant.com/mad-max-fury-road-mel-gibson-hacksaw-ridge/",
+      "context": "Gibson said this in a Collider interview with Steve Weintraub around Hacksaw Ridge; Collider's article paraphrases it and the wording is quoted by Screen Rant.",
+      "secondhand": true
+    }
+  ],
+  "notes": "Only 3 quotes: Gibson's Collider remarks are on video and only partly transcribed in reprints, and an NFSA interview with Miller has no date, so I left it out. Several outlets (Rolling Stone, IndieWire, Filmmaker, Slashfilm's Time Out pieces) were blocked or redirected to paywalled hosts."
+}

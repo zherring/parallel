@@ -1,0 +1,77 @@
+{
+  "pair": ["Akira Kurosawa", "Toshirō Mifune"],
+  "tmdb_ids": [5026, 7450],
+  "critics": [
+    {
+      "critic": "Owen Gleiberman",
+      "publication": "Variety",
+      "via": null,
+      "title": "Film Review: 'Mifune: The Last Samurai'",
+      "date": "2016-11-26",
+      "url": "https://variety.com/2016/film/reviews/mifune-the-last-samurai-review-toshiro-mifune-1201926856/",
+      "kind": "review",
+      "quote": "Kurosawa trusted Mifune to be his collaborator, and rarely gave him direction. It was up to the actor to create his own characters, which he did through mountains of preparation, forging these rogues from the inside out.",
+      "why": "Kurosawa, a controlling director, left Mifune to build his characters himself."
+    },
+    {
+      "critic": "Sam Sewell-Peterson",
+      "publication": "The Film Magazine",
+      "via": null,
+      "title": "Akira Kurosawa, Toshiro Mifune: Cinema’s Greatest Collaborations",
+      "date": "2023-09-11",
+      "url": "https://www.thefilmagazine.com/kurosawa-mifune-film-collaborations/",
+      "kind": "essay",
+      "quote": "Kurosawa ended up designing some of the most memorable sequences in his always vivid films around what Mifune was likely to do, even though requiring some flexibility to accommodate his bankable but uncontrollable star could be a real problem for a director who would not budge an inch from his creative vision without good reason.",
+      "why": "The tension at the core: an inflexible perfectionist built scenes around an actor he couldn't control."
+    },
+    {
+      "critic": "Matsuda Michiko",
+      "publication": "Nippon.com",
+      "via": null,
+      "title": "Mifune Toshirō, a World-Class Act",
+      "date": "2015-11-02",
+      "url": "https://www.nippon.com/en/articles/-/15724",
+      "kind": "feature",
+      "quote": "Despite the success of their collaboration, working for a notoriously demanding perfectionist like Kurosawa was no picnic for Mifune. After a grueling day on the set, the actor was known to get roaring drunk and vent his frustration with the director by howling imprecations into the night.",
+      "why": "Gives the cost of the partnership for Mifune, with a vivid detail."
+    },
+    {
+      "critic": "Andrea Grunert",
+      "publication": "Senses of Cinema",
+      "via": null,
+      "title": "Toshirō Mifune: Between Extravagance and Subtlety",
+      "date": "2017-03",
+      "url": "https://www.sensesofcinema.com/2017/feature-articles/toshiro-mifune-between-extravagance-and-subtlety/",
+      "kind": "essay",
+      "quote": "Although Mifune was cast in his first films as a gangster, Kurosawa was nevertheless always eager to broaden his acting horizons and offered him the role of a doctor in The Quiet Duel and in their last collaboration, Red Beard.",
+      "why": "Kurosawa pushed Mifune beyond his brute typecasting, bookending the partnership with doctor roles."
+    },
+    {
+      "critic": "Owen Gleiberman",
+      "publication": "Variety",
+      "via": null,
+      "title": "Film Review: 'Mifune: The Last Samurai'",
+      "date": "2016-11-26",
+      "url": "https://variety.com/2016/film/reviews/mifune-the-last-samurai-review-toshiro-mifune-1201926856/",
+      "kind": "review",
+      "quote": "The documentary summons a few haunting moments when it confronts the dissolution of Mifune and Kurosawa’s partnership after they had made 16 films together, a quiet breakup that wound up wrecking Kurosawa’s career far more than it did Mifune’s.",
+      "why": "Argues the split hurt the director more than the actor, against the usual story."
+    },
+    {
+      "critic": "Allen Gaborro",
+      "publication": "Eclectica Magazine",
+      "via": null,
+      "title": "The Emperor and the Wolf (review)",
+      "date": "2002",
+      "url": "https://www.eclectica.org/v6n4/gaborro.html",
+      "kind": "review",
+      "quote": "Incredibly, Kurosawa and Mifune never worked as director and actor again after Red Beard in 1965. Mifune's launch of his own movie production company created an artistic and personal estrangement between the two men that would not be breached for the rest of their lives.",
+      "why": "Puts the rupture down to Mifune's independence, his own production company (via Galbraith's book)."
+    }
+  ],
+  "reading": [
+    { "title": "Who’s That Man? Mifune at 100", "author": null, "publication": "The Criterion Collection", "date": null, "url": "https://www.criterion.com/current/posts/6879-who-s-that-man-mifune-at-100", "paywalled": true },
+    { "title": "The Courage of Compassion – Akira Kurosawa’s Red Beard", "author": "Karthick Ram Manoharan", "publication": "Offscreen", "date": "2020-12", "url": "https://offscreen.com/view/The_Courage_of_Compassion_Akira_Kurosawas_Red_Beard", "paywalled": false }
+  ],
+  "notes": "Criterion's 'Mifune at 100' blocked automated fetching (JS challenge), so it's listed unread. The Offscreen essay is readable, but its partnership passages mostly relay Galbraith and Richie. The Far Out and blogathon pieces were skipped as low-grade."
+}

@@ -1,0 +1,63 @@
+{
+  "pair": ["Ingmar Bergman", "Max von Sydow"],
+  "tmdb_ids": [6648, 2201],
+  "clippings": [
+    {
+      "speaker": "Max von Sydow",
+      "about": "Ingmar Bergman",
+      "quote": "Whatever good I have done on screen I owe to him.",
+      "film": null,
+      "said_year": 2013,
+      "publication": "Los Angeles Times",
+      "via": "Portland Press Herald",
+      "title": "Max von Sydow, star of Bergman films, 'The Exorcist,' dies at 90",
+      "date": "2020-03-09",
+      "url": "https://www.pressherald.com/2020/03/09/max-von-sydow-star-of-bergman-films-the-exorcist-dies-at-90/",
+      "context": "Said in a 2013 interview and quoted in his 2020 obituary (the obituary's author is Nardine Saad).",
+      "secondhand": true
+    },
+    {
+      "speaker": "Max von Sydow",
+      "about": "Ingmar Bergman",
+      "quote": "I've heard from Bergman many times.",
+      "film": "The Seventh Seal",
+      "said_year": 2012,
+      "publication": "Charlie Rose",
+      "via": "Legal Insurrection",
+      "title": "Video: Actor Max von Sydow Says He Has 'Heard From' Deceased Director Ingmar Bergman Many Times",
+      "date": "2012",
+      "url": "https://legalinsurrection.com/2019/10/video-actor-max-von-sydow-says-he-has-heard-from-deceased-director-ingmar-bergman-many-times/",
+      "context": "Answering Charlie Rose, who asked about a friend who doubted an afterlife; von Sydow recalled the two discussing religion on the Seventh Seal set.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Max von Sydow",
+      "about": "Ingmar Bergman",
+      "quote": "I was very discouraged, I remember, because the Knight in the play didn't say a word",
+      "film": "The Seventh Seal",
+      "said_year": null,
+      "publication": "Sight and Sound",
+      "via": null,
+      "title": "Max von Sydow: Bergman and beyond",
+      "date": "2005",
+      "url": "https://www.bfi.org.uk/sight-and-sound/features/max-von-sydow-bergman-beyond",
+      "context": "Recalling his reaction when Bergman cast him as the Knight rather than the role he expected in The Seventh Seal; the article's interview date is not given.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Ingmar Bergman",
+      "about": "Max von Sydow",
+      "quote": "In private, he was rather shy and quiet, but on stage he had an absolute command of a part and of his audience.",
+      "film": null,
+      "said_year": null,
+      "publication": "Sight and Sound",
+      "via": null,
+      "title": "Max von Sydow: Bergman and beyond",
+      "date": "2005",
+      "url": "https://www.bfi.org.uk/sight-and-sound/features/max-von-sydow-bergman-beyond",
+      "context": "Bergman's remark to film historian Peter Cowie, as quoted in a BFI feature; the year of the Cowie interview is not given.",
+      "secondhand": true
+    }
+  ],
+  "notes": "Von Sydow's Bergman quotes come mostly via secondary pages; the Charlie Rose transcript and the Times interview were not reachable in original form, and the BFI and Bergman Foundation pages gave no dates for some remarks, so those were skipped. Criterion (403) was blocked and the Golden Globes page 404'd. Direction thin toward Bergman: only one usable quote about von Sydow."
+}

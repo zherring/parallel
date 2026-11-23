@@ -1,0 +1,49 @@
+{
+  "pair": ["John Lasseter", "Randy Newman"],
+  "tmdb_ids": [7879, 7885],
+  "clippings": [
+    {
+      "speaker": "John Lasseter",
+      "about": "Randy Newman",
+      "quote": "It’s got a great emotional arc. It’s exactly what we’re looking for.",
+      "film": "Cars 3",
+      "said_year": 2017,
+      "publication": "Variety",
+      "via": null,
+      "title": "Composer Randy Newman Drives Huge Orchestra for 'Cars 3' Score",
+      "date": "2017-06-14",
+      "url": "https://variety.com/2017/artisans/production/composer-randy-newman-cars-3-1202465106/",
+      "context": "Said to Newman in the booth at a Cars 3 recording session, which Variety attended, after Lasseter arrived halfway through.",
+      "secondhand": false
+    },
+    {
+      "speaker": "John Lasseter",
+      "about": "Randy Newman",
+      "quote": "He never speaks down to an audience in either the songs or the score. It’s always from an adult point of view.",
+      "film": null,
+      "said_year": 2001,
+      "publication": "LA Weekly",
+      "via": null,
+      "title": "White Man With Attitude",
+      "date": "2001-11-21",
+      "url": "https://www.laweekly.com/white-man-with-attitude/",
+      "context": "Lasseter, a Pixar director and frequent co-worker, explaining in a profile why he chose Newman to score kid-oriented films.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Randy Newman",
+      "about": "John Lasseter",
+      "quote": "Lasseter was also involved. He was a first-time director but he had definite opinions about things. If I disagreed, I’d tell him I did.",
+      "film": "Monsters, Inc.",
+      "said_year": 2009,
+      "publication": "Animated Views",
+      "via": null,
+      "title": "Monsters, Inc.'s Composer Randy Newman: “I score because I care!”",
+      "date": "2009-11-13",
+      "url": "https://animatedviews.com/2009/monsters-inc-s-composer-randy-newman-i-score-because-i-care/",
+      "context": "Interview by Jérémie Noyer, answering how he worked with Pete Docter on Monsters, Inc.; Newman describes the director's role on the score.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Newman-about-Lasseter is thin: the WOUB 2016 line is junket-level and the Ringer and Oscar speech quotes are not about Newman, so only one usable quote. Skipped the UDiscover citation of a 2001 LA Times quote because the original headline could not be confirmed. The Princess and the Frog DVD interview has no transcript."
+}

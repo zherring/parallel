@@ -1,0 +1,63 @@
+{
+  "pair": ["John Ford", "John Wayne"],
+  "tmdb_ids": [8500, 4165],
+  "clippings": [
+    {
+      "speaker": "John Wayne",
+      "about": "John Ford",
+      "quote": "\"I think [Ford] would have been the finest painter in the country,\" he said, \"because he knew how to use his paint. His people, his compositions were all magnificent…\"",
+      "film": null,
+      "said_year": 1976,
+      "publication": "Jim Whaley interview",
+      "via": "SlashFilm",
+      "title": "What Made John Ford So Special, According To John Wayne",
+      "date": "1976",
+      "url": "https://www.slashfilm.com/1926681/john-wayne-john-ford-special/",
+      "context": "Asked by Jim Whaley in 1976 what set Ford apart from other directors; the original interview outlet is not named in the reprint, so this is secondhand.",
+      "secondhand": true
+    },
+    {
+      "speaker": "John Wayne",
+      "about": "John Ford",
+      "quote": "\"I know he planned it that way. He has a way of picking on actors when they're not too important a part of a scene in order to get them on their toes. So, they'll come in ready when they really have something to do, and then he handles you like a baby.\"",
+      "film": "Stagecoach",
+      "said_year": 1971,
+      "publication": "Directed by John Ford",
+      "via": "SlashFilm",
+      "title": "Why John Wayne And John Ford Briefly Clashed On The Set Of Stagecoach",
+      "date": "1971",
+      "url": "https://www.slashfilm.com/1893377/john-wayne-john-ford-clash-stagecoach-set/",
+      "context": "Wayne, asked whether Ford was deliberately riding him on the Stagecoach set, in Peter Bogdanovich's documentary Directed by John Ford; quoted from a SlashFilm clip transcription, so secondhand.",
+      "secondhand": true
+    },
+    {
+      "speaker": "John Wayne",
+      "about": "John Ford",
+      "quote": "\"it's just a wonderful picture. You got great performances out of everyone, and it has a raw brutalness without any pettiness or meanness.\"",
+      "film": "The Searchers",
+      "said_year": 1956,
+      "publication": "Letter to John Ford",
+      "via": "SlashFilm",
+      "title": "What Made John Ford So Special, According To John Wayne",
+      "date": "1956",
+      "url": "https://www.slashfilm.com/1926681/john-wayne-john-ford-special/",
+      "context": "Wayne's letter to Ford after seeing The Searchers, as quoted by SlashFilm; a private letter, so secondhand.",
+      "secondhand": true
+    },
+    {
+      "speaker": "John Ford",
+      "about": "John Wayne",
+      "quote": "\"God knows I want you for the picture, but you mustn’t do it as a sacrifice to yourself,\" Ford wrote. \"… You have been doing that for me for too many years.\"",
+      "film": null,
+      "said_year": 1955,
+      "publication": "John Wayne Archives (letter)",
+      "via": "John Wayne Enterprises",
+      "title": "Duke's Pal, John Ford",
+      "date": "1955-12-07",
+      "url": "https://www.johnwayne.com/journal/duke/2019-2-13-dukes-pal-john-ford/",
+      "context": "Ford's letter of December 7, 1955, telling Wayne not to take a film as a sacrifice to their friendship; quoted from a John Wayne Enterprises article that cites the John Wayne Archives, so secondhand.",
+      "secondhand": true
+    }
+  ],
+  "notes": "Only four quotes; Ford-to-Wayne is thin (one letter). Skipped: the 1965 Ford line in Cowboys & Indians (page blocked by Cloudflare), the 1968 Ford interview on Cheatsheet (sourced only to a tweet), the Red River line (no primary source), and Collider's They Were Expendable anecdote (fetch failed). The Whaley 1976 original outlet is unidentified."
+}

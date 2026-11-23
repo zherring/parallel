@@ -1,0 +1,55 @@
+{
+  "pair": [
+    "Robert De Niro",
+    "Leonardo DiCaprio"
+  ],
+  "tmdb_ids": [
+    380,
+    6193
+  ],
+  "clippings": [
+    {
+      "speaker": "Leonardo DiCaprio",
+      "about": "Robert De Niro",
+      "quote": "But it was really watching Bob, in a lot of ways, watching De Niro prepare.",
+      "film": "This Boy's Life",
+      "said_year": 2014,
+      "publication": "CBS News",
+      "via": null,
+      "title": "Extended transcript: Leonardo DiCaprio",
+      "date": "2014-02-16",
+      "url": "https://www.cbsnews.com/news/extended-transcript-leonardo-dicaprio/",
+      "context": "Sunday Morning interview, explaining what he learned on the set of This Boy's Life from watching De Niro work.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Leonardo DiCaprio",
+      "about": "Robert De Niro",
+      "quote": "That's the thing about Bob. He doesn't say much, but when he does, it matters.",
+      "film": null,
+      "said_year": 2025,
+      "publication": "People",
+      "via": "Yahoo Entertainment",
+      "title": "Leonardo DiCaprio Says Robert De Niro 'Changed My Life' in Emotional Speech Honoring the Legendary Star at Cannes",
+      "date": "2025-05-13",
+      "url": "https://www.yahoo.com/entertainment/articles/leonardo-dicaprio-says-robert-niro-194520340.html",
+      "context": "Speech presenting De Niro with the honorary Palme d'Or at the opening of the 2025 Cannes Film Festival.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Robert De Niro",
+      "about": "Leonardo DiCaprio",
+      "quote": "I just said, 'That kid had something special,' and then they turned around and wound up using Leo…",
+      "film": "This Boy's Life",
+      "said_year": 2024,
+      "publication": "People",
+      "via": "Yahoo Entertainment",
+      "title": "Robert De Niro Says He Knew Leonardo DiCaprio Had 'Something Special' When They Met 30 Years Ago (Exclusive)",
+      "date": "2024-02-11",
+      "url": "https://www.yahoo.com/entertainment/robert-niro-says-knew-leonardo-130000830.html",
+      "context": "Recalling the 1993 audition: he told producer Art Linson about DiCaprio after meeting him for This Boy's Life.",
+      "secondhand": false
+    }
+  ],
+  "notes": "De Niro-to-DiCaprio is thin: only one fetched exchange (People, Feb 2024); Rolling Stone, Deadline Q&A and Variety pages were paywalled or redirected to blocked tollbit hosts (402). Several famous lines (Variety 'never got over', 'I was the one who said you should get the job') were only seen in aggregators, so skipped."
+}

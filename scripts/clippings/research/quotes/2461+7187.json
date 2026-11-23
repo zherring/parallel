@@ -1,0 +1,91 @@
+{
+  "pair": ["Richard Donner", "Mel Gibson"],
+  "tmdb_ids": [7187, 2461],
+  "clippings": [
+    {
+      "speaker": "Richard Donner",
+      "about": "Mel Gibson",
+      "quote": "What came out of Mel’s character was this rage and his ability to do almost anything out of the rage.",
+      "film": "Lethal Weapon",
+      "said_year": 2006,
+      "publication": "Empire",
+      "via": "Scraps from the Loft",
+      "title": "In Conversation with Richard Donner, Director (2006)",
+      "date": "2006-06",
+      "url": "https://scrapsfromtheloft.com/movies/in-conversation-with-richard-donner-director-2006/",
+      "context": "Empire interview (June 2006), on how Gibson's Riggs was built out of rage.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Richard Donner",
+      "about": "Mel Gibson",
+      "quote": "That came straight from Mel, he hired me.",
+      "film": "Maverick",
+      "said_year": 2006,
+      "publication": "Empire",
+      "via": "Scraps from the Loft",
+      "title": "In Conversation with Richard Donner, Director (2006)",
+      "date": "2006-06",
+      "url": "https://scrapsfromtheloft.com/movies/in-conversation-with-richard-donner-director-2006/",
+      "context": "Empire interview (June 2006), on how Gibson brought him in to direct Maverick.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Richard Donner",
+      "about": "Mel Gibson",
+      "quote": "I wanted Mel to be in Ladyhawke and that didn’t happen, and then I had a wonderful film called Shanghai Tango that I was going to do with Mel and Debra Winger.",
+      "film": "Ladyhawke",
+      "said_year": 2006,
+      "publication": "Empire",
+      "via": "Scraps from the Loft",
+      "title": "In Conversation with Richard Donner, Director (2006)",
+      "date": "2006-06",
+      "url": "https://scrapsfromtheloft.com/movies/in-conversation-with-richard-donner-director-2006/",
+      "context": "Empire interview (June 2006), on two earlier film projects with Gibson that fell through.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Mel Gibson",
+      "about": "Richard Donner",
+      "quote": "We commissioned a writer [William Goldman] and took it to Donner and he fell in.",
+      "film": "Maverick",
+      "said_year": 1994,
+      "publication": "Baltimore Sun",
+      "via": null,
+      "title": "Mel Gibson is gambling on ‘Maverick’",
+      "date": "1994-05-20",
+      "url": "https://www.baltimoresun.com/1994/05/20/mel-gibson-is-gambling-on-maverick/",
+      "context": "Stephen Hunter profile from a New York press day for Maverick, on how the project reached Donner.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Mel Gibson",
+      "about": "Richard Donner",
+      "quote": "Donner, God rest his soul, he said to me in this deep voice, he said, 'Hey, kid, if I drop off the perch, you'll take this over, won't you?' I said, 'Shut up! You're not going anywhere.'",
+      "film": "Lethal Weapon",
+      "said_year": 2026,
+      "publication": "Collider",
+      "via": "Yahoo News UK",
+      "title": "Mel Gibson Says ‘Lethal Weapon 5’ Is Stuck in ‘Some Kind of Industrial Film Hell’ Even Though the ‘Script Is Better Than All the Others’",
+      "date": "2026-08",
+      "url": "https://uk.news.yahoo.com/mel-gibson-says-lethal-weapon-140252476.html",
+      "context": "Gibson's Collider interview at Fan Expo Boston (Aug 2026), recalling Donner's request that he direct Lethal Weapon 5; Collider itself was not opened directly.",
+      "secondhand": true
+    },
+    {
+      "speaker": "Mel Gibson",
+      "about": "Richard Donner",
+      "quote": "He left his ego at the door and required that of others.",
+      "film": "Lethal Weapon",
+      "said_year": 2021,
+      "publication": "Deadline",
+      "via": "Movies In Focus",
+      "title": "Mel Gibson Talks About His Friend & Mentor, Richard Donner",
+      "date": "2021-07",
+      "url": "https://www.moviesinfocus.com/mel-gibson-talks-about-his-friend-mentor-richard-donner/",
+      "context": "Gibson's statement to Deadline after Donner's death in July 2021, reprinted by Movies In Focus.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Empire's 2026 reunion piece returned HTTP 402 and Deadline redirects to a paywall, so both were skipped. The Donner quotes come from one long 2006 interview, so the set leans on one source."
+}

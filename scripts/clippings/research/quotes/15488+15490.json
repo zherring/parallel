@@ -1,0 +1,77 @@
+{
+  "pair": ["Ken Loach", "Paul Laverty"],
+  "tmdb_ids": [15488, 15490],
+  "clippings": [
+    {
+      "speaker": "Paul Laverty",
+      "about": "Ken Loach",
+      "quote": "He directs and I write, but we meet in the middle as filmmakers.",
+      "film": "Sorry We Missed You",
+      "said_year": 2020,
+      "publication": "Script Magazine",
+      "via": null,
+      "title": "INTERVIEW: \"Sorry We Missed You\" Screenwriter Paul Laverty",
+      "date": "2020-03-10",
+      "url": "https://scriptmag.com/interviews-features/interview-sorry-we-missed-you-screenwriter-paul-laverty",
+      "context": "Laverty on how the writing and directing split works in their partnership, in an interview about Sorry We Missed You.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Paul Laverty",
+      "about": "Ken Loach",
+      "quote": "I feed the lines and Ken tells the jokes.",
+      "film": null,
+      "said_year": 2023,
+      "publication": "SWI swissinfo.ch",
+      "via": null,
+      "title": "Ken Loach and Paul Laverty, men of the people: 'Hope is political'",
+      "date": "2023-08-14",
+      "url": "https://www.swissinfo.ch/eng/culture/ken-loach-and-paul-laverty-men-of-the-people-hope-is-political/48733596",
+      "context": "Laverty describing how the two split their roles in a joint interview; the article says they have worked together since 1996.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Paul Laverty",
+      "about": "Ken Loach",
+      "quote": "I've already dragged him into his mid-80s to do these last three features",
+      "film": "The Old Oak",
+      "said_year": 2023,
+      "publication": "The Skinny",
+      "via": null,
+      "title": "Scotland on Screen: Paul Laverty on The Old Oak",
+      "date": "2023-09-28",
+      "url": "https://www.theskinny.co.uk/film/interviews/paul-laverty-old-oak-ken-loach",
+      "context": "Laverty, self-deprecatingly, on asking Loach to keep making films into his mid-80s across the Daniel Blake, Sorry We Missed You and The Old Oak run.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Ken Loach",
+      "about": "Paul Laverty",
+      "quote": "What's in Paul's script, with great delicacy, is that struggle between despair and hope.",
+      "film": "The Old Oak",
+      "said_year": 2023,
+      "publication": "Socialist Worker",
+      "via": null,
+      "title": "'Hope isn't just wishful thinking'—an interview with Ken Loach",
+      "date": "2023-09-17",
+      "url": "https://socialistworker.co.uk/in-depth/hope-isnt-just-wishful-thinking-an-interview-with-ken-loach/",
+      "context": "Loach on what Laverty's script for The Old Oak achieves, in an interview published in Socialist Worker issue 2873.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Ken Loach",
+      "about": "Paul Laverty",
+      "quote": "Paul always writes complex characters.",
+      "film": "The Old Oak",
+      "said_year": 2023,
+      "publication": "Festival de Cannes",
+      "via": null,
+      "title": "The Old Oak, interview with Ken Loach and Paul Laverty",
+      "date": "2023-10-24",
+      "url": "https://www.festival-cannes.com/en/2023/the-old-oak-interview-with-ken-loach-and-paul-laverty/",
+      "context": "Loach, in a joint interview at the film's release, on Laverty's writing of characters.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Direction Laverty to Loach has three; Loach to Laverty only two, and the Swissinfo Loach joke was cut as part of the same exchange. Deadline and Jacobin were paywalled, RogerEbert returned 403, and Film Stage gave only thin material. Quotes were taken from summarised fetch excerpts, so check them against the pages before merge."
+}

@@ -1,0 +1,77 @@
+{
+  "pair": ["Christopher Nolan", "Christian Bale"],
+  "tmdb_ids": [525, 3894],
+  "clippings": [
+    {
+      "speaker": "Christian Bale",
+      "about": "Christopher Nolan",
+      "quote": "He represents the audience for us on the set.",
+      "film": "The Dark Knight Rises",
+      "said_year": 2012,
+      "publication": "Collider",
+      "via": null,
+      "title": "Christian Bale THE DARK KNIGHT RISES Interview",
+      "date": "2012-05-28",
+      "url": "https://collider.com/christian-bale-the-dark-knight-rises-interview/",
+      "context": "Bale explaining, on the Dark Knight Rises shoot, why he values Nolan's sense of how the audience will react.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Christian Bale",
+      "about": "Christopher Nolan",
+      "quote": "That's exactly the thing that I need, he's very firm with it.",
+      "film": "The Dark Knight Rises",
+      "said_year": 2012,
+      "publication": "Collider",
+      "via": null,
+      "title": "Christian Bale THE DARK KNIGHT RISES Interview",
+      "date": "2012-05-28",
+      "url": "https://collider.com/christian-bale-the-dark-knight-rises-interview/",
+      "context": "Bale describing how Nolan answers his offers of alternative takes on a scene, in a 2012 interview about The Dark Knight Rises.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Christian Bale",
+      "about": "Christopher Nolan",
+      "quote": "And if he wished to tell that story with me, I'd be in.",
+      "film": null,
+      "said_year": 2022,
+      "publication": "AV Club",
+      "via": null,
+      "title": "Christian Bale says he'd play Batman again—but only if Christopher Nolan is the director",
+      "date": "2022-06-27",
+      "url": "https://www.avclub.com/christian-bale-batman-christopher-nolan-1849113275",
+      "context": "Bale on whether he would return as Batman, saying he would only come back if Nolan had a story he wanted to tell with him.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Christopher Nolan",
+      "about": "Christian Bale",
+      "quote": "He is the first to acknowledge the inherent ridiculousness of what an actor has to do sometimes.",
+      "film": "Batman Begins",
+      "said_year": 2012,
+      "publication": "ABC News",
+      "via": null,
+      "title": "'We're Done': Christopher Nolan Says Ending 'Batman' Trilogy Was 'Emotional'",
+      "date": "2012-07-06",
+      "url": "https://abcnews.com/Entertainment/christopher-nolan-ending-batman-trilogy-emotional/story?id=16727194",
+      "context": "Nolan, at the close of the Batman trilogy in 2012, praising Bale for taking the work seriously without taking himself too seriously.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Christopher Nolan",
+      "about": "Christian Bale",
+      "quote": "I think that what Christian figured out from the script, and what we were able to put into the story was that by the end of the film, I think he makes the film very much his own.",
+      "film": "The Dark Knight",
+      "said_year": 2008,
+      "publication": "Collider",
+      "via": null,
+      "title": "Christopher Nolan Interview",
+      "date": "2008-07-20",
+      "url": "https://collider.com/christopher-nolan-interview-the-dark-knight/",
+      "context": "Nolan in a 2008 interview about The Dark Knight, saying Bale made the film his own by its end.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Two Nolan quotes and the Bale quotes came through a summarizing fetch with a 125-character cap, so re-check wording on the live pages before publishing. Variety, Empire and THR were paywalled or redirected and skipped; NPR timed out. Nolan on Bale is thin, with only the 2008 and 2012 interviews usable."
+}

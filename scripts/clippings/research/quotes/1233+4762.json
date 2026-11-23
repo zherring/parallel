@@ -1,0 +1,91 @@
+{
+  "pair": ["Paul Thomas Anderson", "Philip Seymour Hoffman"],
+  "tmdb_ids": [4762, 1233],
+  "clippings": [
+    {
+      "speaker": "Paul Thomas Anderson",
+      "about": "Philip Seymour Hoffman",
+      "quote": "It’s nice because you’re really writing for somebody that you know.",
+      "film": "Boogie Nights",
+      "said_year": null,
+      "publication": "BAM Cinematek Q&A",
+      "via": "Cigarettes & Red Vines",
+      "title": "Interview: BAM Q&A",
+      "date": "2003-06-23",
+      "url": "https://cigsandredvines.blogspot.com/2003/06/interview-bam-q.html",
+      "context": "Answering a Village Voice moderator's question about the pair's working relationship at a BAM Q&A after a Punch-Drunk Love screening; event date not on the page, date is the transcript post date.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Paul Thomas Anderson",
+      "about": "Philip Seymour Hoffman",
+      "quote": "There was a different showdown where Phil came to Los Angeles. So we shot a whole ten-minute scene where Phil’s character comes down to find Adam’s character and smashes his harmonium.",
+      "film": "Punch-Drunk Love",
+      "said_year": null,
+      "publication": "BAM Cinematek Q&A",
+      "via": "Cigarettes & Red Vines",
+      "title": "Interview: BAM Q&A",
+      "date": "2003-06-23",
+      "url": "https://cigsandredvines.blogspot.com/2003/06/interview-bam-q.html",
+      "context": "Answering a question about how the script changed in the making of Punch-Drunk Love, describing a first version of the confrontation scene that was later rewritten; event date not on the page.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Paul Thomas Anderson",
+      "about": "Philip Seymour Hoffman",
+      "quote": "I found this actor who I just think can do anything. And I - he's capable of so much that you can throw anything at him.",
+      "film": "The Master",
+      "said_year": 2012,
+      "publication": "Fresh Air",
+      "via": null,
+      "title": "The Fresh Air Interview: Paul Thomas Anderson, The Man Behind 'The Master'",
+      "date": "2012-10-02",
+      "url": "https://www.npr.org/transcripts/162153952",
+      "context": "Said to Terry Gross on Fresh Air about casting Hoffman as the cult leader Lancaster Dodd; date taken from the NPR article URL.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Philip Seymour Hoffman",
+      "about": "Paul Thomas Anderson",
+      "quote": "The good thing is that when he writes for me there is a certain knowledge he has of who I am that he’s trying to put there.",
+      "film": null,
+      "said_year": null,
+      "publication": "BAM Cinematek Q&A",
+      "via": "Cigarettes & Red Vines",
+      "title": "Interview: BAM Q&A",
+      "date": "2003-06-23",
+      "url": "https://cigsandredvines.blogspot.com/2003/06/interview-bam-q.html",
+      "context": "Answering a question about the pair's working relationship at a BAM Q&A, on how writing parts for him works; event date not on the page.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Philip Seymour Hoffman",
+      "about": "Paul Thomas Anderson",
+      "quote": "And Paul was really helpful the whole way through. He was cautious at first when I brought in what I did, and then we just nurtured it together.",
+      "film": "Boogie Nights",
+      "said_year": 1999,
+      "publication": "Fresh Air",
+      "via": null,
+      "title": "Actor Philip Hoffman",
+      "date": "1999-11-30",
+      "url": "https://freshairarchive.org/segments/actor-philip-hoffman",
+      "context": "Said to Terry Gross on Fresh Air about building the voice and character of Scotty; the interview first aired Nov. 30, 1999 and was rebroadcast Oct. 11, 2002.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Philip Seymour Hoffman",
+      "about": "Paul Thomas Anderson",
+      "quote": "I didn’t know we were going to reshoot it till Paul called me saying we’re going to redo it, but I understood pretty quickly why we had to.",
+      "film": "Punch-Drunk Love",
+      "said_year": null,
+      "publication": "BAM Cinematek Q&A",
+      "via": "Cigarettes & Red Vines",
+      "title": "Interview: BAM Q&A",
+      "date": "2003-06-23",
+      "url": "https://cigsandredvines.blogspot.com/2003/06/interview-bam-q.html",
+      "context": "Answering a question about playing against Adam Sandler in Punch-Drunk Love, on the reshot confrontation scene; event date not on the page.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Three quotes each way; the BAM Q&A transcript (cigsandredvines.blogspot.com) supplied four, Fresh Air 1999 and NPR 2012 the rest. The BAM event date isn't on the page, so the date is the transcript post date. Esquire 'incomparable' quote appeared only in search snippets, not fetched, so left out."
+}
