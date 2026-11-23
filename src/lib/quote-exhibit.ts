@@ -75,6 +75,23 @@ export function quotePaneCanScroll(pane: { scrollTop: number; scrollHeight: numb
   return backwards ? pane.scrollTop > 1 : pane.scrollHeight - pane.clientHeight - pane.scrollTop > 1;
 }
 
+/** How much further than its text pane could scroll a finger has to go for the swipe to move the deck on. */
+export const PANE_SWIPE_LEFTOVER = 48;
+
+/**
+ * A finger swiped a quote's text pane that had room to scroll: the browser gives that whole touch to the pane, so the deck does not
+ * move however far the finger goes, and a pane with a few pixels of room would swallow every swipe that starts on it. This says
+ * what the deck should do when the finger lifts: 1 for the next quote, -1 for the one before, 0 to stay. `travel` is how far the
+ * finger went (px, positive upwards: the way that shows what is below) and the pane is as it was when the touch began. The swipe
+ * moves the deck when it went 48px further than the pane had left to scroll that way; less is reading the pane.
+ */
+export function paneSwipeAdvance(travel: number, pane: { scrollTop: number; scrollHeight: number; clientHeight: number }): -1 | 0 | 1 {
+  if (travel === 0) return 0;
+  const room = travel > 0 ? Math.max(0, pane.scrollHeight - pane.clientHeight - pane.scrollTop) : Math.max(0, pane.scrollTop);
+  if (Math.abs(travel) - room < PANE_SWIPE_LEFTOVER) return 0;
+  return travel > 0 ? 1 : -1;
+}
+
 interface ExhibitKey {
   key: string;
   shiftKey?: boolean;

@@ -14,6 +14,9 @@ import {
 import { createPortal } from "react-dom";
 import { pickOpener } from "@/lib/panel-opener";
 import { trapTab, useModalPage } from "./modal-page";
+import { SHEET_BACKDROP_CLASS, SHEET_GRABBER_CLASS, prefersReducedMotion, sidePanelEdge, slideSheetIn, slideSheetOut } from "./sheet";
+import { useSwipeDismiss } from "./use-swipe-dismiss";
+import { useSwipeStep, type PanelStepper } from "./use-swipe-step";
 
 const TRIGGER_SELECTOR = "button, a[href], [role='button'], [tabindex]";
 
@@ -116,6 +119,11 @@ export interface SidePanelProps {
   /** The panel was closed: it slides out (and the page is the visitor's again at once), then `onExited` removes it. See `useSlideOut`. */
   closing?: boolean;
   onExited?: () => void;
+  /**
+   * What comes before and after the content (a film's details: the film before, the film after): the header gets Previous and Next,
+   * and a phone's sheet can be swiped sideways to them (`useSwipeStep`). Stepping changes the content in the same dialog.
+   */
+  stepper?: PanelStepper;
   /** The content, with the heading id to name the dialog by and the scroll container. */
   children: (slots: SidePanelSlots) => ReactNode;
 }
@@ -126,7 +134,8 @@ export interface SidePanelProps {
  * (md and up) or from the bottom, over a dimmed backdrop. It slides in and, once `closing`, back out
  * (neither for visitors who prefer reduced motion), takes focus, makes the rest of the page inert and
  * locks its scroll, closes on Esc or a click on the backdrop and hands focus back to the control that
- * opened it, as soon as it starts to slide away.
+ * opened it, as soon as it starts to slide away. A finger can also drag it away the way it came (down, or
+ * to the right): it follows the touch and closes when let go far enough or flicked (`useSwipeDismiss`).
  */
 export function SidePanel(props: SidePanelProps) {
   const mounted = useSyncExternalStore(
@@ -138,7 +147,7 @@ export function SidePanel(props: SidePanelProps) {
   return createPortal(<SidePanelDialog {...props} />, document.body);
 }
 
-function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing = false, onExited, children }: SidePanelProps) {
+function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing = false, onExited, stepper, children }: SidePanelProps) {
   const titleId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -157,34 +166,25 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
   // Slide in from the right (md and up) or up from the bottom, and fade the backdrop. Skipped entirely
   // for visitors who prefer reduced motion.
   useLayoutEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const fromSide = window.matchMedia("(min-width: 48rem)").matches;
-    backdropRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], {
-      duration: 180,
-      easing: "ease-out",
-    });
-    panelRef.current?.animate(
-      [{ transform: fromSide ? "translateX(100%)" : "translateY(100%)" }, { transform: "none" }],
-      { duration: 240, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
-    );
+    if (!prefersReducedMotion()) slideSheetIn(panelRef.current, backdropRef.current, sidePanelEdge());
   }, []);
+
+  // A finger can drag it away the way it came; let go far enough, it closes like any other way of closing it.
+  const flung = useSwipeDismiss({ panelRef, backdropRef, edge: sidePanelEdge, enabled: !closing, onDismiss: () => onCloseRef.current() });
+
+  // What it shows can be swiped sideways to what comes before or after it, where there is such a thing (a phone's sheet only).
+  useSwipeStep({ panelRef, contentRef: scrollRef, contentKey, enabled: !closing, stepper });
 
   // And back out the way it came when it is closed (X, Escape, a press outside, or the parent letting go of the content).
   // The dialog stays until the animation ends and `onExited` removes it; with reduced motion that is at once.
   useLayoutEffect(() => {
     if (!closing) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (prefersReducedMotion()) {
       onExitedRef.current?.();
       return;
     }
-    const toSide = window.matchMedia("(min-width: 48rem)").matches;
-    const animations = [
-      backdropRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: "ease-in", fill: "forwards" }),
-      panelRef.current?.animate(
-        [{ transform: "none" }, { transform: toSide ? "translateX(100%)" : "translateY(100%)" }],
-        { duration: 200, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" },
-      ),
-    ].filter((animation) => animation !== undefined);
+    // From where it is: at rest, or where a finger left it (`slideSheetOut`).
+    const animations = slideSheetOut(panelRef.current, backdropRef.current, sidePanelEdge(), flung.current);
     let cancelled = false;
     // A cancelled animation (reopened, unmounted) rejects: nothing to do then.
     Promise.all(animations.map((animation) => animation.finished)).then(
@@ -197,7 +197,7 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
       cancelled = true;
       animations.forEach((animation) => animation.cancel());
     };
-  }, [closing]);
+  }, [closing, flung]);
 
   // Focus in on open. This must run before the inert effect below: making the page inert blurs
   // whatever has focus, so the opener has to be read first. Focus goes to the scroll container, not
@@ -252,7 +252,7 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
         ref={backdropRef}
         aria-hidden="true"
         onClick={onClose}
-        className="absolute inset-0 bg-black/70"
+        className={`absolute inset-0 ${SHEET_BACKDROP_CLASS}`}
       />
       <div
         ref={panelRef}
@@ -262,10 +262,32 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
         aria-busy={busy || undefined}
         tabIndex={-1}
         onKeyDown={(event) => trapTab(event, panelRef.current, scrollRef.current)}
-        className="absolute inset-x-0 bottom-0 flex max-h-[90dvh] flex-col rounded-t-2xl border-t border-border bg-canvas shadow-2xl shadow-black/60 outline-none! md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-[30rem] md:rounded-none md:border-l md:border-t-0"
+        className="absolute inset-x-0 bottom-0 flex max-h-[90dvh] flex-col rounded-t-2xl border-t border-border bg-canvas shadow-2xl shadow-black/60 outline-none! max-md:overflow-x-clip md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-[30rem] md:rounded-none md:border-l md:border-t-0"
       >
+        {/* The bottom sheet's grabber: it can be pulled down from anywhere, and this says so. */}
+        <span aria-hidden="true" data-side-panel-grabber className={`${SHEET_GRABBER_CLASS} top-1.5 md:hidden`} />
         <div className="flex shrink-0 items-center justify-between border-b border-border py-1.5 pl-4 pr-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</span>
+          {stepper && (
+            <span className="ml-auto mr-1 flex items-center">
+              {(["prev", "next"] as const).map((way) => (
+                <button
+                  key={way}
+                  type="button"
+                  // Not `disabled` at an end: the button would drop focus (and the dialog's Tab order) under someone stepping with the keyboard.
+                  aria-disabled={stepper[way] ? undefined : true}
+                  aria-label={way === "prev" ? stepper.prevLabel : stepper.nextLabel}
+                  title={way === "prev" ? stepper.prevLabel : stepper.nextLabel}
+                  onClick={() => stepper[way]?.()}
+                  className="flex h-9 w-9 items-center justify-center rounded-md text-body hover:bg-surface hover:text-strong aria-disabled:cursor-default aria-disabled:text-muted/40 aria-disabled:hover:bg-transparent"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                    <path d={way === "prev" ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"} />
+                  </svg>
+                </button>
+              ))}
+            </span>
+          )}
           <button
             type="button"
             onClick={onClose}

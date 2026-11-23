@@ -42,6 +42,7 @@ import {
   laneObstacles,
   makeScale,
   nextZoom,
+  pinchZoomStep,
   lineYInLane,
   nodeHitWidths,
   nodeY,
@@ -1479,5 +1480,34 @@ describe("the track of a frame in a post", () => {
     const held = packFilms(films, { ...options, maxRows: 1, capPriority: true });
     expect(rowCount(held)).toBe(1);
     expect(held.some((item) => item.overflow)).toBe(true);
+  });
+});
+
+describe("pinchZoomStep", () => {
+  it("stays on the step until the fingers are 60% of the way to the next", () => {
+    expect(pinchZoomStep(72, 72)).toBe(72);
+    expect(pinchZoomStep(72, 84)).toBe(72);
+    expect(pinchZoomStep(72, 87)).toBe(96);
+    expect(pinchZoomStep(72, 62)).toBe(72);
+    expect(pinchZoomStep(72, 61)).toBe(56);
+  });
+
+  it("goes as many steps as the fingers have", () => {
+    expect(pinchZoomStep(72, 144)).toBe(128);
+    expect(pinchZoomStep(72, 36)).toBe(40);
+    expect(pinchZoomStep(72, 1000)).toBe(200);
+    expect(pinchZoomStep(72, 1)).toBe(24);
+  });
+
+  it("does not flip back at the boundary it just crossed", () => {
+    // 72 -> 96 happens at about 85.6; back again only at about 80.8.
+    expect(pinchZoomStep(96, 84)).toBe(96);
+    expect(pinchZoomStep(96, 80)).toBe(72);
+  });
+
+  it("starts from the nearest step and ignores a target that is not a zoom", () => {
+    expect(pinchZoomStep(70, 70)).toBe(72);
+    expect(pinchZoomStep(72, 0)).toBe(72);
+    expect(pinchZoomStep(72, Number.NaN)).toBe(72);
   });
 });

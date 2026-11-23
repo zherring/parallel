@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { exhibitSpaceAction, nextExhibitIndex, quoteEm, quoteExhibitAttributedContext, quoteExhibitContextParts, quoteExhibitPeople, quoteExhibitQuoteSearch, quoteFit, quotePaneCanScroll } from "./quote-exhibit";
+import { exhibitSpaceAction, nextExhibitIndex, quoteEm, quoteExhibitAttributedContext, quoteExhibitContextParts, quoteExhibitPeople, quoteExhibitQuoteSearch, quoteFit, quotePaneCanScroll, paneSwipeAdvance } from "./quote-exhibit";
 import type { PairCritics } from "./critics";
 
 describe("the Quotes deck", () => {
@@ -132,5 +132,30 @@ describe("the lengths a quote's type is fitted from", () => {
   it("carries the lengths of the lines under the quote, which share its slide, as they are", () => {
     expect(quoteFit("A quote", 140, 60)).toMatchObject({ context: 140, source: 60 });
     expect(quoteFit("A quote")).toMatchObject({ context: 0, source: 0 });
+  });
+});
+
+describe("paneSwipeAdvance", () => {
+  // A pane with 20px of text below the fold and none above.
+  const pane = { scrollTop: 0, scrollHeight: 320, clientHeight: 300 };
+
+  it("moves the deck on when the finger went 48px further than the pane could scroll", () => {
+    expect(paneSwipeAdvance(68, pane)).toBe(1);
+    expect(paneSwipeAdvance(200, pane)).toBe(1);
+    expect(paneSwipeAdvance(-48, pane)).toBe(-1);
+  });
+
+  it("stays for a swipe that only reads the pane", () => {
+    expect(paneSwipeAdvance(67, pane)).toBe(0);
+    expect(paneSwipeAdvance(20, pane)).toBe(0);
+    expect(paneSwipeAdvance(-47, pane)).toBe(0);
+    expect(paneSwipeAdvance(0, pane)).toBe(0);
+  });
+
+  it("counts the room the way the finger went, from where the pane was", () => {
+    const scrolled = { ...pane, scrollTop: 20 };
+    expect(paneSwipeAdvance(48, scrolled)).toBe(1);
+    expect(paneSwipeAdvance(-67, scrolled)).toBe(0);
+    expect(paneSwipeAdvance(-68, scrolled)).toBe(-1);
   });
 });

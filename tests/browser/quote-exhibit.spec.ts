@@ -758,3 +758,38 @@ test("one image and credit stay stationary while quotes move, and portrait chang
   expect(await portraits.evaluateAll((images) => images.map((element) => element.getBoundingClientRect().toJSON()))).toEqual(boxes);
   await expect(backdrop(page)).toHaveCount(1);
 });
+
+test.describe("on a short phone, where a quote's text pane has a little room to scroll", () => {
+  test.use({ viewport: { width: 375, height: 548 }, hasTouch: true, isMobile: true });
+
+  test("a swipe that starts on the quote's text still moves the deck: the pane does not swallow it", async ({ page }) => {
+    await openExhibit(page, "/p/488-steven-spielberg+491-john-williams?view=clippings");
+    const plate = active(page).locator(".quote-exhibit-plate");
+    // The case: the browser gives a touch that starts here to the pane, however little it has to scroll.
+    expect(await plate.evaluate((pane) => pane.scrollHeight - pane.clientHeight)).toBeGreaterThan(1);
+    const box = (await plate.boundingBox())!;
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    const cdp = await page.context().newCDPSession(page);
+    const swipe = async (dy: number) => {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+      for (let step = 1; step <= 10; step++) {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: y + (dy * step) / 10 }] });
+        await page.waitForTimeout(12);
+      }
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    };
+
+    await swipe(-150);
+    await expect(active(page)).toHaveAttribute("aria-label", "Quote 2 of 17");
+    // The deck has come to rest on it before the next finger comes down.
+    await expect.poll(() => scroller(page).evaluate((deck) => deck.scrollTop)).toBe(548);
+    await swipe(-150);
+    await expect(active(page)).toHaveAttribute("aria-label", "Quote 3 of 17");
+    await expect.poll(() => scroller(page).evaluate((deck) => deck.scrollTop)).toBe(1096);
+    // A short drag is reading the pane: the deck stays.
+    await swipe(-30);
+    await page.waitForTimeout(400);
+    await expect(active(page)).toHaveAttribute("aria-label", "Quote 3 of 17");
+  });
+});

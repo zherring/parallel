@@ -3,6 +3,11 @@
 import { Settings } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
+import { useMediaQuery } from "@/components/depth/use-media";
+import { trapTab, useModalPage } from "@/components/side-panel/modal-page";
+import { PHONE_SHEET_QUERY, SHEET_BACKDROP_CLASS, SHEET_GRABBER_CLASS, prefersReducedMotion, slideSheetIn, slideSheetOut, type SheetEdge } from "@/components/side-panel/sheet";
+import { useSlideOut } from "@/components/side-panel/side-panel";
+import { useSwipeDismiss } from "@/components/side-panel/use-swipe-dismiss";
 import { placePopover, type Placement } from "@/lib/popover-position";
 import { MINOR_TOGGLE_LABEL } from "@/lib/roles";
 import { cn } from "./cn";
@@ -58,7 +63,15 @@ interface FilmSettingsPopupProps extends FilmSettingsProps {
   after?: ReactNode;
 }
 
-/** Both film-display preferences in a small, non-modal pop-up; checkbox changes keep it open. */
+/** The phone's sheet is always at the bottom, whatever the slide-out panel is at that width. */
+const fromBottom = (): SheetEdge => "bottom";
+
+/**
+ * Both film-display preferences in a small pop-up; checkbox changes keep it open. It hangs from the gear and is not modal (the page stays live round it),
+ * except on a phone (`PHONE_SHEET_QUERY`), where it is a sheet from the bottom of the screen over a dimmed page, as the film and person details are: it slides
+ * up, a press on the page behind closes it, and a finger can pull it down, following the touch, to put it away (`useSwipeDismiss`). The sheet dims the
+ * page and takes its presses, so it is modal in full: the page behind is inert and does not scroll, Tab stays in the sheet, and focus goes back to the gear.
+ */
 export function FilmSettings({
   showAll, onShowAllChange, includeMinor, onIncludeMinorChange, message,
   label = "Film settings", buttonClassName, buttonRef: sharedButtonRef, scrollable = true, before, after,
@@ -68,7 +81,42 @@ export function FilmSettings({
   const ownButtonRef = useRef<HTMLButtonElement>(null);
   const buttonRef = sharedButtonRef ?? ownButtonRef;
   const panelRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const sheet = useMediaQuery(PHONE_SHEET_QUERY);
+  // The sheet stays for as long as it takes to slide away; the pop-up is gone at once.
+  const { shown, closing, exited } = useSlideOut(open ? true : null);
+  const close = () => {
+    setOpen(false);
+    buttonRef.current?.focus({ preventScroll: true });
+  };
+  const pulled = useSwipeDismiss({ panelRef, backdropRef, edge: fromBottom, enabled: open && sheet, onDismiss: close });
+
+  // The sheet slides up and the page dims (neither with reduced motion), and they go back the way they came, from wherever a finger left the sheet.
+  useLayoutEffect(() => {
+    if (open && sheet && !prefersReducedMotion()) slideSheetIn(panelRef.current, backdropRef.current, "bottom");
+  }, [open, sheet]);
+  useLayoutEffect(() => {
+    if (!closing) return;
+    const panel = panelRef.current;
+    if (!sheet || !panel || prefersReducedMotion()) {
+      exited();
+      return;
+    }
+    const animations = slideSheetOut(panel, backdropRef.current, "bottom", pulled.current);
+    let cancelled = false;
+    Promise.all(animations.map((animation) => animation.finished)).then(
+      () => {
+        if (!cancelled) exited();
+      },
+      () => {},
+    );
+    return () => {
+      cancelled = true;
+      animations.forEach((animation) => animation.cancel());
+    };
+  }, [closing, sheet, exited, pulled]);
 
   // Portal out of the timeline's clipping surface. Keep the pop-up aligned even when a preference
   // scrolls the track or changes the page's dimensions; don't dismiss while checking an option.
@@ -77,6 +125,12 @@ export function FilmSettings({
     const button = buttonRef.current;
     const panel = panelRef.current;
     if (!button || !panel) return;
+    if (sheet) {
+      // The sheet is at the bottom of the screen whatever the gear does: nothing to place.
+      panel.style.visibility = "visible";
+      panel.querySelector<HTMLElement>("input:not(:disabled), a[href], button:not(:disabled)")?.focus({ preventScroll: true });
+      return;
+    }
     const place = () => {
       const anchor = button.getBoundingClientRect();
       const size = panel.getBoundingClientRect();
@@ -101,12 +155,13 @@ export function FilmSettings({
       // Closed: forget where it was, so reopening does not paint one frame at the stale spot.
       setPosition(null);
     };
-  }, [open, buttonRef]);
+  }, [open, sheet, buttonRef]);
 
   useEffect(() => {
     if (!open) return;
+    // The sheet's backdrop closes it with its own click: closed on the press, it would be gone before the finger lifted, and the tap would land on the page under it.
     const outside = (target: EventTarget | null) => target instanceof Node &&
-      !buttonRef.current?.contains(target) && !panelRef.current?.contains(target);
+      !buttonRef.current?.contains(target) && !panelRef.current?.contains(target) && target !== backdropRef.current;
     const dismiss = (event: PointerEvent | FocusEvent) => {
       if (outside(event.target)) setOpen(false);
     };
@@ -126,6 +181,21 @@ export function FilmSettings({
     };
   }, [open, buttonRef]);
 
+  // The phone's sheet is modal: the page behind it is inert and does not scroll for as long as it is open (not while it slides away: the page is the visitor's again then).
+  useModalPage(rootRef, open && sheet);
+  // Focus back to the gear when the sheet closes, however it was closed. Declared after the page's lock on purpose: cleanups run in declaration order, so the
+  // gear is no longer inert and can take focus. Not when something else has taken it by then (the people search the sheet's last row opens).
+  useEffect(() => {
+    if (!open || !sheet) return;
+    const button = buttonRef.current;
+    const root = rootRef.current;
+    return () => {
+      // Nothing has focus, or what has it is in the sheet that is going (the browser lets go of it a moment later).
+      const active = document.activeElement;
+      if (!active || active === document.body || root?.contains(active)) button?.focus({ preventScroll: true });
+    };
+  }, [open, sheet, buttonRef]);
+
   return (
     <>
       <button
@@ -141,17 +211,35 @@ export function FilmSettings({
       >
         <Settings aria-hidden="true" className="size-4" />
       </button>
-      {open && createPortal(
+      {shown && createPortal(
+        // One box on the body for the backdrop and the dialog: what stays live while the sheet makes the rest of the page inert.
+        <div ref={rootRef} data-settings-root>
+        {sheet && (
+          <div
+            ref={backdropRef}
+            aria-hidden="true"
+            data-settings-backdrop
+            onClick={close}
+            // No scroll of the page behind starts from here.
+            className={cn("fixed inset-0 z-[89] touch-none", SHEET_BACKDROP_CLASS, closing && "pointer-events-none")}
+          />
+        )}
         <div
           ref={panelRef}
           id={panelId}
           role="dialog"
           aria-label={label}
+          aria-modal={sheet || undefined}
+          inert={closing || undefined}
+          onKeyDown={sheet ? (event) => trapTab(event, panelRef.current) : undefined}
           className={cn(
-            "fixed z-[90] w-80 max-w-[calc(100vw-1rem)] rounded-lg border border-border bg-canvas p-3 text-sm text-body shadow-xl shadow-black/40",
+            "fixed z-[90] border-border bg-canvas text-sm text-body",
+            sheet
+              ? "inset-x-0 bottom-0 rounded-t-2xl border-t px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-6 shadow-2xl shadow-black/60"
+              : "w-80 max-w-[calc(100vw-1rem)] rounded-lg border p-3 shadow-xl shadow-black/40",
             scrollable && "max-h-[calc(100dvh-1rem)] overflow-y-auto",
           )}
-          style={position ? { left: position.left, top: position.top } : { visibility: "hidden" }}
+          style={sheet ? undefined : position ? { left: position.left, top: position.top } : { visibility: "hidden" }}
           // A choice that moves the page on (a view chosen in the sheet) closes it: the sheet would be left over the new view.
           onClick={(event) => {
             if (!(event.target instanceof Element) || !event.target.closest("[data-close-sheet]")) return;
@@ -159,6 +247,7 @@ export function FilmSettings({
             buttonRef.current?.focus({ preventScroll: true });
           }}
         >
+          {sheet && <span aria-hidden="true" data-settings-grabber className={`${SHEET_GRABBER_CLASS} top-2`} />}
           {before}
           <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">Film settings</h2>
           <FilmSettingsOptions
@@ -170,6 +259,7 @@ export function FilmSettings({
             posterHintId={`${panelId}-posters`}
           />
           {after}
+        </div>
         </div>,
         document.body,
       )}

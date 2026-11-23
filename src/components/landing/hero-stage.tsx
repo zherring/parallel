@@ -25,6 +25,7 @@ import { usePanelShown } from "@/components/landing/panel-shown";
 import { posterImageUrl, preloadScene, useHeroRotation } from "@/components/landing/use-hero-rotation";
 import { useHeroKeys } from "@/components/landing/use-hero-keys";
 import { useHeroPause } from "@/components/landing/use-hero-pause";
+import { SWIPE_VAR, useHeroSwipe } from "@/components/landing/use-hero-swipe";
 import { useKeycapPress } from "@/components/landing/use-keycap-press";
 import { useReducedMotion } from "@/components/pair-wash";
 import type { NavDirection } from "@/lib/hero-history";
@@ -51,6 +52,9 @@ const sceneHref = (scene: Scene) =>
 
 /** A keycap's height on the stage: the middle of the names' row on a phone (22px under the line, and half of the row's box: `Action`'s `data-names-row`), the stage's middle from `sm` up. */
 const KEYCAP_ROW = "top-[calc(var(--line-y)+22px+var(--row-body)/2)] z-20 -translate-y-1/2 sm:top-1/2";
+
+/** What a finger's swipe moves (use-hero-swipe.ts): the scene, by the stage's offset. A box of its own, so that it is not a property any piece's animation or the parallax uses. */
+const SWIPE_SHIFT: CSSProperties = { translate: `var(${SWIPE_VAR}, 0px) 0` };
 
 const subscribeNever = () => () => {};
 const noop = () => {};
@@ -183,13 +187,16 @@ function Backdrop({ items, reduced, onGone }: { items: readonly Item[]; reduced:
           className={`absolute top-0 bottom-[calc(var(--stage-h)_-_var(--scene-h))] isolate overflow-hidden bg-[#0b0d10] ${halfCorners(slot)}`}
           style={halfBox(slot)}
         >
-          {panels
-            .filter((item) => item.slot === slot)
-            .map((item) => (
-              <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="absolute inset-0">
-                <PanelParts person={item.person} color={item.color} slot={slot} />
-              </Motion>
-            ))}
+          {/* The frame stays; what is in it goes with a swiping finger. */}
+          <div className="absolute inset-0" style={SWIPE_SHIFT}>
+            {panels
+              .filter((item) => item.slot === slot)
+              .map((item) => (
+                <Motion key={item.id} item={item} reduced={reduced} onGone={onGone} className="absolute inset-0">
+                  <PanelParts person={item.person} color={item.color} slot={slot} />
+                </Motion>
+              ))}
+          </div>
         </div>
       ))}
 
@@ -219,8 +226,8 @@ function Action({ items, reduced, onGone }: { items: readonly Item[]; reduced: b
 
   return (
     <>
-      {/* The strip's dots, the cluster, its label and the caps are anchored on the line or just above it; the posters shown are the first of the row, three, four or five by width (`POSTER_CAPS`, `posterHiddenClass`). */}
-      <div className="pointer-events-none absolute inset-0">
+      {/* The strip's dots, the cluster, its label and the caps are anchored on the line or just above it; the posters shown are the first of the row, three, four or five by width (`POSTER_CAPS`, `posterHiddenClass`). All of it goes with a swiping finger. */}
+      <div className="pointer-events-none absolute inset-0" style={SWIPE_SHIFT}>
         {strips.map((item) => {
           const strip = stripOf(item.pairing);
           return (
@@ -396,8 +403,8 @@ function useParallax(root: RefObject<HTMLElement | null>, reduced: boolean) {
 }
 
 /**
- * The live stage: a scene picked at random once this mounts in the browser, then the automatic rotation and the visitor's Previous and Next (buttons and
- * arrow keys), and a polite live region that names the scene after a button or key, never after the rotation. All the ways to hold the rotation still (there
+ * The live stage: a scene picked at random once this mounts in the browser, then the automatic rotation and the visitor's Previous and Next (buttons,
+ * arrow keys and, on a touch screen, a swipe), and a polite live region that names the scene after a button or key, never after the rotation. All the ways to hold the rotation still (there
  * is no pause button) are in useHeroPause; the controls call `go`. Nothing is drawn until the first scene's images are in (the stage's box has its size
  * from the first paint), and then it is revealed: the line draws, the panels wipe in, and the figures and posters follow.
  */
@@ -434,6 +441,9 @@ function Stage({ root, pool, initial }: { root: RefObject<HTMLDivElement | null>
   );
   useHeroKeys({ heroVisible: !reasons.offscreen && !reasons.genre, onNavigate: step });
   useParallax(root, reduced);
+  // A finger swipes the stage as the arrows step it. Past the point where letting go would step, the matching keycap is down.
+  const [armed, setArmed] = useState<NavDirection | null>(null);
+  useHeroSwipe({ stage: root, enabled: pool.length > 1 && revealed, reduced, onStep: step, onArmed: setArmed, onStart: warm });
 
   useEffect(() => rememberFirstKey(initial.pairing.key), [initial]);
 
@@ -497,7 +507,7 @@ function Stage({ root, pool, initial }: { root: RefObject<HTMLDivElement | null>
         <KeycapButton
           direction="prev"
           label="Previous pairing"
-          pressed={pressed === "prev"}
+          pressed={pressed === "prev" || armed === "prev"}
           onClick={navigate("prev")}
           className={`${KEYCAP_ROW} left-[calc(100cqw/6-22px)] sm:left-[calc(var(--core-pad)+8px)] ${keycapIn}`}
           onPhoto
@@ -524,7 +534,7 @@ function Stage({ root, pool, initial }: { root: RefObject<HTMLDivElement | null>
         <KeycapButton
           direction="next"
           label="Next pairing"
-          pressed={pressed === "next"}
+          pressed={pressed === "next" || armed === "next"}
           onClick={navigate("next")}
           className={`${KEYCAP_ROW} right-[calc(100cqw/6-22px)] sm:right-[calc(var(--core-pad)+8px)] ${keycapIn}`}
           onPhoto
@@ -570,7 +580,8 @@ export function HeroStage({ pool, fallback }: Props) {
     <div
       ref={root}
       data-hero-stage=""
-      className="group/stage relative h-(--stage-h) w-full [container-type:inline-size]"
+      // Up and down is the page's scroll; sideways is the swipe between pairings.
+      className="group/stage relative h-(--stage-h) w-full touch-pan-y [container-type:inline-size]"
       style={{ "--band-w": BAND_WIDTH_CSS, "--core-pad": CORE_PAD_CSS } as CSSProperties}
     >
       {live && shown ? <LiveStage root={root} pool={pool} /> : null}
