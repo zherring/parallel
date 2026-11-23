@@ -1130,8 +1130,8 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
     blurb: "Director and composer: Edward Scissorhands, Corpse Bride, Charlie and the Chocolate Factory, Alice in Wonderland.",
   },
 
-  // Kevin Bacon: the pairs he shares the most films with (by the pair page's own count, and at least `MIN_SHARED_FILMS`), of the people the people index has and who have a photo, a
-  // composer among the actors (no director has made three films with him: the best, Ron Howard, Rob Reiner, Barry Levinson, John Hughes and David Koepp, have two).
+  // Kevin Bacon: the pairs he shares the most films with (by the pair page's own count, and at least `MIN_SHARED_FILMS`), of the people the people index has and who have a photo, actors only, as the
+  // mode's lists are actors and directors (no director has made three films with him: the best, Ron Howard, Rob Reiner, Barry Levinson, John Hughes and David Koepp, have two).
   {
     genre: "bacon",
     people: [
@@ -1184,9 +1184,9 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
     genre: "bacon",
     people: [
       { id: 4724, name: "Kevin Bacon" },
-      { id: 1760, name: "Jerry Goldsmith" },
+      { id: 15661, name: "Clint Howard" },
     ],
-    blurb: "Actor and composer: Criminal Law, The River Wild, Hollow Man.",
+    blurb: "Two actors on screen together: End of the Line, My Dog Skip, Frost/Nixon.",
   },
 ];
 
