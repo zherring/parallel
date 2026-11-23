@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PairPoster } from "@/components/embed/pair-poster";
 import { composition, headshotFan, posterRow, buildOgCard, captionText } from "@/lib/og-card";
 import { TREATED_POSTER, buildTreatedPair, treatedPairLayout } from "@/lib/og-treated";
+import { BACON_ORANGE, togetherColor } from "@/lib/bacon-share";
 import { PAIR_SLUG, stubLoadPeople } from "@/lib/test-people";
 
 vi.mock("next/navigation", () => ({ notFound: () => { throw new Error("NEXT_NOT_FOUND"); } }));
@@ -127,5 +128,39 @@ describe("the pair embed's first frame for two to four people (the treated card 
     expect(treated).toBeNull();
     expect(count(html, "names")).toBe(0);
     expect(html).toContain("0 0 0 calc(3 * var(--px)) #00e054");
+  });
+
+  describe("in Kevin Bacon mode (`together` is the mode's orange)", () => {
+    /** The frame colour of every poster, the fill of every shared film's node and the colour of the count's numbers: what the card draws in the colour of the films made together. */
+    const togetherColours = (html: string) => ({
+      posters: [...html.matchAll(/data-part="poster" style="[^"]*border:calc\(2 \* var\(--px\)\) solid (#[0-9a-f]{6})/g)].map((m) => m[1]),
+      nodes: [...html.matchAll(/data-part="node" style="[^"]*background-color:(#[0-9a-f]{6})/g)].map((m) => m[1]),
+      accents: [...html.matchAll(/data-part="accent" style="[^"]*color:(#[0-9a-f]{6})/g)].map((m) => m[1]),
+    });
+
+    it("draws the posters' frames, the shared films' nodes and the count's numbers white, as it always has, by default", async () => {
+      const { treated, html } = await posterOf(PAIR_SLUG);
+      const colours = togetherColours(html);
+      expect(colours.posters).toEqual(treated!.posters.map(() => "#ffffff"));
+      expect(colours.nodes).toEqual(treated!.dots.filter((dot) => dot.kind === "shared").map(() => "#ffffff"));
+      expect(colours.accents).toEqual(["#ffffff", "#ffffff"]);
+      expect(togetherColor(false)).toBe("#ffffff");
+    });
+
+    it("draws all three in the orange, and leaves a person's own films and the card's own colours as they are", async () => {
+      const { timelines } = await stubLoadPeople(PAIR_SLUG);
+      const card = buildOgCard(timelines, TODAY);
+      const treated = buildTreatedPair(card, timelines, TODAY);
+      const html = renderToStaticMarkup(createElement(PairPoster, { card, treated, together: togetherColor(true) }));
+      const colours = togetherColours(html);
+      expect(BACON_ORANGE).toBe("#ff8000");
+      expect(colours.posters).toEqual(treated!.posters.map(() => BACON_ORANGE));
+      expect(colours.nodes).toEqual(treated!.dots.filter((dot) => dot.kind === "shared").map(() => BACON_ORANGE));
+      expect(colours.accents).toEqual([BACON_ORANGE, BACON_ORANGE]);
+      expect(html).not.toContain("solid #ffffff");
+      expect(html).toContain("#14181c");
+      // The wordmark's two l's are still the brand's green.
+      expect(html.match(/#00e054/g)).toHaveLength(1);
+    });
   });
 });

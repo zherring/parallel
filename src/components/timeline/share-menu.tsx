@@ -14,6 +14,7 @@ import {
   type FocusEvent,
   type KeyboardEvent,
 } from "react";
+import { shareHref } from "@/lib/bacon-share";
 import { canCopyImage, copyImage, copyImageMessage, imageUrlFor } from "@/lib/copy-image";
 import { menuIndex } from "@/lib/menu-nav";
 import { fitMenu, type MenuFit } from "@/lib/popover-position";
@@ -30,6 +31,11 @@ interface ShareMenuProps {
   onStatus: (message: string) => void;
   /** Classes for the wrapper, e.g. to let the button grow on narrow screens. */
   className?: string;
+  /**
+   * The page is in Kevin Bacon mode (see `bacon-mode.ts`): everything shared opens in the mode, the links to X and Bluesky, the share sheet and Copy link alike
+   * (`shareHref`), and the image copied is the mode's card (orange where a pair's films made together are white).
+   */
+  bacon?: boolean;
 }
 
 const noSubscription = () => () => {};
@@ -89,7 +95,7 @@ const selectClass =
  * items, not form controls. The popover stays in the DOM (hidden) so that following a link never
  * races with it being removed.
  */
-export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
+export function ShareMenu({ input, onStatus, className, bacon = false }: ShareMenuProps) {
   const [open, setOpen] = useState(false);
   const [side, setSide] = useState<"left" | "right">("left");
   // Which way the menu opens and how tall it may be, measured once it is open (it is not laid out before); null until then.
@@ -127,7 +133,7 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
   const choose = (next: Period) => setPeriod(resolvePeriod(next, span));
 
   const periodText = period ? periodLabel(period) : undefined;
-  const url = `${origin}${pathname}${period ? searchWithPeriod("", period) : ""}`;
+  const url = shareHref(`${origin}${pathname}${period ? searchWithPeriod("", period) : ""}`, bacon);
   // The count in the text is the films of the period; 0 stays 0 (nothing is shared, so the text names no films).
   const count = period && input.count > 0 ? years.filter((year) => inPeriod(year, period)).length : input.count;
   const links = shareLinks({ ...input, count, period: periodText }, url);
@@ -279,7 +285,7 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
     const carriesPeriod = /[?&](?:from|to)=/.test(search);
     const href = period || carriesPeriod ? `${here}${path}${searchWithPeriod(search, period)}${hash}` : window.location.href;
     try {
-      await navigator.clipboard.writeText(href);
+      await navigator.clipboard.writeText(shareHref(href, bacon));
     } catch {
       fail("Could not copy automatically. Copy the address from your browser's address bar.");
       return;
@@ -292,7 +298,8 @@ export function ShareMenu({ input, onStatus, className }: ShareMenuProps) {
     if (copying) return;
     setCopying(true);
     // Called straight from the click, with the fetch still pending: see `copyImage`.
-    const outcome = await copyImage(imageUrlFor(window.location, period), {
+    // The mode's card is a pair's (two or more people): one person's has no films made together to colour, and is the page's own.
+    const outcome = await copyImage(imageUrlFor(window.location, period, bacon && input.people.length > 1), {
       fetch: (imageUrl) => fetch(imageUrl),
       clipboard: navigator.clipboard,
       ClipboardItem: window.ClipboardItem,

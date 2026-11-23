@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { TreatedPortrait } from "@/components/treated-portrait";
+import { TOGETHER_WHITE } from "@/lib/bacon-share";
 import { tmdbImage } from "@/lib/images";
 import {
   CHIP,
@@ -219,10 +220,11 @@ function Poster({ poster, left, top }: { poster: OgPoster; left: number; top: nu
 /**
  * The card, in the frame's pixels: put it in an element that is a size container (`container-type: size`) and set `--px` on it to `POSTER_PX`.
  * `aria-hidden` is the caller's to set (the card is a picture of what the page below it says). For a pair it is the treated card (`treated`, from
- * `buildTreatedPair`: `TreatedPairPoster`), as the PNG is; for one person (`treated` null) it is the timeline's own card (`PlainPairPoster`).
+ * `buildTreatedPair`: `TreatedPairPoster`), as the PNG is; for one person (`treated` null) it is the timeline's own card (`PlainPairPoster`). `together` is the colour
+ * of the films a pair made together, white or, in Kevin Bacon mode, the orange (`togetherColor`), as the PNG's is.
  */
-export function PairPoster({ card, treated = null }: { card: OgCard; treated?: TreatedPair | null }) {
-  return treated ? <TreatedPairPoster card={card} treated={treated} /> : <PlainPairPoster card={card} />;
+export function PairPoster({ card, treated = null, together = TOGETHER_WHITE }: { card: OgCard; treated?: TreatedPair | null; together?: string }) {
+  return treated ? <TreatedPairPoster card={card} treated={treated} together={together} /> : <PlainPairPoster card={card} />;
 }
 
 /** One person's card: the app's own timeline, the headshot (cut out), the posters of their films on the lane, the years and the count (`OgCardView`). */
@@ -360,7 +362,7 @@ const AXIS_ALPHA = 0.7;
  * (`og-treated.ts`): both portraits in colour down the left edge, the posters of their shared films, the axis, the names and the count (centred on the column) and the wordmark. The
  * parts the sequence moves carry the plain card's names: `poster`, `node` (a shared film's white dot) and `accent` (the count's numbers).
  */
-function TreatedPairPoster({ card, treated }: { card: OgCard; treated: TreatedPair }) {
+function TreatedPairPoster({ card, treated, together }: { card: OgCard; treated: TreatedPair; together: string }) {
   const place = treatedPairLayout();
   const lefts = treatedPosterLefts(treated.posters.length);
   const tile = treatedTile(card.people.length);
@@ -419,7 +421,7 @@ function TreatedPairPoster({ card, treated }: { card: OgCard; treated: TreatedPa
               width: px(TREATED_POSTER.width),
               height: px(TREATED_POSTER.height),
               borderRadius: px(8),
-              border: `${px(2)} solid #ffffff`,
+              border: `${px(2)} solid ${together}`,
               overflow: "hidden",
               backgroundColor: OG.surface,
               ...(src ? {} : { alignItems: "flex-start", justifyContent: "flex-start", padding: `${px(14)} 0 0 ${px(18)}`, color: OG.muted, fontSize: px(56), lineHeight: 1 }),
@@ -443,7 +445,7 @@ function TreatedPairPoster({ card, treated }: { card: OgCard; treated: TreatedPa
               width: px(size),
               height: px(size),
               borderRadius: "50%",
-              backgroundColor: shared ? "#ffffff" : TREATED_SOLO_COLOR,
+              backgroundColor: shared ? together : TREATED_SOLO_COLOR,
               opacity: dot.opacity,
               boxSizing: "border-box",
               ...(shared ? { border: `${px(TREATED_NODE.ring)} solid ${OG.bg}` } : {}),
@@ -459,7 +461,7 @@ function TreatedPairPoster({ card, treated }: { card: OgCard; treated: TreatedPa
       {treated.caption && (
         <div data-part="caption" style={at(TREATED_LEFT, place.captionTop, { alignItems: "baseline", justifyContent: "center", width: px(TREATED_WIDTH), fontSize: px(TREATED_CAPTION_SIZE), lineHeight: 1, letterSpacing: px(-1.2), whiteSpace: "pre" })}>
           {treated.caption.segments.map((segment, i) => (
-            <span key={i} data-part={segment.accent ? "accent" : undefined} style={{ display: "flex", whiteSpace: "pre", color: segment.accent ? OG.strong : OG.muted }}>
+            <span key={i} data-part={segment.accent ? "accent" : undefined} style={{ display: "flex", whiteSpace: "pre", color: segment.accent ? together : OG.muted }}>
               {segment.text}
             </span>
           ))}

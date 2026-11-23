@@ -26,7 +26,7 @@ vi.mock("next/headers", () => ({ headers: vi.fn(async () => new Headers()) }));
 
 type Query = Record<string, string | string[] | undefined>;
 const pairProps = (slug: string, query: Query = {}) => ({ params: Promise.resolve({ people: slug }), searchParams: Promise.resolve(query) });
-const quoteProps = (slug: string, id: string) => ({ params: Promise.resolve({ people: slug, id }) });
+const quoteProps = (slug: string, id: string, query: Query = {}) => ({ params: Promise.resolve({ people: slug, id }), searchParams: Promise.resolve(query) });
 
 const PLAYER_TAGS = {
   "twitter:player": `https://parallel.zachherring.com/embed/p/${PAIR_SLUG}`,

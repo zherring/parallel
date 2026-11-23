@@ -1,3 +1,4 @@
+import { withBaconMode } from "@/lib/bacon-mode";
 import { EMBED_PREFIX } from "@/lib/embed-frame";
 import { PLAYER_SIZE, embedPath } from "@/lib/quote-embed";
 import type { PlayerCard } from "@/lib/seo";
@@ -15,14 +16,15 @@ export function playerCardsOn(raw: string | undefined): boolean {
 
 export const PLAYER_CARDS = playerCardsOn(process.env.NEXT_PUBLIC_PLAYER_CARDS);
 
-/** The path of a pair's embed, the page X frames for a link to the pair: `/embed/p/<people>`. */
-export function pairEmbedPath(slug: string): string {
-  return `${EMBED_PREFIX}/p/${slug}`;
+/** The path of a pair's embed, the page X frames for a link to the pair: `/embed/p/<people>`, and `?mode=bacon` for a link to a pair in Kevin Bacon mode (its frame draws the orange). */
+export function pairEmbedPath(slug: string, bacon = false): string {
+  const path = `${EMBED_PREFIX}/p/${slug}`;
+  return bacon ? withBaconMode(path) : path;
 }
 
-/** The player of a link to a pair (`/p/<people>`), or undefined where the flag is off: what `peopleSocial` is given. */
-export function pairPlayer(slug: string): PlayerCard | undefined {
-  return PLAYER_CARDS ? { path: pairEmbedPath(slug), ...PLAYER_SIZE } : undefined;
+/** The player of a link to a pair (`/p/<people>`), or undefined where the flag is off: what `peopleSocial` is given. `bacon`: the link is to the pair in Kevin Bacon mode. */
+export function pairPlayer(slug: string, bacon = false): PlayerCard | undefined {
+  return PLAYER_CARDS ? { path: pairEmbedPath(slug, bacon), ...PLAYER_SIZE } : undefined;
 }
 
 /** The player of a link to a pair's quote (`/p/<people>/q/<id>`), or undefined where the flag is off. */

@@ -45,7 +45,8 @@ test("the headline is the one h1, the stage is one labelled link to a pair, and 
   await expect(stage(page).getByRole("button", { name: "Next pairing", exact: true })).toBeVisible();
 
   await expect(bar(page).getByRole("tablist", { name: "Genres", exact: true })).toBeVisible();
-  await expect(bar(page).getByRole("tab")).toHaveCount(10);
+  // Featured and the nine genres, and the Kevin Bacon tab (the last).
+  await expect(bar(page).getByRole("tab")).toHaveCount(11);
   await page.evaluate(() => window.scrollTo(0, 1400));
   await expect.poll(() => bar(page).evaluate((element) => Math.round(element.getBoundingClientRect().top))).toBe(0);
 });
@@ -1116,7 +1117,7 @@ test.describe("the genre pills are tabs of views", () => {
     await expect(page.locator("#pairings-panel-sci-fi")).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
     await page.keyboard.press("End");
-    await expect(page).toHaveURL(/#animation$/);
+    await expect(page).toHaveURL(/#bacon$/);
     await page.keyboard.press("ArrowRight");
     await expect(page).not.toHaveURL(/#/);
     await expect(bar(page).getByRole("tab", { name: "Featured", exact: true })).toBeFocused();

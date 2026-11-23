@@ -31,6 +31,23 @@ const HIT_AREA = "relative before:absolute before:-inset-x-[5px] before:-inset-y
 export const EMBED_BUTTON = `${HIT_AREA} inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-border text-body transition-colors hover:border-muted hover:text-strong motion-reduce:transition-none @max-[30rem]:min-h-8 @max-[30rem]:min-w-8`;
 export const EMBED_PILL = `${HIT_AREA} inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border font-medium text-strong no-underline transition-colors hover:border-muted motion-reduce:transition-none @max-[30rem]:min-h-8`;
 
+/**
+ * What says a frame is in Kevin Bacon mode (src/lib/bacon-mode.ts): a small orange pill in the bar's row, the page bar's "Kevin Bacon mode" capsule in the frame's
+ * own size. A label, not a control (the way out of the mode is the page's), so it has no hit area; a phone-width frame (30rem or less) has no room for it, and its
+ * orange films say the same (a screen reader has the mode in the frame's heading).
+ */
+export function EmbedModeMark({ label }: { label: string }) {
+  return (
+    <span
+      data-bacon-mark
+      className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-accent-orange/60 font-medium text-accent-orange @max-[30rem]:hidden"
+      style={{ fontSize: embedSize(10.5, 1.36), padding: `${embedSize(6, 0.76)} ${embedSize(10, 1.28)}` }}
+    >
+      {label}
+    </span>
+  );
+}
+
 /** The classes of a person's round picture in the bar that is a link: the same hit area, round it. */
 export const EMBED_AVATAR_LINK = "relative inline-flex rounded-full no-underline before:absolute before:-inset-1.5";
 

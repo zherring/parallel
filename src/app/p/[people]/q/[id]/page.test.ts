@@ -30,7 +30,7 @@ vi.mock("next/navigation", async (importOriginal) => ({
   }),
 }));
 
-const props = (slug: string, id: string) => ({ params: Promise.resolve({ people: slug, id }) });
+const props = (slug: string, id: string, query: Record<string, string> = {}) => ({ params: Promise.resolve({ people: slug, id }), searchParams: Promise.resolve(query) });
 const thrown = (run: () => unknown) => Promise.resolve(run()).then(() => null, (error: Error) => error);
 
 describe("the share URL's metadata", () => {

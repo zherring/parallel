@@ -1,6 +1,7 @@
 import generated from "@/lib/examples.generated.json";
 import type { HeroPairing } from "@/lib/hero-scenes";
 import {
+  BACON_GENRE,
   EXAMPLE_PAIRINGS,
   GENRES,
   pairingHref,
@@ -37,10 +38,11 @@ export interface GenreSection {
  * Every two-person pairing as the landing hero's scene data (see hero-scenes.ts), in the pairing's order of people.
  * Posters are left out of ExampleCardData on purpose: a card shows its people and its count, and every genre's cards
  * are in the page's markup (and their portraits' props), so posters would be sent for nothing; the hero's pool carries
- * them to the stage, the one place that draws them. Throws like buildGenreSections when the generated JSON is stale.
+ * them to the stage, the one place that draws them. Throws like buildGenreSections when the generated JSON is stale. The Kevin Bacon tab's pairings
+ * are not in it (`BACON_GENRE`): the splash opens its pairings out of the mode, and the tab's cards open them in it.
  */
 export function buildHeroPairings(
-  pairings: readonly Omit<ExamplePairing, "genre">[] = EXAMPLE_PAIRINGS,
+  pairings: readonly Omit<ExamplePairing, "genre">[] = EXAMPLE_PAIRINGS.filter((pairing) => pairing.genre !== BACON_GENRE),
   data: GeneratedExamples = generated,
 ): HeroPairing[] {
   const out: HeroPairing[] = [];

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import generated from "@/lib/examples.generated.json";
 import {
+  BACON_GENRE,
   EXAMPLE_PAIRINGS,
   FEATURED_TAB,
   GENRES,
@@ -71,6 +72,35 @@ describe("EXAMPLE_PAIRINGS", () => {
       expect(people.every((p) => p.name.trim().length > 0 && Number.isInteger(p.id))).toBe(true);
       expect(blurb.trim().length).toBeGreaterThan(10);
       expect(blurb).not.toContain("\n");
+    }
+  });
+});
+
+describe("the Kevin Bacon tab", () => {
+  const bacon = EXAMPLE_PAIRINGS.filter((pairing) => pairing.genre === BACON_GENRE);
+
+  it("is a genre of GENRES, with five to eight pairings", () => {
+    expect(GENRES.map((genre) => genre.id)).toContain(BACON_GENRE);
+    expect(bacon.length).toBeGreaterThanOrEqual(5);
+    expect(bacon.length).toBeLessThanOrEqual(8);
+  });
+
+  it("is Kevin Bacon (TMDB 4724) first, and one other person, in every pairing", () => {
+    for (const { people } of bacon) {
+      expect(people).toHaveLength(2);
+      expect(people[0]).toEqual({ id: 4724, name: "Kevin Bacon" });
+      expect(people[1].id).not.toBe(4724);
+    }
+  });
+
+  it("has each of its pairings in no other tab: a pair of his is one card, and a Kevin Bacon pairing is nowhere else", () => {
+    const hisPairs = EXAMPLE_PAIRINGS.filter((pairing) => pairing.people.some((person) => person.id === 4724));
+    expect(hisPairs.every((pairing) => pairing.genre === BACON_GENRE)).toBe(true);
+  });
+
+  it("holds each pair to the rule of the cards: at least MIN_SHARED_FILMS films together, as recorded by examples:refresh", () => {
+    for (const pairing of bacon) {
+      expect(data[pairingKey(pairing)].sharedCount).toBeGreaterThanOrEqual(MIN_SHARED_FILMS);
     }
   });
 });

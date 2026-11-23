@@ -348,7 +348,7 @@ function PeopleBarBox({
                   <div className="mt-3 border-t border-border pt-3">
                     <h2 className={sectionTitle}>{exports ? "Share and export" : "Share"}</h2>
                     <div className="flex flex-col gap-2">
-                      <ShareMenu input={share} onStatus={announce} className="w-full" />
+                      <ShareMenu input={share} onStatus={announce} className="w-full" bacon={baconPage} />
                       {exports && <ExportButton {...exportList} onStatus={announce} className="w-full" />}
                     </div>
                     <p role="status" aria-live="polite" className="mt-2 min-h-4 text-xs text-muted">
