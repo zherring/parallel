@@ -111,13 +111,11 @@ function redirectSearch(query: Query): string {
 }
 
 /**
- * Whether the request comes from a phone: the user agent's device type is `mobile`. A tablet is not one (it gets the Timeline), nor is a bot, so that a search
- * engine's crawler, whose smartphone agent says mobile, reads the Timeline's page, which has the table in its HTML. It is the device, not the window:
- * a narrow desktop window is still a desktop and gets the Timeline.
+ * Whether the request comes from a search engine's crawler (the user agent says so): it reads the flat page, which has the table in its HTML, where everyone else
+ * opens Films.
  */
-function fromPhone(requestHeaders: Headers): boolean {
-  const { device, isBot } = userAgent({ headers: requestHeaders });
-  return device.type === "mobile" && !isBot;
+function fromBot(requestHeaders: Headers): boolean {
+  return userAgent({ headers: requestHeaders }).isBot;
 }
 
 export default async function PeoplePage({ params, searchParams }: Props) {
@@ -139,6 +137,6 @@ export default async function PeoplePage({ params, searchParams }: Props) {
     heroNote: getHeroNote(timelines.map((t) => t.person.id), timelines[0]?.person.biography),
   };
   // `?view=depth` draws the same people and films as the vertical perspective scene (Films) instead of the Timeline, Table and Quotes. A link that names no
-  // view opens Films on a phone and the Timeline elsewhere, decided here so that the page never flashes the other; a view the link names always wins.
-  return opensDepth(query, quoteIdsOf(shown.clippings, shown.critics), fromPhone(requestHeaders)) ? <DepthView {...shown} /> : <PeopleView {...shown} />;
+  // view opens Films, on every device (a crawler gets the flat page), decided here so that the page never flashes the other; a view the link names always wins.
+  return opensDepth(query, quoteIdsOf(shown.clippings, shown.critics), fromBot(requestHeaders)) ? <DepthView {...shown} /> : <PeopleView {...shown} />;
 }

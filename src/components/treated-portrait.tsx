@@ -29,12 +29,14 @@ interface Props {
   posterSize?: ImageSize;
   /** Round the corners (`CARD_RADIUS_RATIO`); false for a portrait that fills a square-cornered panel. */
   rounded?: boolean;
+  /** Only the cut-out and its edge: no flat colour and no montage behind it, for a figure standing on a background of the caller's own (the landing hero's panels). A person with no cut is still their tear. */
+  bare?: boolean;
   /** Tuning override (/dev/portraits/stroke): the cut edge's width in screen px (or a CSS length), instead of the rule (`STROKE_CSS`). */
   strokePx?: number | string;
   /** Tuning override: the ring's band (and the gap inside it) in screen px, instead of the rule (`STROKE_CSS`) each. */
   ringPx?: number;
-  /** Tuning override: the edge's colour (the person's colour by default). */
-  outline?: "white" | "color";
+  /** The edge's colour: the person's colour by default; "white" is a tuning override (/dev/portraits/stroke); "none" draws no edge at all (the landing hero's figures). */
+  outline?: "white" | "color" | "none";
   /** Tuning override: where the edge sits against the polygon (inside by default). */
   edgePosition?: EdgePosition;
   /** Tuning override (/dev/portraits/stroke): the flat colour behind the cut, instead of the montage. */
@@ -56,7 +58,7 @@ interface Props {
  * cut in the person's colour (the owner's picks); `outline` and `edgePosition` override them, for the dev labs. A photo that fails to load (the cut's
  * and the tear's alike) leaves the person's colour with their initials and the plain photo over it, as `PersonPortrait` does, in the same box.
  */
-export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, color, ringColor, posterSize = "w92", rounded = true, strokePx, ringPx, outline = "color", edgePosition = "inside", flat = false, headAspect, filmPosters, grey = false }: Props) {
+export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185", className, slot, color, ringColor, posterSize = "w92", rounded = true, bare = false, strokePx, ringPx, outline = "color", edgePosition = "inside", flat = false, headAspect, filmPosters, grey = false }: Props) {
   const rawId = useId();
   const palette = usePersonPalette();
   // The url that failed, not a flag, so a new photo for the same portrait gets its own chance.
@@ -75,7 +77,7 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
   const { shape: { points, posters }, crop: view } = headAspect ? tileView(whole, headAspect) : { shape: whole, crop: { x: 0, y: 0, w, h } };
   // A photo that failed to load is the person's colour with their initials (`FailedPhoto`); a person with no posters at all (a tear, and no films with one) is on the flat colour, as the PNG draws it.
   const failed = failedSrc === src;
-  const montage = !failed && !flat && posters.length > 0;
+  const montage = !failed && !flat && !bare && posters.length > 0;
 
   // Container units: the outer span is the container, the inner one draws the ring and clips the picture.
   const radius = rounded ? `calc(100cqw * ${CARD_RADIUS_RATIO})` : undefined;
@@ -85,10 +87,11 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
   return (
     <span aria-hidden="true" data-treated-portrait data-treated-failed={failed ? "" : undefined} className={cn("relative inline-flex shrink-0 select-none", className)} style={{ containerType: "inline-size", borderRadius: radius, filter: grey ? "grayscale(1) brightness(0.72)" : undefined }}>
       <span
+        data-treated-frame
         className="absolute inset-0 overflow-hidden"
         style={{
           borderRadius: radius,
-          background: montage ? "#111" : hex,
+          background: bare && !failed ? undefined : montage ? "#111" : hex,
           boxShadow: ringColor ? `0 0 0 ${ringGap} var(--bg), 0 0 0 ${ringOuter} ${ringColor}` : undefined,
         }}
       >
@@ -98,8 +101,8 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
           <>
             {montage && (
               <span className="absolute inset-0 grid grid-cols-3 grid-rows-3" style={{ filter: `url(#duo-${id})` }}>
-                {posters.slice(0, 9).map((path) => (
-                  <img key={path} src={tmdbImage(path, posterSize)!} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                {posters.slice(0, 9).map((path, index) => (
+                  <img key={`${index}-${path}`} src={tmdbImage(path, posterSize)!} alt="" loading="lazy" decoding="async" className="w-full self-stretch object-cover" />
                 ))}
               </span>
             )}
@@ -110,7 +113,7 @@ export function TreatedPortrait({ personId, name, profilePath, imageSize = "w185
                 </clipPath>
                 {montage && <Duotone id={`duo-${id}`} tint={hex} />}
               </defs>
-              <CutPortraitImage src={src} points={points} w={w} h={h} clipId={`clip-${id}`} strokeColor={outlineColor ? hex : undefined} strokePx={strokePx} edgePosition={edgePosition} onError={() => setFailedSrc(src)} />
+              <CutPortraitImage src={src} points={points} w={w} h={h} clipId={`clip-${id}`} strokeColor={outlineColor ? hex : undefined} strokePx={strokePx} edgePosition={edgePosition} edgeShape={outline === "none" ? "none" : "open"} onError={() => setFailedSrc(src)} />
             </svg>
           </>
         )}
@@ -149,7 +152,7 @@ function FailedPhoto({ src, name }: { src: string; name: string }) {
 }
 
 /** Near-black to a dark version of the person's colour, by luminance (as the dev grid's montage). */
-function Duotone({ id, tint }: { id: string; tint: string }) {
+export function Duotone({ id, tint }: { id: string; tint: string }) {
   return (
     <filter id={id} colorInterpolationFilters="sRGB">
       <feColorMatrix type="matrix" values={duotoneMatrix(tint)} />

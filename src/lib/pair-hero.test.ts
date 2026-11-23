@@ -21,6 +21,7 @@ import {
   mainRole,
   mainRoleLabels,
   mainRoles,
+  nextHeroState,
   orderChips,
   pickHeroNote,
   quoteHref,
@@ -28,6 +29,7 @@ import {
   splitLastWord,
   visibleChips,
   type HeroChip,
+  type HeroState,
   type RankedFilm,
 } from "@/lib/pair-hero";
 import type { Credit, Film, PersonSummary, PersonTimeline, RoleKey } from "@/lib/types";
@@ -720,7 +722,7 @@ describe("heroCollapsed", () => {
     expect(heroCollapsed(1248, 1200)).toBe(true);
   });
 
-  it("collapses on the way back up too, and expands again within the threshold of the landing", () => {
+  it("measures the way back up too: 48px away is away, either way, and within the threshold of the landing is not", () => {
     expect(heroCollapsed(1152, 1200)).toBe(true);
     expect(heroCollapsed(1153, 1200)).toBe(false);
     expect(heroCollapsed(1200 + 60, 1200)).toBe(true);
@@ -730,5 +732,60 @@ describe("heroCollapsed", () => {
   it("takes another threshold", () => {
     expect(heroCollapsed(10, 0, 10)).toBe(true);
     expect(heroCollapsed(9, 0, 10)).toBe(false);
+  });
+});
+
+describe("nextHeroState", () => {
+  const open = (key: string): HeroState => ({ key, collapsed: false });
+  const shut = (key: string): HeroState => ({ key, collapsed: true });
+
+  it("is expanded while the view has not been moved", () => {
+    expect(nextHeroState(open("timeline"), "timeline", false)).toEqual(open("timeline"));
+  });
+
+  it("collapses the first time the view has been moved", () => {
+    expect(nextHeroState(open("timeline"), "timeline", true)).toEqual(shut("timeline"));
+  });
+
+  it("stays collapsed when the scroller comes back to where it landed: the hero unfurls only once", () => {
+    // Films and the Timeline land mid-track: scrolling away (48px or more) collapses the hero, and passing the landing again on the way back does not open it.
+    const landing = 1200;
+    let state = open("depth");
+    const collapsedAt = [1200, 1230, 1248, 1600, 1300, 1260, 1200, 1210, 1152, 900, 0, 1200].map((offset) => {
+      state = nextHeroState(state, "depth", heroCollapsed(offset, landing));
+      return state.collapsed;
+    });
+    // Open until the scroller is 48px away (at 1248), collapsed at every offset after it, including 1200, the landing itself.
+    expect(collapsedAt).toEqual([false, false, true, true, true, true, true, true, true, true, true, true]);
+    // In particular: back at the landing and within the threshold of it, after having been away.
+    expect(nextHeroState(shut("depth"), "depth", heroCollapsed(1200, landing))).toEqual(shut("depth"));
+    expect(nextHeroState(shut("depth"), "depth", heroCollapsed(1210, landing))).toEqual(shut("depth"));
+  });
+
+  it("collapses by hand too (a chip, a press on a scroller that cannot move) and stays collapsed", () => {
+    const collapsed = nextHeroState(open("table"), "table", true);
+    expect(collapsed).toEqual(shut("table"));
+    expect(nextHeroState(collapsed, "table", false)).toEqual(shut("table"));
+  });
+
+  it("returns the state it was given when nothing changes, so that setting it renders nothing", () => {
+    const expanded = open("timeline");
+    const collapsed = shut("timeline");
+    expect(nextHeroState(expanded, "timeline", false)).toBe(expanded);
+    expect(nextHeroState(collapsed, "timeline", true)).toBe(collapsed);
+    expect(nextHeroState(collapsed, "timeline", false)).toBe(collapsed);
+  });
+
+  it("opens again in another view: a state left over from the view the visitor switched from is not the new one's", () => {
+    // Collapsed on the Timeline, then the Table is chosen: the Table opens expanded...
+    expect(nextHeroState(shut("timeline"), "table", false)).toEqual(open("table"));
+    // ...and collapses the first time it has been moved, by its own scroller, not by the Timeline's state.
+    expect(nextHeroState(open("table"), "table", true)).toEqual(shut("table"));
+    // Back to the Timeline: expanded again, wherever its track was left.
+    expect(nextHeroState(shut("table"), "timeline", false)).toEqual(open("timeline"));
+  });
+
+  it("opens collapsed in a new view only if that view has already been moved", () => {
+    expect(nextHeroState(shut("timeline"), "table", true)).toEqual(shut("table"));
   });
 });

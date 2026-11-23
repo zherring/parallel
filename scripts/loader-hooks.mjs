@@ -35,3 +35,12 @@ export function resolve(specifier, context, nextResolve) {
   }
   return nextResolve(specifier, context);
 }
+
+// The app imports its generated data as JSON modules (`import data from "@/lib/x.json"`), which the bundler allows and Node's native ESM
+// only with the `type: "json"` attribute; this supplies it, so a script can reuse a module that reads such a file (example-cards.ts, for the landing page's people).
+export function load(url, context, nextLoad) {
+  if (url.endsWith(".json") && context.importAttributes?.type !== "json") {
+    return nextLoad(url, { ...context, importAttributes: { ...context.importAttributes, type: "json" } });
+  }
+  return nextLoad(url, context);
+}

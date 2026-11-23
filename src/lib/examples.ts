@@ -17,15 +17,12 @@ export type Genre = (typeof GENRES)[number];
 export type GenreId = Genre["id"];
 
 /**
- * The first tab, and the one the page opens on. Not a stored genre: it shows a random sample of
- * all pairings (see featured.ts), so every pairing belongs to exactly one real genre above.
+ * The first tab, and the one the page opens on. Not a stored genre: it is the splash (the hero) and no grid of pairings,
+ * so every pairing belongs to exactly one real genre above.
  */
 export const FEATURED_TAB = { id: "featured", label: "Featured" } as const;
 
 export type TabId = typeof FEATURED_TAB.id | GenreId;
-
-/** How many pairings the Featured tab shows. */
-export const FEATURED_COUNT = 6;
 
 export interface ExamplePairing {
   genre: GenreId;
@@ -1144,10 +1141,24 @@ export interface GeneratedPoster {
   year: number;
 }
 
+/**
+ * The years of the films on the landing hero's timeline, each list sorted (oldest first, a year repeated once per film) and delta-coded
+ * (year-list.ts `encodeYears`: the first year, then the gap to each next one). Only films that are already out and are not minor, by the same rules
+ * the pair page lists them with.
+ */
+export interface GeneratedYears {
+  /** One list per person, in the pairing's order of people: their own films, those the others did not make with them (the shared ones are in `together`). */
+  own: number[][];
+  /** The films every person has: the same list `sharedCount` counts. */
+  together: number[];
+}
+
 /** What `npm run examples:refresh` records per pairing, keyed by `pairingKey`. */
 export interface GeneratedPairing {
   /** Films all people share by the pair page's default rules (non-minor credits). */
   sharedCount: number;
+  /** The years of everyone's films, for the dots of the landing hero's timeline. */
+  years: GeneratedYears;
   /** In the same order as the pairing's people, with TMDB's canonical names and photos. */
   people: { id: number; name: string; profilePath: string }[];
   /**

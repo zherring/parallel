@@ -33,6 +33,7 @@
 
 import type { CombinedFilm } from "@/lib/combined-track";
 import { MINOR_OBSCURITY } from "@/lib/depth-minor";
+import { inWindow } from "@/lib/depth-projection";
 import {
   axisRange,
   makeScale,
@@ -256,7 +257,7 @@ export interface DepthLayout {
 
 /**
  * Room (px) the scene adds above its first year and below its last, on top of `DEPTH.pad`, when the pair hero is over its top: the hero's band covers the top of the
- * screen while it is open, and the scene opens at its start (scrollTop 0, the earliest year at the top), so without this room the first poster would open under it.
+ * screen while it is open, and the scene opens with its first collaboration (or, without one, its earliest year) this far from the top (see `openingScrollTop`), so without this room that poster would open under it.
  * A band is about 300px tall on a desktop, and 170 to 210px on a phone.
  */
 export const HERO_ROOM_PX = 180;
@@ -552,6 +553,32 @@ function scatterColumns(films: readonly Film[], scale: Scale, room: number): Map
 }
 
 const NO_FILMS: ReadonlySet<number> = new Set();
+
+/**
+ * The scrollTop the scene opens on: the first collaboration (the earliest film made together, see `DepthFilm.shared`) is `pad` from the top of the screen, which is
+ * clear of the pair hero's band (see `HERO_ROOM_PX`). 0, the top, for a scene without one: a page of one person, or of people who made nothing together.
+ * The browser clamps it to the scene's end (a short scene on a tall screen opens short of it).
+ */
+export function openingScrollTop(layout: Pick<DepthLayout, "films" | "scale">): number {
+  let first: number | null = null;
+  for (const item of layout.films) {
+    if (item.shared && (first === null || item.y < first)) first = item.y;
+  }
+  return first === null ? 0 : Math.max(0, Math.round(first - layout.scale.pad));
+}
+
+/**
+ * The films whose posters are inside the fetch window of a viewport `viewportH` tall scrolled to `scrollTop`: on screen, or within `buffer` px (screen px) of it, each on its own
+ * factor (`inWindow`). The scene's markup carries the images of these only (`DepthPoster`'s `eager`), asked at its opening position (`openingScrollTop`): the posters around
+ * the first collaboration are in the first paint, and the earlier ones, which can be a career away, are not.
+ */
+export function eagerFilmIds(films: readonly DepthFilm[], scrollTop: number, viewportH: number, buffer: number): Set<number> {
+  const ids = new Set<number>();
+  for (const item of films) {
+    if (inWindow(item.y, scrollTop, viewportH, posterFactor(item), buffer)) ids.add(item.film.id);
+  }
+  return ids;
+}
 
 /** The layer an entry is drawn on: 0 when several (released) made it, else its first person's slot + 1. */
 function layerOf(entry: CombinedFilm): number {

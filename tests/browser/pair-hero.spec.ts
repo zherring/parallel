@@ -1,15 +1,20 @@
 import type { Locator, Page } from "next/experimental/testmode/playwright";
 import { FILM_COUNT, HEADLINE, NAMES, PAIR, expect, test } from "./almodovar";
-import { bar, collapseHero, heroBody, heroState, quotesLink, scene, switcher } from "./fixtures";
+import { bar, collapseHero, heroBody, heroState, quotesLink, scene, scrollView, switcher, viewLink } from "./fixtures";
 import { getHeroNote } from "../../src/lib/pair-hero-note";
-import { portraitPersonHexes } from "../../src/lib/portrait-cuts";
+import { CARD_RADIUS_RATIO, portraitPersonHexes } from "../../src/lib/portrait-cuts";
+import { CARD_WIDTH, OPENING_BUFFER } from "../../src/lib/timeline-layout";
+
+/** The pair's first collaboration ("Bar Film 1", 2000): the film the Timeline and Films open on (the page's films are 100 + n - 1, see `almodovar.ts`). */
+const FIRST_COLLABORATION_ID = 100;
 
 /** "#rrggbb" as the computed colour: "rgb(r, g, b)". */
 const rgbOf = (hex: string) => `rgb(${[1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16)).join(", ")})`;
 
 /**
  * The pair hero at the top of every view of a `/p/` page: the names joined with ×, a line of roles and the film count, a portrait each, a note (the pair's first
- * quote here), and a chip for each film. It is open on arrival and collapses into the compact bar once the view's main scroller has moved 48px from where it landed.
+ * quote here), and a chip for each film. It is open on arrival, collapses into the compact bar once the view's main scroller has moved 48px from where it landed, and then stays collapsed
+ * (it unfurls only once: another view, or a reload, opens it again).
  * The pair is Almodóvar and Cruz, who have Quotes, with a dozen films together (`almodovar.ts`).
  */
 
@@ -40,7 +45,7 @@ const WORD: Record<ViewName, string> = { timeline: "Timeline", table: "Table", f
 /** The control's current segment, found without looking at whether it is shown (a phone's bar hides the control: its sheet has it). */
 const currentSegment = (page: Page) => bar(page).locator('nav[aria-label="Views"] a[aria-current="page"]');
 
-/** Opens a view of the pair, live, with its hero open and every view at its start. */
+/** Opens a view of the pair, live, with its hero open and every view where it opens (Films and the Timeline on the first collaboration, the Table and the Quotes at the top). */
 async function openView(page: Page, view: ViewName) {
   await page.goto(`${PAIR}${VIEWS[view]}`);
   if (view === "focus") await expect(scene(page)).toBeVisible();
@@ -126,19 +131,21 @@ test.describe("at 1440px wide", () => {
       await expect(title(page).locator("[data-pair-subtitle]")).toHaveText(new RegExp(`^actor × actor · ${FILM_COUNT} films$`, "i"));
       expect(await title(page).locator("[data-pair-subtitle]").evaluate((element) => getComputedStyle(element).textTransform)).toBe("uppercase");
 
-      // One portrait each, 100 to 120px tall, rounded with the bar's radius, with the person's colour ring.
+      // One portrait each (a cut-out: both have one, and the fixture gives them their photos), 100 to 120px tall, its corners rounded in proportion to the card
+      // (`CARD_RADIUS_RATIO`, as every cut-out's), with the person's colour ring. Measured on the frame that clips the picture and draws the ring, not the box round it.
       const portraits = heroBody(page).locator("[data-hero-portrait]");
       await expect(portraits).toHaveCount(2);
+      await expect(portraits.locator("[data-treated-frame]")).toHaveCount(2);
       const look = await portraits.evaluateAll((items) =>
         items.map((item) => {
-          const face = item.querySelector("span")!;
-          return { height: item.getBoundingClientRect().height, radius: getComputedStyle(face).borderTopLeftRadius, ring: getComputedStyle(face).boxShadow };
+          const face = item.querySelector("[data-treated-frame]")!;
+          return { height: item.getBoundingClientRect().height, width: face.getBoundingClientRect().width, radius: parseFloat(getComputedStyle(face).borderTopLeftRadius), ring: getComputedStyle(face).boxShadow };
         }),
       );
       for (const entry of look) {
         expect(entry.height).toBeGreaterThanOrEqual(100);
         expect(entry.height).toBeLessThanOrEqual(120);
-        expect(entry.radius).toBe("6px");
+        expect(entry.radius).toBeCloseTo(entry.width * CARD_RADIUS_RATIO, 1);
       }
       // The first person's colour, then the second's: the pair's own palette (`portraitPersonHexes`), the colour key of the pill, the timeline and the Quotes.
       const [first, second] = portraitPersonHexes([309, 955])!;
@@ -188,7 +195,7 @@ test.describe("at 1440px wide", () => {
     expect(measured.focus.gear.x).toBeLessThan(measured.timeline.gear.x);
   });
 
-  test("every view opens at its start: Films at the top of the scene, the Timeline at its left end (and at its bottom where it scrolls down), the Table and the Quotes at the top of the page", async ({ page }) => {
+  test("Films and the Timeline open on the first collaboration (the Timeline at its bottom, too, where it scrolls down), the Table and the Quotes at the top of the page", async ({ page }) => {
     // (The Timeline of this pair is no wider than a wide screen: on a narrower one it has room to scroll sideways, so that its left end is a position and not the only one.)
     await page.setViewportSize({ width: 900, height: 600 });
     for (const view of ALL_VIEWS) {
@@ -204,9 +211,23 @@ test.describe("at 1440px wide", () => {
         }
         return { left: window.scrollX, top: window.scrollY, bottomGap: 0 };
       }, view);
-      expect(start.left, `${view}: scrollLeft`).toBe(0);
-      // The Timeline sits at the bottom of its track (all of it, within a pixel), wherever that is; the others at the top.
+      // The pair's first film together is not either person's first film: both views are scrolled along to it, and the hero is still open (`openView`).
+      if (view === "timeline") expect(start.left, `${view}: scrollLeft`).toBeGreaterThan(0);
+      else expect(start.left, `${view}: scrollLeft`).toBe(0);
+      // The Timeline leaves a buffer of one card's width left of the first collaboration's card, so a sliver of the films before it shows; the card is not flush with the screen's edge.
+      if (view === "timeline") {
+        const { scrollerBox, cardBox } = await page.evaluate((filmId) => {
+          const scroller = [...document.querySelectorAll<HTMLElement>('[aria-label^="Film timeline. Scroll sideways"]')].find((e) => e.getClientRects().length > 0)!;
+          const card = scroller.querySelector<HTMLElement>(`li > button[data-film="${filmId}"]`)!;
+          const [a, b] = [scroller.getBoundingClientRect(), card.getBoundingClientRect()];
+          return { scrollerBox: { left: a.left }, cardBox: { left: b.left, width: b.width } };
+        }, FIRST_COLLABORATION_ID);
+        expect(cardBox.width, "it is the card, not the film's node").toBe(CARD_WIDTH);
+        expect(Math.abs(cardBox.left - scrollerBox.left - OPENING_BUFFER), `${view}: the card starts a buffer in from the left edge`).toBeLessThanOrEqual(3);
+      }
+      // The Timeline sits at the bottom of its track (all of it, within a pixel), wherever that is; the Table and the Quotes at the top.
       if (view === "timeline") expect(start.bottomGap, `${view}: distance from the bottom`).toBeLessThanOrEqual(1);
+      else if (view === "focus") expect(start.top, `${view}: scrollTop`).toBeGreaterThan(0);
       else expect(start.top, `${view}: scrollTop`).toBe(0);
     }
   });
@@ -214,29 +235,58 @@ test.describe("at 1440px wide", () => {
   // ---- collapsing ----------------------------------------------------------------------------------------------------
 
   for (const view of ALL_VIEWS) {
-    test(`on the ${view} view the hero collapses once the scroller has moved 48px from where it landed, and expands again within 48px of it`, async ({ page }) => {
+    test(`on the ${view} view the hero collapses once the scroller has moved 48px from where it landed, and stays collapsed when it comes back to it`, async ({ page }) => {
       // (The Timeline of this pair is no wider than a wide screen, so it is shown on a narrower one, where it has room to scroll sideways.)
       await page.setViewportSize({ width: view === "timeline" ? 900 : 1440, height: 600 });
       await openView(page, view);
       const landed = await landing(page, view);
-      // Every view starts at its start: Films at the top of the scene, the Timeline at its left end, the Table and the Quotes at the top of the page.
-      expect(landed).toBe(0);
+      // Films and the Timeline land on the first collaboration, the Table and the Quotes at the top of the page.
+      if (view === "focus" || view === "timeline") expect(landed).toBeGreaterThan(0);
+      else expect(landed).toBe(0);
 
-      await scrollTo(page, view, landed + 47);
+      // 48px either way counts. (The Timeline lands a card's width in from the start of this pair's short track, so there is more room to move towards the later years than back.)
+      const away = 1;
+      await scrollTo(page, view, landed + away * 47);
       expect(await heroState(page)).toBe("expanded");
-      await scrollTo(page, view, landed + 48);
+      await scrollTo(page, view, landed + away * 48);
       await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
       // Collapsed: the people pill is where the title was, and the title is no longer there to be pressed.
       await expect(pill(page)).toBeVisible();
       await expect(title(page)).toBeHidden();
 
-      // Back within 48px of where it landed: expanded again, and the pill gives way to the title.
-      await scrollTo(page, view, landed + 20);
-      await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
-      await expect(title(page)).toBeVisible();
-      await expect(pill(page)).toBeHidden();
+      // Back to where it landed, and past it: the hero does not unfurl again, which it would have done midway through the page (Films and the Timeline land mid-track).
+      for (const offset of [landed + away * 20, landed, landed - away * 10]) {
+        await scrollTo(page, view, Math.max(0, offset));
+        await frames(page, 3);
+        expect(await heroState(page), `back at ${offset}`).toBe("collapsed");
+      }
+      await expect(pill(page)).toBeVisible();
+      await expect(title(page)).toBeHidden();
     });
   }
+
+  test("another view opens with the hero expanded, and so does a reload: collapsed on one view does not carry to the next", async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 600 });
+    await openView(page, "timeline");
+    await collapseHero(page);
+    // The Table is another view of the page (chosen in place, a plain click): it opens with its hero open, and collapses by its own scroller.
+    await viewLink(page, "table").click();
+    await expect(currentSegment(page)).toHaveText("Table");
+    await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
+    await expect(title(page)).toBeVisible();
+    await collapseHero(page);
+    // And back to the Timeline, whose track is where it was left (at the end of its short track now): open again, and collapsed again by moving it back.
+    await viewLink(page, "timeline").click();
+    await expect(currentSegment(page)).toHaveText("Timeline");
+    await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
+    await frames(page, 3);
+    await scrollView(page, -120);
+    await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
+    // A reload opens the page with the hero open.
+    await page.reload();
+    await hydrated(page);
+    await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
+  });
 
   test("a Timeline with nothing to scroll collapses the hero on a press on it, or a wheel over the band, since no scroll can", async ({ page }) => {
     // At 1440px the pair's whole career is on the screen: the track has no room to scroll in either direction.
@@ -479,6 +529,7 @@ test.describe("at 1440px wide", () => {
 
   test("the year rail runs the full height of the screen from its top, with the hero open or collapsed: the band ends at its left edge, the hero clears it, and a press on it is on the rail", async ({ page }) => {
     await openView(page, "focus");
+    const landed = await landing(page, "focus");
     const track = page.locator("[data-depth-rail] > div").first();
     const railBox = async () => box(track);
     const check = async (state: string) => {
@@ -509,10 +560,10 @@ test.describe("at 1440px wide", () => {
 
     await collapseHero(page);
     await check("collapsed");
-    // Back within 48px of the start: open again, and the rail has not moved.
-    await scrollTo(page, "focus", 20);
-    await expect(bar(page)).toHaveAttribute("data-hero", "expanded");
-    await check("open again");
+    // Back within 48px of the start: still collapsed (the hero unfurls only once), and the rail has not moved.
+    await scrollTo(page, "focus", landed + 20);
+    await expect(bar(page)).toHaveAttribute("data-hero", "collapsed");
+    await check("collapsed, back at the start");
   });
 
   test("the year readout is clear of the bar's controls, with the hero open and collapsed, wherever the scene is scrolled", async ({ page }) => {

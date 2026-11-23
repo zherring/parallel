@@ -18,6 +18,7 @@ import {
   headlineCount,
   isFilmView,
   isFilmsView,
+  namesPeriod,
   namesView,
   parseView,
   quoteIdsOf,
@@ -150,6 +151,18 @@ describe("parseView", () => {
     expect(parseView("?view=TABLE")).toBe("timeline");
   });
 
+  it("opens the Timeline for a link that names a period and no view: the client reads it as the Timeline, not as the Table or the Quotes", () => {
+    for (const search of ["?from=1990&to=2000", "?from=1990", "?to=2000", "?view=bogus&from=1990&to=2000"]) expect(parseView(search), search).toBe("timeline");
+    expect(parseView("?from=1990&to=2000", ["a-quote"])).toBe("timeline");
+  });
+
+  it("lets an explicit view, a quote of the page's own or a sort win over a period", () => {
+    expect(parseView("?view=table&from=1990&to=2000")).toBe("table");
+    expect(parseView("?view=clippings&from=1990&to=2000")).toBe("clippings");
+    expect(parseView("?quote=a-quote&from=1990&to=2000", ["a-quote"])).toBe("clippings");
+    expect(parseView("?sort=rating&from=1990&to=2000")).toBe("table");
+  });
+
   it("opens the table for a sorted link that names no view", () => {
     expect(parseView("?sort=box-office&dir=desc")).toBe("table");
     expect(parseView("?sort=rating")).toBe("table");
@@ -250,7 +263,7 @@ describe("searchWithView", () => {
     expect(searchWithView("?view=timeline", "table")).toBe("?view=table");
   });
 
-  it("writes view=timeline for the timeline too: a plain address opens Films on a phone, so a link to the Timeline has to say so", () => {
+  it("writes view=timeline for the timeline too: a plain address opens Films, so a link to the Timeline has to say so", () => {
     expect(searchWithView("", "timeline")).toBe("?view=timeline");
     expect(searchWithView("?view=table", "timeline")).toBe("?view=timeline");
     expect(searchWithView("?view=depth", "timeline")).toBe("?view=timeline");
@@ -306,7 +319,7 @@ describe("carryView", () => {
     expect(carryView(`${href}#x`, "?view=depth")).toBe(`${href}?view=depth#x`);
   });
 
-  it("carries the timeline when the address names it, as every link to it does: on a phone a plain address would open Films", () => {
+  it("carries the timeline when the address names it, as every link to it does: a plain address would open Films", () => {
     expect(carryView(href, "?view=timeline")).toBe(`${href}?view=timeline`);
     expect(carryView(href, "?view=timeline&from=1990&to=2000")).toBe(`${href}?view=timeline`);
     expect(carryView(href, "?view=timeline&sort=rating&dir=desc")).toBe(`${href}?view=timeline`);
@@ -314,7 +327,22 @@ describe("carryView", () => {
 
   it("leaves the href plain for a plain address, which opens the same view on the same device", () => {
     expect(carryView(href, "")).toBe(href);
-    expect(carryView(href, "?from=1990&to=2000")).toBe(href);
+    expect(carryView(href, "?utm_source=x")).toBe(href);
+    // A period that is not a year is dropped, as the Timeline drops it: it names nothing.
+    expect(carryView(href, "?from=soon&to=later")).toBe(href);
+  });
+
+  it("carries the timeline for an address that names only a period, which names the Timeline: a plain address would open Films", () => {
+    expect(carryView(href, "?from=1990&to=2000")).toBe(`${href}?view=timeline`);
+    expect(carryView(href, "?from=1990")).toBe(`${href}?view=timeline`);
+    expect(carryView(href, "?to=2000")).toBe(`${href}?view=timeline`);
+    expect(carryView(href, "?view=bogus&from=1990&to=2000")).toBe(`${href}?view=timeline`);
+  });
+
+  it("lets a view the address names win over its period", () => {
+    expect(carryView(href, "?view=table&from=1990&to=2000")).toBe(`${href}?view=table`);
+    expect(carryView(href, "?view=depth&from=1990&to=2000")).toBe(`${href}?view=depth`);
+    expect(carryView(href, "?view=clippings&from=1990&to=2000")).toBe(href);
   });
 
   it("leaves the quotes behind", () => {
@@ -339,13 +367,31 @@ describe("namesView", () => {
     expect(namesView("?quote=c", ["a", "b"])).toBe(false);
   });
 
-  it("is false for no query, a period, another parameter or a view the page does not know", () => {
-    for (const search of ["", "?", "?from=1990&to=2000", "?utm_source=x", "?view=bogus", "?view="]) expect(namesView(search), search).toBe(false);
+  it("is true for a period, which opens the Timeline without saying so: both ends, or one with the other open", () => {
+    for (const search of ["?from=1990&to=2000", "?from=1990", "?to=2000", "?to=2000&from=1990", "?from=2000&to=1990", "?from=1990&to=soon"]) expect(namesView(search), search).toBe(true);
+  });
+
+  it("is false for no query, another parameter, a period that is not a year (the Timeline ignores it too) or a view the page does not know", () => {
+    for (const search of ["", "?", "?utm_source=x", "?view=bogus", "?view=", "?from=soon&to=later", "?from=90&to=2000000", "?from=&to=", "?from=1700&to=1800"])
+      expect(namesView(search), search).toBe(false);
   });
 
   it("reads a page's searchParams too, and the first of a repeated parameter", () => {
     expect(namesView({ view: ["table", "depth"] })).toBe(true);
-    expect(namesView({ view: undefined, from: "1990" })).toBe(false);
+    expect(namesView({ view: undefined, from: "1990" })).toBe(true);
+    expect(namesView({ view: undefined, from: undefined, to: "later" })).toBe(false);
+    expect(namesView({ from: ["1990", "soon"] })).toBe(true);
+    expect(namesView({ from: ["soon", "1990"] })).toBe(false);
+  });
+});
+
+describe("namesPeriod", () => {
+  it("is true when either end of the period is a year, by the Timeline's own reading of it", () => {
+    for (const search of ["?from=1990&to=2000", "from=1990", "?to=2000", new URLSearchParams("from=1990&to=1980"), { from: "1990" }]) expect(namesPeriod(search), String(search)).toBe(true);
+  });
+
+  it("is false when neither end is, whatever else the query says", () => {
+    for (const search of ["", "?view=depth", "?from=1990x", "?from=19900&to=1", "?sort=rating"]) expect(namesPeriod(search), search).toBe(false);
   });
 });
 

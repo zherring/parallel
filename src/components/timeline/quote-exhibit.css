@@ -468,9 +468,14 @@ body:has([data-quote-exhibit-deck]) > footer {
  * A room too small for the quote at FLOOR (11px) is one where no size fits the quote and what is under it: the quote stays at FLOOR, and the plate, which has
  * the room for its height, scrolls if its content (by the arithmetic above, often not) is taller, so nothing is clipped. That is the only scroller there is.
  *
- * CSS can't divide one length by another, so each is turned into the number of its pixels with tan(atan2(length, 1px)), and the result is multiplied
- * back by 1px. Chrome 120, Safari 15.4 and Firefox 118 all do this arithmetic (sqrt() is the newest of it), and the container units need Chrome 105,
- * Safari 16 and Firefox 110. A browser without them keeps the rule above.
+ * A length is turned into the number of its pixels (`--fit-width`, `--fit-height`, ... below), and the result multiplied back by 1px. Where CSS can divide one
+ * length by another (typed arithmetic: Safari 26.6 and current Chrome have it) that is `length / 1px`. Elsewhere it is tan(atan2(length, 1px)), which Chrome 120, Safari 15.4
+ * and Firefox 118 do (sqrt() is the newest of the rest), and the container units need Chrome 105, Safari 16 and Firefox 110. A browser without them keeps
+ * the rule above.
+ *
+ * Both are needed because `@supports` says only that a value parses: Safari 26.6 parses tan(atan2(length, 1px)) but gets nothing from it for a length
+ * that is not in pixels (1rem, 100cqh and 1em all come out as 0 or noise), so the quote's font-size computed to 0px and the quote was not there. The
+ * division is used wherever it parses, and the arithmetic of the first rule only in the engines that cannot divide.
  */
 @supports (font-size: calc(1px * sqrt(tan(atan2(1cqw, 1px))))) {
   .quote-exhibit-plate-fitted {
@@ -487,21 +492,38 @@ body:has([data-quote-exhibit-deck]) > footer {
   }
 
   .quote-exhibit-plate-fitted .quote-exhibit-words {
-    /* Pixels, as plain numbers. */
+    /* Pixels, as plain numbers: the one place a length becomes one, so the rule after this one can change how. */
     --fit-width: tan(atan2(min(100cqw, var(--quote-plate)), 1px));
+    --fit-height: tan(atan2(100cqh, 1px));
+    --fit-full: tan(atan2(var(--quote-size), 1px));
     --fit-ctx-size: tan(atan2(var(--quote-ctx-size), 1px));
     --fit-src-size: tan(atan2(var(--quote-src-size), 1px));
     --fit-src-flow: tan(atan2(var(--quote-src-flow), 1px));
-    /* What is under the quote: the share button (2.25rem) and the gaps, and the lines of the context and of the source. */
+    /* The share button (2.25rem) and the gaps. */
+    --fit-gaps: tan(atan2(2.25rem + var(--quote-actions-gap) + var(--quote-ctx-gap) + var(--quote-src-gap), 1px));
+    /* What is under the quote: those, and the lines of the context and of the source. */
     --fit-under: calc(
-      tan(atan2(2.25rem + var(--quote-actions-gap) + var(--quote-ctx-gap) + var(--quote-src-gap), 1px))
+      var(--fit-gaps)
       + var(--fit-ctx-size) * var(--quote-ctx-line) * (1 + var(--quote-ctx) * 0.62 * var(--fit-ctx-size) / var(--fit-width))
       + (var(--fit-src-size) * var(--quote-src-line) + var(--fit-src-flow)) * (1 + var(--quote-src) * 0.85 * var(--fit-src-size) / var(--fit-width))
     );
-    --fit-room: max(0, calc(tan(atan2(100cqh, 1px)) - var(--fit-under)));
+    --fit-room: max(0, calc(var(--fit-height) - var(--fit-under)));
     --fit-k: calc(var(--quote-em) * var(--quote-line) / (0.75 * var(--fit-width)));
     --fit-size: calc(2 * var(--fit-room) / (var(--quote-line) + sqrt(var(--quote-line) * var(--quote-line) + 4 * var(--fit-k) * var(--fit-room))));
     --fit-word: calc(var(--fit-width) / var(--quote-word));
-    font-size: calc(1px * min(tan(atan2(var(--quote-size), 1px)), var(--fit-word), max(11, var(--fit-size))));
+    font-size: calc(1px * min(var(--fit-full), var(--fit-word), max(11, var(--fit-size))));
+  }
+}
+
+/* The same numbers where a length can be divided by one (see above): the arithmetic of the rule before this one, which Safari 26.6 gets wrong, is not used. */
+@supports (width: calc(1px * (1rem / 1px))) {
+  .quote-exhibit-plate-fitted .quote-exhibit-words {
+    --fit-width: calc(min(100cqw, var(--quote-plate)) / 1px);
+    --fit-height: calc(100cqh / 1px);
+    --fit-full: calc(var(--quote-size) / 1px);
+    --fit-ctx-size: calc(var(--quote-ctx-size) / 1px);
+    --fit-src-size: calc(var(--quote-src-size) / 1px);
+    --fit-src-flow: calc(var(--quote-src-flow) / 1px);
+    --fit-gaps: calc((2.25rem + var(--quote-actions-gap) + var(--quote-ctx-gap) + var(--quote-src-gap)) / 1px);
   }
 }

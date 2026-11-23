@@ -28,6 +28,7 @@ const posters = (tag: string, count = 3) =>
 const data: GeneratedExamples = {
   "1+2": {
     sharedCount: 7,
+    years: { own: [[1990, 1, 2], [1995, 3]], together: [1991, 6, 7] },
     people: [
       { id: 1, name: "Ada Lovelace", profilePath: "/a.jpg" },
       { id: 2, name: "Bo Peep", profilePath: "/b.jpg" },
@@ -36,6 +37,7 @@ const data: GeneratedExamples = {
   },
   "3+4": {
     sharedCount: 3,
+    years: { own: [[1989], [1992]], together: [1992, 1, 1] },
     people: [
       { id: 3, name: "Cy Twombly", profilePath: "/c.jpg" },
       { id: 4, name: "Di Prince", profilePath: "/d.jpg" },
@@ -44,6 +46,7 @@ const data: GeneratedExamples = {
   },
   "5+6": {
     sharedCount: 1,
+    years: { own: [[], []], together: [1933] },
     people: [
       { id: 6, name: "Fay Wray", profilePath: "/f.jpg" },
       { id: 5, name: "Ed Wood", profilePath: "/e.jpg" },
@@ -53,11 +56,12 @@ const data: GeneratedExamples = {
 };
 
 describe("buildHeroPairings", () => {
-  it("carries the key, count, people (in pairing order) and posters of every pairing", () => {
+  it("carries the key, count, years, people (in pairing order) and posters of every pairing", () => {
     const [first, , third] = buildHeroPairings(pairings, data);
     expect(first).toEqual({
       key: "1+2",
       sharedCount: 7,
+      years: { own: [[1990, 1, 2], [1995, 3]], together: [1991, 6, 7] },
       people: data["1+2"].people,
       posters: posters("x"),
     });
@@ -75,7 +79,7 @@ describe("buildHeroPairings", () => {
   it("leaves out pairings of more than two people", () => {
     const trio = { people: [{ id: 1, name: "Ada Lovelace" }, { id: 2, name: "Bo Peep" }, { id: 3, name: "Cy Twombly" }], blurb: "x" };
     const trioData: GeneratedExamples = {
-      "1+2+3": { sharedCount: 3, people: [...data["1+2"].people, data["3+4"].people[0]], posters: posters("t") },
+      "1+2+3": { sharedCount: 3, years: { own: [[], [], []], together: [1991, 1, 1] }, people: [...data["1+2"].people, data["3+4"].people[0]], posters: posters("t") },
     };
     expect(buildHeroPairings([trio], trioData)).toEqual([]);
   });
@@ -84,6 +88,17 @@ describe("buildHeroPairings", () => {
     const stale = { ...data };
     delete stale["3+4"];
     expect(() => buildHeroPairings(pairings, stale)).toThrow(/examples:refresh/);
+  });
+
+  it("throws the same refresh message for an entry with the old shape of years (a `span`, none, or lists missing), not a TypeError", () => {
+    const entry = data["3+4"];
+    const withYears = (years: unknown) => ({ ...data, "3+4": { ...entry, years } }) as unknown as GeneratedExamples;
+    const noYears: Record<string, unknown> = { ...entry };
+    delete noYears.years;
+    const oldShape = { ...data, "3+4": { ...noYears, span: [1989, 1992] } } as unknown as GeneratedExamples;
+    for (const stale of [oldShape, withYears(undefined), withYears({}), withYears({ own: [[1989], [1992]] }), withYears({ own: [1989, 1992], together: [] }), withYears({ own: [[1989], [1992]], together: 1992 })]) {
+      expect(() => buildHeroPairings(pairings, stale)).toThrow(/out of date for pairing 3,4: run `npm run examples:refresh`/);
+    }
   });
 
   it("builds an entry with three to five posters for every real pairing", () => {

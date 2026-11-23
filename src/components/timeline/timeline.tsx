@@ -36,7 +36,6 @@ import {
   DOT_HIT_SIZE,
   MAX_ZOOM,
   MIN_ZOOM,
-  NODE_RADIUS,
   axisRange,
   axisTicks,
   buildConnectors,
@@ -53,6 +52,8 @@ import {
   packFilms,
   packTrackLanes,
   rowCount,
+  firstCollaborationX,
+  scrollLeftForCardStart,
   scrollLeftForCenter,
   scrollLeftForYearStart,
   sharedAcrossLanes,
@@ -67,6 +68,7 @@ import type { Film, PersonSummary } from "@/lib/types";
 import { cn } from "./cn";
 import { ConnectionLegend } from "./connection-legend";
 import { FilmCard, type CardTone } from "./film-card";
+import { FilmDot, LIT_GLOW, MADE_TOGETHER_WHITE } from "./film-dot";
 import { FilmNode } from "./film-node";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "./film-popover";
 import { LaneAvatars } from "./lane-avatars";
@@ -76,6 +78,7 @@ import type { OpenPerson } from "@/lib/side-panel";
 import { isSenderPeriod } from "./use-period";
 import { scrollBehavior } from "./scroll-behavior";
 import { useDragPan } from "./use-drag-pan";
+import { YearTick } from "./year-tick";
 
 export interface LaneData {
   person: PersonSummary;
@@ -186,9 +189,6 @@ const COMBINED_PERSON: PersonSummary = {
   biography: null,
 };
 
-const LIT_GLOW = { filter: "drop-shadow(0 0 3px var(--lit-glow))" };
-/** On a pair's page (its palette) the films made together are white, with no glow, where the app's are green (`--lit`). */
-const MADE_TOGETHER_WHITE = "#fff";
 /** Opacity of the connections the legend is not pointing at. */
 const DIMMED = 0.2;
 
@@ -374,6 +374,8 @@ export function Timeline({
   }, [embed, embedRows, entries, showAll, isCombined, lanes, pxPerYear, today, trackLanes]);
 
   const { scale, width, boxes } = layout;
+  /** Where the first collaboration's card is on the track, or null on a page without one: where the timeline opens. */
+  const firstSharedX = useMemo(() => firstCollaborationX(layout.items, layout.priorityIds), [layout.items, layout.priorityIds]);
 
   // A node's hit area, per lane: its own size on the page, and in a frame whose track is drawn smaller than it is laid out (`hitScale`) the size it has on the screen. Apart from the
   // layout, so that a frame that is resized (the fit changes with it) does not pack the cards again.
@@ -559,8 +561,10 @@ export function Timeline({
     return () => observer.disconnect();
   }, [updateEdges]);
 
-  // When the timeline is first shown it starts at its start: scrolled fully left (the earliest year), and, where the track scrolls vertically too (more rows than fit),
-  // at the bottom, on its baseline. Every later time it is shown (its tab was hidden: display none forgets the scroll position) it is put back where it was; see
+  // When the timeline is first shown it starts on the first collaboration: the earliest film that two or more lanes share, its card `OPENING_BUFFER` (a card's width) in from the
+  // left edge, so a sliver of the films before it shows (a first collaboration that is nearer the start than that opens at the start; a page with none, one person's or
+  // people who share nothing, and a frame in a post, start fully left, on the earliest year),
+  // and, where the track scrolls vertically too (more rows than fit), at the bottom, on its baseline. A linked period, applied after this, wins. Every later time it is shown (its tab was hidden: display none forgets the scroll position) it is put back where it was; see
   // `lastSeen`. A year queued by `rememberCenter` while it was hidden wins over the pixel position, because the axis may have moved meanwhile.
   useLayoutEffect(() => {
     const shown = active && !wasActive.current;
@@ -571,7 +575,7 @@ export function Timeline({
 
     if (!didInitialScroll.current) {
       didInitialScroll.current = true;
-      scroller.scrollLeft = 0;
+      scroller.scrollLeft = firstSharedX === null || embed ? 0 : scrollLeftForCardStart(firstSharedX);
       scroller.scrollTop = scroller.scrollHeight;
     } else if (lastSeen.current) {
       if (pendingCenter.current === null) scroller.scrollLeft = lastSeen.current.left;
@@ -580,7 +584,7 @@ export function Timeline({
     remember();
     updateEdges();
     updateActiveLane();
-  }, [active, remember, updateActiveLane, updateEdges]);
+  }, [active, embed, firstSharedX, remember, updateActiveLane, updateEdges]);
 
   // Zoom and the minor toggle can move the axis; keep whatever year was centred in place. While the
   // timeline is hidden the year comes from where it was last seen, and is placed once it is shown.
@@ -959,23 +963,15 @@ export function Timeline({
                       const dimmed = activeKey !== null && tone !== "plain" && layout.keys.get(film.id) !== activeKey;
                       const tint = tintFor(film.id, laneIndex);
                       return (
-                        <circle
+                        <FilmDot
                           key={film.id}
-                          cx={x}
-                          cy={y}
-                          r={colored && tone === "plain" ? NODE_RADIUS.some - 0.5 : NODE_RADIUS[tone]}
+                          x={x}
+                          y={y}
+                          tone={tone}
+                          colored={colored}
+                          palette={palette}
+                          fill={layout.accents.get(film.id) ?? tint?.color ?? "var(--text-muted)"}
                           opacity={dimmed || outsideIds.has(film.id) ? DIMMED : 1}
-                          stroke={tone === "plain" ? undefined : "var(--bg)"}
-                          strokeWidth={tone === "plain" ? undefined : 1.5}
-                          style={{
-                            ...(tone === "lit" && !palette ? LIT_GLOW : undefined),
-                            fill:
-                              tone === "lit"
-                                ? palette
-                                  ? MADE_TOGETHER_WHITE
-                                  : "var(--lit)"
-                                : (layout.accents.get(film.id) ?? tint?.color ?? "var(--text-muted)"),
-                          }}
                         />
                       );
                     })}
@@ -1101,23 +1097,7 @@ export function Timeline({
               />
               <div aria-hidden className="relative shrink-0" style={{ width }}>
                 {layout.ticks.map((tick) => (
-                  <span
-                    key={tick.year}
-                    className="absolute top-0 flex -translate-x-1/2 flex-col items-center"
-                    style={{ left: tick.x }}
-                  >
-                    <span className={cn("w-px", tick.kind === "decade" ? "h-3 bg-muted" : "h-1.5 bg-border")} />
-                    {tick.label && (
-                      <span
-                        className={cn(
-                          "mt-0.5 tabular-nums",
-                          tick.kind === "decade" ? "text-xs font-semibold text-strong" : "text-[10px] text-muted",
-                        )}
-                      >
-                        {tick.label}
-                      </span>
-                    )}
-                  </span>
+                  <YearTick key={tick.year} tick={tick} x={tick.x} />
                 ))}
               </div>
             </div>

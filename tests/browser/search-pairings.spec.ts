@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import { test, expect, openPeople, PEOPLE_PATH } from "./fixtures";
 
 const people = [
@@ -9,13 +10,23 @@ const pairings = [
   { href: "/p/90000001-scroll-alpha+90000003-scroll-gamma", people: [people[0], { id: 90000003, name: "Scroll Gamma", profilePath: null }], sharedCount: 8, blurb: "Another collaboration." },
 ];
 
+/**
+ * The landing page's search is the site's universal search: its top bar has a field-shaped button that opens the dialog, whose field is the chip field (`PersonSearch`) the
+ * page's own hero used to hold. What these specs check of the field is the same, so they run in the dialog.
+ */
+async function openHomeSearch(page: Page) {
+  await page.goto("/");
+  await page.locator("[data-landing-bar]").getByRole("button", { name: /Search any film artist/ }).click();
+  await expect(page.getByRole("dialog", { name: "Search people", exact: true })).toBeVisible();
+}
+
 test.beforeEach(async ({ page, next }) => {
   void next;
   await page.route("**/api/search?*", (route) => route.fulfill({ json: { results: people, pairings } }));
 });
 
 test("home puts an obvious match's pairings ahead of More artists, and clicking one opens the pair", async ({ page }) => {
-  await page.goto("/");
+  await openHomeSearch(page);
   await page.getByRole("combobox").fill("Scroll Alpha");
   const options = page.getByRole("option");
   await expect(options).toHaveCount(4);
@@ -42,7 +53,7 @@ for (const example of [
     const matches = [first, ...Array.from({ length: 7 }, (_, i) => ({ ...people[1], id: 10000 + i, name: example.other(i) }))];
     const related = pairings.map((pairing) => ({ ...pairing, people: [first, pairing.people[1]] }));
     await page.route("**/api/search?*", (route) => route.fulfill({ json: { results: matches, pairings: related } }));
-    await page.goto("/");
+    await openHomeSearch(page);
     await page.getByRole("combobox").fill(example.query);
     const options = page.getByRole("option");
     await expect(options).toHaveCount(10);
@@ -62,7 +73,7 @@ for (const example of [
 }
 
 test("a broad first-name search keeps all artists before the related pairings", async ({ page }) => {
-  await page.goto("/");
+  await openHomeSearch(page);
   await page.getByRole("combobox").fill("Scroll");
   const options = page.getByRole("option");
   await expect(options).toHaveCount(4);
@@ -73,7 +84,7 @@ test("a broad first-name search keeps all artists before the related pairings", 
 });
 
 test("keyboard navigation reaches More artists using the same indices as the visible rows", async ({ page }) => {
-  await page.goto("/");
+  await openHomeSearch(page);
   const field = page.getByRole("combobox");
   await field.fill("Scroll Alpha");
   await expect(page.getByRole("option")).toHaveCount(4);
@@ -137,13 +148,16 @@ test("Tab moves to category tabs without selecting; arrows switch categories and
   await expect(dialog).toHaveCount(0);
 });
 
+// The landing page's own search (its top bar's button) and a page header's Search button open the same dialog.
 for (const surface of ["home", "dialog"] as const) {
   test(`${surface}: repeated Tab activates All, Artists, Pairings and results; Shift+Tab goes backwards`, async ({ page }) => {
-    await page.goto(surface === "home" ? "/" : "/search-test-not-found");
-    if (surface === "dialog") {
+    if (surface === "home") {
+      await openHomeSearch(page);
+    } else {
+      await page.goto("/search-test-not-found");
       await page.getByRole("banner").getByRole("button", { name: "Search", exact: true }).click();
     }
-    const scope = surface === "home" ? page : page.getByRole("dialog", { name: "Search people", exact: true });
+    const scope = page.getByRole("dialog", { name: "Search people", exact: true });
     const field = scope.getByRole("combobox");
     await field.fill("Scroll Alpha");
     await expect(scope.getByRole("option")).toHaveCount(4);
@@ -179,7 +193,7 @@ test("category clicks preserve the query and reuse results without another API r
     requests += 1;
     return route.fulfill({ json: { results: people, pairings } });
   });
-  await page.goto("/");
+  await openHomeSearch(page);
   const field = page.getByRole("combobox");
   await field.fill("Scroll Alpha");
   await expect(page.getByRole("option")).toHaveCount(4);
@@ -197,7 +211,7 @@ test("category clicks preserve the query and reuse results without another API r
 
 test("Pairings has an empty state and Artists remains available", async ({ page }) => {
   await page.route("**/api/search?*", (route) => route.fulfill({ json: { results: people, pairings: [] } }));
-  await page.goto("/");
+  await openHomeSearch(page);
   await page.getByRole("combobox").fill("Scroll Alpha");
   await expect(page.getByRole("option")).toHaveCount(2);
   await page.getByRole("tab", { name: "Pairings", exact: true }).click();
@@ -208,7 +222,7 @@ test("Pairings has an empty state and Artists remains available", async ({ page 
 });
 
 test("category keyboard navigation wraps, and Escape returns to the field with the menu closed", async ({ page }) => {
-  await page.goto("/");
+  await openHomeSearch(page);
   const field = page.getByRole("combobox");
   await field.fill("Scroll Alpha");
   await expect(page.getByRole("option")).toHaveCount(4);
@@ -229,7 +243,7 @@ test("category keyboard navigation wraps, and Escape returns to the field with t
 });
 
 test("the default commit still adds the person, and pairings cannot replace selected chips", async ({ page }) => {
-  await page.goto("/");
+  await openHomeSearch(page);
   const field = page.getByRole("combobox");
   await field.fill("Scroll Alpha");
   await expect(page.getByRole("option")).toHaveCount(4);
@@ -248,7 +262,7 @@ test("the default commit still adds the person, and pairings cannot replace sele
 });
 
 test("stale pairings stay inert while the next query is loading", async ({ page }) => {
-  await page.goto("/");
+  await openHomeSearch(page);
   const field = page.getByRole("combobox");
   await field.fill("Scroll Alpha");
   await expect(page.getByRole("option")).toHaveCount(4);
@@ -272,7 +286,7 @@ test("stale pairings stay inert while the next query is loading", async ({ page 
 
 test("a person with no curated pairings keeps the usual people-only search", async ({ page }) => {
   await page.route("**/api/search?*", (route) => route.fulfill({ json: { results: people.slice(0, 1), pairings: [] } }));
-  await page.goto("/");
+  await openHomeSearch(page);
   await page.getByRole("combobox").fill("Scroll Alpha");
   await expect(page.getByRole("option")).toHaveCount(1);
   await expect(page.getByText("Related pairings", { exact: true })).toHaveCount(0);
@@ -287,14 +301,15 @@ test("the contextual People search never offers a shortcut that would replace th
   await dialog.getByRole("combobox").fill("Scroll Alpha");
   await expect(dialog.getByRole("option")).toHaveCount(2);
   await expect(dialog.getByText("Related pairings", { exact: true })).toHaveCount(0);
-  await expect(page).toHaveURL(PEOPLE_PATH);
+  // `openPeople` named the Timeline (a plain address opens Films), and nothing replaced it.
+  await expect(page).toHaveURL(`${PEOPLE_PATH}?view=timeline`);
 });
 
 test.describe("on a narrow phone", () => {
   test.use({ viewport: { width: 320, height: 568 }, hasTouch: true, isMobile: true });
 
   test("can read and tap a pairing without horizontal overflow", async ({ page }) => {
-    await page.goto("/");
+    await openHomeSearch(page);
     await page.getByRole("combobox").fill("Scroll Alpha");
     const tab = page.getByRole("tab", { name: "Pairings", exact: true });
     await tab.tap();

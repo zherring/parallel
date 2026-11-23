@@ -32,6 +32,7 @@ import { encodeCollaborators } from "../src/lib/collaborators-format";
 import { EXAMPLE_PAIRINGS } from "../src/lib/examples";
 import { encodePeopleIndex } from "../src/lib/people-index-format";
 import type { MatchablePerson } from "../src/lib/people-match";
+import { profilePathFor } from "../src/lib/profile-path";
 
 const OUTPUT = fileURLToPath(new URL("../src/lib/people-index.generated.json", import.meta.url));
 const COLLABORATORS_OUTPUT = fileURLToPath(new URL("../src/lib/collaborators.generated.json", import.meta.url));
@@ -313,7 +314,8 @@ function finish(): MatchablePerson[] {
     kept.push({
       id: person.id,
       name: person.name,
-      profilePath: person.profilePath,
+      // The photo the app shows (an override, else the cut-out's), so a search result and the person's page show the same one.
+      profilePath: profilePathFor(person.id, person.profilePath),
       knownFor: person.department,
       knownForTitles: [...new Set(titles)].slice(0, MAX_KNOWN_FOR_TITLES),
       popularity: person.popularity,

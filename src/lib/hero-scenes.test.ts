@@ -42,6 +42,7 @@ function pairing(a: number, b: number, posterCount = 3): HeroPairing {
   return {
     key: `${low}+${high}`,
     sharedCount: 3 + a + b,
+    years: { own: [[1990, 2, 3], [1995, 4]], together: [2001, 1, 1] },
     people: [person(a), person(b)],
     posters: Array.from({ length: posterCount }, (_, i) => i + 1).map((n) => ({
       path: `/f${a}-${b}-${n}.jpg`,
@@ -99,6 +100,10 @@ describe("moreFilms", () => {
     // Ford and Lucas: 11 films together, five posters shown.
     expect(moreFilms({ ...pairing(3, 1, 5), sharedCount: 11 })).toBe(6);
     expect(moreFilms({ ...pairing(3, 1, 5), sharedCount: 6 })).toBe(1);
+    // Fewer posters shown than it has (a narrower screen): the ones dropped count as more.
+    expect(moreFilms({ ...pairing(3, 1, 5), sharedCount: 6 }, 3)).toBe(3);
+    // Room for more than it has: nothing is added.
+    expect(moreFilms({ ...pairing(3, 1, 3), sharedCount: 3 }, 5)).toBe(0);
   });
 
   it("is zero when every film is shown, however few there are", () => {
