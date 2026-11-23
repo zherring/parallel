@@ -596,3 +596,149 @@ test("with no teams the empty field has no Teams group at all: no header, no err
   await expect(page.locator("[data-teams-loading]")).toHaveCount(0);
   await expect(page.getByRole("listbox")).toHaveAttribute("aria-label", "People");
 });
+
+// ---- The frame under `lg` (src/components/bacon-frame.tsx) ---------------------------------------------------------------------------------------------
+
+const FRAME_VIEWS = ["timeline", "depth"] as const;
+const FRAME_WIDTHS = [
+  { width: 390, height: 844 },
+  { width: 768, height: 1024 },
+];
+const frameOf = (page: Page) => page.locator("[data-bacon-frame]");
+const plaqueOf = (page: Page) => page.locator("[data-bacon-plaque]");
+
+/** Opens `path` at a viewport and waits for the page to be live (the gear's sheet opens and closes). */
+async function openFramed(page: Page, path: string, viewport: { width: number; height: number }) {
+  await page.setViewportSize(viewport);
+  await page.goto(path);
+  await expect(bar(page)).toHaveAttribute("data-bacon-page", "");
+  await waitUntilLive(page);
+}
+
+for (const viewport of FRAME_WIDTHS) {
+  for (const view of FRAME_VIEWS) {
+    test(`under lg (${viewport.width}px, ${view}) the screen is framed in the mode's orange, by a line that takes no room and no pointer, and a plaque on the left edge says the mode`, async ({ page, next }) => {
+      void next;
+      // The same page out of the mode, to hold the framed page to: nothing moves.
+      await page.setViewportSize(viewport);
+      await page.goto(`${BACON_PAIR}?view=${view}`);
+      await expect(bar(page)).toBeVisible();
+      await expect(frameOf(page)).toHaveCount(0);
+      const plainGear = await boxOf(page.getByRole("button", { name: "Settings", exact: true }));
+      const plainHome = await boxOf(page.getByRole("link", { name: "Back to Parallel home", exact: true }));
+
+      await openFramed(page, `${BACON_PAIR}?view=${view}&mode=bacon`, viewport);
+      const frame = frameOf(page);
+      await expect(frame).toBeVisible();
+      await expect(frame).toHaveCSS("position", "fixed");
+      await expect(frame).toHaveCSS("pointer-events", "none");
+      await expect(frame).toHaveCSS("border-top-color", ORANGE);
+      await expect(frame).toHaveAttribute("aria-hidden", "true");
+      // Around the screen's edge, inside it, and no more than a few pixels from it.
+      const box = await boxOf(frame);
+      expect(box.x).toBeGreaterThanOrEqual(3);
+      expect(box.y).toBeGreaterThanOrEqual(3);
+      expect(box.x).toBeLessThanOrEqual(8);
+      expect(viewport.width - (box.x + box.width)).toBeGreaterThanOrEqual(3);
+      expect(viewport.height - (box.y + box.height)).toBeGreaterThanOrEqual(3);
+      // It shifts nothing: the bar's controls are where they are out of the mode, and the page has no sideways scroll.
+      expect(await boxOf(page.getByRole("button", { name: "Settings", exact: true }))).toEqual(plainGear);
+      expect(await boxOf(page.getByRole("link", { name: "Back to Parallel home", exact: true }))).toEqual(plainHome);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      // It covers nothing a finger would press: on its line, the page's own element is the one hit.
+      const hit = await page.evaluate(([x, y]) => Boolean(document.elementFromPoint(x, y)?.closest("[data-bacon-frame]")), [box.x + box.width / 2, box.y + 1]);
+      expect(hit).toBe(false);
+    });
+
+    test(`under lg (${viewport.width}px, ${view}) the plaque is clear of the bar, the gear and the home arrow, and nothing is over it`, async ({ page, next }) => {
+      void next;
+      await openFramed(page, `${BACON_PAIR}?view=${view}&mode=bacon`, viewport);
+      const plaque = plaqueOf(page);
+      await expect(plaque).toBeVisible();
+      const box = await boxOf(plaque);
+      // On the left edge, the frame's own, and a tab: narrow, and tall enough to read.
+      expect(box.x).toBeLessThanOrEqual(8);
+      expect(box.width).toBeGreaterThanOrEqual(18);
+      expect(box.width).toBeLessThanOrEqual(32);
+      expect(box.height).toBeGreaterThan(100);
+      // Clear of the page bar's controls (the home arrow, the pill or the title, the gear), and of the top of the screen where the bar is.
+      for (const control of [page.getByRole("button", { name: "Settings", exact: true }), page.getByRole("link", { name: "Back to Parallel home", exact: true })]) {
+        expect(intersects(box, await boxOf(control))).toBe(false);
+      }
+      expect(box.y).toBeGreaterThan((await boxOf(bar(page))).height);
+      expect(box.y + box.height).toBeLessThan(viewport.height - 100);
+      // Nothing is on top of it, and it is not on top of the controls it is clear of.
+      expect(await isOnTopAtCentre(page, plaque)).toBe(true);
+      expect(await isOnTopAtCentre(page, page.getByRole("button", { name: "Settings", exact: true }))).toBe(true);
+      expect(await isOnTopAtCentre(page, page.getByRole("link", { name: "Back to Parallel home", exact: true }))).toBe(true);
+    });
+  }
+}
+
+test("the plaque is a link named 'Leave Kevin Bacon mode': it leaves the mode on the same page and view, and the frame goes with it", async ({ page, next }) => {
+  void next;
+  await openFramed(page, `${BACON_PAIR}?view=timeline&mode=bacon`, FRAME_WIDTHS[0]);
+  const plaque = page.getByRole("link", { name: "Leave Kevin Bacon mode", exact: true });
+  await expect(plaque).toHaveCount(1);
+  await expect(plaque).toHaveAttribute("data-bacon-plaque", "");
+  await expect(plaque).toHaveText("Kevin Bacon mode");
+  await plaque.focus();
+  await expect(plaque).toBeFocused();
+  await expect(plaque).toHaveAttribute("href", `${BACON_PAIR}?view=timeline`);
+  await plaque.click();
+  await expect(page).not.toHaveURL(/mode=bacon/);
+  await expect(page).toHaveURL(/view=timeline/);
+  await expect(bar(page)).not.toHaveAttribute("data-bacon-page");
+  await expect(frameOf(page)).toHaveCount(0);
+  await expect(plaqueOf(page)).toHaveCount(0);
+  expect(await together(page)).toBe("#fff");
+});
+
+test("the gear's sheet keeps its Kevin Bacon mode row under lg, with the plaque outside it", async ({ page, next }) => {
+  void next;
+  await openFramed(page, `${BACON_PAIR}?view=timeline&mode=bacon`, FRAME_WIDTHS[0]);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const sheet = page.getByRole("dialog", { name: "Settings", exact: true });
+  await expect(sheet.getByRole("link", { name: "Leave Kevin Bacon mode", exact: true })).toBeVisible();
+  // The sheet is over the frame's plaque, not the other way round.
+  await expect(plaqueOf(page)).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
+});
+
+test("from lg up, and on a page out of the mode, there is no frame: the bar's capsule is the tell", async ({ page, next }) => {
+  void next;
+  // lg and wider: the frame and its plaque are not drawn, and the bar's capsule is.
+  for (const width of [1024, 1440]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(`${BACON_PAIR}?view=timeline&mode=bacon`);
+    await expect(bar(page)).toHaveAttribute("data-bacon-page", "");
+    await expect(frameOf(page)).toBeHidden();
+    await expect(plaqueOf(page)).toBeHidden();
+    await expect(bar(page).getByRole("link", { name: "Leave Kevin Bacon mode", exact: true })).toBeVisible();
+  }
+  // Out of the mode, whatever the width: neither is in the page at all.
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`${BACON_PAIR}?view=timeline`);
+    await expect(bar(page)).toBeVisible();
+    await expect(frameOf(page)).toHaveCount(0);
+    await expect(plaqueOf(page)).toHaveCount(0);
+  }
+  // And a page that names the mode without him is an ordinary page.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/p/90000001-scroll-alpha+90000002-scroll-beta?mode=bacon&view=timeline");
+  await expect(bar(page)).toBeVisible();
+  await expect(frameOf(page)).toHaveCount(0);
+});
+
+test("a visitor who asked for less motion gets the frame without its entrance", async ({ page, next }) => {
+  void next;
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize(FRAME_WIDTHS[0]);
+  await page.goto(`${BACON_PAIR}?view=timeline&mode=bacon`);
+  await expect(frameOf(page)).toBeVisible();
+  await expect(frameOf(page)).toHaveCSS("animation-name", "none");
+  await expect(plaqueOf(page)).toHaveCSS("animation-name", "none");
+  await expect(frameOf(page)).toHaveCSS("opacity", "1");
+});

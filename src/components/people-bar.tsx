@@ -2,6 +2,7 @@
 
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, ViewTransition, type ReactNode, type RefObject } from "react";
+import { BaconFrame } from "@/components/bacon-frame";
 import { BaconModeBadge } from "@/components/bacon-mode-badge";
 import { REDUCED_MOTION, useMediaQuery } from "@/components/depth/use-media";
 import { PeoplePill, flipTransform, type PillPerson } from "@/components/depth/people-pill";
@@ -120,9 +121,12 @@ const STEPS_ASIDE =
 export function PeopleBar(props: PeopleBarProps) {
   // Opened by ⌘K (in the overlay) and by the gear's "People" row (in the bar's box): one state, held here.
   const overlay = usePeopleOverlayControl();
+  // Kevin Bacon mode (see `bacon-mode.ts`): under `lg`, where the bar has no capsule for it, the screen is framed (see `BaconFrame`).
+  const { baconPage } = usePeopleStaging();
   return (
     <>
       <PeopleBarBox {...props} onOpenPeople={overlay.show} />
+      {baconPage && <BaconFrame />}
       {/* ⌘K: the full-screen people search, for a page whose hero never collapses (see `PeopleOverlay`). After the bar's box, not in it: a wheel in the overlay is not for the scene. */}
       <PeopleOverlay people={props.people} onOpenPerson={props.onOpenPerson} control={overlay} />
     </>

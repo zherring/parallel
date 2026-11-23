@@ -76,6 +76,50 @@
   --conn-1: #00e054;
 }
 
+/*
+ * Kevin Bacon mode's frame under `lg` (src/components/bacon-frame.tsx): the line along the edge of the screen and the plaque set into its left side. Both sit inside the safe areas
+ * (a notch, the home indicator) and at least 3px from the edge of the screen: its 2px line then ends where the Films view's year rail (4px from the right edge) begins, so it
+ * covers none of it. The plaque is as tall as its text, centred on the screen's height, on the frame's own left line.
+ */
+[data-bacon-frame] {
+  inset: max(3px, env(safe-area-inset-top)) max(3px, env(safe-area-inset-right)) max(3px, env(safe-area-inset-bottom)) max(3px, env(safe-area-inset-left));
+}
+[data-bacon-plaque] {
+  top: 0;
+  bottom: 0;
+  left: max(3px, env(safe-area-inset-left));
+  height: fit-content;
+  margin-block: auto;
+  /* Its text is a little under 20px wide: the tab is 20px and the touch target (the pseudo-element) 24px by the tab's height and 8px more. */
+  width: 1.25rem;
+  padding-block: 0.5rem;
+}
+[data-bacon-plaque]::before {
+  content: "";
+  position: absolute;
+  inset: -0.25rem -0.25rem -0.25rem 0;
+}
+/* It comes in once per visit, after the page has: the line fades in and the plaque slides out of the edge; not at all for a visitor who asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-bacon-frame][data-enter] {
+    animation: bacon-frame-in 500ms ease-out both;
+  }
+  [data-bacon-plaque][data-enter] {
+    animation: bacon-plaque-in 450ms 250ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+}
+@keyframes bacon-frame-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes bacon-plaque-in {
+  from {
+    opacity: 0;
+    translate: -100% 0;
+  }
+}
+
 @theme inline {
   --color-canvas: var(--bg);
   --color-surface: var(--surface);
