@@ -31,10 +31,15 @@ const person = (id: number, name: string): PersonTimeline => ({
 const PEOPLE: Record<number, PersonTimeline> = {
   3151: person(3151, "Jack Lemmon"),
   6837: person(6837, "Walter Matthau"),
+  // The pair of Kevin Bacon mode's tests (he is the mode's person, see `bacon-mode.ts`): the same six films.
+  4724: person(4724, "Kevin Bacon"),
+  26467: person(26467, "Kyra Sedgwick"),
 };
 
 /** The slug the pair is at: what every other spelling of it redirects to. */
 export const PAIR_SLUG = "3151-jack-lemmon+6837-walter-matthau";
+/** A pair with Kevin Bacon in it, for the tests of Kevin Bacon mode (`?mode=bacon`): the slug it is at, his first. */
+export const BACON_PAIR_SLUG = "4724-kevin-bacon+26467-kyra-sedgwick";
 /** The years the pair's films span: a period that covers them all is no period. */
 export const PAIR_SPAN = { first: 1966, last: 1998 } as const;
 
