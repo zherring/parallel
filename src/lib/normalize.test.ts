@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { normalizeFilmDetails, normalizeMovieCredits, normalizePerson } from "@/lib/normalize";
+import cuts from "@/lib/portrait-cuts.json";
+import { PROFILE_OVERRIDES } from "@/lib/profile-overrides";
 import type { RawMovieCredits, RawMovieDetails } from "@/lib/tmdb-types";
 
 const movie = (id: number, title: string, release_date: string | undefined) => ({
@@ -13,7 +15,7 @@ describe("normalizePerson", () => {
   it("maps fields and nulls empty strings", () => {
     expect(
       normalizePerson({
-        id: 7467,
+        id: 900001,
         name: "David Fincher",
         profile_path: "/f.jpg",
         known_for_department: "Directing",
@@ -21,7 +23,7 @@ describe("normalizePerson", () => {
         deathday: "",
       }),
     ).toEqual({
-      id: 7467,
+      id: 900001,
       name: "David Fincher",
       profilePath: "/f.jpg",
       knownFor: "Directing",
@@ -288,5 +290,45 @@ describe("normalizeFilmDetails", () => {
     expect(
       normalizeFilmDetails({ id: 1, title: "T", release_date: "", poster_path: null, backdrop_path: null }),
     ).toMatchObject({ year: null, releaseDate: null, cast: [], crew: [], genres: [], runtime: null });
+  });
+});
+
+describe("the photo of a person", () => {
+  const SCORSESE = 1032;
+  const WILDER = 3460;
+  const scorsesePhoto = (cuts as Record<string, { profilePath: string }>)[SCORSESE].profilePath;
+
+  it("is the photo of their cut-out, not TMDB's current one, so a photo that TMDB changed never leaves a cut-out without its photo", () => {
+    expect(normalizePerson({ id: SCORSESE, name: "Martin Scorsese", profile_path: "/tmdb-moved-on.jpg" }).profilePath).toBe(scorsesePhoto);
+    expect(scorsesePhoto).not.toBe("/tmdb-moved-on.jpg");
+  });
+
+  it("is our override where there is one, whatever the cut", () => {
+    expect(normalizePerson({ id: WILDER, name: "Gene Wilder", profile_path: "/tmdb-moved-on.jpg" }).profilePath).toBe(PROFILE_OVERRIDES[WILDER]);
+  });
+
+  it("is TMDB's for a person with neither", () => {
+    expect(normalizePerson({ id: 900001, name: "Nobody", profile_path: "/theirs.jpg" }).profilePath).toBe("/theirs.jpg");
+    expect(normalizePerson({ id: 900001, name: "Nobody", profile_path: null }).profilePath).toBeNull();
+  });
+
+  it("is the same on a film's cast and crew", () => {
+    const details = normalizeFilmDetails({
+      id: 1,
+      title: "A Film",
+      release_date: "2000-01-01",
+      poster_path: null,
+      backdrop_path: null,
+      runtime: 100,
+      tagline: "",
+      overview: "",
+      genres: [],
+      credits: {
+        cast: [{ id: WILDER, name: "Gene Wilder", profile_path: "/tmdb-moved-on.jpg", character: "A", order: 0 }],
+        crew: [{ id: SCORSESE, name: "Martin Scorsese", profile_path: "/tmdb-moved-on.jpg", job: "Director" }],
+      },
+    });
+    expect(details.cast[0].profilePath).toBe(PROFILE_OVERRIDES[WILDER]);
+    expect(details.crew[0].profilePath).toBe(scorsesePhoto);
   });
 });

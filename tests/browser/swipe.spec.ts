@@ -1,7 +1,7 @@
 import type { Locator, Page } from "next/experimental/testmode/playwright";
 import { PEOPLE_PATH, expect, test } from "./fixtures";
 
-// The touch gestures of a phone: swiping the landing page's collage between pairings (src/components/landing/use-hero-swipe.ts) and
+// The touch gestures of a phone: swiping the landing page's stage between pairings (src/components/landing/use-hero-swipe.ts) and
 // pulling a details sheet down to dismiss it (src/components/side-panel/use-swipe-dismiss.ts). Both follow the finger 1:1 and then
 // either snap to their action or spring back (the rules are in src/lib/swipe.ts). Real touch input, through the browser's own
 // gesture handling (CDP), so what the page's scroll takes and what the swipe takes are the engine's decisions, not the test's.
@@ -54,35 +54,38 @@ async function finger(page: Page) {
 
 const boxOf = async (locator: Locator) => (await locator.boundingBox())!;
 
-test.describe("the landing collage", () => {
-  const link = (page: Page) => page.locator("[data-hero-collage] > a");
-  /** The left portrait's card as it is on screen: the one that is not on its way out. */
-  const card = (page: Page) => page.locator("[data-hero-collage] > a figure").first();
-  const status = (page: Page) => page.locator("[data-hero-collage] [role='status']");
+test.describe("the landing stage", () => {
+  const stage = (page: Page) => page.locator("[data-hero-stage]");
+  const link = (page: Page) => page.locator("[data-stage-link]");
+  /** A piece of the scene: the first poster of the cluster. */
+  const piece = (page: Page) => page.locator("[data-cue-poster]").first();
+  const status = (page: Page) => stage(page).locator("[role='status']");
+  const shift = (page: Page) => stage(page).evaluate((element) => parseFloat(element.style.getPropertyValue("--swipe") || "0"));
 
   async function openLanding(page: Page) {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto("/");
+    // The link is there once the scene's images are in and it has been revealed; then its entrance plays out.
     await expect(link(page)).toHaveAttribute("aria-label", / together$/);
-    // The scene has faded in, so the rotation (and a swipe's step) has images to show.
-    await expect(page.locator("[data-hero-collage] > a > div").first()).toHaveClass(/opacity-100/);
-    const box = await boxOf(link(page));
-    return { box, mid: { x: box.x + box.width / 2, y: box.y + box.height / 3 }, label: (await link(page).getAttribute("aria-label"))! };
+    await expect.poll(() => stage(page).evaluate((element) => element.getAnimations({ subtree: true }).filter((animation) => animation.playState === "running").length)).toBe(0);
+    const box = await boxOf(stage(page));
+    // On the figures, clear of the headline over the top of the stage and of the keycaps in the names' row.
+    return { box, mid: { x: box.x + box.width / 2, y: box.y + box.height * 0.5 }, label: (await link(page).getAttribute("aria-label"))! };
   }
 
-  test("the cards follow the finger, and a short swipe let go springs back without opening the link", async ({ page }) => {
+  test("the scene follows the finger, and a short swipe let go comes back without changing the pairing or opening the link", async ({ page }) => {
     const { mid, label } = await openLanding(page);
     const touch = await finger(page);
-    const before = await boxOf(card(page));
+    const before = await boxOf(piece(page));
     await touch.down(mid.x, mid.y);
     await touch.move(mid.x - 40, mid.y);
     // 1:1 with the finger, less the 8px of slop it took to know it was a swipe.
-    const dragged = await boxOf(card(page));
+    const dragged = await boxOf(piece(page));
     expect(before.x - dragged.x).toBeCloseTo(32, 0);
-    expect(Math.abs(dragged.y - before.y)).toBeLessThan(4);
+    expect(Math.abs(dragged.y - before.y)).toBeLessThan(2);
 
     await touch.up(160);
-    await expect.poll(async () => Math.abs((await boxOf(card(page))).x - before.x)).toBeLessThan(1);
+    await expect.poll(async () => Math.abs((await boxOf(piece(page))).x - before.x)).toBeLessThan(1);
     await expect(link(page)).toHaveAttribute("aria-label", label);
     await expect(status(page)).toHaveText("");
     expect(new URL(page.url()).pathname).toBe("/");
@@ -92,7 +95,7 @@ test.describe("the landing collage", () => {
     const { mid, label, box } = await openLanding(page);
     const touch = await finger(page);
     await touch.down(mid.x, mid.y);
-    await touch.move(mid.x - box.width * 0.5, mid.y, { steps: 14 });
+    await touch.move(mid.x - box.width * 0.4, mid.y, { steps: 14 });
     await expect(page.locator('[data-keycap="next"]')).toHaveAttribute("data-pressed", "true");
     await expect(page.locator('[data-keycap="prev"]')).toHaveAttribute("data-pressed", "false");
     await touch.up(160);
@@ -100,9 +103,8 @@ test.describe("the landing collage", () => {
     await expect(link(page)).not.toHaveAttribute("aria-label", label);
     await expect(status(page)).toHaveText(/^Showing /);
     await expect(page.locator('[data-keycap="next"]')).toHaveAttribute("data-pressed", "false");
-    // The new scene's cards are at rest in their places, and the finger did not open the link.
-    await expect.poll(() => page.locator("[data-hero-collage] > a > div").first().evaluate((stage) => stage.style.getPropertyValue("--swipe"))).toBe("0.00px");
-    await expect.poll(() => page.locator("[data-hero-collage] > a figure").count()).toBe(2);
+    // The scene is back in its place, and the finger did not open the link.
+    await expect.poll(() => shift(page)).toBe(0);
     expect(new URL(page.url()).pathname).toBe("/");
   });
 
@@ -112,7 +114,7 @@ test.describe("the landing collage", () => {
     // 45px in 30ms: short of the distance that steps by itself, fast enough to step.
     await touch.flick(mid.x, mid.y, -45, 0);
     await expect(link(page)).not.toHaveAttribute("aria-label", label);
-    await expect.poll(() => page.locator("[data-hero-collage] > a figure").count()).toBe(2);
+    await expect.poll(() => shift(page)).toBe(0);
 
     await touch.flick(mid.x, mid.y, 45, 0);
     await expect(link(page)).toHaveAttribute("aria-label", label);
@@ -128,12 +130,14 @@ test.describe("the landing collage", () => {
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(40);
     await expect(link(page)).toHaveAttribute("aria-label", label);
     await expect(status(page)).toHaveText("");
+    expect(await shift(page)).toBe(0);
   });
 
-  test("a tap still opens the pairing", async ({ page }) => {
-    const { mid } = await openLanding(page);
+  test("a tap on the link still opens the pairing", async ({ page }) => {
+    await openLanding(page);
     const href = await link(page).getAttribute("href");
-    await page.touchscreen.tap(mid.x, mid.y);
+    const box = await boxOf(link(page));
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + 40);
     await expect.poll(() => new URL(page.url()).pathname).toBe(href);
   });
 });

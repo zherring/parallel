@@ -36,7 +36,6 @@ import {
   DOT_HIT_SIZE,
   MAX_ZOOM,
   MIN_ZOOM,
-  NODE_RADIUS,
   axisRange,
   axisTicks,
   buildConnectors,
@@ -69,6 +68,7 @@ import type { Film, PersonSummary } from "@/lib/types";
 import { cn } from "./cn";
 import { ConnectionLegend } from "./connection-legend";
 import { FilmCard, type CardTone } from "./film-card";
+import { FilmDot, LIT_GLOW, MADE_TOGETHER_WHITE } from "./film-dot";
 import { FilmNode } from "./film-node";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "./film-popover";
 import { LaneAvatars } from "./lane-avatars";
@@ -79,6 +79,7 @@ import { isSenderPeriod } from "./use-period";
 import { scrollBehavior } from "./scroll-behavior";
 import { useDragPan } from "./use-drag-pan";
 import { usePinchZoom } from "./use-pinch-zoom";
+import { YearTick } from "./year-tick";
 
 export interface LaneData {
   person: PersonSummary;
@@ -189,9 +190,6 @@ const COMBINED_PERSON: PersonSummary = {
   biography: null,
 };
 
-const LIT_GLOW = { filter: "drop-shadow(0 0 3px var(--lit-glow))" };
-/** On a pair's page (its palette) the films made together are white, with no glow, where the app's are green (`--lit`). */
-const MADE_TOGETHER_WHITE = "#fff";
 /** Opacity of the connections the legend is not pointing at. */
 const DIMMED = 0.2;
 
@@ -982,23 +980,15 @@ export function Timeline({
                       const dimmed = activeKey !== null && tone !== "plain" && layout.keys.get(film.id) !== activeKey;
                       const tint = tintFor(film.id, laneIndex);
                       return (
-                        <circle
+                        <FilmDot
                           key={film.id}
-                          cx={x}
-                          cy={y}
-                          r={colored && tone === "plain" ? NODE_RADIUS.some - 0.5 : NODE_RADIUS[tone]}
+                          x={x}
+                          y={y}
+                          tone={tone}
+                          colored={colored}
+                          palette={palette}
+                          fill={layout.accents.get(film.id) ?? tint?.color ?? "var(--text-muted)"}
                           opacity={dimmed || outsideIds.has(film.id) ? DIMMED : 1}
-                          stroke={tone === "plain" ? undefined : "var(--bg)"}
-                          strokeWidth={tone === "plain" ? undefined : 1.5}
-                          style={{
-                            ...(tone === "lit" && !palette ? LIT_GLOW : undefined),
-                            fill:
-                              tone === "lit"
-                                ? palette
-                                  ? MADE_TOGETHER_WHITE
-                                  : "var(--lit)"
-                                : (layout.accents.get(film.id) ?? tint?.color ?? "var(--text-muted)"),
-                          }}
                         />
                       );
                     })}
@@ -1124,23 +1114,7 @@ export function Timeline({
               />
               <div aria-hidden className="relative shrink-0" style={{ width }}>
                 {layout.ticks.map((tick) => (
-                  <span
-                    key={tick.year}
-                    className="absolute top-0 flex -translate-x-1/2 flex-col items-center"
-                    style={{ left: tick.x }}
-                  >
-                    <span className={cn("w-px", tick.kind === "decade" ? "h-3 bg-muted" : "h-1.5 bg-border")} />
-                    {tick.label && (
-                      <span
-                        className={cn(
-                          "mt-0.5 tabular-nums",
-                          tick.kind === "decade" ? "text-xs font-semibold text-strong" : "text-[10px] text-muted",
-                        )}
-                      >
-                        {tick.label}
-                      </span>
-                    )}
-                  </span>
+                  <YearTick key={tick.year} tick={tick} x={tick.x} />
                 ))}
               </div>
             </div>

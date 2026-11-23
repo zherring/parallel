@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
+import { GenreOnly, GenreTabsProvider } from "@/components/landing/genre-tabs";
+import { genrePills } from "@/components/landing/genre-pills";
 import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
+import { LandingBar } from "@/components/landing/landing-bar";
 import { Pairings } from "@/components/landing/pairings";
 import { buildGenreSections, buildHeroPairings } from "@/lib/example-cards";
+import { GENRE_ROOT } from "@/lib/genre-deep-link";
 import { heroPool } from "@/lib/hero-scenes";
 
 const title = "Parallel — Filmographies & Film Collaborations";
@@ -20,11 +24,20 @@ export const metadata: Metadata = {
 // src/lib/examples.generated.json (see `npm run examples:refresh`), so this page makes no TMDB
 // calls at build or request time.
 export default function Home() {
+  const sections = buildGenreSections();
+  const pills = genrePills(sections);
   return (
-    <>
-      <Hero pool={heroPool(buildHeroPairings())} />
-      <Pairings sections={buildGenreSections()} />
-      <HowItWorks />
-    </>
+    // The genre pills are in the top bar and their panels under it (the splash is Featured's, a genre's cards are its own panel's): one provider holds the choice for both.
+    <GenreTabsProvider idBase="pairings" ids={pills.map((pill) => pill.id)}>
+      {/* The root of the page, which the deep-link script marks with the genre before hydration (genre-deep-link.ts): hence the suppressed warning. */}
+      <div {...{ [GENRE_ROOT]: "" }} suppressHydrationWarning>
+        <LandingBar pills={pills} />
+        <Pairings sections={sections} hero={<Hero pool={heroPool(buildHeroPairings())} />} />
+        {/* Under a genre's grid only: the Featured tab is the splash and nothing else. */}
+        <GenreOnly>
+          <HowItWorks />
+        </GenreOnly>
+      </div>
+    </GenreTabsProvider>
   );
 }

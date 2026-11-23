@@ -1,27 +1,32 @@
 // The hero's choreography, as Web Animations API calls on plain elements. Transform and opacity
-// (plus a 2px blur on the way out), so it stays on the compositor. Nothing here touches layout.
-// The element being moved is always a wrapper around the card, so these never fight the card's
-// own tilt, the idle float or the pointer parallax, which live on other elements.
+// (and clip-path for the first reveal's wipes), so it stays on the compositor and nothing here touches layout.
+// What is moved is always an element of its own (`data-part`) inside a wrapper, so these never fight the
+// pointer parallax (the `translate` of an element above it, see hero-stage.tsx), a poster's hover lift and tilt (the
+// `translate` and `rotate` of one below it) or the layout transforms that centre things: the animations use `transform`
+// and `opacity` only, and those are separate properties.
+//
+// An item arrives over what it replaces, and what it replaces stays under it, unchanged, until it is covered
+// (`hold`): a cross-fade of two layers that both fade would dip through the panel's dark base.
 
 /** What the choreography needs to know about the visitor's settings. */
 export interface MotionOptions {
-  /** prefers-reduced-motion: cross-fades only, no travel, scale or blur. */
+  /** prefers-reduced-motion: plain cross-fades, no wipes, travel or parallax. */
   reduced: boolean;
   /** Milliseconds before the animation starts. */
   delay?: number;
-  /**
-   * Which way the cards travel: 1 is the way forward (arrive from the bottom right, leave to the
-   * bottom left), -1 mirrors it for Previous. Reduced motion has no travel to mirror.
-   */
-  dir?: 1 | -1;
-  /**
-   * The card was swiped this far sideways (stage pixels) when it was sent away: it leaves from there and carries on the
-   * way the finger was taking it.
-   */
-  swipe?: number;
+  /** A panel's: the first reveal, a person replaced, or the same person in a new colour. */
+  mode?: PanelMode;
 }
 
-export type CardKind = "person" | "poster" | "label";
+/** The pieces of the stage that come and go with a scene. */
+export type ItemKind = "panel" | "name" | "amp" | "poster" | "strip" | "year" | "label";
+
+/**
+ * How a panel arrives or leaves. "intro": the first reveal, whose frame wipes in (`wipeFrames`) so only the figure moves (and, in a name's own piece, the name).
+ * "swap": its person is replaced. "recolour": its person stays but the pair's colour for them changed (their new partner's colour collided
+ * with theirs, see `pairPortraitColors`): the same panel cross-fades, and nothing moves, so the panel that stays does stay still.
+ */
+export type PanelMode = "intro" | "swap" | "recolour";
 
 // A damped spring (zeta 0.62) sampled into linear(): about 8% overshoot, settled by the end.
 const SPRING =
@@ -29,7 +34,10 @@ const SPRING =
 // For browsers without linear(): a back-out curve with a similar overshoot.
 const SPRING_FALLBACK = "cubic-bezier(0.34, 1.5, 0.64, 1)";
 const EASE_IN_OUT = "cubic-bezier(0.4, 0, 0.2, 1)";
+const EASE_IN = "cubic-bezier(0.4, 0, 1, 1)";
 const EASE_OUT = "cubic-bezier(0.22, 1, 0.36, 1)";
+/** The figure's rise: quick off the mark, settling without overshoot. */
+const EASE_RISE = "cubic-bezier(0.2, 0.8, 0.2, 1)";
 
 /** The spring as a CSS `easing` value, for any Web Animations call (the people pill's heads use it too). */
 export const springEasing = (): string =>
@@ -39,130 +47,220 @@ export const springEasing = (): string =>
 
 /** Timings, in milliseconds, shared with the component's stagger. */
 export const TIMING = {
-  leave: 320,
+  /** A reduced-motion visitor's cross-fades. */
+  reduced: 150,
+  /** The outgoing figure sinks and the name slides up and out. */
+  figureLeave: 300,
+  /** The montage cross-fades to the new person's, starting just after the figure starts to sink. */
+  backdrop: 450,
+  backdropDelay: 60,
+  /** The incoming figure rises, and the name comes up from below, as the outgoing one is nearly gone. */
+  figureArrive: 560,
+  figureDelay: 150,
+  name: 300,
+  /** The second panel of a full swap follows the first. */
+  panelStagger: 70,
+  /** What stays under an arriving panel (its backdrop), so it is never uncovered: longer than the arrival's own end. */
+  panelHold: 660,
+  /** Posters drop away one by one, then new ones are dealt in chronological order. */
   posterLeave: 260,
-  arrive: 520,
-  posterArrive: 480,
-  /** The incoming portraits start while the outgoing ones are still easing back. */
-  personArriveDelay: 190,
-  /** Posters are dealt after the portraits, one every POSTER_STAGGER. */
-  posterArriveDelay: 260,
-  posterStagger: 70,
   posterLeaveStagger: 40,
-  nodDelay: 200,
-  nod: 460,
-  /** The "+N more" label fades in and out; it never moves. */
-  labelArrive: 360,
-  labelLeave: 200,
+  posterArriveDelay: 260,
+  posterStagger: 60,
+  posterArrive: 520,
+  /** The year caps and the "+N more" label cross-fade after the posters have started. */
+  captionDelay: 300,
+  caption: 320,
+  /** The timeline's dots pop in from the left to the right, over this long, each on its own spring. */
+  stripSweep: 520,
+  stripDot: 420,
+  /** The first reveal: the line draws, the frames wipe, and what is on them follows. */
+  introLineDelay: 120,
+  introLine: 700,
+  introWipe: 640,
+  introWipeStagger: 80,
+  introFigureDelay: 260,
+  introPostersDelay: 520,
+  introCaptionsGap: 160,
 } as const;
 
+const part = (el: HTMLElement, name: string): HTMLElement | null => el.querySelector<HTMLElement>(`[data-part="${name}"]`);
+
+const fade = (el: HTMLElement, from: number, to: number, duration: number, delay: number, easing = EASE_OUT): Animation =>
+  el.animate([{ opacity: from }, { opacity: to }], { duration, delay, easing, fill: from < to ? "backwards" : "forwards" });
+
+/** Keeps the element as it is for `duration`, so that it is part of what `Promise.all(finished)` waits for. */
+const hold = (el: HTMLElement, duration: number): Animation =>
+  el.animate([{ opacity: 1 }, { opacity: 1 }], { duration });
+
 /**
- * A portrait or poster arriving: from the bottom right with a spring (a plain fade if reduced; the
- * bottom left when `dir` is -1). The "+N more" label only ever fades.
+ * A piece arriving. A reduced-motion visitor gets a plain fade of the whole piece. A panel's parts move by `mode`; a poster is dealt in, rising
+ * into its place in the cluster; a name comes up from below; the timeline's dots pop in from the left to the right; the "&", the year caps and the label fade in.
  */
-export function arrive(el: HTMLElement, kind: CardKind, { reduced, delay = 0, dir = 1 }: MotionOptions): Animation[] {
-  if (kind === "label") {
-    return [el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: TIMING.labelArrive, delay, easing: EASE_OUT, fill: "backwards" })];
+export function arrive(el: HTMLElement, kind: ItemKind, { reduced, delay = 0, mode = "swap" }: MotionOptions): Animation[] {
+  if (reduced) return [fade(el, 0, 1, TIMING.reduced, delay)];
+  switch (kind) {
+    case "panel":
+      return arrivePanel(el, delay, mode);
+    case "name":
+      return [arriveName(el, delay, mode)];
+    case "poster":
+      return arrivePoster(el, delay);
+    case "strip":
+      return arriveStrip(el, delay);
+    case "amp":
+      // With the first names: it is the one piece that stays through every scene after.
+      return [fade(el, 0, 1, TIMING.caption, delay + TIMING.introFigureDelay + 120)];
+    case "year":
+    case "label":
+      return [fade(el, 0, 1, TIMING.caption, delay)];
   }
-  if (reduced) {
-    return [el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, delay, easing: "ease-out", fill: "backwards" })];
+}
+
+/** A piece leaving: its parts go as they came (a panel keeps its backdrop under the next one's, `hold`). */
+export function depart(el: HTMLElement, kind: ItemKind, { reduced, delay = 0, mode = "swap" }: MotionOptions): Animation[] {
+  if (reduced) return [fade(el, 1, 0, TIMING.reduced, delay, "ease-in")];
+  switch (kind) {
+    case "panel":
+      return departPanel(el, delay, mode);
+    case "name":
+      // Only the end of the motion is given: it starts from wherever the name is, so one sent away mid-arrival leaves from where it is.
+      return [el.animate({ transform: "translateY(-12px)", opacity: 0 }, { duration: TIMING.figureLeave, delay, easing: EASE_IN, fill: "forwards" })];
+    case "poster":
+      return departPoster(el, delay);
+    case "amp":
+    case "year":
+      // Its replacement fades in over it, so it stays until that has covered it.
+      return [hold(el, TIMING.caption + TIMING.captionDelay + 60)];
+    case "strip":
+    case "label":
+      return [fade(el, 1, 0, 200, delay, "ease-in")];
   }
-  const person = kind === "person";
-  const from = person
-    ? `translate3d(${46 * dir}px, 38px, 0) rotate(${4 * dir}deg) scale(0.94)`
-    : `translate3d(${30 * dir}px, 20px, 0) rotate(${8 * dir}deg) scale(0.9)`;
-  const duration = person ? TIMING.arrive : TIMING.posterArrive;
+}
+
+function arrivePanel(el: HTMLElement, delay: number, mode: PanelMode): Animation[] {
+  const backdrop = part(el, "backdrop");
+  const figure = part(el, "figure");
+  const animations: Animation[] = [];
+
+  if (mode === "recolour") {
+    // The same panel in its new colour, over the old: nothing moves.
+    animations.push(fade(el, 0, 1, TIMING.backdrop, delay, EASE_IN_OUT));
+    return animations;
+  }
+
+  if (mode === "intro") {
+    // The frame wipes in (`wipeFrames`); the figure rises 24px into it.
+    if (figure) {
+      animations.push(
+        figure.animate([{ transform: "translateY(24px)", opacity: 0 }, { transform: "translateY(0)", opacity: 1 }], {
+          duration: 700,
+          delay: delay + TIMING.introFigureDelay,
+          easing: EASE_RISE,
+          fill: "backwards",
+        }),
+      );
+    }
+    return animations;
+  }
+
+  // A person replaced: the montage fades in over the old one, the figure rises from 8% below. The foot gradient (the page's colour over the figure) is there from the first
+  // frame, not faded in: the figure is covered at the bottom for as long as it is on screen, so it never shows its lower body, opaque, before the foot is over it.
+  if (backdrop) animations.push(fade(backdrop, 0, 1, TIMING.backdrop, delay + TIMING.backdropDelay, EASE_IN_OUT));
+  if (figure) {
+    const options = { delay: delay + TIMING.figureDelay, fill: "backwards" } as const;
+    animations.push(
+      figure.animate([{ transform: "translateY(8%)" }, { transform: "translateY(0)" }], { ...options, duration: TIMING.figureArrive, easing: EASE_RISE }),
+      figure.animate([{ opacity: 0 }, { opacity: 1 }], { ...options, duration: TIMING.figureArrive * 0.5, easing: EASE_OUT }),
+    );
+  }
+  return animations;
+}
+
+/** A name comes up from below, as its figure rises: on the first reveal after the figure has started, on a swap with it. */
+function arriveName(el: HTMLElement, delay: number, mode: PanelMode): Animation {
+  const intro = mode === "intro";
+  return el.animate([{ transform: `translateY(${intro ? 10 : 14}px)`, opacity: 0 }, { transform: "translateY(0)", opacity: 1 }], {
+    duration: intro ? 420 : TIMING.name,
+    delay: delay + (intro ? TIMING.introFigureDelay + 120 : TIMING.figureDelay),
+    easing: EASE_RISE,
+    fill: "backwards",
+  });
+}
+
+function departPanel(el: HTMLElement, delay: number, mode: PanelMode): Animation[] {
+  // What stays: the backdrop under the arriving panel's (and, for a recolour, everything under it).
+  const animations: Animation[] = [hold(el, mode === "recolour" ? TIMING.backdrop + 80 : TIMING.panelHold + delay)];
+  if (mode === "recolour") return animations;
+  // Only the end of each motion is given: it starts from wherever the part is, so a panel sent away mid-arrival (Next pressed again at
+  // once) leaves from where it is instead of jumping to its resting place first.
+  const figure = part(el, "figure");
+  // The foot gradient stays as it is (the page's colour over the figure): the new one is over it from the first frame, and the same colour at the same places.
+  if (figure) {
+    animations.push(
+      figure.animate({ transform: "translateY(6%)", opacity: 0 }, { duration: TIMING.figureLeave, delay, easing: EASE_IN, fill: "forwards" }),
+    );
+  }
+  return animations;
+}
+
+function arrivePoster(el: HTMLElement, delay: number): Animation[] {
+  const poster = part(el, "poster");
+  if (!poster) return [];
+  // Dealt onto the cluster: it rises and settles from a little smaller.
   return [
-    el.animate([{ transform: from }, { transform: "translate3d(0, 0, 0) rotate(0deg) scale(1)" }], {
-      duration,
+    poster.animate([{ transform: "translateY(28px) scale(0.94)", opacity: 0 }, { transform: "translateY(0) scale(1)", opacity: 1 }], {
+      duration: TIMING.posterArrive,
       delay,
-      easing: springEasing(),
+      easing: EASE_RISE,
       fill: "backwards",
     }),
-    el.animate([{ opacity: 0 }, { opacity: 1 }], {
-      duration: duration * 0.45,
-      delay,
+  ];
+}
+
+function departPoster(el: HTMLElement, delay: number): Animation[] {
+  const poster = part(el, "poster");
+  if (!poster) return [];
+  return [poster.animate({ transform: "translateY(16px) scale(0.96)", opacity: 0 }, { duration: TIMING.posterLeave, delay, easing: EASE_IN, fill: "forwards" })];
+}
+
+/** The timeline's dots pop in on a spring, from the left to the right (each by its place across the axis, `data-x`, 0 to 1). */
+function arriveStrip(el: HTMLElement, delay: number): Animation[] {
+  const easing = springEasing();
+  return [...el.querySelectorAll<HTMLElement>("[data-dot]")].map((dot) =>
+    dot.animate([{ transform: "scale(0)" }, { transform: "scale(1)" }], {
+      duration: TIMING.stripDot,
+      delay: delay + Number(dot.dataset.x ?? 0) * TIMING.stripSweep,
+      easing,
+      fill: "backwards",
+    }),
+  );
+}
+
+/** The first reveal's wipes: each panel's frame opens from the bottom, one after the other (clip-path, so what is inside it does not move). */
+export function wipeFrames(frames: readonly HTMLElement[], reduced: boolean): Animation[] {
+  if (reduced) return frames.map((frame) => fade(frame, 0, 1, TIMING.reduced, 0));
+  return frames.map((frame, index) =>
+    frame.animate([{ clipPath: "inset(100% 0 0 0)" }, { clipPath: "inset(0 0 0 0)" }], {
+      duration: TIMING.introWipe,
+      delay: index * TIMING.introWipeStagger,
+      easing: EASE_RISE,
+      fill: "backwards",
+    }),
+  );
+}
+
+/** The first reveal's line: it draws outward from the middle (a clip-path over the faded line, whose mask is its own). */
+export function drawLine(line: HTMLElement, reduced: boolean): Animation[] {
+  if (reduced) return [fade(line, 0, 1, TIMING.reduced, 0)];
+  return [
+    line.animate([{ clipPath: "inset(0 50% 0 50%)" }, { clipPath: "inset(0 0 0 0)" }], {
+      duration: TIMING.introLine,
+      delay: TIMING.introLineDelay,
       easing: EASE_OUT,
       fill: "backwards",
     }),
   ];
-}
-
-/**
- * A portrait or poster leaving: eases back, drifts down and left, turns a little and blurs, while
- * its opacity falls faster, so it is nearly gone before the next card arrives in its place (it
- * drifts right when `dir` is -1).
- *
- * Only the end of each motion is given: it starts from wherever the card is. A card that has
- * settled starts from rest, as before; one the visitor sends away mid-arrival (Next pressed again
- * in quick succession) leaves from where it is instead of jumping to its resting place first.
- */
-export function depart(el: HTMLElement, kind: CardKind, { reduced, delay = 0, dir = 1, swipe = 0 }: MotionOptions): Animation[] {
-  if (kind === "label") {
-    return [el.animate({ opacity: 0 }, { duration: TIMING.labelLeave, delay, easing: "ease-in", fill: "forwards" })];
-  }
-  if (reduced) {
-    return [el.animate({ opacity: 0 }, { duration: 220, delay, easing: "ease-in", fill: "forwards" })];
-  }
-  const person = kind === "person";
-  const duration = person ? TIMING.leave : TIMING.posterLeave;
-  // A swiped card is already moving: it keeps going that way as it fades, with no wait.
-  const carried = swipe
-    ? [
-        el.animate(
-          { translate: `${swipe + Math.sign(swipe) * SWIPE_CARRY}px 0` },
-          { duration: duration + delay, easing: EASE_OUT, fill: "forwards" },
-        ),
-      ]
-    : [];
-  return [
-    ...carried,
-    el.animate(
-      {
-        transform: person
-          ? `translate3d(${-14 * dir}px, 12px, 0) rotate(${-4 * dir}deg) scale(0.96)`
-          : `translate3d(${-10 * dir}px, 10px, 0) rotate(${-5 * dir}deg) scale(0.94)`,
-        filter: "blur(2px)",
-      },
-      { duration, delay, easing: EASE_IN_OUT, fill: "forwards" },
-    ),
-    el.animate({ opacity: 0 }, { duration: duration * 0.72, delay, easing: EASE_IN_OUT, fill: "forwards" }),
-  ];
-}
-
-/** How much further (stage pixels) a swiped card travels as it leaves. */
-const SWIPE_CARRY = 90;
-
-/**
- * A card that stays through a swipe's change of scene: it was dragged `from` stage pixels with the rest and springs back to
- * its place (at once with reduced motion: there is nothing to play).
- */
-export function swingBack(el: HTMLElement, from: number, { reduced }: MotionOptions): Animation | null {
-  if (reduced || !from) return null;
-  return el.animate([{ translate: `${from}px 0` }, { translate: "0px 0" }], { duration: TIMING.arrive, easing: springEasing() });
-}
-
-/** The person who stays acknowledges the change: a small scale up and back. */
-export function nod(el: HTMLElement, { reduced, delay = 0 }: MotionOptions): Animation | null {
-  if (reduced) return null;
-  return el.animate(
-    [
-      { transform: "scale(1)" },
-      { transform: "scale(1.02)", offset: 0.4 },
-      { transform: "scale(1)" },
-    ],
-    { duration: TIMING.nod, delay, easing: EASE_IN_OUT },
-  );
-}
-
-/** The idle float: a slow, small, endless rise and fall. Starts paused. Phase offsets the card. */
-export function float(el: HTMLElement, { amplitude, period, phase }: { amplitude: number; period: number; phase: number }): Animation {
-  const animation = el.animate(
-    [{ transform: "translate3d(0, 0, 0)" }, { transform: `translate3d(0, ${-amplitude}px, 0)` }],
-    { duration: period, delay: -phase * period, iterations: Infinity, direction: "alternate", easing: "ease-in-out" },
-  );
-  animation.pause();
-  return animation;
 }
 
 /** Loads (and decodes) an image; resolves false if it fails or takes longer than `timeoutMs`. */

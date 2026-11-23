@@ -67,7 +67,7 @@ export default async function Image() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", marginTop: 30, fontSize: 32, lineHeight: 1.35, color: OG.body }}>
             <span>Search any actor, director, writer or cinematographer.</span>
-            <span>Line their timelines up. See every film they made together.</span>
+            <span>See every film they made together.</span>
           </div>
         </div>
 

@@ -3,22 +3,13 @@
 import { Search, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FINE_POINTER, useMediaQuery } from "@/components/depth/use-media";
 import { PersonSearch } from "@/components/person-search/person-search";
-import { useSearch, useSearchSurface } from "@/components/search-provider";
+import { useSearchSurface, useSearchTrigger } from "@/components/search-provider";
 import { trapTab, useModalPage } from "@/components/side-panel/modal-page";
-import { rememberOpener, takeOpener } from "@/components/side-panel/side-panel";
-import {
-  SEARCH_DIALOG_ATTRIBUTE,
-  isApplePlatform,
-  platformName,
-  shortcutHint,
-  shortcutKeys,
-} from "@/lib/people-shortcut";
-
-const subscribeNothing = () => () => {};
+import { SEARCH_DIALOG_ATTRIBUTE, shortcutHint } from "@/lib/people-shortcut";
 
 /**
  * New-timeline search on every route, including home and error pages. SearchProvider routes the one shortcut to a page's contextual People overlay
@@ -42,26 +33,14 @@ function SearchControl() {
 /** A trigger only: the global search remains available even where the header has no button. */
 export function SearchButton() {
   const pathname = usePathname();
-  const { show } = useSearch();
   const fine = useMediaQuery(FINE_POINTER);
-  // A hard navigation (including back to a 404) can show this button before its click handler is hydrated.
-  const hydrated = useSyncExternalStore(subscribeNothing, () => true, () => false);
-  // The platform is known in the browser only: the server's markup and the hydrating render say Ctrl K, and the render after says the real one.
-  const mac = useSyncExternalStore(subscribeNothing, () => isApplePlatform(platformName()), () => false);
+  const { mac, buttonProps } = useSearchTrigger();
 
   if (pathname === "/") return null;
 
   return (
     <button
-      type="button"
-      disabled={!hydrated}
-      aria-haspopup="dialog"
-      aria-keyshortcuts={shortcutKeys(mac)}
-      onClick={(event) => {
-        // The control itself, which no browser gets wrong (a pointer's click and a key's alike).
-        rememberOpener(event.currentTarget);
-        show(takeOpener());
-      }}
+      {...buttonProps}
       className="ml-auto flex h-9 cursor-pointer items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium text-strong hover:bg-border disabled:cursor-default disabled:hover:bg-surface pointer-coarse:h-11"
     >
       <Search aria-hidden="true" className="size-4 shrink-0 text-muted" />

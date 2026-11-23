@@ -2,7 +2,7 @@ import type { Locator, Page } from "next/experimental/testmode/playwright";
 import { FILM_COUNT, HEADLINE, NAMES, PAIR, expect, test } from "./almodovar";
 import { bar, collapseHero, heroBody, heroState, quotesLink, scene, scrollView, switcher, viewLink } from "./fixtures";
 import { getHeroNote } from "../../src/lib/pair-hero-note";
-import { portraitPersonHexes } from "../../src/lib/portrait-cuts";
+import { CARD_RADIUS_RATIO, portraitPersonHexes } from "../../src/lib/portrait-cuts";
 import { CARD_WIDTH, OPENING_BUFFER } from "../../src/lib/timeline-layout";
 
 /** The pair's first collaboration ("Bar Film 1", 2000): the film the Timeline and Films open on (the page's films are 100 + n - 1, see `almodovar.ts`). */
@@ -131,19 +131,21 @@ test.describe("at 1440px wide", () => {
       await expect(title(page).locator("[data-pair-subtitle]")).toHaveText(new RegExp(`^actor × actor · ${FILM_COUNT} films$`, "i"));
       expect(await title(page).locator("[data-pair-subtitle]").evaluate((element) => getComputedStyle(element).textTransform)).toBe("uppercase");
 
-      // One portrait each, 100 to 120px tall, rounded with the bar's radius, with the person's colour ring.
+      // One portrait each (a cut-out: both have one, and the fixture gives them their photos), 100 to 120px tall, its corners rounded in proportion to the card
+      // (`CARD_RADIUS_RATIO`, as every cut-out's), with the person's colour ring. Measured on the frame that clips the picture and draws the ring, not the box round it.
       const portraits = heroBody(page).locator("[data-hero-portrait]");
       await expect(portraits).toHaveCount(2);
+      await expect(portraits.locator("[data-treated-frame]")).toHaveCount(2);
       const look = await portraits.evaluateAll((items) =>
         items.map((item) => {
-          const face = item.querySelector("span")!;
-          return { height: item.getBoundingClientRect().height, radius: getComputedStyle(face).borderTopLeftRadius, ring: getComputedStyle(face).boxShadow };
+          const face = item.querySelector("[data-treated-frame]")!;
+          return { height: item.getBoundingClientRect().height, width: face.getBoundingClientRect().width, radius: parseFloat(getComputedStyle(face).borderTopLeftRadius), ring: getComputedStyle(face).boxShadow };
         }),
       );
       for (const entry of look) {
         expect(entry.height).toBeGreaterThanOrEqual(100);
         expect(entry.height).toBeLessThanOrEqual(120);
-        expect(entry.radius).toBe("6px");
+        expect(entry.radius).toBeCloseTo(entry.width * CARD_RADIUS_RATIO, 1);
       }
       // The first person's colour, then the second's: the pair's own palette (`portraitPersonHexes`), the colour key of the pill, the timeline and the Quotes.
       const [first, second] = portraitPersonHexes([309, 955])!;
