@@ -60,10 +60,7 @@
   ],
   "reading": [
     { "title": "Party Time in Fellini Land", "author": null, "publication": "The Criterion Collection", "date": null, "url": "https://www.criterion.com/current/posts/6997-party-time-in-fellini-land", "paywalled": true },
-    { "title": "La dolce vita: Tuxedos at Dawn", "author": null, "publication": "The Criterion Collection", "date": null, "url": "https://www.criterion.com/current/posts/3335-la-dolce-vita-tuxedos-at-dawn", "paywalled": true },
-    { "title": "La Strada – Nino Rota", "author": "Craig Lysy", "publication": "Movie Music UK", "date": "2024-09-30", "url": "https://moviemusicuk.us/2024/09/30/la-strada-nino-rota/", "paywalled": false },
-    { "title": "Ironic Attachment: Nino Rota, Music and Film", "author": "Richard Dyer", "publication": "IKKM Weimar", "date": null, "url": "https://www.ikkm-weimar.de/en/former-fellows/richard-dyer/", "paywalled": false },
-    { "title": "The Sonic Circus: Music in the Films of Federico Fellini", "author": null, "publication": "Medium", "date": null, "url": "https://medium.com/@michael.landmankarny/the-sonic-circus-music-in-the-films-of-federico-fellini-eeeaefd99709", "paywalled": true }
+    { "title": "La Strada – Nino Rota", "author": "Craig Lysy", "publication": "Movie Music UK", "date": "2024-09-30", "url": "https://moviemusicuk.us/2024/09/30/la-strada-nino-rota/", "paywalled": false }
   ],
-  "notes": "The Criterion Current essays and the Medium piece returned a 403 or a JS challenge, so they're listed unread. Dyer's book and his Sight and Sound piece 'The Talented Mr. Rota' (2004) aren't openly readable online, and the La Strada review mostly repeats Lysy's earlier essay, so it's in reading only."
+  "notes": "The Criterion Current essay returned a 403 or a JS challenge, so it's listed unread. Dyer's book and his Sight and Sound piece 'The Talented Mr. Rota' (2004) aren't openly readable online, and the La Strada review mostly repeats Lysy's earlier essay, so it's in reading only. Review pass: dropped Dyer's IKKM fellow page (a project summary, not an essay) and the Medium post (self-published), both against the brief's source rules, and Giddins' Criterion essay on La dolce vita (about the film; Rota is mentioned in passing, not the partnership)."
 }
