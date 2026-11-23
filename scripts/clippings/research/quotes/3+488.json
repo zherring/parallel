@@ -1,0 +1,91 @@
+{
+  "pair": ["Harrison Ford", "Steven Spielberg"],
+  "tmdb_ids": [3, 488],
+  "clippings": [
+    {
+      "speaker": "Steven Spielberg",
+      "about": "Harrison Ford",
+      "quote": "Harrison brought that entire tapestry to the entire part. That transformed the movie for me.",
+      "film": "Raiders of the Lost Ark",
+      "said_year": 2011,
+      "publication": "Los Angeles Times",
+      "via": "All Things Fangirl",
+      "title": "On the Scene: Raiders of the Lost Ark 30th Anniversary",
+      "date": "2011-09",
+      "url": "https://allthingsfangirl.blogspot.com/2011/09/on-scene-raiders-of-lost-ark-30th.html",
+      "context": "At the 30th-anniversary Q&A after a Raiders screening, Spielberg explains that Ford's insistence on Indy showing fear was Ford's idea.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Steven Spielberg",
+      "about": "Harrison Ford",
+      "quote": "I wasn't cross, I was crushed, but then Sam Neill came available and he's Alan Grant. It now belongs to him.",
+      "film": "Jurassic Park",
+      "said_year": 2026,
+      "publication": "Happy Sad Confused",
+      "via": "3DVF",
+      "title": "Harrison Ford turned down Alan Grant, and Spielberg waited 30 years to reveal it",
+      "date": "2026-06-12",
+      "url": "https://3dvf.com/en/harrison-ford-turned-down-alan-grant-and-spielberg-waited-30-years-to-reveal-it/",
+      "context": "Spielberg, on a podcast with Josh Horowitz, on how Ford turned down the Alan Grant role in Jurassic Park.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Steven Spielberg",
+      "about": "Harrison Ford",
+      "quote": "I sensed an exceptionally strong mind and a very smart person, and called on him time and time again.",
+      "film": "Raiders of the Lost Ark",
+      "said_year": null,
+      "publication": "The Films of Harrison Ford",
+      "via": "SlashFilm",
+      "title": "Steven Spielberg Gave Harrison Ford An Unusual Amount Of Creative Control Over Raiders Of The Lost Ark",
+      "date": "2023-01-01",
+      "url": "https://www.slashfilm.com/1151947/steven-spielberg-gave-harrison-ford-an-unusual-amount-of-creative-control-over-raiders-of-the-lost-ark/",
+      "context": "Spielberg on why he gave Ford a large say in Raiders; quoted secondhand from Lee Pfeiffer and Michael Lewis's book via a SlashFilm article (the date given is the article's, the book's date is unknown).",
+      "secondhand": true
+    },
+    {
+      "speaker": "Harrison Ford",
+      "about": "Steven Spielberg",
+      "quote": "We can feel his spirit, and his energy, and his focus, and his filmmaking skill.",
+      "film": "Indiana Jones and the Dial of Destiny",
+      "said_year": 2023,
+      "publication": "Kakuchopurei",
+      "via": null,
+      "title": "We Talk To Harrison Ford About How Steven Spielberg Was Involved In Indiana Jones And The Dial Of Destiny & More",
+      "date": "2023-06-19",
+      "url": "https://www.kakuchopurei.com/2023/06/indiana-jones-and-the-dial-of-destiny-harrison-ford-interview-kkp/",
+      "context": "Ford, in an interview ahead of Dial of Destiny, on Spielberg's role as executive producer even though he did not direct.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Harrison Ford",
+      "about": "Steven Spielberg",
+      "quote": "Steven was very fast, very fluid, it was effortless to make the film.",
+      "film": "Raiders of the Lost Ark",
+      "said_year": 2011,
+      "publication": "Los Angeles Times",
+      "via": "All Things Fangirl",
+      "title": "On the Scene: Raiders of the Lost Ark 30th Anniversary",
+      "date": "2011-09",
+      "url": "https://allthingsfangirl.blogspot.com/2011/09/on-scene-raiders-of-lost-ark-30th.html",
+      "context": "At the 30th-anniversary Q&A after a Raiders screening, Ford describes shooting the film with Spielberg.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Harrison Ford",
+      "about": "Steven Spielberg",
+      "quote": "I went over to Steven Spielberg’s house — never met Steven Spielberg before — I guess about an hour later I had the job.",
+      "film": "Raiders of the Lost Ark",
+      "said_year": null,
+      "publication": "Fox News",
+      "via": null,
+      "title": "'Indiana Jones' star Harrison Ford reveals which actor was originally offered lead role",
+      "date": "2023-06-27",
+      "url": "https://www.foxnews.com/entertainment/indiana-jones-star-harrison-ford-reveals-actor-originally-offered-lead-role.print",
+      "context": "Ford recalls how he got the Indiana Jones job after George Lucas sent him to meet Spielberg; quoted in a 2023 Fox News article, original interview not identified.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Several quotes were checked through a summarizing fetch that capped excerpts at 125 characters, so verify exact wording before merge. Empire pages and an MTV transcript were blocked or empty, and the Variety Ford interview was only reached via Jedi News. Spielberg-side material is thinner than Ford-side."
+}

@@ -1,0 +1,91 @@
+{
+  "pair": ["Dean DeBlois", "Chris Sanders"],
+  "tmdb_ids": [69797, 66193],
+  "clippings": [
+    {
+      "speaker": "Dean DeBlois",
+      "about": "Chris Sanders",
+      "quote": "We had a year to actually write the script and storyboard the film, just the two of us. That allowed us to challenge each other but also keep the voice in a very specific realm.",
+      "film": "Lilo & Stitch",
+      "said_year": 2002,
+      "publication": "AWN",
+      "via": null,
+      "title": "Lilo & Stitch Revisited: Part I",
+      "date": "2002-12-31",
+      "url": "https://www.awn.com/animationworld/lilo-stitch-revisited-part-i",
+      "context": "Interview with Andrew Osmond about the film's making, on the year the two of them wrote and boarded it alone.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Dean DeBlois",
+      "about": "Chris Sanders",
+      "quote": "Both Chris and I have a philosophy — it isn't entirely shared within the studio — that composition and lighting are vital in storytelling.",
+      "film": "Lilo & Stitch",
+      "said_year": 2002,
+      "publication": "AWN",
+      "via": null,
+      "title": "Lilo & Stitch Revisited: Part I",
+      "date": "2002-12-31",
+      "url": "https://www.awn.com/animationworld/lilo-stitch-revisited-part-i",
+      "context": "Interview with Andrew Osmond, answering a question about their detailed storyboarding.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Dean DeBlois",
+      "about": "Chris Sanders",
+      "quote": "From the point when Chris pitched it, he was encouraged to develop it. That's when we started talking about it, off the clock.",
+      "film": "Lilo & Stitch",
+      "said_year": 2002,
+      "publication": "AWN",
+      "via": null,
+      "title": "Lilo & Stitch Revisited: Part I",
+      "date": "2002-12-31",
+      "url": "https://www.awn.com/animationworld/lilo-stitch-revisited-part-i",
+      "context": "Interview with Andrew Osmond, on how Sanders's pitch led to the two of them developing the film.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Chris Sanders",
+      "about": "Dean DeBlois",
+      "quote": "His [Stitch's] personality grew out of my pitch, but then Dean — who really shares sensibilities with me — wrote 50 percent of that character … I never want to pass up the chance to compliment and thank him for shouldering half of that creation.",
+      "film": "Lilo & Stitch",
+      "said_year": 2022,
+      "publication": "SYFY WIRE",
+      "via": null,
+      "title": "Original co-director of 'Lilo & Stitch' has thoughts about the live-action remake",
+      "date": "2022-09-13",
+      "url": "https://www.syfy.com/syfy-wire/lilo-stitch-live-action-remake-christopher-sanders-original-director-interview",
+      "context": "Interview with Josh Weiss ahead of the live-action remake, on how the character was built.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Chris Sanders",
+      "about": "Dean DeBlois",
+      "quote": "So I had been filling in the voice and actually it was Dean that told me, “Why don’t you just do the voice?”",
+      "film": "Lilo & Stitch",
+      "said_year": 2024,
+      "publication": "The Talks",
+      "via": null,
+      "title": "Chris Sanders: “Every second counts”",
+      "date": "2024-10-09",
+      "url": "https://the-talks.com/interview/chris-sanders/",
+      "context": "Interview with Emma Robertson, on why Sanders ended up voicing Stitch himself.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Chris Sanders",
+      "about": "Dean DeBlois",
+      "quote": "We were a little bit concerned that we might get something up on screen that was way too personal to appeal to a mass audience. We needed to be very critical of our own and each others' work.",
+      "film": "Lilo & Stitch",
+      "said_year": 2002,
+      "publication": "AWN",
+      "via": null,
+      "title": "Lilo & Stitch Revisited: Part I",
+      "date": "2002-12-31",
+      "url": "https://www.awn.com/animationworld/lilo-stitch-revisited-part-i",
+      "context": "Interview with Andrew Osmond, on the mutual critique the two of them relied on once the crew was cut down.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Creative Screenwriting's DeBlois interview is loaded by JavaScript and could not be read, so it is not used. The SYFY and The Talks quotes are from 2022 and 2024 interviews. Only Sanders's quotes run long, and the DeBlois ones are all from one 2002 AWN interview."
+}

@@ -1,0 +1,77 @@
+{
+  "pair": ["Sergio Leone", "Clint Eastwood"],
+  "tmdb_ids": [4385, 190],
+  "clippings": [
+    {
+      "speaker": "Clint Eastwood",
+      "about": "Sergio Leone",
+      "quote": "I'm sure he influenced me a lot. His boldness, subjectwise, and visually he was terrific.",
+      "film": null,
+      "said_year": 1990,
+      "publication": "Deseret News",
+      "via": null,
+      "title": "EASTWOOD REMEMBERS `FISTFUL OF DOLLARS' DIRECTOR",
+      "date": "1990-01-25",
+      "url": "https://www.deseret.com/1990/1/25/18843045/eastwood-remembers-fistful-of-dollars-director/",
+      "context": "At a Sundance (Park City) press conference in January 1990, a few months after Leone's death, Eastwood was asked about Leone's influence on his own directing.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Clint Eastwood",
+      "about": "Sergio Leone",
+      "quote": "It was very easy to handle that. I just did my own thing…",
+      "film": "A Fistful of Dollars",
+      "said_year": 1990,
+      "publication": "Deseret News",
+      "via": null,
+      "title": "EASTWOOD REMEMBERS `FISTFUL OF DOLLARS' DIRECTOR",
+      "date": "1990-01-25",
+      "url": "https://www.deseret.com/1990/1/25/18843045/eastwood-remembers-fistful-of-dollars-director/",
+      "context": "At the same January 1990 Park City press conference, Eastwood described working with Leone despite the language gap.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Clint Eastwood",
+      "about": "Sergio Leone",
+      "quote": "He knew 'Goodbye' and I knew 'Arividerce', and that was about it…",
+      "film": "A Fistful of Dollars",
+      "said_year": 2003,
+      "publication": "Inside the Actors Studio",
+      "via": "Far Out Magazine",
+      "title": "How was Clint Eastwood cast as the 'Man with No Name'?",
+      "date": "2003",
+      "url": "https://faroutmagazine.co.uk/how-clint-eastwood-cast-man-with-no-name-sergio-leone-dollars-trilogy/",
+      "context": "Eastwood recalled the language barrier with Leone on Inside the Actors Studio in 2003, as quoted by Far Out Magazine in 2024.",
+      "secondhand": true
+    },
+    {
+      "speaker": "Sergio Leone",
+      "about": "Clint Eastwood",
+      "quote": "what I saw, simply, was a block of marble.",
+      "film": null,
+      "said_year": 1984,
+      "publication": "American Film",
+      "via": "SlashFilm",
+      "title": "Sergio Leone Had An Interesting Take When Comparing Clint Eastwood And Robert De Niro",
+      "date": "1984",
+      "url": "https://www.slashfilm.com/958493/sergio-leone-had-an-interesting-take-when-comparing-clint-eastwood-and-robert-de-niro/",
+      "context": "Leone, interviewed by American Film in 1984, recalled what he saw in Eastwood when he cast him in a 1964 Western TV-series role.",
+      "secondhand": true
+    },
+    {
+      "speaker": "Sergio Leone",
+      "about": "Clint Eastwood",
+      "quote": "Bobby suffers, Clint yawns.",
+      "film": "Once Upon a Time in America",
+      "said_year": 1984,
+      "publication": "American Film",
+      "via": "SlashFilm",
+      "title": "Sergio Leone Had An Interesting Take When Comparing Clint Eastwood And Robert De Niro",
+      "date": "1984",
+      "url": "https://www.slashfilm.com/958493/sergio-leone-had-an-interesting-take-when-comparing-clint-eastwood-and-robert-de-niro/",
+      "context": "Leone, in the 1984 American Film interview, contrasted Robert De Niro with Eastwood while discussing acting on Once Upon a Time in America.",
+      "secondhand": true
+    }
+  ],
+  "notes": "Leone-side quotes are all secondhand via SlashFilm; the Eastwood 1990 quotes come from a Deseret News piece. Fetch tooling returned summaries with a 125-character cap, so wording was checked only against the quoted text it returned, and the 1977 BBC and 1980 Gentry interview lines were skipped as fragments or unverifiable."
+}

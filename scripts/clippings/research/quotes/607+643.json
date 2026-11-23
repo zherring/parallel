@@ -1,0 +1,83 @@
+{
+  "pair": [
+    "Zhang Yimou",
+    "Gong Li"
+  ],
+  "tmdb_ids": [
+    607,
+    643
+  ],
+  "clippings": [
+    {
+      "speaker": "Zhang Yimou",
+      "about": "Gong Li",
+      "quote": "Whenever I had an idea, I would wonder: 'Can she do it? Would it be good for her?' We would fight. Working with her implied a certain shape of the film.",
+      "film": null,
+      "said_year": 2000,
+      "publication": "New York Times",
+      "via": "Deseret News",
+      "title": "Film director takes new tack",
+      "date": "2000-02-06",
+      "url": "https://www.deseret.com/2000/2/6/19489442/film-director-takes-new-tack-br-chinese-artist-enjoys-freedom-after-collaboration/",
+      "context": "Zhang Yimou in New York in early 2000, describing how Gong Li shaped his ideas for their films together.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Zhang Yimou",
+      "about": "Gong Li",
+      "quote": "Almost all of her parts were bigger-than-life women, symbols living under the oppression of feudalism and patriarchy.",
+      "film": null,
+      "said_year": 2000,
+      "publication": "New York Times",
+      "via": "Deseret News",
+      "title": "Film director takes new tack",
+      "date": "2000-02-06",
+      "url": "https://www.deseret.com/2000/2/6/19489442/film-director-takes-new-tack-br-chinese-artist-enjoys-freedom-after-collaboration/",
+      "context": "Zhang Yimou in New York in early 2000, explaining why he moved away from films with Gong Li after their partnership.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Gong Li",
+      "about": "Zhang Yimou",
+      "quote": "He chooses the story before he thinks about actors who could play the roles. … As an actor, I don’t want to repeat myself, and in a single director’s body of work, it’s very easy to repeat what you’ve already performed. But he never wants me to do that.",
+      "film": "Coming Home",
+      "said_year": 2014,
+      "publication": "The Hollywood Reporter",
+      "via": null,
+      "title": "Cannes: ‘Coming Home’s’ Gong Li on How the Chinese Movies Are ‘Like Fast Food’ (Q&A)",
+      "date": "2014-05-18",
+      "url": "https://www.hollywoodreporter.com/news/general-news/cannes-coming-homes-gong-li-703283/",
+      "context": "Gong Li in a Cannes Q&A in May 2014, asked how she and Zhang choose projects together.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Gong Li",
+      "about": "Zhang Yimou",
+      "quote": "He says, “You already have this character in you; you don’t need someone else to guide you.” … It’s a kind of trust and mutual understanding.",
+      "film": "Coming Home",
+      "said_year": 2014,
+      "publication": "The Hollywood Reporter",
+      "via": null,
+      "title": "Cannes: ‘Coming Home’s’ Gong Li on How the Chinese Movies Are ‘Like Fast Food’ (Q&A)",
+      "date": "2014-05-18",
+      "url": "https://www.hollywoodreporter.com/news/general-news/cannes-coming-homes-gong-li-703283/",
+      "context": "Gong Li in a Cannes Q&A in May 2014, describing how Zhang directs her on set.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Gong Li",
+      "about": "Zhang Yimou",
+      "quote": "We went back, and it was very easy for us to communicate about how to make the film, what he wanted, what we both wanted.",
+      "film": "Curse of the Golden Flower",
+      "said_year": 2006,
+      "publication": "Associated Press",
+      "via": "TODAY",
+      "title": "Gong Li hits her Hollywood stride",
+      "date": "2006-07-24",
+      "url": "https://www.today.com/popculture/gong-li-hits-her-hollywood-stride-wbna14011588",
+      "context": "Gong Li in a July 2006 AP interview about Miami Vice, asked what working again with Zhang was like.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Skipped: SCMP (403), UCLA interviews (timeout), Collider (unreachable), CNN 2005 (quotes two actresses), JayneStars/Ming Pao translation (no original text). Deseret piece is an NYT News Service reprint, so the 2000 date is the reprint date. Dropped the China.org.cn 2014 Zhang quote: the site has no https."
+}

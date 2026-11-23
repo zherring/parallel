@@ -1,0 +1,91 @@
+{
+  "pair": ["Barry Jenkins", "James Laxton"],
+  "tmdb_ids": [92784, 960350],
+  "clippings": [
+    {
+      "speaker": "Barry Jenkins",
+      "about": "James Laxton",
+      "quote": "I think the way we are on set is a shared language, a shared approach to the imagery.",
+      "film": "Moonlight",
+      "said_year": null,
+      "publication": "Film Quarterly",
+      "via": null,
+      "title": "One Step Ahead: A Conversation with Barry Jenkins",
+      "date": "2017-02-28",
+      "url": "https://filmquarterly.org/2017/02/28/one-step-ahead-a-conversation-with-barry-jenkins/",
+      "context": "Jenkins discussing how he and his cinematographer share an approach to the look of the film.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Barry Jenkins",
+      "about": "James Laxton",
+      "quote": "James Laxton – the cinematographer I’ve worked with for 15 years – and I didn’t want to make a neorealist or miserable version of this character’s story. We wanted the imagery to rise from the character so these portraits pop up every now and then when we felt the character was dislocated from him or herself. We wanted the audience to feel what the character was feeling in that moment.",
+      "film": "Moonlight",
+      "said_year": null,
+      "publication": "Sight & Sound",
+      "via": null,
+      "title": "Rhapsody in blue: Barry Jenkins on Moonlight",
+      "date": "2017-03",
+      "url": "https://www.bfi.org.uk/sight-and-sound/interviews/moonlight-barry-jenkins-2017-miami-oscar-winner",
+      "context": "Jenkins, in a 2017 Sight & Sound interview, on the look he and Laxton chose for Moonlight: not a neorealist or miserable telling, with portrait shots surfacing whenever a character feels dislocated from themselves.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Barry Jenkins",
+      "about": "James Laxton",
+      "quote": "The way I write the script is very clear. I’m religious about shot-listing, but then once that’s done I’ll bring James in and together we’ll refine it. When we go out, the shot-list is there but it’s not the law. We work very fluently together, but I have a very clear picture of what I’m going to do. If a certain lens is on, if a certain light is a certain place, I know what he’s doing, and we figure it out.",
+      "film": "Moonlight",
+      "said_year": null,
+      "publication": "Sight & Sound",
+      "via": null,
+      "title": "Rhapsody in blue: Barry Jenkins on Moonlight",
+      "date": "2017-03",
+      "url": "https://www.bfi.org.uk/sight-and-sound/interviews/moonlight-barry-jenkins-2017-miami-oscar-winner",
+      "context": "Jenkins, asked in a 2017 Sight & Sound interview about his process with Laxton: a strict shot list they refine together, which then bends on set.",
+      "secondhand": false
+    },
+    {
+      "speaker": "James Laxton",
+      "about": "Barry Jenkins",
+      "quote": "One of the things that Barry does very, very well is he allows his collaborators to feel a part of that journey…",
+      "film": "Moonlight",
+      "said_year": null,
+      "publication": "Dropbox",
+      "via": null,
+      "title": "Think small and embrace mistakes: Q&A with Moonlight's James Laxton",
+      "date": "2018",
+      "url": "https://blog.dropbox.com/topics/our-community/moonlight-cinematographer-q-and-a",
+      "context": "Laxton in a Q&A about his creative process with Jenkins on Moonlight.",
+      "secondhand": false
+    },
+    {
+      "speaker": "James Laxton",
+      "about": "Barry Jenkins",
+      "quote": "Man, it was scary. I think that’s a technique that Barry and I have been trying to do for a while. There’s a couple moments of it in Moonlight and I think we finally figured it out, but you know it’s very much all about listening and being in concert with the performance as a camera operator. … You not only need to be moving the camera in a certain way but you also are reacting and listening almost like another actor or character might be within the scene…",
+      "film": "If Beale Street Could Talk",
+      "said_year": 2018,
+      "publication": "The Film Stage",
+      "via": null,
+      "title": "Cinematographer James Laxton on Capturing the Romance of 'If Beale Street Could Talk,' Close-Ups, and Errol Morris",
+      "date": "2018-12-31",
+      "url": "https://thefilmstage.com/cinematographer-james-laxton-on-capturing-the-romance-of-if-beale-street-could-talk-close-ups-and-errol-morris/",
+      "context": "Laxton, asked how he pulled off the long, gliding dinner scene in If Beale Street Could Talk: a technique he and Jenkins had been working toward since Moonlight.",
+      "secondhand": false
+    },
+    {
+      "speaker": "James Laxton",
+      "about": "Barry Jenkins",
+      "quote": "We also became roommates for a while and watched all the same movies…",
+      "film": "Moonlight",
+      "said_year": null,
+      "publication": "Moveable Fest",
+      "via": null,
+      "title": "\"Moonlight\" Cinematographer James Laxton on Crafting the Film's Look",
+      "date": "2017-01-10",
+      "url": "https://moveablefest.com/james-laxton-moonlight/",
+      "context": "Laxton on how their friendship started before they worked together on Moonlight.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Filmmaker Magazine pieces returned 403 and Deadline redirects to a paywall-style mirror, so skipped; Time's Jenkins answers about the look do not name Laxton, so skipped. Quotes came via WebFetch extracts (not raw page text), so verify wording before merge. Re-checked against the raw page text for the Sight & Sound, Film Stage, Dropbox and Moveable Feast quotes on 2026-11-22: wording matches, and the Sight & Sound and Film Stage quotes were widened to fuller passages."
+}

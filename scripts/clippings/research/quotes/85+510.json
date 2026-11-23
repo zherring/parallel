@@ -1,0 +1,91 @@
+{
+  "pair": ["Tim Burton", "Johnny Depp"],
+  "tmdb_ids": [510, 85],
+  "clippings": [
+    {
+      "speaker": "Johnny Depp",
+      "about": "Tim Burton",
+      "quote": "I feel a very strong connection to Tim and I trust him completely. Because for an actor, it's amazing to be invited into his world and to be given the responsibility of being on the ride to deliver his vision.",
+      "film": "Sleepy Hollow",
+      "said_year": 1999,
+      "publication": "CNN",
+      "via": null,
+      "title": "Burton and Depp: Wide awake in 'Sleepy Hollow'",
+      "date": "1999-11-16",
+      "url": "https://www.cnn.com/SHOWBIZ/Movies/9911/16/sleepy.hollow/",
+      "context": "Depp, interviewed by CNN's Donna Freydkin in New York, on why he agreed to a third film with Burton.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Johnny Depp",
+      "about": "Tim Burton",
+      "quote": "There was an instant connection. It was a kind of understanding, a non-understanding, an appreciation for life and human behavior, for what is considered normal and what is not considered normal.",
+      "film": "Edward Scissorhands",
+      "said_year": 1999,
+      "publication": "SPLICEDwire",
+      "via": null,
+      "title": "Brooding Johnny muses on his motley career and reinventing Ichabod Crane for Tim Burton's 'Sleepy Hollow'",
+      "date": "1999-11-12",
+      "url": "https://splicedwire.com/features/depp.html",
+      "context": "Depp, asked how he and Burton ended up on the same wavelength, describing their first meeting, in a San Francisco interview.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Johnny Depp",
+      "about": "Tim Burton",
+      "quote": "I was TV boy. No director in his right mind would hire me to play this character.",
+      "film": "Edward Scissorhands",
+      "said_year": 1994,
+      "publication": "Burton on Burton (Faber & Faber)",
+      "via": "Salon",
+      "title": "Burton on Burton (introduction by Johnny Depp)",
+      "date": "1995",
+      "url": "https://www.salon.com/1999/11/18/depp_2/",
+      "context": "Depp's introduction to the Burton book, describing how unlikely he seemed for Edward Scissorhands; Salon quotes it in a 1999 profile.",
+      "secondhand": true
+    },
+    {
+      "speaker": "Tim Burton",
+      "about": "Johnny Depp",
+      "quote": "I connected with him when I met him for Edward Scissorhands: He was similar to me, kind of suburban white trash. It was not even a verbal understanding… It was something I could feel.",
+      "film": "Edward Scissorhands",
+      "said_year": 2022,
+      "publication": "Collider",
+      "via": null,
+      "title": "Tim Burton Shares Why Johnny Depp Became a Frequent Collaborator of His",
+      "date": "2022-10-21",
+      "url": "https://collider.com/tim-burton-johnny-depp-collaboration-comments/",
+      "context": "Burton, at a masterclass at the Lumière Film Festival, asked about his work with Depp.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Tim Burton",
+      "about": "Johnny Depp",
+      "quote": "He gets me and he is passionate about a lot of the same ideas I am.",
+      "film": null,
+      "said_year": 2011,
+      "publication": "Johnny-Depp.org",
+      "via": null,
+      "title": "Our Tim Burton Interview (by Lizzy)",
+      "date": "2011",
+      "url": "https://johnny-depp.org/our-tim-burton-interview-by-lizzy/",
+      "context": "Burton, in a fan-site interview, asked about the value of working with the same actors again.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Tim Burton",
+      "about": "Johnny Depp",
+      "quote": "There’s a sadness about Johnny I just respond to — and I find it kind of funny.",
+      "film": "Sleepy Hollow",
+      "said_year": null,
+      "publication": "Salon",
+      "via": null,
+      "title": "Johnny Deppth",
+      "date": "1999-11-18",
+      "url": "https://www.salon.com/1999/11/18/depp_2/",
+      "context": "Burton remark, undated, quoted by Michael Sragow in a 1999 Salon profile of Depp before Sleepy Hollow; the article says only that Burton once said it.",
+      "secondhand": true
+    }
+  ],
+  "notes": "Depp Zone archive pages (Playboy 1996, Burton on Burton, Combustible Celluloid 1999) and Far Out quotes were skipped: archive is http-only with a cert mismatch, and Far Out is secondary. Variety, Deadline, IndieWire, Forbes were paywalled, blocked or redirected; Newsweek and CBS quotes were not verified verbatim. Direction split: 3 Depp, 3 Burton."
+}

@@ -1,0 +1,63 @@
+{
+  "pair": ["Robert Zemeckis", "Tom Hanks"],
+  "tmdb_ids": [24, 31],
+  "clippings": [
+    {
+      "speaker": "Robert Zemeckis",
+      "about": "Tom Hanks",
+      "quote": "Jodie Foster or Tom Hanks will make anything work.",
+      "film": null,
+      "said_year": null,
+      "publication": "DGA Quarterly",
+      "via": null,
+      "title": "Far Sighted: DGA Interview with Robert Zemeckis",
+      "date": "2013",
+      "url": "https://www.dga.org/craft/dgaq/issues/1302-spring-2013/dga-interview-robert-zemeckis",
+      "context": "Interview in the Spring 2013 DGA Quarterly, answering how actors handle unnatural physical requests on set.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Robert Zemeckis",
+      "about": "Tom Hanks",
+      "quote": "I remember he started doing the scene and I started getting really emotional…",
+      "film": "Forrest Gump",
+      "said_year": null,
+      "publication": "LA Magazine",
+      "via": null,
+      "title": "Behind the Scenes with Robert Zemeckis",
+      "date": "2015-05-19",
+      "url": "https://lamag.com/tv/behind-the-scenes-with-robert-zemeckis/",
+      "context": "Recalling Hanks's performance in Jenny's death scene in Forrest Gump, in an El Rey Network interview.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Robert Zemeckis",
+      "about": "Tom Hanks",
+      "quote": "It's a minefield, Tom. It's a goddamn minefield.",
+      "film": "Forrest Gump",
+      "said_year": null,
+      "publication": "The New Yorker Radio Hour",
+      "via": "WNYC Studios",
+      "title": "Behind the Scenes with Tom Hanks",
+      "date": "2023-05-19",
+      "url": "https://www.wnycstudios.org/podcasts/tnyradiohour/segments/behind-tom-hanks",
+      "context": "Zemeckis's reply, as Hanks recalls it in a 2023 New Yorker Radio Hour interview, when Hanks worried about the Forrest Gump dialogue and whether anyone would care.",
+      "secondhand": true
+    },
+    {
+      "speaker": "Tom Hanks",
+      "about": "Robert Zemeckis",
+      "quote": "until we got Bob Zemeckis on in order to give us the third act…",
+      "film": "Cast Away",
+      "said_year": 2023,
+      "publication": "The New Yorker Radio Hour",
+      "via": "WNYC Studios",
+      "title": "Behind the Scenes with Tom Hanks",
+      "date": "2023-05-19",
+      "url": "https://www.wnycstudios.org/podcasts/tnyradiohour/segments/behind-tom-hanks",
+      "context": "Hanks says the Cast Away project made no progress until Zemeckis came on to write the third act, in a 2023 New Yorker Radio Hour interview.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Zemeckis direction is stronger than Hanks's; the Hanks-on-Zemeckis side has only two verified lines. Variety's 2023 Forrest Gump piece returned HTTP 402 (skipped). The NPR Here interview timed out, so its 'make all my movies with Hanks' remark is not included. Dates are original-publication dates where known; the Variety Pinocchio date is approximate (premiere week)."
+}

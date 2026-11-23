@@ -3,7 +3,6 @@ import type { Clipping, ClippingsPerson } from "@/lib/clippings";
 import { getPairClippingSet } from "@/lib/clippings";
 import { EXAMPLE_PAIRINGS } from "@/lib/examples";
 import { getHeroNote } from "@/lib/pair-hero-note";
-import { getPairDescription } from "@/lib/pair-descriptions";
 import {
   CHIP_LIMIT,
   CHIP_MIN_WIDTH,
@@ -206,29 +205,20 @@ describe("pickHeroNote: the fallback chain", () => {
     }
   });
 
-  it("works on the real data (getHeroNote): a pair with clippings gets its quote, a curated pair without gets its blurb, any other pair gets nothing", () => {
+  // The other steps of the chain (a described pair without quotes shows its description, a curated pair with neither its blurb) are
+  // the pickHeroNote tests above; getHeroNote's wiring of them is pair-hero-note.test.ts, on fixtures. Real pairs cannot be relied
+  // on for them: once every pair has quotes, none falls back.
+  it("works on the real data (getHeroNote): a pair with clippings gets its quote whatever order its ids come in, and ids that are no pair get nothing", () => {
     const withQuotes = EXAMPLE_PAIRINGS.find((entry) => getPairClippingSet(entry.people.map((p) => p.id)));
     const ids = (entry: (typeof EXAMPLE_PAIRINGS)[number]) => entry.people.map((p) => p.id);
-    const withDescription = EXAMPLE_PAIRINGS.find((entry) => entry.people.length === 2 && !getPairClippingSet(ids(entry)) && getPairDescription(ids(entry)));
-    const withoutQuotes = EXAMPLE_PAIRINGS.find(
-      (entry) => entry.people.length === 2 && !getPairClippingSet(ids(entry)) && !getPairDescription(ids(entry)),
-    );
     expect(withQuotes).toBeDefined();
-    expect(withDescription).toBeDefined();
-    // Once every pair has quotes or a description there is no real pair left that falls back to its blurb; that path is
-    // covered by pickHeroNote above, so it is only checked here while such a pair exists.
-    // A curated pair with a description and no quote shows the description (not the blurb it also has).
-    expect(getHeroNote(ids(withDescription!))).toMatchObject({ kind: "description", text: getPairDescription(ids(withDescription!))!.text });
-    const quoted = getHeroNote(withQuotes!.people.map((p) => p.id));
+    const quoted = getHeroNote(ids(withQuotes!));
     expect(quoted?.kind).toBe("quote");
     // The id is the first artist quote of the pair as the Quotes view lists it.
-    const set = getPairClippingSet(withQuotes!.people.map((p) => p.id));
+    const set = getPairClippingSet(ids(withQuotes!));
     expect(quoted).toMatchObject({ id: featuredClipping(set)!.id });
-    if (withoutQuotes) {
-      expect(getHeroNote(ids(withoutQuotes))).toEqual({ kind: "blurb", text: withoutQuotes.blurb });
-    }
     // The order the ids come in does not matter.
-    expect(getHeroNote(ids(withDescription!).reverse())).toEqual(getHeroNote(ids(withDescription!)));
+    expect(getHeroNote(ids(withQuotes!).reverse())).toEqual(getHeroNote(ids(withQuotes!)));
     expect(getHeroNote([1, 2])).toBeNull();
     expect(getHeroNote([])).toBeNull();
   });

@@ -33,6 +33,7 @@
 2636+2638  # Alfred Hitchcock & Cary Grant
 4110+6593  # John Huston & Humphrey Bogart
 1776+3084  # Francis Ford Coppola & Marlon Brando
+2636+19460  # Alfred Hitchcock & Saul Bass
 1060+11770  # John Carpenter & Dean Cundey
 138781+1135102  # Robert Eggers & Jarin Blaschke
 1145520+1650351  # Ari Aster & Pawel Pogorzelski
@@ -106,7 +107,6 @@
 85+510  # Tim Burton & Johnny Depp
 7879+7885  # John Lasseter & Randy Newman
 15810+15813  # Ron Clements & Alan Menken
-17276+69797  # Dean DeBlois & Gerard Butler
 7087+15347  # Brad Bird & Michael Giacchino
 15810+15811  # Ron Clements & John Musker
 66193+69797  # Dean DeBlois & Chris Sanders
