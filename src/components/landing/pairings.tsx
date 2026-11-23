@@ -1,49 +1,53 @@
-import { FeaturedPairings } from "@/components/landing/featured-pairings";
-import { GENRE_ICONS } from "@/components/landing/genre-icons";
-import { GenreTabs, type GenreTab } from "@/components/landing/genre-tabs";
+import type { ReactNode } from "react";
+import { GenreDeepLink, GenrePanels, type GenrePanel } from "@/components/landing/genre-tabs";
 import { PairingCard } from "@/components/landing/pairing-card";
 import type { GenreSection } from "@/lib/example-cards";
-import { FEATURED_COUNT, FEATURED_TAB, type TabId } from "@/lib/examples";
-
-function tabIcon(id: TabId) {
-  const Icon = GENRE_ICONS[id];
-  return <Icon size={16} strokeWidth={1.75} aria-hidden="true" className="shrink-0" />;
-}
+import { FEATURED_TAB } from "@/lib/examples";
 
 interface Props {
   sections: GenreSection[];
+  /** The splash (the hero): all that the Featured tab's panel holds. */
+  hero: ReactNode;
 }
 
-export function Pairings({ sections }: Props) {
-  const featuredTab: GenreTab = {
-    id: FEATURED_TAB.id,
-    label: FEATURED_TAB.label,
-    icon: tabIcon(FEATURED_TAB.id),
-    panel: <FeaturedPairings cards={sections.flatMap((section) => section.cards)} count={FEATURED_COUNT} />,
-  };
+const pairingsText = (count: number) => `${count} ${count === 1 ? "pairing" : "pairings"}`;
 
-  const genreTabs: GenreTab[] = sections.map(({ genre, cards }) => ({
+/**
+ * The page's views, a panel per tab, chosen by the pills of the top bar (`GenreTablist`, sharing the state of `GenreTabsProvider`): Featured, the default, is
+ * the splash alone; a genre is its grid of pairings under a small heading, directly under the bar, in place of the splash. The
+ * script and the style before the panels (`GenreDeepLink`) are what a link to a genre (`/#horror`) needs to open on its grid without the splash painted first
+ * (see genre-deep-link.ts).
+ *
+ * Headings: the splash has the page's one h1 (hero.tsx); a genre's view has its own h2, so on a genre's tab (where the splash and its h1 are hidden) the page
+ * still has a heading to start from.
+ */
+export function Pairings({ sections, hero }: Props) {
+  const featuredPanel: GenrePanel = { id: FEATURED_TAB.id, panel: hero };
+
+  const genrePanels: GenrePanel[] = sections.map(({ genre, cards }) => ({
     id: genre.id,
-    label: genre.label,
-    icon: tabIcon(genre.id),
     panel: (
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((card) => (
-          <li key={card.href}>
-            <PairingCard card={card} />
-          </li>
-        ))}
-      </ul>
+      <section aria-labelledby={`genre-${genre.id}-heading`} className="mx-auto w-full max-w-6xl px-4 pb-12 pt-8">
+        <h2 id={`genre-${genre.id}-heading`} className="flex flex-wrap items-baseline gap-x-3 text-2xl font-semibold tracking-tight text-strong">
+          {genre.label}
+          <span className="text-sm font-medium tracking-normal text-muted">{pairingsText(cards.length)}</span>
+        </h2>
+        <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {cards.map((card) => (
+            <li key={card.href}>
+              <PairingCard card={card} />
+            </li>
+          ))}
+        </ul>
+      </section>
     ),
   }));
 
+  const ids = [featuredPanel.id, ...genrePanels.map((panel) => panel.id)];
   return (
-    <section aria-labelledby="pairings-heading" className="mx-auto w-full max-w-6xl px-4 pb-12 pt-2">
-      {/* Not shown: the tabs follow the search field directly. Kept for the page's heading outline. */}
-      <h2 id="pairings-heading" className="sr-only">
-        Try a pairing
-      </h2>
-      <GenreTabs idBase="pairings" label="Genres" tabs={[featuredTab, ...genreTabs]} />
-    </section>
+    <>
+      <GenreDeepLink ids={ids} />
+      <GenrePanels panels={[featuredPanel, ...genrePanels]} />
+    </>
   );
 }

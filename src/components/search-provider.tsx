@@ -1,10 +1,10 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { createContext, useCallback, useContext, useEffectEvent, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
-import { takeOpener, useRememberPressed } from "@/components/side-panel/side-panel";
+import { createContext, useCallback, useContext, useEffectEvent, useLayoutEffect, useMemo, useRef, useSyncExternalStore, type MouseEvent, type ReactNode } from "react";
+import { rememberOpener, takeOpener, useRememberPressed } from "@/components/side-panel/side-panel";
 import type { ElementLike } from "@/lib/hero-keys";
-import { describeShortcutTarget, isApplePlatform, peopleKeyAction, platformName } from "@/lib/people-shortcut";
+import { describeShortcutTarget, isApplePlatform, peopleKeyAction, platformName, shortcutKeys } from "@/lib/people-shortcut";
 
 type SearchScope = "site" | "page";
 
@@ -78,6 +78,30 @@ export function useSearch() {
   const context = useContext(SearchContext);
   if (!context) throw new Error("useSearch is used outside a SearchProvider");
   return context;
+}
+
+const subscribeNothing = () => () => {};
+
+/**
+ * What a button that opens the universal search needs (the site header's `SearchButton`, the landing bar's field): whether the page is live yet, which platform's shortcut to
+ * name, and the attributes of the button itself (`buttonProps`, spread on it; `open` is its click).
+ */
+export function useSearchTrigger() {
+  const { show } = useSearch();
+  // A hard navigation (including back to a 404) can show a trigger before its click handler is hydrated: until then a click does nothing.
+  const hydrated = useSyncExternalStore(subscribeNothing, () => true, () => false);
+  // The platform is known in the browser only: the server's markup and the hydrating render say Ctrl K, and the render after says the real one.
+  const mac = useSyncExternalStore(subscribeNothing, () => isApplePlatform(platformName()), () => false);
+  const open = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      // The control itself, which no browser gets wrong (a pointer's click and a key's alike).
+      rememberOpener(event.currentTarget);
+      show(takeOpener());
+    },
+    [show],
+  );
+  const buttonProps = { type: "button", disabled: !hydrated, "aria-haspopup": "dialog", "aria-keyshortcuts": shortcutKeys(mac), onClick: open } as const;
+  return { hydrated, mac, open, buttonProps };
 }
 
 /** Page search takes precedence over the site's new-timeline search. Registration expires with its route. */

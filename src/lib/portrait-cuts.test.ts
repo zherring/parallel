@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { personColorCss, personHex } from "@/lib/person-colors";
-import { PORTRAIT_PALETTE, pairPortraitColors, portraitPersonHexes } from "@/lib/portrait-cuts";
+import { PORTRAIT_PALETTE, cutEdgePath, pairPortraitColors, portraitPersonHexes, type CutPoint } from "@/lib/portrait-cuts";
 
 describe("PORTRAIT_PALETTE", () => {
   it("has no green: the app's green means the films they share, never one person", () => {
@@ -72,5 +72,24 @@ describe("portraitPersonHexes", () => {
     expect(personColorCss(null)).not.toContain("--row-flash");
     expect(personColorCss(portraitPersonHexes([5026, 7450])!)).toContain("--row-flash:var(--together);");
     expect(personColorCss(portraitPersonHexes([380, 1032, 1037])!)).toContain("--row-flash:var(--together);");
+  });
+});
+
+describe("cutEdgePath", () => {
+  // A figure cut off by the bottom of the photo and by its right side: the polygon runs along the frame there.
+  const points: CutPoint[] = [
+    [0.2, 1],
+    [0.3, 0.2],
+    [0.7, 0.2],
+    [1, 0.5],
+    [1, 1],
+  ];
+
+  it("leaves the segments along the photo's own frame edge out of the edge, as the whole app draws it", () => {
+    const open = cutEdgePath(points, 100, 200);
+    // The right side (1, 0.5 to 1, 1) and the bottom (1, 1 to 0.2, 1) are the frame's: no stroke along them.
+    expect(open).not.toContain("Z");
+    expect(open.match(/M/g)).toHaveLength(1);
+    expect(open).toContain("L100,100");
   });
 });

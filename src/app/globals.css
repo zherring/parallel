@@ -76,11 +76,6 @@
   --conn-1: #00e054;
 }
 
-/* Steps for the landing hero collage, which grows with the room left of the headline. */
-@theme {
-  --breakpoint-wide: 90rem;
-}
-
 @theme inline {
   --color-canvas: var(--bg);
   --color-surface: var(--surface);
@@ -129,6 +124,15 @@ body {
  * /p/ has none and keeps its header).
  */
 body:has([data-people-bar]) > header {
+  display: none;
+}
+
+/*
+ * The landing page's top bar (src/components/landing/landing-bar.tsx) is its header: the genre pills and the search, sticky at the top. The
+ * site's header would be a second bar above it (and the stage's height counts on the first 56px of the screen being the bar's), so it leaves for as
+ * long as that bar is on the page: hidden from the first paint, since the bar is in the server's markup.
+ */
+body:has([data-landing-bar]) > header {
   display: none;
 }
 

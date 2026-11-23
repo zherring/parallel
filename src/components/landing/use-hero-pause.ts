@@ -3,22 +3,18 @@
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import type { PauseReasons } from "@/lib/hero-scenes";
 
-type AutoReason = Exclude<keyof PauseReasons, "reducedMotion">;
+/** What the hook watches for itself (the others are the caller's: the preference, and the landing page's genre view). */
+type AutoReason = Exclude<keyof PauseReasons, "reducedMotion" | "genre">;
 
 /**
  * Everything that holds the hero's rotation still: a preference for reduced motion (the rotation
- * never plays by itself then), the pointer over the collage, a pointer pressed on it (so the link
+ * never plays by itself then), a genre's grid shown in place of the hero (`genre`: the caller knows, from the page's tabs), the pointer over the stage, a pointer pressed on it (so the link
  * cannot change under a click or tap), keyboard focus on its link or on Previous or Next (set by
- * the caller with `set`), someone typing in the search field, the hero scrolled out of view and
+ * the caller with `set`), the search overlay being open, the hero scrolled out of view and
  * the tab in the background.
- *
- * The search field counts only once the visitor is using it: it is autofocused on desktop, so
- * "focused" alone would hold the collage still from the first paint. A key press, a click or any
- * text in it means they are typing. (Not ArrowLeft and ArrowRight in an empty field: those drive
- * the hero's Previous and Next, see use-hero-keys.ts.)
  */
-export function useHeroPause(root: RefObject<HTMLElement | null>, reducedMotion: boolean) {
-  const [flags, setFlags] = useState<Omit<PauseReasons, "reducedMotion">>({
+export function useHeroPause(root: RefObject<HTMLElement | null>, reducedMotion: boolean, genre = false) {
+  const [flags, setFlags] = useState<Omit<PauseReasons, "reducedMotion" | "genre">>({
     hover: false,
     focus: false,
     press: false,
@@ -31,7 +27,7 @@ export function useHeroPause(root: RefObject<HTMLElement | null>, reducedMotion:
     setFlags((current) => (current[reason] === value ? current : { ...current, [reason]: value }));
   }, []);
 
-  // The pointer over the collage (a mouse or pen; a touch has no hover to wait out), and a pointer
+  // The pointer over the stage (a mouse or pen; a touch has no hover to wait out), and a pointer
   // pressed on it. A press is let go a moment after the pointer is, so the click it ends is safe.
   useEffect(() => {
     const element = root.current;
@@ -68,49 +64,18 @@ export function useHeroPause(root: RefObject<HTMLElement | null>, reducedMotion:
     };
   }, [root, set]);
 
-  // The search field, while it is being used.
+  // The search overlay, while it is open: it is portalled into <body> (universal-search.tsx), the page behind it is inert, and the stage would
+  // otherwise change scene behind its scrim.
   useEffect(() => {
-    const box = root.current?.closest("section")?.querySelector<HTMLElement>("[data-hero-search]");
-    if (!box) return;
-    let engaged = false;
-    const input = () => box.querySelector("input");
-    const sync = () => {
-      const field = input();
-      const focused = field !== null && document.activeElement === field;
-      set("search", focused && (engaged || field.value.length > 0));
-    };
-    const engage = () => {
-      engaged = true;
-      sync();
-    };
-    const keydown = (event: KeyboardEvent) => {
-      const arrow = event.key === "ArrowLeft" || event.key === "ArrowRight";
-      if (arrow && input()?.value === "") return;
-      engage();
-    };
-    const focusIn = () => {
-      engaged = false;
-      sync();
-    };
-    const focusOut = () => {
-      engaged = false;
-      set("search", false);
-    };
-    box.addEventListener("focusin", focusIn);
-    box.addEventListener("focusout", focusOut);
-    box.addEventListener("keydown", keydown);
-    box.addEventListener("input", engage);
-    box.addEventListener("pointerdown", engage);
+    const sync = () => set("search", document.querySelector("[data-universal-search]") !== null);
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, { childList: true });
     sync();
     return () => {
-      box.removeEventListener("focusin", focusIn);
-      box.removeEventListener("focusout", focusOut);
-      box.removeEventListener("keydown", keydown);
-      box.removeEventListener("input", engage);
-      box.removeEventListener("pointerdown", engage);
+      observer.disconnect();
       set("search", false);
     };
-  }, [root, set]);
+  }, [set]);
 
   // The hero scrolled out of view.
   useEffect(() => {
@@ -135,5 +100,5 @@ export function useHeroPause(root: RefObject<HTMLElement | null>, reducedMotion:
     return () => document.removeEventListener("visibilitychange", update);
   }, [set]);
 
-  return { reasons: { reducedMotion, ...flags } satisfies PauseReasons, set };
+  return { reasons: { reducedMotion, genre, ...flags } satisfies PauseReasons, set };
 }

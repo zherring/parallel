@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EXAMPLE_PAIRINGS } from "@/lib/examples";
-import { FAMILY_NAME_OVERRIDES, headingNames, pageHeading, shortName } from "@/lib/short-name";
+import { FAMILY_NAME_OVERRIDES, headingNames, pageHeading, pairFamilyNames, shortName } from "@/lib/short-name";
 
 describe("shortName", () => {
   const cases: [string, string][] = [
@@ -190,5 +190,37 @@ describe("headingNames", () => {
     const people = [person(1, "David Fincher"), person(2, "Jeff Cronenweth"), person(3, "Brad Pitt")];
     expect(headingNames(people)).toEqual(["Fincher", "Cronenweth", "Pitt"]);
     expect(headingNames(people.slice(0, 2), true)).toEqual(["Fincher", "Cronenweth"]);
+  });
+});
+
+describe("pairFamilyNames", () => {
+  const person = (id: number, name: string) => ({ id, name });
+
+  it("is the two family names", () => {
+    expect(pairFamilyNames(person(4762, "Paul Thomas Anderson"), person(1233, "Philip Seymour Hoffman"))).toEqual(["Anderson", "Hoffman"]);
+    expect(pairFamilyNames(person(488, "Steven Spielberg"), person(31, "Tom Hanks"))).toEqual(["Spielberg", "Hanks"]);
+  });
+
+  it("keeps particles and uses the override table", () => {
+    expect(pairFamilyNames(person(525, "Christopher Nolan"), person(74401, "Hoyte van Hoytema"))).toEqual(["Nolan", "van Hoytema"]);
+    expect(pairFamilyNames(person(10099, "Park Chan-wook"), person(20738, "Song Kang-ho"))).toEqual(["Park", "Song"]);
+  });
+
+  it("reads a shared family name as the given names and the family name once, never 'Wachowski & Wachowski'", () => {
+    expect(pairFamilyNames(person(9339, "Lana Wachowski"), person(9340, "Lilly Wachowski"))).toEqual(["Lana", "Lilly Wachowski"]);
+    expect(pairFamilyNames(person(1223, "Joel Coen"), person(1224, "Ethan Coen"))).toEqual(["Joel", "Ethan Coen"]);
+    expect(pairFamilyNames(person(1, "Hoyte van Hoytema"), person(2, "Anna van Hoytema"))).toEqual(["Hoyte", "Anna van Hoytema"]);
+  });
+
+  it("keeps both full names where the given names cannot be told", () => {
+    expect(pairFamilyNames(person(1, "Robert Downey Jr."), person(2, "Robert Downey Sr."))).toEqual(["Robert Downey Jr.", "Robert Downey Sr."]);
+    expect(pairFamilyNames(person(3, "Chris Evans"), person(4, "Chris Evans"))).toEqual(["Chris Evans", "Chris Evans"]);
+  });
+
+  it("gives every pair of the hero's pool a label that is not two alike", () => {
+    for (const pairing of EXAMPLE_PAIRINGS) {
+      const [a, b] = pairFamilyNames(pairing.people[0], pairing.people[1]);
+      expect(a, pairing.people.map((p) => p.name).join(" & ")).not.toBe(b);
+    }
   });
 });

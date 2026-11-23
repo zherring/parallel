@@ -1,11 +1,11 @@
 /**
- * The landing hero is a collage of one pairing at a time (two portraits, up to five shared-film
- * posters) that changes every few seconds. This module is the pure part: which pairing comes
+ * The landing hero shows one pairing at a time (two portrait panels, up to five shared-film
+ * posters in a cluster over a timeline of everyone's films) that changes every few seconds. This module is the pure part: which pairing comes
  * next, which portrait slot changes, and the timing and pause rules. It has no DOM and takes its
- * randomness as an argument, so tests drive it with a seeded generator (see featured.ts).
+ * randomness as an argument, so tests drive it with a seeded generator.
  */
 
-/** The left (0) or right (1) portrait card. */
+/** The left (0) or right (1) portrait panel. */
 export type Slot = 0 | 1;
 
 export interface HeroPerson {
@@ -22,11 +22,21 @@ export interface HeroPoster {
   year: number;
 }
 
+/** The years of the films on the hero's timeline: a dot for each film (examples.ts `GeneratedYears`: each list is sorted, a year repeated once per film, and delta-coded, see year-list.ts `decodeYears`). */
+export interface HeroYears {
+  /** Each person's own films, in the order of `people`: those the other did not make with them. */
+  own: readonly [readonly number[], readonly number[]];
+  /** The films they made together (all of them, not only those with a poster). */
+  together: readonly number[];
+}
+
 export interface HeroPairing {
   /** The pairing's person ids, sorted and joined with "+" (examples.ts `pairingKey`). */
   key: string;
   /** Films the pair shares by the pair page's default rules. */
   sharedCount: number;
+  /** The years of everyone's films: the dots of the hero timeline, and its two caps (the first and last of all of them). */
+  years: HeroYears;
   people: readonly [HeroPerson, HeroPerson];
   /** The most-voted shared films that have a poster, oldest first: three to five. */
   posters: readonly HeroPoster[];
@@ -74,9 +84,12 @@ export function sceneOf(pairing: HeroPairing): Scene {
   return { pairing, people: pairing.people };
 }
 
-/** How many of the pair's shared films have no poster on the collage: the "+N more" hint. */
-export function moreFilms(pairing: HeroPairing): number {
-  return Math.max(0, pairing.sharedCount - pairing.posters.length);
+/**
+ * How many of the pair's shared films have no poster on the timeline: the "+N more" hint. `shown` is how many
+ * posters the width has room for (hero-layout.ts `POSTER_CAPS`); by default all of the pairing's.
+ */
+export function moreFilms(pairing: HeroPairing, shown: number = pairing.posters.length): number {
+  return Math.max(0, pairing.sharedCount - Math.min(shown, pairing.posters.length));
 }
 
 function sharedPersonIds(a: HeroPairing, b: HeroPairing): number[] {
@@ -198,16 +211,18 @@ export function sceneDuration(rng: () => number): number {
 export interface PauseReasons {
   /** The visitor prefers reduced motion: the rotation never plays by itself (Previous and Next still work). */
   reducedMotion: boolean;
-  /** The pointer is over the collage. */
+  /** The pointer is over the hero stage. */
   hover: boolean;
-  /** Keyboard focus is on the collage's link. */
+  /** Keyboard focus is on the stage's link. */
   focus: boolean;
-  /** A pointer is pressed on the collage (and a moment after), so a click cannot change target. */
+  /** A pointer is pressed on the stage (and a moment after), so a click cannot change target. */
   press: boolean;
-  /** Someone is typing in the search field. */
+  /** The search overlay is open. */
   search: boolean;
   /** The hero is scrolled out of view. */
   offscreen: boolean;
+  /** The landing page shows a genre's grid in place of the hero (the hero is not on screen, whatever the scroll). */
+  genre: boolean;
   /** The tab is in the background. */
   hidden: boolean;
 }
@@ -219,6 +234,7 @@ export const NOT_PAUSED: PauseReasons = {
   press: false,
   search: false,
   offscreen: false,
+  genre: false,
   hidden: false,
 };
 
@@ -226,7 +242,7 @@ export const isRunning = (reasons: PauseReasons): boolean => !Object.values(reas
 
 /**
  * Milliseconds until the swap when the rotation continues, given the time that was left when it
- * stopped. Leaving the collage never swaps instantly: it waits at least MIN_RESUME_MS.
+ * stopped. Leaving the stage never swaps instantly: it waits at least MIN_RESUME_MS.
  */
 export function resumeDelay(remainingMs: number): number {
   return Math.max(MIN_RESUME_MS, remainingMs);

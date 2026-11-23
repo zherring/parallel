@@ -11,6 +11,9 @@ export const FILM_COUNT = 12;
 /** The page's h1: the names and the count, for screen readers (it is visually hidden). */
 export const HEADLINE = `Pedro Almodóvar & Penélope Cruz, ${FILM_COUNT} films`;
 
+/** Their photos, as TMDB gives them and as the cuts of `portrait-cuts.json` were made from, so that the portraits are the cut-outs a real page shows (not the initials of a person with no photo). */
+const PROFILE_PATHS = ["/dKlaXJk3NLcsC1CKMx6xmyW5BZD.jpg", "/n5SFgmvJSENQt8poE4qYacUnKOi.jpg"];
+
 const films = Array.from({ length: FILM_COUNT }, (_, index) => ({
   id: 100 + index,
   title: `Bar Film ${index + 1}`,
@@ -44,7 +47,7 @@ export function pairTest(own = 0) {
         const match = url.pathname.match(/^\/3\/person\/(309|955)(\/movie_credits)?$/);
         if (match) {
           if (!match[2]) {
-            return Response.json({ id: Number(match[1]), name: NAMES[match[1] === "309" ? 0 : 1], profile_path: null, biography: "A biography." });
+            return Response.json({ id: Number(match[1]), name: NAMES[match[1] === "309" ? 0 : 1], profile_path: PROFILE_PATHS[match[1] === "309" ? 0 : 1], biography: "A biography." });
           }
           return Response.json({ cast: [...films, ...ownOf(match[1] === "309" ? 1000 : 2000)], crew: [] });
         }

@@ -2,7 +2,7 @@ import { buildPeopleSlug } from "@/lib/slug";
 import type { PairingSearchResult, PersonSearchResult, TeamSuggestion } from "@/lib/types";
 
 /**
- * Kevin Bacon mode: a mode of the new-timeline search (the landing page's field and the ⌘K dialog), after the "Six Degrees of
+ * Kevin Bacon mode: a mode of the new-timeline search (the site's search dialog, which the landing page's bar and ⌘K open), after the "Six Degrees of
  * Kevin Bacon" game. Searching for him offers the mode as a row of its own; choosing it puts him in the field as a chip that
  * stays, turns the field's action colour orange (`[data-bacon-mode]` in globals.css), and from then on only people who share a
  * film with him can be added, one at a time: the mode makes pairs with Kevin Bacon and nothing else. Removing his chip leaves it.

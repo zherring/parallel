@@ -13,6 +13,13 @@ const often = [
   { id: 2228, name: "Sean Penn", profilePath: null, sharedCount: 2, roles: "Actor", titles: ["Mystic River"] },
 ];
 
+/** The landing page's search is the site's search dialog, opened from the field-shaped button in its top bar: the chip field the mode starts in. */
+async function openHomeSearch(page: Page) {
+  await page.goto("/");
+  await page.locator("[data-landing-bar]").getByRole("button", { name: /Search any film artist/ }).click();
+  await expect(page.getByRole("dialog", { name: "Search people", exact: true })).toBeVisible();
+}
+
 const ORANGE = "rgb(255, 128, 0)";
 const GREEN = "rgb(0, 224, 84)";
 
@@ -29,7 +36,7 @@ test.beforeEach(async ({ page, next }) => {
 });
 
 test("a search for Kevin Bacon offers the mode after him; choosing it turns the field orange and lists who he works with", async ({ page }) => {
-  await page.goto("/");
+  await openHomeSearch(page);
   const field = page.getByRole("combobox");
   const go = page.getByRole("button", { name: "Show timeline", exact: true });
   await field.fill("kevin bacon");
@@ -55,7 +62,7 @@ test("a search for Kevin Bacon offers the mode after him; choosing it turns the 
 });
 
 test("in the mode only his co-workers can be added, one at a time, and the pair opens with Enter", async ({ page }) => {
-  await page.goto("/");
+  await openHomeSearch(page);
   const field = page.getByRole("combobox");
   await field.fill("kevin bacon");
   await page.getByRole("option", { name: /Kevin Bacon mode/ }).click();
@@ -93,7 +100,7 @@ test("in the mode only his co-workers can be added, one at a time, and the pair 
 });
 
 test("removing his chip leaves the mode: the field is green again and keeps the other person", async ({ page }) => {
-  await page.goto("/");
+  await openHomeSearch(page);
   const field = page.getByRole("combobox");
   const go = page.getByRole("button", { name: "Show timeline", exact: true });
   await field.fill("kevin bacon");
@@ -219,7 +226,7 @@ test("the empty field lists the teams he has worked with most, and a team opens 
       },
     }),
   );
-  await page.goto("/");
+  await openHomeSearch(page);
   const field = page.getByRole("combobox");
   await field.fill("kevin bacon");
   await page.getByRole("option", { name: /Kevin Bacon mode/ }).click();

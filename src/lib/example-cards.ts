@@ -7,6 +7,7 @@ import {
   pairingKey,
   type ExamplePairing,
   type GeneratedExamples,
+  type GeneratedPairing,
   type Genre,
 } from "@/lib/examples";
 
@@ -21,16 +22,22 @@ export interface ExampleCardData {
   people: { id: number; name: string; profilePath: string }[];
 }
 
+/** Whether an entry has the timeline's years in the shape `npm run examples:refresh` writes now (`own`, a list per person, and `together`); an older JSON has `span`, or nothing. */
+function hasYears(entry: GeneratedPairing): boolean {
+  const years: Partial<GeneratedPairing["years"]> | undefined = entry.years;
+  return Array.isArray(years?.own) && years.own.every(Array.isArray) && Array.isArray(years.together);
+}
+
 export interface GenreSection {
   genre: Genre;
   cards: ExampleCardData[];
 }
 
 /**
- * Every two-person pairing as the landing hero's scene data (see hero-scenes.ts), in the
- * pairing's order of people. Posters are left out of ExampleCardData on purpose: the Featured tab
- * ships every card to the browser and has no use for them. Throws like buildGenreSections when
- * the generated JSON is stale.
+ * Every two-person pairing as the landing hero's scene data (see hero-scenes.ts), in the pairing's order of people.
+ * Posters are left out of ExampleCardData on purpose: a card shows its people and its count, and every genre's cards
+ * are in the page's markup (and their portraits' props), so posters would be sent for nothing; the hero's pool carries
+ * them to the stage, the one place that draws them. Throws like buildGenreSections when the generated JSON is stale.
  */
 export function buildHeroPairings(
   pairings: readonly Omit<ExamplePairing, "genre">[] = EXAMPLE_PAIRINGS,
@@ -40,7 +47,7 @@ export function buildHeroPairings(
   for (const pairing of pairings) {
     const entry = data[pairingKey(pairing)];
     const wanted = pairing.people.map((person) => person.id).join(",");
-    if (!entry || entry.people.map((person) => person.id).join(",") !== wanted) {
+    if (!entry || entry.people.map((person) => person.id).join(",") !== wanted || !hasYears(entry)) {
       throw new Error(
         `examples.generated.json is out of date for pairing ${wanted}: run \`npm run examples:refresh\``,
       );
@@ -49,6 +56,7 @@ export function buildHeroPairings(
     out.push({
       key: pairingKey(pairing),
       sharedCount: entry.sharedCount,
+      years: { own: [entry.years.own[0], entry.years.own[1]], together: entry.years.together },
       people: [entry.people[0], entry.people[1]],
       posters: entry.posters,
     });
