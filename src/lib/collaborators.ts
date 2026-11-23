@@ -3,15 +3,17 @@ import {
   GRAPH_CANDIDATES,
   MIN_GRAPH_ROW,
   membersFromCredits,
+  membersOfGroups,
   pickCandidates,
 } from "@/lib/collaborator-graph";
 import { suggestFromTimelines } from "@/lib/collaborator-verify";
 import { loadCollaboratorGraph } from "@/lib/collaborators-index";
 import { mapLimited } from "@/lib/map-limited";
 import { isReleased, todayIso } from "@/lib/released";
+import { roleGroupOf } from "@/lib/role-groups";
 import { getFilmCredits, getPersonMovieCredits } from "@/lib/tmdb";
 import { TtlCache } from "@/lib/ttl-cache";
-import type { CollaboratorSuggestions, PersonTimeline } from "@/lib/types";
+import type { CollaboratorSuggestions, PersonTimeline, RoleKey } from "@/lib/types";
 
 /** Candidates whose filmographies are fetched to be counted exactly. */
 const VERIFY_CANDIDATES = GRAPH_CANDIDATES;
@@ -51,6 +53,12 @@ export interface SuggestionOptions {
    * candidates that are counted (GRAPH_CANDIDATES); under 1 is off.
    */
   minCandidates?: number;
+  /**
+   * Keep only the people who did one of these kinds of work with the person (Kevin Bacon mode's "Often with" is actors and directors, `MODE_ROLES`): the live candidates are
+   * counted from those credits alone, so the crew never takes a place, and any candidate, the graph's included, without enough of those credits among the films shared is left out
+   * when it is counted exactly (so a graph row that is long enough, which is used as it is, can come out shorter). Off by default: everybody else's list, and his outside the mode, is every kind of work.
+   */
+  roles?: readonly RoleKey[];
 }
 
 /** `minCandidates` as it is used: a whole number from 0 (off) to VERIFY_CANDIDATES. */
@@ -59,8 +67,9 @@ function fillTarget(minCandidates: number | undefined): number {
   return Math.min(Math.max(Math.trunc(minCandidates), 0), VERIFY_CANDIDATES);
 }
 
-/** The remembered list is per person and per fill: a topped-up list is not the graph's list, and each is kept apart. */
-const cacheKey = (personId: number, fill: number): string => (fill > 0 ? `${personId}+fill${fill}` : String(personId));
+/** The remembered list is per person, per fill and per restriction: a topped-up list is not the graph's list, nor is a list of actors and directors, and each is kept apart. */
+const cacheKey = (personId: number, fill: number, roles: readonly RoleKey[]): string =>
+  [String(personId), fill > 0 ? `fill${fill}` : "", ...(roles.length > 0 ? [`roles:${[...roles].sort().join(",")}`] : [])].filter(Boolean).join("+");
 
 /** A list, and whether every candidate made it into it (false: some filmographies failed to load). */
 export interface SuggestionResult {
@@ -108,7 +117,13 @@ export function fulfilledOrThrow<T>(settled: PromiseSettledResult<T>[]): T[] {
  * films (their top `filmCount`, 25 unless said, by vote count), by the same counting as the graph. Credits of films that
  * fail to load are skipped; if none load, this throws.
  */
-async function liveCandidates(subject: PersonTimeline, today: string, signal?: AbortSignal, filmCount: number = LIVE_FILMS): Promise<number[]> {
+async function liveCandidates(
+  subject: PersonTimeline,
+  today: string,
+  signal?: AbortSignal,
+  filmCount: number = LIVE_FILMS,
+  roles: readonly RoleKey[] = [],
+): Promise<number[]> {
   const films = subject.films
     .filter((film) => !film.minor && isReleased(film.releaseDate, today))
     .sort((a, b) => b.voteCount - a.voteCount || b.releaseDate.localeCompare(a.releaseDate) || a.id - b.id)
@@ -123,13 +138,15 @@ async function liveCandidates(subject: PersonTimeline, today: string, signal?: A
       popularity.set(person.id, Math.max(popularity.get(person.id) ?? 0, person.popularity ?? 0));
     }
   }
-  const members = credits.map((c) => membersFromCredits(c));
+  // A restricted list counts only the credits it is about, so that crew never takes one of the candidates' places.
+  const groups = roles.map(roleGroupOf);
+  const members = credits.map((c) => (groups.length > 0 ? membersOfGroups(membersFromCredits(c), groups) : membersFromCredits(c)));
   return pickCandidates(subject.person.id, members, (id) => popularity.get(id) ?? 0, VERIFY_CANDIDATES).map(
     (candidate) => candidate.id,
   );
 }
 
-async function compute(personId: number, signal: AbortSignal | undefined, fill: number): Promise<SuggestionResult> {
+async function compute(personId: number, signal: AbortSignal | undefined, fill: number, roles: readonly RoleKey[]): Promise<SuggestionResult> {
   const subject = await getPersonMovieCredits(personId, { signal });
   const today = todayIso();
 
@@ -141,10 +158,11 @@ async function compute(personId: number, signal: AbortSignal | undefined, fill: 
   if (fromGraph && fromGraph.length >= fill) {
     candidateIds = fromGraph;
   } else if (fromGraph) {
-    // A row under the asked-for fill: the graph's candidates first, then the live ones the graph lacks.
+    // A row under the asked-for fill: the graph's candidates first, then the live ones the graph lacks. A restricted list takes the live ones first: they are all of its kind,
+    // where the graph's include the crew that the exact count will drop (and in the 16 places, the live ones are what fills the list).
     try {
-      const live = await liveCandidates(subject, today, signal, TOP_UP_FILMS);
-      candidateIds = [...new Set([...fromGraph, ...live])].slice(0, VERIFY_CANDIDATES);
+      const live = await liveCandidates(subject, today, signal, TOP_UP_FILMS, roles);
+      candidateIds = [...new Set(roles.length > 0 ? [...live, ...fromGraph] : [...fromGraph, ...live])].slice(0, VERIFY_CANDIDATES);
       source = "live";
     } catch (error) {
       console.warn(error instanceof Error ? `Live collaborators unavailable, using the graph's: ${error.message}` : "Live collaborators unavailable, using the graph's");
@@ -152,7 +170,7 @@ async function compute(personId: number, signal: AbortSignal | undefined, fill: 
       toppedUp = false;
     }
   } else {
-    candidateIds = await liveCandidates(subject, today, signal);
+    candidateIds = await liveCandidates(subject, today, signal, LIVE_FILMS, roles);
   }
 
   // Candidates skip the short-film lookup. A film counts as shared only if both people have a
@@ -161,7 +179,7 @@ async function compute(personId: number, signal: AbortSignal | undefined, fill: 
   // short-film lane ahead of a visitor's page, whose 3s budget counts that wait.
   const settled = await mapLimited(candidateIds, CONCURRENCY, (id) => getPersonMovieCredits(id, { shorts: false, signal }));
   const timelines = fulfilledOrThrow(settled);
-  const results = suggestFromTimelines(subject, timelines, { today });
+  const results = suggestFromTimelines(subject, timelines, { today, roles: roles.length > 0 ? roles : undefined });
   // Incomplete too when the subject's short-film lookup was cut short or capped: the counts then include a few shorts.
   const complete = toppedUp && timelines.length === candidateIds.length && !subject.shortsIncomplete;
   return { suggestions: { source, results }, complete };
@@ -185,7 +203,8 @@ async function compute(personId: number, signal: AbortSignal | undefined, fill: 
  */
 export function suggestCollaboratorsChecked(personId: number, signal?: AbortSignal, options: SuggestionOptions = {}): Promise<SuggestionResult> {
   const fill = fillTarget(options.minCandidates);
-  const key = cacheKey(personId, fill);
+  const roles = options.roles ?? [];
+  const key = cacheKey(personId, fill, roles);
   const done = finished.get(key);
   if (done) return Promise.resolve({ suggestions: done, complete: true });
   const incomplete = partial.get(key);
@@ -193,7 +212,7 @@ export function suggestCollaboratorsChecked(personId: number, signal?: AbortSign
 
   let pending = running.get(key);
   if (!pending) {
-    pending = compute(personId, signal, fill)
+    pending = compute(personId, signal, fill, roles)
       .then((result) => {
         (result.complete ? finished : partial).set(key, result.suggestions);
         return result;

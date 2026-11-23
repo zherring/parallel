@@ -1,5 +1,5 @@
 import { buildPeopleSlug } from "@/lib/slug";
-import type { PairingSearchResult, PersonSearchResult, TeamSuggestion } from "@/lib/types";
+import type { PairingSearchResult, PersonSearchResult, RoleKey, TeamSuggestion } from "@/lib/types";
 
 /**
  * Kevin Bacon mode: a mode of the new-timeline search (the site's search dialog, which the landing page's bar and ⌘K open), after the "Six Degrees of
@@ -25,6 +25,13 @@ export const BACON = { id: 4724, name: "Kevin Bacon" } as const;
  * TMDB requests (a team list about 130 on a cold cache), so the routes answer 400 for anyone else.
  */
 export const MODE_SUBJECT_IDS: readonly number[] = [BACON.id];
+
+/**
+ * The kinds of work the mode's own lists are made of: "Often with Kevin Bacon" and the teams are people he acted with or was directed by (or directed), never the crew
+ * around the films (a costume designer, a cinematographer or a composer who shares many films with him is not who the mode is about). A person is in them when their
+ * credits on the films shared with him include one of these (`creditedAs`, collaborator-verify.ts); the pair page and the search still take anyone he shares a film with.
+ */
+export const MODE_ROLES: readonly RoleKey[] = ["actor", "director"];
 
 /** The mode holds Kevin Bacon and one other person. */
 export const BACON_MODE_MAX = 2;

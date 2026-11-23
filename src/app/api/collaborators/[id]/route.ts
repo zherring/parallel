@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api-error";
-import { MODE_SUBJECT_IDS } from "@/lib/bacon-mode";
+import { MODE_ROLES, MODE_SUBJECT_IDS } from "@/lib/bacon-mode";
 import { suggestCollaboratorsChecked } from "@/lib/collaborators";
 import { ROUTE_BUDGET_MS } from "@/lib/tmdb";
 
@@ -22,10 +22,11 @@ const PARTIAL_CACHE = "public, s-maxage=60, stale-while-revalidate=60";
  * a gap in it for long.
  *
  * `?fill=N` asks for a list of at least N people: where the graph's row has fewer, it is topped up with live candidates
- * (up to 80 credit requests on a cold cache), which Kevin Bacon mode's empty field wants for him (his row has 3). Only the
- * people a mode is about (`MODE_SUBJECT_IDS`) are topped up; for anyone else, or a `fill` that is not a number, the option is
- * ignored and the answer is the usual one. The address differs with it, so shared caches keep the two answers apart, and the
- * lib keeps them apart in memory.
+ * (up to 80 credit requests on a cold cache), which Kevin Bacon mode's empty field wants for him (his row has 3). That list is the
+ * mode's own, so it is also only the people who acted with him or directed him, or were directed by him (`MODE_ROLES`), not the crew
+ * of the films. Only the people a mode is about (`MODE_SUBJECT_IDS`) are given the list; for anyone else, or a `fill` that is not a
+ * number, the option is ignored and the answer is the usual one, every kind of work. The address differs with it, so shared caches
+ * keep the two answers apart, and the lib keeps them apart in memory.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -34,10 +35,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
 
   const fill = new URL(request.url).searchParams.get("fill");
-  const minCandidates = fill !== null && FILL.test(fill) && MODE_SUBJECT_IDS.includes(Number(id)) ? Number(fill) : undefined;
+  const forMode = fill !== null && FILL.test(fill) && MODE_SUBJECT_IDS.includes(Number(id));
 
   try {
-    const { suggestions, complete } = await suggestCollaboratorsChecked(Number(id), AbortSignal.timeout(ROUTE_BUDGET_MS), { minCandidates });
+    const { suggestions, complete } = await suggestCollaboratorsChecked(
+      Number(id),
+      AbortSignal.timeout(ROUTE_BUDGET_MS),
+      forMode ? { minCandidates: Number(fill), roles: MODE_ROLES } : {},
+    );
     return NextResponse.json(suggestions, {
       headers: { "Cache-Control": complete ? COMPLETE_CACHE : PARTIAL_CACHE },
     });

@@ -415,11 +415,12 @@ describe("GET /api/collaborators/[id]: ?fill (the top-up of a thin graph row)", 
     timelines.set(40, timeline(40, "Costar A", films("actor", range(100, 105))));
     timelines.set(41, timeline(41, "Costar B", films("actor", range(100, 102))));
     timelines.set(50, timeline(50, "David Fincher", films("director", [100, 101])));
+    timelines.set(55, timeline(55, "Composer", films("composer", range(100, 105))));
     timelines.set(60, timeline(60, "Seen Once", films("actor", [100])));
     timelines.set(70, timeline(70, "Thin A", films("actor", [100])));
     timelines.set(71, timeline(71, "Thin B", films("actor", [101])));
     filmCredits.mockImplementation(async (id) => {
-      if (id >= 100 && id <= 105) return { ...castOf(40, 41, 60), crew: [{ id: 50, job: "Director" }] };
+      if (id >= 100 && id <= 105) return { ...castOf(40, 41, 60), crew: [{ id: 50, job: "Director" }, { id: 55, job: "Original Music Composer" }] };
       return castOf(900 + id);
     });
   });
@@ -444,6 +445,20 @@ describe("GET /api/collaborators/[id]: ?fill (the top-up of a thin graph row)", 
     expect(filmCredits).toHaveBeenCalledTimes(30);
     // Each candidate once, the graph's and the live ones together.
     expect(candidatesLoaded(MODE)).toEqual([40, 41, 50, 60, 70, 71]);
+  });
+
+  it("is the mode's own list, actors and directors: the composer of the same films, who shares as many, is left out of it and not out of anyone else's", async () => {
+    // The composer is in both people's graph rows and credited on the same films as the co-stars; he is a collaborator of both, and only the mode's list is of actors.
+    graph.set(MODE, row([55, 6], [41, 3], [70, 2]));
+    graph.set(OTHER, row([55, 6], [41, 3], [70, 2]));
+    expect((await body(await get(String(MODE)))).results.map((r) => r.id)).toContain(55);
+    expect((await body(await get(String(OTHER), "?fill=8"))).results.map((r) => r.id)).toContain(55);
+
+    resetSuggestionCache();
+    const data = await body(await get(String(MODE), "?fill=8"));
+    expect(data.source).toBe("live");
+    // The graph's composer is read like the others (his filmography is how the exact count knows what he did), and is not in the list.
+    expect(data.results.map((r) => r.id)).toEqual([40, 41, 50]);
   });
 
   it("leaves a row that is already long enough alone", async () => {

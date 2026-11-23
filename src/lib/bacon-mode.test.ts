@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BACON,
   BACON_MODE_MAX,
+  MODE_ROLES,
   MODE_SUBJECT_IDS,
   allCheckedForMode,
   baconFullRule,
@@ -229,6 +230,15 @@ describe("the people a mode is about", () => {
     expect(allCheckedForMode([person(31, "Tom Hanks", 2), person(500, "Tom Cruise")])).toBe(false);
     expect(allCheckedForMode([kevin, person(31, "Tom Hanks", 2)])).toBe(true);
     expect(allCheckedForMode([{ id: 7, together: null }], 7)).toBe(true);
+  });
+});
+
+describe("the kinds of work the mode's own lists are made of", () => {
+  it("are acting and directing: not the crew around the films", () => {
+    expect([...MODE_ROLES].sort()).toEqual(["actor", "director"]);
+    for (const crew of ["composer", "cinematographer", "costume-designer", "editor", "writer", "producer", "production-designer"]) {
+      expect(MODE_ROLES).not.toContain(crew);
+    }
   });
 });
 

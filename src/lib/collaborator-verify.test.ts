@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_SUGGESTIONS,
+  filmsCreditedAs,
   suggestFromTimelines,
   toSuggestion,
   verifyCollaborator,
@@ -74,6 +75,68 @@ describe("verifyCollaborator", () => {
       film(3, "2003-01-01", [credit("director"), credit("actor")]),
     ]);
     expect(verifyCollaborator(SUBJECT, other, 0, { today: TODAY })?.group).toBe("directing");
+  });
+});
+
+describe("verifyCollaborator with roles (Kevin Bacon mode's list: actors and directors)", () => {
+  const ROLES: readonly RoleKey[] = ["actor", "director"];
+
+  it("keeps an actor and a director, and drops a composer or a costume designer who share as many films", () => {
+    for (const role of ["actor", "director"] as const) {
+      expect(verifyCollaborator(SUBJECT, timeline(2, role, filmsAs(role, [1, 2, 3])), 0, { today: TODAY, roles: ROLES })?.count, role).toBe(3);
+    }
+    for (const role of ["composer", "costume-designer", "cinematographer", "writer", "editor", "producer"] as const) {
+      expect(verifyCollaborator(SUBJECT, timeline(2, role, filmsAs(role, [1, 2, 3])), 0, { today: TODAY, roles: ROLES }), role).toBeNull();
+      // Every kind of work, without roles: the list everybody else has.
+      expect(verifyCollaborator(SUBJECT, timeline(2, role, filmsAs(role, [1, 2, 3])), 0, { today: TODAY })?.count, role).toBe(3);
+    }
+  });
+
+  it("needs the actor's or director's credit on as many films as the list asks for, not one: a composer who acted once is not who the list is about", () => {
+    const composerWhoActedOnce = timeline(2, "Composer", [
+      film(1, "2001-01-01", [credit("composer"), credit("actor")]),
+      film(2, "2002-01-01", [credit("composer")]),
+      film(3, "2003-01-01", [credit("composer")]),
+    ]);
+    expect(verifyCollaborator(SUBJECT, composerWhoActedOnce, 0, { today: TODAY, roles: ROLES })).toBeNull();
+    // A director who also wrote and produced is a director on every one of them.
+    const writerDirector = timeline(3, "Writer-director", filmsAs("director", [1, 2]).map((f) => ({ ...f, credits: [...f.credits, credit("writer")] })));
+    expect(verifyCollaborator(SUBJECT, writerDirector, 0, { today: TODAY, roles: ROLES })?.count).toBe(2);
+  });
+
+  it("does not count a minor credit as the work: a cameo is not acting with him", () => {
+    const cameos = timeline(2, "Cameos", [
+      film(1, "2001-01-01", [credit("composer"), credit("actor", { minor: true })]),
+      film(2, "2002-01-01", [credit("composer"), credit("actor", { minor: true })]),
+    ]);
+    expect(verifyCollaborator(SUBJECT, cameos, 0, { today: TODAY, roles: ROLES })).toBeNull();
+  });
+
+  it("keeps the count the pair page's own: all the shared films, whatever the person did on them", () => {
+    const mixed = timeline(2, "Actor and composer", [
+      film(1, "2001-01-01", [credit("actor")]),
+      film(2, "2002-01-01", [credit("actor")]),
+      film(3, "2003-01-01", [credit("composer")]),
+    ]);
+    expect(verifyCollaborator(SUBJECT, mixed, 0, { today: TODAY, roles: ROLES })?.count).toBe(3);
+  });
+
+  it("filters the list: suggestFromTimelines leaves the crew out and keeps the others' places", () => {
+    const people = [
+      timeline(10, "Composer", filmsAs("composer", [1, 2, 3, 4])),
+      timeline(11, "Costar", filmsAs("actor", [1, 2, 3])),
+      timeline(12, "Cinematographer", filmsAs("cinematographer", [1, 2, 3])),
+      timeline(13, "Director", filmsAs("director", [1, 2])),
+    ];
+    expect(suggestFromTimelines(SUBJECT, people, { today: TODAY }).map((s) => s.id)).toEqual([10, 12, 11, 13]);
+    expect(suggestFromTimelines(SUBJECT, people, { today: TODAY, roles: ROLES }).map((s) => s.id)).toEqual([11, 13]);
+  });
+
+  it("counts a person's films in the roles", () => {
+    const films = sharedFilms([SUBJECT, timeline(2, "Mixed", [film(1, "2001-01-01", [credit("actor")]), film(2, "2002-01-01", [credit("composer")])])], { includeMinor: false, today: TODAY });
+    expect(filmsCreditedAs(films, 2, ["actor", "director"])).toBe(1);
+    expect(filmsCreditedAs(films, 2, ["composer"])).toBe(1);
+    expect(filmsCreditedAs(films, 99, ["actor"])).toBe(0);
   });
 });
 

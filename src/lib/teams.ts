@@ -1,8 +1,11 @@
 import "server-only";
-import { membersFromCredits } from "@/lib/collaborator-graph";
+import { MODE_ROLES } from "@/lib/bacon-mode";
+import { membersFromCredits, membersOfGroups } from "@/lib/collaborator-graph";
+import { filmsCreditedAs } from "@/lib/collaborator-verify";
 import { fulfilledOrThrow } from "@/lib/collaborators";
 import { mapLimited } from "@/lib/map-limited";
 import { isReleased, todayIso } from "@/lib/released";
+import { roleGroupOf } from "@/lib/role-groups";
 import { sharedFilms } from "@/lib/shared";
 import { pickTeams, rankTeams, MIN_TEAM_FILMS } from "@/lib/teams-rank";
 import { ROUTE_BUDGET_MS, TmdbError, getFilmCredits, getPersonMovieCredits } from "@/lib/tmdb";
@@ -57,7 +60,9 @@ async function compute(personId: number, signal?: AbortSignal): Promise<TeamResu
       popularity.set(person.id, Math.max(popularity.get(person.id) ?? 0, person.popularity ?? 0));
     }
   }
-  const ranked = rankTeams(personId, credits.map((c) => membersFromCredits(c)), (id) => popularity.get(id) ?? 0);
+  // Kevin Bacon mode's teams are actors and directors (`MODE_ROLES`): the crew around the films is not counted, so a composer or a costume designer is nobody's partner.
+  const groups = MODE_ROLES.map(roleGroupOf);
+  const ranked = rankTeams(personId, credits.map((c) => membersOfGroups(membersFromCredits(c), groups)), (id) => popularity.get(id) ?? 0);
   const candidates = pickTeams(ranked, TEAM_CANDIDATES, CANDIDATES_PER_PERSON);
 
   // The exact count is the page's own: the films all three share by `sharedFilms`, from the filmographies.
@@ -75,6 +80,8 @@ async function compute(personId: number, signal?: AbortSignal): Promise<TeamResu
     if (!a || !b) continue;
     const together = sharedFilms([subject, a, b], { includeMinor: false, today });
     if (together.length < MIN_TEAM_FILMS) continue;
+    // Both partners are actors or directors on the films: the credits' count in the three's billing is not the page's, so each is held to it again here, from their filmography.
+    if ([a, b].some((partner) => filmsCreditedAs(together, partner.person.id, MODE_ROLES) < MIN_TEAM_FILMS)) continue;
     const titles = [...together]
       .sort((x, y) => (votes.get(y.id) ?? 0) - (votes.get(x.id) ?? 0) || y.releaseDate.localeCompare(x.releaseDate) || x.id - y.id)
       .slice(0, MAX_TITLES)
@@ -91,7 +98,8 @@ async function compute(personId: number, signal?: AbortSignal): Promise<TeamResu
 }
 
 /**
- * The teams of `personId`: the pairs of people who made the most films with them together, at most six, no person twice.
+ * The teams of `personId`: the pairs of people who made the most films with them together (at least `MIN_TEAM_FILMS`, three), at most six, no person twice, both of
+ * them actors or directors on those films (`MODE_ROLES`: the teams are Kevin Bacon mode's).
  * Candidates are counted from the credits of the person's best-known films (who is credited together, as the collaborator
  * graph counts it), and each is then counted exactly from the three filmographies, so a row never disagrees with the page
  * of the three it opens. Throws a TmdbError when TMDB cannot answer (404 for an unknown person).

@@ -577,3 +577,22 @@ test("the landing page's Kevin Bacon tab draws nobody in the orange; another tab
   const classic = await classicCards.evaluateAll((links) => links.map((link) => link.innerHTML.toLowerCase()));
   expect(classic.some((html) => html.includes(PALETTE_ORANGE.toLowerCase()))).toBe(true);
 });
+
+// ---- The teams' group when there are none ------------------------------------------------------------------------------------------
+
+test("with no teams the empty field has no Teams group at all: no header, no error row, and nothing waiting once the answer is in", async ({ page }) => {
+  // The beforeEach's answer: no teams (what a minimum of three films leaves for him, from live TMDB: none).
+  const answered = page.waitForResponse("**/api/teams/4724");
+  await openHomeSearch(page);
+  const field = page.getByRole("combobox");
+  await field.fill("kevin bacon");
+  await page.getByRole("option", { name: /Kevin Bacon mode/ }).click();
+  await answered;
+  // The people he works with are listed; the teams are not.
+  await expect(page.getByRole("group", { name: "Often with Kevin Bacon", exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Teams with Kevin Bacon", exact: true })).toHaveCount(0);
+  await expect(page.getByText("Teams with Kevin Bacon", { exact: true })).toHaveCount(0);
+  await expect(page.locator("[data-teams-error]")).toHaveCount(0);
+  await expect(page.locator("[data-teams-loading]")).toHaveCount(0);
+  await expect(page.getByRole("listbox")).toHaveAttribute("aria-label", "People");
+});

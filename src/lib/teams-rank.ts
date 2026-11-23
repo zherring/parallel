@@ -5,8 +5,8 @@ import type { FilmMembers } from "@/lib/collaborator-graph";
  * graph it is counted from (`collaborator-graph.ts`: who counts on a film is the same top-billed cast and key crew).
  */
 
-/** Two people have to share at least this many of the subject's films to be a team. */
-export const MIN_TEAM_FILMS = 2;
+/** Two people have to share at least this many of the subject's films to be a team: three films of the three of them is a team, two is a coincidence. */
+export const MIN_TEAM_FILMS = 3;
 
 export interface RankedTeam {
   /** The two people, lower id first. */

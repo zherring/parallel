@@ -248,3 +248,67 @@ describe("suggestCollaboratorsChecked: minCandidates (the top-up of a thin graph
     expect((await suggestCollaboratorsChecked(SUBJECT)).complete).toBe(true);
   });
 });
+
+describe("suggestCollaboratorsChecked: roles (a list of one kind of work, which only a caller that asks gets)", () => {
+  const film = (id: number): Film => ({
+    id,
+    title: `Film ${id}`,
+    releaseDate: "2000-01-15",
+    year: 2000,
+    posterPath: null,
+    voteCount: id,
+    credits: [{ role: "actor", job: "Actor", minor: false }],
+    minor: false,
+  });
+  const THIN = [10, 11, 12];
+  const ROLES = ["actor", "director"] as const;
+
+  const candidatesLoaded = () =>
+    credits.mock.calls
+      .map(([id]) => id)
+      .filter((id) => id !== SUBJECT)
+      .sort((a, b) => a - b);
+
+  beforeEach(() => {
+    graph.mockResolvedValue(new Map([[SUBJECT, { ids: THIN, counts: [5, 4, 3] }]]));
+    credits.mockImplementation(async (id) => (id === SUBJECT ? { ...timeline(id), films: [film(1), film(2), film(3)] } : timeline(id)));
+    // 98 and 99 act in all three of the person's films, 97 composes them and 96 directs them.
+    filmCredits.mockResolvedValue({
+      cast: [{ id: 98, order: 0 }, { id: 99, order: 1 }],
+      crew: [{ id: 97, job: "Original Music Composer" }, { id: 96, job: "Director" }],
+    });
+  });
+
+  it("counts the live candidates from the actors and directors alone, so the crew takes none of the places, and hands the roles on to the exact count", async () => {
+    await suggestCollaboratorsChecked(SUBJECT, undefined, { minCandidates: 8, roles: ROLES });
+    // The live ones first (they are all of the kind), then the graph's.
+    expect(verify.mock.calls[0][1].map((t) => t.person.id)).toEqual([96, 98, 99, ...THIN]);
+    expect(candidatesLoaded()).not.toContain(97);
+    expect(verify.mock.calls[0][2]).toMatchObject({ roles: ROLES });
+  });
+
+  it("is every kind of work by default: the composer is a candidate, and the exact count is not restricted", async () => {
+    await suggestCollaboratorsChecked(SUBJECT, undefined, { minCandidates: 8 });
+    expect(candidatesLoaded()).toContain(97);
+    expect(verify.mock.calls[0][2].roles).toBeUndefined();
+  });
+
+  it("keeps the restricted list, the topped-up list and the graph's apart, each remembered", async () => {
+    await suggestCollaboratorsChecked(SUBJECT);
+    await suggestCollaboratorsChecked(SUBJECT, undefined, { minCandidates: 8 });
+    await suggestCollaboratorsChecked(SUBJECT, undefined, { minCandidates: 8, roles: ROLES });
+    const calls = credits.mock.calls.length;
+    await suggestCollaboratorsChecked(SUBJECT);
+    await suggestCollaboratorsChecked(SUBJECT, undefined, { minCandidates: 8 });
+    await suggestCollaboratorsChecked(SUBJECT, undefined, { minCandidates: 8, roles: ["director", "actor"] });
+    expect(credits).toHaveBeenCalledTimes(calls);
+    expect(verify).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not top up a row that is long enough, but still counts it by the roles", async () => {
+    await suggestCollaboratorsChecked(SUBJECT, undefined, { minCandidates: THIN.length, roles: ROLES });
+    expect(filmCredits).not.toHaveBeenCalled();
+    expect(verify.mock.calls[0][1].map((t) => t.person.id)).toEqual(THIN);
+    expect(verify.mock.calls[0][2]).toMatchObject({ roles: ROLES });
+  });
+});

@@ -57,6 +57,19 @@ export function membersFromCredits(credits: CreditsLike | null | undefined): Map
   return members;
 }
 
+/**
+ * `members` of one film kept to the people who hold one of `groups` on it, each with only those groups: the credits a restricted list (Kevin Bacon mode's, which is
+ * actors and directors) counts, with the crew left out before anybody is counted.
+ */
+export function membersOfGroups(members: FilmMembers, groups: readonly RoleGroup[]): Map<number, Set<RoleGroup>> {
+  const kept = new Map<number, Set<RoleGroup>>();
+  for (const [id, held] of members) {
+    const wanted = new Set([...held].filter((group) => groups.includes(group)));
+    if (wanted.size > 0) kept.set(id, wanted);
+  }
+  return kept;
+}
+
 export interface RankedCollaborator {
   id: number;
   /** Films shared among the ones given. */

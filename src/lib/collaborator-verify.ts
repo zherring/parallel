@@ -2,7 +2,7 @@ import { MIN_SHARED_FILMS } from "@/lib/collaborator-graph";
 import { pickSuggestions, primaryGroup, roleGroupOf, type Pickable, type RoleGroup } from "@/lib/role-groups";
 import { roleSummary } from "@/lib/roles";
 import { sharedFilms } from "@/lib/shared";
-import type { CollaboratorSuggestion, Credit, PersonTimeline, SharedFilm } from "@/lib/types";
+import type { CollaboratorSuggestion, Credit, PersonTimeline, RoleKey, SharedFilm } from "@/lib/types";
 
 /** How many suggestions there are at most (the Add a person dropdown lists the first few). */
 export const MAX_SUGGESTIONS = 10;
@@ -17,19 +17,28 @@ export interface VerifiedCollaborator extends Pickable {
   films: SharedFilm[];
 }
 
+/** How many of `films` the person was credited on in one of `roles` (the credits the pair page counts: not the minor ones). */
+export function filmsCreditedAs(films: readonly SharedFilm[], personId: number, roles: readonly RoleKey[]): number {
+  return films.filter((film) => (film.byPerson[personId] ?? []).some((credit) => roles.includes(credit.role))).length;
+}
+
 /**
  * The real shared films of the subject and one candidate, by the pair page's own code
  * (`sharedFilms` with minor credits off: released films only). Null when they share fewer than
  * `minShared`, which is also how a stale or wrong candidate drops out.
+ *
+ * `roles` restricts the list to people who did that kind of work with the subject (Kevin Bacon mode's list is actors and directors): fewer than `minShared` of the
+ * shared films with a credit in one of the roles is also null. The films, and so the count, are all of them, the pair page's own.
  */
 export function verifyCollaborator(
   subject: PersonTimeline,
   other: PersonTimeline,
   rank: number,
-  { today, minShared = MIN_SHARED_FILMS }: { today: string; minShared?: number },
+  { today, minShared = MIN_SHARED_FILMS, roles }: { today: string; minShared?: number; roles?: readonly RoleKey[] },
 ): VerifiedCollaborator | null {
   const films = sharedFilms([subject, other], { includeMinor: false, today });
   if (films.length < minShared) return null;
+  if (roles && filmsCreditedAs(films, other.person.id, roles) < minShared) return null;
 
   const perGroup: Partial<Record<RoleGroup, number>> = {};
   for (const film of films) {
@@ -69,17 +78,17 @@ export function toSuggestion(
  * whose timeline could not be loaded is simply left out by the caller). Each candidate is counted
  * exactly, those under two shared films are dropped, the rest are re-ranked by the exact count
  * (ties keep the candidates' order, which is notability) and `pickSuggestions` makes the list
- * varied.
+ * varied. `roles` keeps only the people who did that kind of work with the subject (see `verifyCollaborator`).
  */
 export function suggestFromTimelines(
   subject: PersonTimeline,
   candidates: readonly PersonTimeline[],
-  { today, limit = MAX_SUGGESTIONS }: { today: string; limit?: number },
+  { today, limit = MAX_SUGGESTIONS, roles }: { today: string; limit?: number; roles?: readonly RoleKey[] },
 ): CollaboratorSuggestion[] {
   const verified: VerifiedCollaborator[] = [];
   candidates.forEach((other, rank) => {
     if (other.person.id === subject.person.id) return;
-    const result = verifyCollaborator(subject, other, rank, { today });
+    const result = verifyCollaborator(subject, other, rank, { today, roles });
     if (result) verified.push(result);
   });
   verified.sort((a, b) => b.count - a.count || a.rank - b.rank);
