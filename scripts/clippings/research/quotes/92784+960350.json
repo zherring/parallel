@@ -19,7 +19,7 @@
     {
       "speaker": "Barry Jenkins",
       "about": "James Laxton",
-      "quote": "the cinematographer I've worked with for 15 years",
+      "quote": "James Laxton – the cinematographer I’ve worked with for 15 years – and I didn’t want to make a neorealist or miserable version of this character’s story. We wanted the imagery to rise from the character so these portraits pop up every now and then when we felt the character was dislocated from him or herself. We wanted the audience to feel what the character was feeling in that moment.",
       "film": "Moonlight",
       "said_year": null,
       "publication": "Sight & Sound",
@@ -27,7 +27,7 @@
       "title": "Rhapsody in blue: Barry Jenkins on Moonlight",
       "date": "2017-03",
       "url": "https://www.bfi.org.uk/sight-and-sound/interviews/moonlight-barry-jenkins-2017-miami-oscar-winner",
-      "context": "Jenkins describing Laxton, his cinematographer, and the look they wanted to avoid (a neorealist or miserable version of the story). Quote taken from a WebFetch extract of the page; verify wording before merge.",
+      "context": "Jenkins, in a 2017 Sight & Sound interview, on the look he and Laxton chose for Moonlight: not a neorealist or miserable telling, with portrait shots surfacing whenever a character feels dislocated from themselves.",
       "secondhand": false
     },
     {
@@ -41,7 +41,7 @@
       "title": "Rhapsody in blue: Barry Jenkins on Moonlight",
       "date": "2017-03",
       "url": "https://www.bfi.org.uk/sight-and-sound/interviews/moonlight-barry-jenkins-2017-miami-oscar-winner",
-      "context": "Jenkins on how he and his cinematographer use the shot list on set. Quote taken from a WebFetch extract of the page; verify wording before merge.",
+      "context": "Jenkins on how he and his cinematographer use the shot list on set.",
       "secondhand": false
     },
     {
@@ -55,13 +55,13 @@
       "title": "Think small and embrace mistakes: Q&A with Moonlight's James Laxton",
       "date": "2018",
       "url": "https://blog.dropbox.com/topics/our-community/moonlight-cinematographer-q-and-a",
-      "context": "Laxton in a Q&A about his creative process with Jenkins on Moonlight. Date is from a WebFetch extract; verify before merge.",
+      "context": "Laxton in a Q&A about his creative process with Jenkins on Moonlight.",
       "secondhand": false
     },
     {
       "speaker": "James Laxton",
       "about": "Barry Jenkins",
-      "quote": "something that Barry and I have been trying to do for a while",
+      "quote": "Man, it was scary. I think that’s a technique that Barry and I have been trying to do for a while. There’s a couple moments of it in Moonlight and I think we finally figured it out, but you know it’s very much all about listening and being in concert with the performance as a camera operator. … You not only need to be moving the camera in a certain way but you also are reacting and listening almost like another actor or character might be within the scene…",
       "film": "If Beale Street Could Talk",
       "said_year": 2018,
       "publication": "The Film Stage",
@@ -69,7 +69,7 @@
       "title": "Cinematographer James Laxton on Capturing the Romance of 'If Beale Street Could Talk,' Close-Ups, and Errol Morris",
       "date": "2018-12-31",
       "url": "https://thefilmstage.com/cinematographer-james-laxton-on-capturing-the-romance-of-if-beale-street-could-talk-close-ups-and-errol-morris/",
-      "context": "Laxton explaining the gliding dinner-scene camera move, which he and Jenkins had long wanted to try. Quote taken from a WebFetch extract; verify wording before merge.",
+      "context": "Laxton, asked how he pulled off the long, gliding dinner scene in If Beale Street Could Talk: a technique he and Jenkins had been working toward since Moonlight.",
       "secondhand": false
     },
     {
@@ -83,9 +83,9 @@
       "title": "\"Moonlight\" Cinematographer James Laxton on Crafting the Film's Look",
       "date": "2017-01-10",
       "url": "https://moveablefest.com/james-laxton-moonlight/",
-      "context": "Laxton on how their friendship started before they worked together on Moonlight. Date is from a WebFetch extract; verify before merge.",
+      "context": "Laxton on how their friendship started before they worked together on Moonlight.",
       "secondhand": false
     }
   ],
-  "notes": "Filmmaker Magazine pieces returned 403 and Deadline redirects to a paywall-style mirror, so skipped; Time's Jenkins answers about the look do not name Laxton, so skipped. Quotes came via WebFetch extracts (not raw page text), so verify wording before merge."
+  "notes": "Filmmaker Magazine pieces returned 403 and Deadline redirects to a paywall-style mirror, so skipped; Time's Jenkins answers about the look do not name Laxton, so skipped. Quotes came via WebFetch extracts (not raw page text), so verify wording before merge. Re-checked against the raw page text for the Sight & Sound, Film Stage, Dropbox and Moveable Feast quotes on 2026-11-22: wording matches, and the Sight & Sound and Film Stage quotes were widened to fuller passages."
 }
