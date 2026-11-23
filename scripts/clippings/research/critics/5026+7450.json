@@ -70,8 +70,8 @@
     }
   ],
   "reading": [
-    { "title": "Who’s That Man? Mifune at 100", "author": null, "publication": "The Criterion Collection", "date": null, "url": "https://www.criterion.com/current/posts/6879-who-s-that-man-mifune-at-100", "paywalled": true },
+    { "title": "Who’s That Man? Mifune at 100", "author": "Moeko Fujii", "publication": "The Criterion Collection", "date": "2020-04-03", "url": "https://www.criterion.com/current/posts/6879-who-s-that-man-mifune-at-100", "paywalled": false },
     { "title": "The Courage of Compassion – Akira Kurosawa’s Red Beard", "author": "Karthick Ram Manoharan", "publication": "Offscreen", "date": "2020-12", "url": "https://offscreen.com/view/The_Courage_of_Compassion_Akira_Kurosawas_Red_Beard", "paywalled": false }
   ],
-  "notes": "Criterion's 'Mifune at 100' blocked automated fetching (JS challenge), so it's listed unread. The Offscreen essay is readable, but its partnership passages mostly relay Galbraith and Richie. The Far Out and blogathon pieces were skipped as low-grade."
+  "notes": "Criterion's 'Mifune at 100' blocks scripted fetching (403) but reads in a browser; it is a feature on the Kurosawa-Mifune collaborations. The Offscreen essay is readable, but its partnership passages mostly relay Galbraith and Richie. The Far Out and blogathon pieces were skipped as low-grade."
 }
