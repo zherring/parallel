@@ -1,4 +1,5 @@
 import { PersonAvatar } from "@/components/person-avatar";
+import { BACON_MODE_LABEL, BACON_MODE_PITCH } from "@/lib/bacon-mode";
 import { filmCountLabel } from "@/lib/format";
 import type { AddState } from "@/lib/people-nav";
 import { departmentLabel } from "@/lib/person-labels";
@@ -12,15 +13,19 @@ interface Props {
   state: AddState;
   chipsMode: boolean;
   keyHint: boolean;
+  /** In a mode: the muted line of a person's row, in place of their known-for titles ("3 films with Kevin Bacon"); for a pairing (a team), in place of its count. */
+  note?: string;
   onHighlight: () => void;
   onSelect: () => void;
 }
 
 /** One row shared by the flat keyboard list and its visible, labelled sections. */
-export function SearchResultOption({ option, id, active, disabled, state, chipsMode, keyHint, onHighlight, onSelect }: Props) {
+export function SearchResultOption({ option, id, active, disabled, state, chipsMode, keyHint, note, onHighlight, onSelect }: Props) {
   const pairing = "href" in option;
-  const dimmed = !pairing && disabled && state !== "can-add";
-  const department = !pairing ? departmentLabel(option.knownFor) : null;
+  const mode = "mode" in option;
+  // A person who cannot be added: already there, no room left, or (in a mode) not someone the mode lets in.
+  const dimmed = !pairing && !mode && disabled && (state !== "can-add" || note !== undefined);
+  const department = !pairing && !mode ? departmentLabel(option.knownFor) : null;
 
   return (
     <li
@@ -36,7 +41,17 @@ export function SearchResultOption({ option, id, active, disabled, state, chipsM
       }}
       className={`flex items-start gap-3 px-3 py-2.5 ${disabled ? "cursor-default" : "cursor-pointer"} ${active ? "bg-border shadow-[inset_3px_0_0_0_var(--green)]" : ""}`}
     >
-      {pairing ? (
+      {mode ? (
+        <>
+          <span aria-hidden="true" className="shrink-0 rounded-full ring-2 ring-accent-orange">
+            <PersonAvatar name={option.person.name} profilePath={option.person.profilePath} size={40} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium text-accent-orange">{BACON_MODE_LABEL}</span>
+            <span className="line-clamp-2 text-xs leading-snug text-muted">{BACON_MODE_PITCH}</span>
+          </span>
+        </>
+      ) : pairing ? (
         <>
           <span aria-hidden="true" className="relative size-10 shrink-0">
             {option.people.slice(0, 2).map((person, portrait) => (
@@ -47,7 +62,7 @@ export function SearchResultOption({ option, id, active, disabled, state, chipsM
           </span>
           <span className="min-w-0 flex-1">
             <span className="block font-medium text-strong">{option.people.map((person) => person.name).join(" × ")}</span>
-            <span className="block text-xs text-body">{filmCountLabel(option.sharedCount)} together</span>
+            <span className="block text-xs text-body">{note ?? `${filmCountLabel(option.sharedCount)} together`}</span>
             <span className="line-clamp-2 text-xs leading-snug text-muted">{option.blurb}</span>
           </span>
         </>
@@ -66,8 +81,8 @@ export function SearchResultOption({ option, id, active, disabled, state, chipsM
             {/* Keep the role and Added badge readable even when the photo/name are dimmed. */}
             <span className="line-clamp-2 text-xs leading-snug text-muted">
               {department && <span className="text-body">{department}</span>}
-              {department && option.knownForTitles.length > 0 && " · "}
-              {option.knownForTitles.join(", ")}
+              {department && (note !== undefined || option.knownForTitles.length > 0) && " · "}
+              {note ?? option.knownForTitles.join(", ")}
             </span>
           </span>
         </>

@@ -1,3 +1,4 @@
+import { baconCardSearch } from "@/lib/bacon-share";
 import { searchWithPeriod, type Period } from "@/lib/period";
 
 /**
@@ -32,10 +33,12 @@ export function canCopyImage(env: ImageClipboardEnv): boolean {
 /**
  * Where this page's preview card is, on the same origin: `<page>/opengraph-image`. The route
  * serves the card without the content-hash query the page's meta tags carry. For a shared
- * period (`?from=1978&to=1993`) the card of that period is `<page>/og?from=1978&to=1993`.
+ * period (`?from=1978&to=1993`) the card of that period is `<page>/og?from=1978&to=1993`. A pair in
+ * Kevin Bacon mode (`bacon`) has the orange card, `<page>/og?mode=bacon`, with its period before the mode.
  */
-export function imageUrlFor(location: { origin: string; pathname: string }, period?: Period | null): string {
+export function imageUrlFor(location: { origin: string; pathname: string }, period?: Period | null, bacon = false): string {
   const base = `${location.origin}${location.pathname.replace(/\/+$/, "")}`;
+  if (bacon) return `${base}/og${baconCardSearch(period ?? null)}`;
   return period ? `${base}/og${searchWithPeriod("", period)}` : `${base}/opengraph-image`;
 }
 

@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { baconCardSearch, isBaconCard } from "@/lib/bacon-share";
 import { cardFilms } from "@/lib/card-films";
 import { getPairClippingSet } from "@/lib/clippings";
 import { clippingById, parseQuoteId, quoteCardSearch } from "@/lib/clippings-view";
@@ -41,6 +42,10 @@ function redirectTo(path: string): Response {
  *    query string is compared with it exactly, so an extra parameter, a different order or an end the
  *    period was clamped to redirects to the canonical query.
  *
+ * A pair in Kevin Bacon mode has its own card, in which the films they made together are orange (see `bacon-share.ts`): `?mode=bacon`, after the period when there is
+ * one (`?from=1978&to=1993&mode=bacon`). The mode counts as it does on the page, only on two to four people he is one of; where it does not, the request is read without it.
+ * With no period, the mode's card is this route's, not the page's own `opengraph-image`, which is the card out of the mode.
+ *
  * A quote card follows the same rules, with its own canonical query: `?quote=<id>` and nothing else. The id
  * must be one of the pair's clippings (`clippings.json`) or critics (`essays.json`, ids that start with "critic-"); any
  * other id is no quote, and the request is then read as a period, if it carries one, and otherwise sent to the page's
@@ -81,12 +86,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return quote.draw();
   }
 
+  const bacon = isBaconCard(request.nextUrl.searchParams, ids);
   const span = spanOfYears(cardFilms(timelines, todayIso()).films.map((film) => film.year));
   const period = resolvePeriod(parsePeriodParams(request.nextUrl.searchParams), span);
-  if (!period) return redirectTo(`${base}/opengraph-image`);
+  if (!period && !bacon) return redirectTo(`${base}/opengraph-image`);
 
-  const canonicalSearch = searchWithPeriod("", period);
+  const canonicalSearch = bacon ? baconCardSearch(period) : searchWithPeriod("", period);
   if (!isCanonical || rawSearch !== canonicalSearch) return redirectTo(`${base}/og${canonicalSearch}`);
 
-  return renderPairOgImage({ timelines, period });
+  return renderPairOgImage({ timelines, period, bacon });
 }

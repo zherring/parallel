@@ -11,7 +11,14 @@ export const GENRES = [
   { id: "action-western", label: "Action & Western" },
   { id: "world-cinema", label: "World Cinema" },
   { id: "animation", label: "Animation" },
+  { id: "bacon", label: "Kevin Bacon" },
 ] as const;
+
+/**
+ * The tab of Kevin Bacon mode (src/lib/bacon-mode.ts): his pairs, each opening in the mode (`?mode=bacon`, which the cards' link carries: see `Pairings`). Its cards are
+ * the tab's only: its pairings are left out of the Featured splash (`buildHeroPairings`), which has no mode to open them in.
+ */
+export const BACON_GENRE = "bacon" satisfies GenreId;
 
 export type Genre = (typeof GENRES)[number];
 export type GenreId = Genre["id"];
@@ -1121,6 +1128,65 @@ export const EXAMPLE_PAIRINGS: readonly ExamplePairing[] = [
       { id: 531, name: "Danny Elfman" },
     ],
     blurb: "Director and composer: Edward Scissorhands, Corpse Bride, Charlie and the Chocolate Factory, Alice in Wonderland.",
+  },
+
+  // Kevin Bacon: the pairs he shares the most films with (by the pair page's own count, and at least `MIN_SHARED_FILMS`), of the people the people index has and who have a photo, actors only, as the
+  // mode's lists are actors and directors (no director has made three films with him: the best, Ron Howard, Rob Reiner, Barry Levinson, John Hughes and David Koepp, have two).
+  {
+    genre: "bacon",
+    people: [
+      { id: 4724, name: "Kevin Bacon" },
+      { id: 26467, name: "Kyra Sedgwick" },
+    ],
+    blurb: "Two actors who have directed each other: Losing Chase, Loverboy, Story of a Girl, Space Oddity.",
+  },
+  {
+    genre: "bacon",
+    people: [
+      { id: 4724, name: "Kevin Bacon" },
+      { id: 17485, name: "Oliver Platt" },
+    ],
+    blurb: "Two actors on screen together: Flatliners, Loverboy, Frost/Nixon, X-Men: First Class.",
+  },
+  {
+    genre: "bacon",
+    people: [
+      { id: 4724, name: "Kevin Bacon" },
+      { id: 64, name: "Gary Oldman" },
+    ],
+    blurb: "Two actors on screen together: Criminal Law, JFK, Murder in the First.",
+  },
+  {
+    genre: "bacon",
+    people: [
+      { id: 4724, name: "Kevin Bacon" },
+      { id: 1230, name: "John Goodman" },
+    ],
+    blurb: "Two actors on screen together: Death Sentence, Beyond All Boundaries, Patriots Day.",
+  },
+  {
+    genre: "bacon",
+    people: [
+      { id: 4724, name: "Kevin Bacon" },
+      { id: 781, name: "Paul Reiser" },
+    ],
+    blurb: "Two actors on screen together: Diner, The Darkness, Beverly Hills Cop: Axel F.",
+  },
+  {
+    genre: "bacon",
+    people: [
+      { id: 4724, name: "Kevin Bacon" },
+      { id: 12132, name: "Michael Rooker" },
+    ],
+    blurb: "Two actors on screen together: JFK, Super.",
+  },
+  {
+    genre: "bacon",
+    people: [
+      { id: 4724, name: "Kevin Bacon" },
+      { id: 15661, name: "Clint Howard" },
+    ],
+    blurb: "Two actors on screen together: End of the Line, My Dog Skip, Frost/Nixon.",
   },
 ];
 

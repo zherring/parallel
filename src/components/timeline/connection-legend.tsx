@@ -63,7 +63,7 @@ export function ConnectionLegend({ entries, names, laneCount, activeKey, pinnedK
                   aria-hidden
                   className="size-2.5 shrink-0 rounded-full"
                   style={{
-                    backgroundColor: entry.slot === null ? (palette ? "#fff" : "var(--lit)") : slotColor(entry.slot),
+                    backgroundColor: entry.slot === null ? (palette ? "var(--together)" : "var(--lit)") : slotColor(entry.slot),
                     boxShadow: entry.slot === null && !palette ? "0 0 6px var(--lit-glow)" : undefined,
                   }}
                 />

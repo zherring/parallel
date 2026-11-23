@@ -27,12 +27,13 @@ export type AddChipOutcome<T extends PersonRef> =
   | { ok: true; chips: T[] }
   | { ok: false; reason: "duplicate" | "full"; chips: T[] };
 
-/** Appends `picked`, or refuses (leaving the chips as they were) for a duplicate or a 5th chip. */
+/** Appends `picked`, or refuses (leaving the chips as they were) for a duplicate or a chip past the cap (`max`, 4 unless a mode lowers it). */
 export function addChip<T extends PersonRef>(
   chips: readonly T[],
   picked: T,
+  max: number = MAX_PEOPLE,
 ): AddChipOutcome<T> {
-  const state = addState(chips, picked.id);
+  const state = addState(chips, picked.id, max);
   if (state === "in-view") return { ok: false, reason: "duplicate", chips: [...chips] };
   if (state === "full") return { ok: false, reason: "full", chips: [...chips] };
   return { ok: true, chips: [...chips, picked] };

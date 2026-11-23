@@ -191,7 +191,7 @@ function DepthPosterImpl({ item, roles, note, upcoming, coloured, outside, selec
             style={{
               backgroundColor: placeholderFill(shared ? (palette ? null : "var(--lit)") : ringColor),
               ...(shared
-                ? { boxShadow: `0 0 0 2px ${palette ? "#fff" : "var(--lit)"}` }
+                ? { boxShadow: `0 0 0 2px ${palette ? "var(--together)" : "var(--lit)"}` }
                 : drawnRing !== null && ringColor !== null
                   ? { boxShadow: `0 0 0 1.5px ${ringColor}` }
                   : null),

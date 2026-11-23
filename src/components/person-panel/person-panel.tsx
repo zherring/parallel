@@ -18,6 +18,8 @@ export interface PersonPanelProps {
   entry: PersonPanelEntry | null;
   /** Everyone on the page: the link to the person's own timeline is left out where it would lead nowhere. */
   peopleInView: { id: number; name: string }[];
+  /** What a link to another page of people takes along from this page (its view, and Kevin Bacon mode): see `carriedPeopleHref`. Without it the link is plain. */
+  carryHref?: (href: string) => string;
   onClose: () => void;
 }
 
@@ -26,7 +28,7 @@ export interface PersonPanelProps {
  * and the full biography. The person is already in the page's payload, so unlike the film's there is
  * nothing to load.
  */
-export function PersonPanel({ entry, peopleInView, onClose }: PersonPanelProps) {
+export function PersonPanel({ entry, peopleInView, carryHref, onClose }: PersonPanelProps) {
   // Slides out when closed, as the film's does (see `useSlideOut`).
   const { shown, session, closing, exited } = useSlideOut(entry);
   if (!shown) return null;
@@ -40,7 +42,7 @@ export function PersonPanel({ entry, peopleInView, onClose }: PersonPanelProps) 
       onExited={exited}
       onClose={onClose}
     >
-      {({ titleId }) => <PersonContent entry={shown} titleId={titleId} peopleInView={peopleInView} />}
+      {({ titleId }) => <PersonContent entry={shown} titleId={titleId} peopleInView={peopleInView} carryHref={carryHref} />}
     </SidePanel>
   );
 }
@@ -49,10 +51,12 @@ export function PersonContent({
   entry,
   titleId,
   peopleInView,
+  carryHref,
 }: {
   entry: PersonPanelEntry;
   titleId: string;
   peopleInView: PersonPanelProps["peopleInView"];
+  carryHref?: PersonPanelProps["carryHref"];
 }) {
   const { person, roles, posters } = entry;
   const photo = tmdbImage(person.profilePath, "w342");
@@ -60,7 +64,7 @@ export function PersonContent({
   const paragraphs = useMemo(() => splitParagraphs(person.biography ?? ""), [person.biography]);
   // Their own timeline; nowhere new to go from the page that is already theirs alone.
   const onOwnPage = peopleInView.length === 1 && peopleInView[0].id === person.id;
-  const soloHref = onOwnPage ? null : peopleHref([person]);
+  const soloHref = onOwnPage ? null : (carryHref ?? ((href: string) => href))(peopleHref([person]));
   // The photo is cut out (see `TreatedPortrait`), in the person's colour: their slot on the page, the first one's for a person who is not on it (a film's
   // cast). With no photo, the panel's picture is the plain `Portrait`.
   const slot = Math.max(0, peopleInView.findIndex((p) => p.id === person.id));

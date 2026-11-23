@@ -68,7 +68,7 @@ import type { Film, PersonSummary } from "@/lib/types";
 import { cn } from "./cn";
 import { ConnectionLegend } from "./connection-legend";
 import { FilmCard, type CardTone } from "./film-card";
-import { FilmDot, LIT_GLOW, MADE_TOGETHER_WHITE } from "./film-dot";
+import { FilmDot, LIT_GLOW, MADE_TOGETHER } from "./film-dot";
 import { FilmNode } from "./film-node";
 import { FilmPopover, useFilmPopover, type PopoverTarget } from "./film-popover";
 import { LaneAvatars } from "./lane-avatars";
@@ -124,6 +124,13 @@ interface TimelineProps {
    * and the minimap. A one-person page has no colours to tell apart.
    */
   people: PersonRef[];
+  /**
+   * What the lane header's remove link takes along from this page to the page without that person: its view, and Kevin Bacon mode while he is
+   * on it (see `carriedPeopleHref`). Without it the link is plain, as in an embed.
+   */
+  carryHref?: (href: string) => string;
+  /** The same for a name's own page, which takes only Kevin Bacon mode along (and only to his own page): see `carryBaconMode`. */
+  carryModeHref?: (href: string) => string;
   includeMinor: boolean;
   /**
    * yyyy-mm-dd (UTC), the one date the page computed on the server: a film released after it is
@@ -219,6 +226,9 @@ function focusIsVisible(element: HTMLElement): boolean {
   }
 }
 
+/** A link as it is: what a page's own rule for its links does when it has none. */
+const KEEP = (href: string) => href;
+
 /** Row 1 starts clear of the page bar, with a little room: the bar's bottom edge and 10px, less the lane's own 18px. The lane header's content sticks there too. */
 const TRACK_TOP = `calc(0.75rem + var(--bar-h) + 0.625rem - ${LANE_PAD_TOP}px)`;
 
@@ -229,6 +239,8 @@ export function Timeline({
   combined = false,
   showAll,
   people,
+  carryHref,
+  carryModeHref,
   includeMinor,
   today,
   selectedId,
@@ -306,6 +318,8 @@ export function Timeline({
   );
 
   const multi = lanes.length > 1;
+  const soloHrefOf = (person: PersonRef) => (carryModeHref ?? KEEP)(peopleHref([person]));
+  const removeHrefOf = (id: number) => (carryHref ?? KEEP)(removePersonHref(people, id));
   /** The page is about one person (even with only one lane shown): their lane header is pinned under the page bar and leaves the biography to the masthead, see `LaneHeader`. */
   const soloPage = people.length === 1;
   // Person colours: on a page of several people, whatever number of them is visible.
@@ -948,7 +962,7 @@ export function Timeline({
                     strokeWidth={strokeWidth}
                     opacity={(activeKey !== null && activeKey !== key) || outsideIds.has(c.filmId) ? DIMMED : 1}
                     style={{
-                      stroke: c.kind === "all" ? (palette ? MADE_TOGETHER_WHITE : "var(--lit)") : slotColor(c.slot ?? 0),
+                      stroke: c.kind === "all" ? (palette ? MADE_TOGETHER : "var(--lit)") : slotColor(c.slot ?? 0),
                       ...(c.kind === "all" && !palette ? LIT_GLOW : undefined),
                     }}
                   />
@@ -1025,8 +1039,8 @@ export function Timeline({
                         roles={info.roles}
                         facts={info.facts}
                         span={info.span}
-                        soloHref={multi ? peopleHref([person]) : null}
-                        removeHref={removePersonHref(people, person.id)}
+                        soloHref={multi ? soloHrefOf(person) : null}
+                        removeHref={removeHrefOf(person.id)}
                         divider={laneIndex < trackLanes.length - 1}
                         onOpenPerson={onOpenPerson}
                         // One person: the header stays under the page bar (the track opens scrolled to its baseline, and the header is as tall as the lane), and has no

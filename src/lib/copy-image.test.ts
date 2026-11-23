@@ -114,6 +114,14 @@ describe("imageUrlFor", () => {
       "https://parallel.example/p/1-a+2-b/opengraph-image",
     );
   });
+
+  it("is the mode's card, /og with the mode, for a pair in Kevin Bacon mode, the period (if any) before the mode", () => {
+    const here = { origin: "https://parallel.example", pathname: "/p/4724-kevin-bacon+2-b/" };
+    expect(imageUrlFor(here, null, true)).toBe("https://parallel.example/p/4724-kevin-bacon+2-b/og?mode=bacon");
+    expect(imageUrlFor(here, undefined, true)).toBe("https://parallel.example/p/4724-kevin-bacon+2-b/og?mode=bacon");
+    expect(imageUrlFor(here, { from: 1978, to: 1993 }, true)).toBe("https://parallel.example/p/4724-kevin-bacon+2-b/og?from=1978&to=1993&mode=bacon");
+    expect(imageUrlFor(here, null, false)).toBe("https://parallel.example/p/4724-kevin-bacon+2-b/opengraph-image");
+  });
 });
 
 describe("copyImage", () => {

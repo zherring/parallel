@@ -33,7 +33,7 @@ for (const width of [1440, 390]) {
         const marks = page.locator(vertical ? "[data-depth-rail] [data-minimap-fraction]" : "[data-minimap-bar] [data-minimap-fraction]");
         expect(await marks.count()).toBeGreaterThan(10);
         // Both the white shared nodes and the person-colored ticks use the same emphasis rule.
-        await expect(marks.filter({ has: page.locator("span.bg-white") }).first()).toBeAttached();
+        await expect(marks.filter({ has: page.locator("span[data-together]") }).first()).toBeAttached();
         expect(await marks.and(page.locator("span")).count()).toBeGreaterThan(0);
 
         for (const position of [0, 0.5, 1]) {

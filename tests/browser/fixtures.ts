@@ -48,6 +48,10 @@ const people: Record<string, RawPerson> = {
   "90000002": { id: 90000002, name: "Scroll Beta", profile_path: null, birthday: "1962-01-01", biography: "Another actor whose filmography shares a cluster of closely released films." },
   // Not on the default page: the one a test adds from the people pill's search.
   "90000003": { id: 90000003, name: "Scroll Gamma", profile_path: null, birthday: "1964-01-01", biography: "A third actor, for the tests that add someone to the page." },
+  // Kevin Bacon, by his TMDB id, with the same shared films as the others: the page of Kevin Bacon mode (`bacon-mode.spec.ts`).
+  "4724": { id: 4724, name: "Kevin Bacon", profile_path: null, birthday: "1958-07-08", biography: "An actor, and the centre of a parlour game." },
+  // Kyra Sedgwick, by her TMDB id, Kevin Bacon's strongest pair: her colour outside the mode is the portrait palette's orange, which is the mode's own (`bacon-mode.spec.ts`).
+  "26467": { id: 26467, name: "Kyra Sedgwick", profile_path: null, birthday: "1965-08-19", biography: "An actor and director, and the other half of the mode's best-known pair." },
 };
 
 /** A 1x1 PNG: every poster request is answered with it, so the browser tests need no network and still load images. */
@@ -65,7 +69,7 @@ export const test = base.extend({
       const match = url.pathname.match(/^\/3\/person\/(\d+)(\/movie_credits)?$/);
       if (match && people[match[1]]) {
         if (!match[2]) return Response.json(people[match[1]]);
-        const offset = { "90000001": 1000, "90000002": 2000, "90000003": 3000 }[match[1]]!;
+        const offset = { "90000001": 1000, "90000002": 2000, "90000003": 3000, "4724": 4000, "26467": 5000 }[match[1]]!;
         return Response.json({
           cast: [
             ...shared,

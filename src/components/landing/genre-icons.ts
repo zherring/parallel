@@ -5,6 +5,7 @@ import {
   Fingerprint,
   Globe,
   Laugh,
+  Network,
   Rocket,
   Skull,
   Sparkles,
@@ -29,4 +30,6 @@ export const GENRE_ICONS: Record<TabId, LucideIcon> = {
   "action-western": Crosshair,
   "world-cinema": Globe,
   animation: WandSparkles,
+  // Six degrees of separation: Kevin Bacon mode's tab.
+  bacon: Network,
 };

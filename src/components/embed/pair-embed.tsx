@@ -2,13 +2,15 @@
 
 import { RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { EMBED_AVATAR_LINK, EMBED_BUTTON, EXTERNAL, EmbedWordmark, OpenInParallel, FRAME_STYLE, embedSize as size } from "@/components/embed/embed-shell";
+import { EMBED_AVATAR_LINK, EMBED_BUTTON, EXTERNAL, EmbedModeMark, EmbedWordmark, OpenInParallel, FRAME_STYLE, embedSize as size } from "@/components/embed/embed-shell";
 import { PairPoster, POSTER_PX } from "@/components/embed/pair-poster";
 import { springEasing } from "@/components/landing/hero-motion";
 import { PersonAvatar } from "@/components/person-avatar";
 import { PersonPaletteProvider, usePortraitPersonHexes } from "@/components/person-palette";
 import { cn } from "@/components/timeline/cn";
 import { Timeline, type LaneData, type TimelineHandle } from "@/components/timeline/timeline";
+import { BACON_MODE_LABEL, withBaconMode } from "@/lib/bacon-mode";
+import { togetherColor } from "@/lib/bacon-share";
 import { drawnScale } from "@/lib/drawn-scale";
 import { EMBED_AVATAR_PX, EMBED_INSET_PX } from "@/lib/embed-insets";
 import { joinNames } from "@/lib/format";
@@ -31,6 +33,11 @@ interface PairEmbedProps {
   count: number | null;
   /** The treated card of two to four people (`buildTreatedPair`), which the first frame draws instead of `card`; null for one person. */
   treated?: TreatedPair | null;
+  /**
+   * Kevin Bacon mode (`?mode=bacon` on the embed, see `bacon-share.ts`): the films they made together are orange where they are white, as on the page and on the card the
+   * link unfurls into, the bar says so, and the way to the page leads to it in the mode.
+   */
+  baconMode?: boolean;
 }
 
 /** The sequence's beats, in milliseconds. The first frame is held (`HOLD`) so that the picture X showed is seen as it was before it moves. */
@@ -142,7 +149,7 @@ const onTheServer = () => false;
  * and pans sideways only. The people's names and
  * pictures lead to their pages (a bio is the person's own page, which opens in a new tab: X sandboxes the frame, so nothing here navigates it or needs a cookie or a request).
  */
-export function PairEmbed({ slug, timelines, today, card, count, treated = null }: PairEmbedProps) {
+export function PairEmbed({ slug, timelines, today, card, count, treated = null, baconMode = false }: PairEmbedProps) {
   const [phase, setPhase] = useState<"poster" | "timeline">("poster");
   /** Counts up with each Replay; the sequence runs once for each. */
   const [run, setRun] = useState(0);
@@ -158,8 +165,8 @@ export function PairEmbed({ slug, timelines, today, card, count, treated = null 
   const timelineRef = useRef<TimelineHandle>(null);
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
-  // The people's colours (`portraitPersonHexes`), as the page and its card have them.
-  const paletteHexes = usePortraitPersonHexes(timelines.map((t) => t.person.id));
+  // The people's colours (`portraitPersonHexes`), as the page and its card have them (in the mode, none of them its orange).
+  const paletteHexes = usePortraitPersonHexes(timelines.map((t) => t.person.id), baconMode);
   const multi = timelines.length > 1;
   // Three or four people crowd the bar in a narrow frame (the panel X opens over a phone): there the wordmark gives way to the people (the way to the site is
   // still the pill's). Two fit with the wordmark down to a very small phone, and then it goes too. On the smallest phones (under 22rem) the people's
@@ -301,7 +308,7 @@ export function PairEmbed({ slug, timelines, today, card, count, treated = null 
 
   const barHeight = `calc(${INSET_TOP} + var(--bar-row))`;
   const timelineVisible = phase === "timeline";
-  const pairHref = `/p/${slug}`;
+  const pairHref = baconMode ? withBaconMode(`/p/${slug}`) : `/p/${slug}`;
   // The treated first frame is the PNG's picture, which has no "Open in Parallel": the pill is not over it, and comes with the timeline.
   const treatedFirstFrame = treated !== null;
 
@@ -309,11 +316,16 @@ export function PairEmbed({ slug, timelines, today, card, count, treated = null 
     <div
       ref={frameRef}
       className="fixed inset-0 overflow-hidden bg-canvas text-body"
+      // The page's own mark of the mode (the page bar's): globals.css turns `--together`, the films' lit colour and the actions orange under it.
+      data-bacon-page={baconMode ? "" : undefined}
       style={{ ...FRAME_STYLE, "--px": POSTER_PX } as CSSProperties}
     >
       {/* The palette's custom properties: the page's own view sets them (see `PeopleView`), and a frame has no page. */}
       <style>{personColorCss(paletteHexes)}</style>
-      <h1 className="sr-only">{summary ? `${names}: ${summary}` : names}</h1>
+      <h1 className="sr-only">
+        {summary ? `${names}: ${summary}` : names}
+        {baconMode ? ` (${BACON_MODE_LABEL})` : ""}
+      </h1>
 
       {/* The bar over both (first in the page, so that the way to the page is the first stop of the keyboard, not the last after every film): the people and their count on the left once the timeline is up, and always, on the right, the way to the page. */}
       <div className={cn("pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between gap-3", BAR_ROW)} style={{ height: barHeight, padding: `${INSET_TOP} ${INSET_X} 0` }}>
@@ -344,8 +356,8 @@ export function PairEmbed({ slug, timelines, today, card, count, treated = null 
             </p>
             {count !== null && (
               <p className="truncate text-muted" style={{ fontSize: size(10, 1.1) }}>
-                {/* White on a pair's page (its palette), where the app's films made together are otherwise green. */}
-                <span className={paletteHexes ? "text-white" : "text-lit"}>
+                {/* White on a pair's page (its palette), where the app's films made together are otherwise green; orange in Kevin Bacon mode (`--together`). */}
+                <span className={paletteHexes ? "text-(--together)" : "text-lit"}>
                   <CountUp to={count} start={counted} />
                 </span>{" "}
                 {count === 1 ? "film" : "films"}
@@ -355,6 +367,7 @@ export function PairEmbed({ slug, timelines, today, card, count, treated = null 
           </div>
         </div>
         <div className="pointer-events-auto flex shrink-0 items-center" style={{ gap: size(8, 0.8) }}>
+          {timelineVisible && baconMode && <EmbedModeMark label={BACON_MODE_LABEL} />}
           {timelineVisible && (
             <button type="button" onClick={replay} aria-label="Replay" title="Replay" className={EMBED_BUTTON} style={{ width: size(26, 2.7), height: size(26, 2.7) }}>
               <RotateCcw aria-hidden="true" className="size-1/2" />
@@ -367,7 +380,7 @@ export function PairEmbed({ slug, timelines, today, card, count, treated = null 
       {/* The first frame: the preview card, the picture X shows until this page loads. It is a picture of what the timeline then says. */}
       <div ref={posterRef} aria-hidden="true" inert={timelineVisible} className={cn("absolute inset-0 transition-opacity duration-300 motion-reduce:duration-300", timelineVisible && "opacity-0")}>
         <PersonPaletteProvider hexes={paletteHexes}>
-          <PairPoster card={card} treated={treated} />
+          <PairPoster card={card} treated={treated} together={togetherColor(baconMode)} />
         </PersonPaletteProvider>
       </div>
 

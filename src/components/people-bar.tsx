@@ -2,10 +2,13 @@
 
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, ViewTransition, type ReactNode, type RefObject } from "react";
+import { BaconFrame } from "@/components/bacon-frame";
+import { BaconModeBadge } from "@/components/bacon-mode-badge";
 import { REDUCED_MOTION, useMediaQuery } from "@/components/depth/use-media";
 import { PeoplePill, flipTransform, type PillPerson } from "@/components/depth/people-pill";
 import { PairTitle } from "@/components/hero/pair-title";
 import { PeopleOverlay, PeopleSheetRow, usePeopleOverlayControl } from "@/components/people-overlay";
+import { usePeopleStaging } from "@/components/people-staging";
 import { springEasing } from "@/components/landing/hero-motion";
 import { HomeLink } from "@/components/home-link";
 import { cn } from "@/components/timeline/cn";
@@ -118,9 +121,12 @@ const STEPS_ASIDE =
 export function PeopleBar(props: PeopleBarProps) {
   // Opened by ⌘K (in the overlay) and by the gear's "People" row (in the bar's box): one state, held here.
   const overlay = usePeopleOverlayControl();
+  // Kevin Bacon mode (see `bacon-mode.ts`): under `lg`, where the bar has no capsule for it, the screen is framed (see `BaconFrame`).
+  const { baconPage } = usePeopleStaging();
   return (
     <>
       <PeopleBarBox {...props} onOpenPeople={overlay.show} />
+      {baconPage && <BaconFrame />}
       {/* ⌘K: the full-screen people search, for a page whose hero never collapses (see `PeopleOverlay`). After the bar's box, not in it: a wheel in the overlay is not for the scene. */}
       <PeopleOverlay people={props.people} onOpenPerson={props.onOpenPerson} control={overlay} />
     </>
@@ -153,6 +159,8 @@ function PeopleBarBox({
   onOpenPeople: (opener: Element | null) => void;
 }) {
   const [status, setStatus] = useState("");
+  // Kevin Bacon mode (see `bacon-mode.ts`): the bar says so, and its attribute is what turns the page orange (globals.css).
+  const { baconPage } = usePeopleStaging();
   /** The gear, which the people search hands focus back to when it was opened from the gear's sheet (the sheet is gone by then). */
   const gearRef = useRef<HTMLButtonElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -229,6 +237,7 @@ function PeopleBarBox({
     <div
       ref={barRef}
       data-people-bar
+      data-bacon-page={baconPage ? "" : undefined}
       data-hero={expanded ? "expanded" : "collapsed"}
       data-hero-placement={overlay ? "band" : "page"}
       // The bar's controls are all `--bar-h` tall (the root's, see globals.css), so they line up.
@@ -303,6 +312,8 @@ function PeopleBarBox({
           The cluster takes no pointer events itself, so that what is between its controls does not shield what is under it.
         */}
         <div className={cn("pointer-events-none flex shrink-0 items-center gap-2", rail && "mr-[3.75rem] max-sm:mr-6", STEPS_ASIDE)}>
+          {/* Kevin Bacon mode, and the way out of it; under `lg` it is a row of the gear's sheet. */}
+          {baconPage && <BaconModeBadge className={cn("pointer-events-auto max-lg:hidden", FLOATING, "border-accent-orange/60")} />}
           <ViewTransition name="people-bar-views" share="bar-glide" default="none">
             <div className="pointer-events-auto max-sm:hidden">
               <ViewSwitcher view={view} quotes={clippings} hrefFor={hrefFor} onClickFor={clickFor} className={FLOATING} />
@@ -321,6 +332,12 @@ function PeopleBarBox({
                 onIncludeMinorChange={onIncludeMinorChange}
                 message={settingsMessage}
                 before={
+                  <>
+                  {baconPage && (
+                    <div data-close-sheet className="mb-3 lg:hidden">
+                      <BaconModeBadge sheet />
+                    </div>
+                  )}
                   <div className="sm:hidden">
                     <h2 className={sectionTitle}>Views</h2>
                     {/* Choosing a view on the flat page leaves the sheet over it: it closes (see `FilmSettings`). */}
@@ -329,12 +346,13 @@ function PeopleBarBox({
                     </div>
                     <hr className="my-3 border-border" />
                   </div>
+                  </>
                 }
                 after={
                   <div className="mt-3 border-t border-border pt-3">
                     <h2 className={sectionTitle}>{exports ? "Share and export" : "Share"}</h2>
                     <div className="flex flex-col gap-2">
-                      <ShareMenu input={share} onStatus={announce} className="w-full" />
+                      <ShareMenu input={share} onStatus={announce} className="w-full" bacon={baconPage} />
                       {exports && <ExportButton {...exportList} onStatus={announce} className="w-full" />}
                     </div>
                     <p role="status" aria-live="polite" className="mt-2 min-h-4 text-xs text-muted">

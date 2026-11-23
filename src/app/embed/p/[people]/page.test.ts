@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import PairEmbedPage, { metadata } from "@/app/embed/p/[people]/page";
-import { PAIR_SLUG } from "@/lib/test-people";
+import { BACON_PAIR_SLUG, PAIR_SLUG } from "@/lib/test-people";
 
 vi.mock("@/lib/people", async () => {
   const { stubLoadPeople } = await import("@/lib/test-people");
@@ -17,7 +17,7 @@ vi.mock("next/navigation", async (importOriginal) => ({
   }),
 }));
 
-const props = (slug: string) => ({ params: Promise.resolve({ people: slug }) });
+const props = (slug: string, query: Record<string, string> = {}) => ({ params: Promise.resolve({ people: slug }), searchParams: Promise.resolve(query) });
 const thrown = (run: () => unknown) => Promise.resolve(run()).then(() => null, (error: Error) => error);
 
 describe("the pair embed page", () => {
@@ -54,6 +54,21 @@ describe("the pair embed page", () => {
     expect(pair.props.treated?.posters.length).toBeGreaterThan(0);
     const solo = (await PairEmbedPage(props("3151-jack-lemmon"))) as { props: { treated: unknown } };
     expect(solo.props.treated).toBeNull();
+  });
+
+  it("is not in Kevin Bacon mode unless the address names it and he is one of two to four people", async () => {
+    const mode = (slug: string, query: Record<string, string>) => PairEmbedPage(props(slug, query)).then((page) => (page as { props: { baconMode: boolean } }).props.baconMode);
+    expect(await mode(BACON_PAIR_SLUG, {})).toBe(false);
+    expect(await mode(BACON_PAIR_SLUG, { mode: "bacon" })).toBe(true);
+    expect(await mode(BACON_PAIR_SLUG, { mode: "other" })).toBe(false);
+    // The word means nothing without him, and a person of his own has no films made together to colour.
+    expect(await mode(PAIR_SLUG, { mode: "bacon" })).toBe(false);
+    expect(await mode("4724-kevin-bacon", { mode: "bacon" })).toBe(false);
+  });
+
+  it("keeps the mode through the redirect to the canonical embed", async () => {
+    expect((await thrown(() => PairEmbedPage(props("4724+26467", { mode: "bacon" }))))?.message).toBe(`${REDIRECTED}/embed/p/${BACON_PAIR_SLUG}?mode=bacon`);
+    expect((await thrown(() => PairEmbedPage(props("4724+26467"))))?.message).toBe(`${REDIRECTED}/embed/p/${BACON_PAIR_SLUG}`);
   });
 
   it("is not for search engines to index", () => {

@@ -13,12 +13,43 @@
  * and the names carry the meaning, never the colour alone). None of them reads as the green.
  */
 
+import { BACON_ORANGE } from "@/lib/bacon-share";
+import { colorDistance } from "@/lib/color-distance";
+
 export const PERSON_COLORS = [
   { name: "blue", hex: "#6f9bd1" },
   { name: "amber", hex: "#d0a845" },
   { name: "orange", hex: "#d27650" },
   { name: "rose", hex: "#c487a6" },
 ] as const;
+
+/**
+ * How near (CIEDE2000) a person's colour may come to Kevin Bacon mode's orange before it is taken for it: in the mode the orange is "made together" (`--together`), so
+ * nobody on the page can be drawn in it. The portrait palette's orange (#F28C28) is 4 away and `PERSON_COLORS`' "orange" 14; the amber, the red and the gold of the
+ * portrait palette are 20 to 24 away and stay.
+ */
+export const TOGETHER_CLASH_DISTANCE = 15;
+
+/** Whether `hex` is the mode's orange, or so near it that a person drawn in it would read as a film made together. */
+export function clashesWithTogether(hex: string): boolean {
+  return colorDistance(hex, BACON_ORANGE) < TOGETHER_CLASH_DISTANCE;
+}
+
+/**
+ * Stands in for the orange of `PERSON_COLORS` where the palette gives up its orange (Kevin Bacon mode), so that a page of four people still has four colours. Muted like the
+ * others (6.1:1 on --bg), 15 or more from the blue and the rose in CIEDE2000 and far from the green, but, as the amber is to the green, close to the blue under the deutan
+ * simulation (CIELAB distance 6.6): the dots and the names carry the meaning, never the colour alone.
+ */
+const SPARE_COLOR = { name: "violet", hex: "#a08ae0" } as const;
+
+/**
+ * The palette of a page in Kevin Bacon mode: `PERSON_COLORS` without what clashes with the mode's orange, the spare taking the last place, so that each person keeps the
+ * colour of their slot and only the slots from the orange on move up one. Nothing changes outside the mode.
+ */
+export const BACON_PERSON_COLORS: readonly { name: string; hex: string }[] = [
+  ...PERSON_COLORS.filter(({ hex }) => !clashesWithTogether(hex)),
+  SPARE_COLOR,
+].slice(0, PERSON_COLORS.length);
 
 /** The colour of the one person who made a film (on the combined track or in their own lane): a CSS colour and the same at partial opacity. */
 export interface PersonTint {
@@ -67,14 +98,14 @@ function glowOf(hex: string): string {
  * global, not set on the timeline, because the film's hover card is rendered in a portal on the body. `override` (`portraitPersonHexes`)
  * replaces the first slots' colours, so everything that reads the properties follows; without it (one person) the CSS is the app's own.
  * With the override it also names the colour of "made together" for CSS that cannot read the palette gate (`--row-flash`, the Table's row flash in
- * globals.css): white, where the app's is the green `--lit`.
+ * globals.css): the page's `--together` (white; orange in Kevin Bacon mode), where the app's is the green `--lit`.
  */
 export function personColorCss(override?: readonly string[] | null): string {
   const declarations = PERSON_COLORS.map(({ hex }, i) => {
     const color = override?.[i] ?? hex;
     return `--person-${i + 1}:${color};--person-${i + 1}-glow:${glowOf(color)};`;
   });
-  if (override) declarations.push("--row-flash:#fff;");
+  if (override) declarations.push("--row-flash:var(--together);");
   return `:root{${declarations.join("")}}`;
 }
 

@@ -4,8 +4,10 @@ import { usePeopleStaging, useStagingSurface } from "@/components/people-staging
 import { SidePanel, useSlideOut } from "@/components/side-panel/side-panel";
 import { Spinner } from "@/components/spinner";
 import { errorMessage } from "@/lib/api-client";
-import type { PersonRow } from "@/lib/film-people";
+import { BACON, BACON_FILM_TITLE, BACON_FULL_MESSAGE, togetherNote } from "@/lib/bacon-mode";
+import { countsForPeople, type PersonRow } from "@/lib/film-people";
 import { isTimelineFull } from "@/lib/people-nav";
+import { todayIso } from "@/lib/released";
 import { FilmContent } from "./film-content";
 import { useFilmDetails } from "./use-film-details";
 
@@ -53,7 +55,16 @@ function FilmDialog({
   // redrawn. The page changes once, when the panel starts to close (see `PeopleStagingProvider`).
   const staging = usePeopleStaging();
   useStagingSurface(!closing);
-  const full = isTimelineFull(staging.people);
+  // In Kevin Bacon mode the page holds two, and a person can be added from a film only when the pair page would count it for him and them (`countsForPeople`):
+  // a film he is not in, or one where the person is a cameo, would open a page of no films together. Their rows are dimmed, with the note a search gives.
+  const full = isTimelineFull(staging.people, staging.max);
+  const fullTitle = staging.bacon ? BACON_FULL_MESSAGE : undefined;
+  const modeFilm = staging.bacon && state.status === "success" ? state.film : null;
+  const today = todayIso();
+  const blockedNote = modeFilm
+    ? (person: PersonRow) => (countsForPeople(modeFilm, [BACON.id, person.id], today) ? undefined : togetherNote(0))
+    : undefined;
+  const blockedFilmNote = modeFilm && !countsForPeople(modeFilm, [BACON.id], today) ? BACON_FILM_TITLE : undefined;
 
   function toggleAdd(person: PersonRow) {
     if (staging.pending.added.some((added) => added.id === person.id)) staging.removePerson(person.id);
@@ -79,6 +90,9 @@ function FilmDialog({
               peopleInView={peopleInView}
               added={staging.pending.added}
               full={full}
+              fullTitle={fullTitle}
+              blockedNote={blockedNote}
+              blockedFilmNote={blockedFilmNote}
               onToggleAdd={toggleAdd}
               scrollRef={scrollRef}
             />

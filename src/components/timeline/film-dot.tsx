@@ -3,8 +3,8 @@ import { NODE_RADIUS } from "@/lib/timeline-layout";
 import type { NodeTone } from "./film-node";
 
 export const LIT_GLOW = { filter: "drop-shadow(0 0 3px var(--lit-glow))" };
-/** On a pair's page (its palette) the films made together are white, with no glow, where the app's are green (`--lit`). */
-export const MADE_TOGETHER_WHITE = "#fff";
+/** On a pair's page (its palette) the films made together are white (`--together`; orange in Kevin Bacon mode), with no glow, where the app's are green (`--lit`). */
+export const MADE_TOGETHER = "var(--together)";
 
 interface FilmDotProps extends Omit<SVGProps<SVGCircleElement>, "cx" | "cy" | "r" | "fill" | "stroke" | "strokeWidth"> {
   /** Centre, in the SVG's units, or a percentage of its width. */
@@ -36,7 +36,7 @@ export function FilmDot({ x, y, tone, colored, palette, fill, scale = 1, ...rest
       r={(colored && tone === "plain" ? NODE_RADIUS.some - 0.5 : NODE_RADIUS[tone]) * scale}
       stroke={tone === "plain" ? undefined : "var(--bg)"}
       strokeWidth={tone === "plain" ? undefined : 1.5 * scale}
-      style={{ ...(lit && !palette ? LIT_GLOW : undefined), fill: lit ? (palette ? MADE_TOGETHER_WHITE : "var(--lit)") : fill }}
+      style={{ ...(lit && !palette ? LIT_GLOW : undefined), fill: lit ? (palette ? MADE_TOGETHER : "var(--lit)") : fill }}
     />
   );
 }

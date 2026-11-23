@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { GenreDeepLink, GenrePanels, type GenrePanel } from "@/components/landing/genre-tabs";
 import { PairingCard } from "@/components/landing/pairing-card";
+import { withBaconMode } from "@/lib/bacon-mode";
 import type { GenreSection } from "@/lib/example-cards";
-import { FEATURED_TAB } from "@/lib/examples";
+import { BACON_GENRE, FEATURED_TAB } from "@/lib/examples";
 
 interface Props {
   sections: GenreSection[];
@@ -17,6 +18,8 @@ const pairingsText = (count: number) => `${count} ${count === 1 ? "pairing" : "p
  * the splash alone; a genre is its grid of pairings under a small heading, directly under the bar, in place of the splash. The
  * script and the style before the panels (`GenreDeepLink`) are what a link to a genre (`/#horror`) needs to open on its grid without the splash painted first
  * (see genre-deep-link.ts).
+ *
+ * The Kevin Bacon tab (`BACON_GENRE`) is a grid like the others, whose cards open their pair in Kevin Bacon mode.
  *
  * Headings: the splash has the page's one h1 (hero.tsx); a genre's view has its own h2, so on a genre's tab (where the splash and its h1 are hidden) the page
  * still has a heading to start from.
@@ -35,7 +38,8 @@ export function Pairings({ sections, hero }: Props) {
         <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((card) => (
             <li key={card.href}>
-              <PairingCard card={card} />
+              {/* The Kevin Bacon tab's cards open the pair in the mode (`?mode=bacon`); `card.href`, which the sitemap and the search list, is the page's own. */}
+              <PairingCard card={genre.id === BACON_GENRE ? { ...card, href: withBaconMode(card.href) } : card} />
             </li>
           ))}
         </ul>

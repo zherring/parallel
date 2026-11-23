@@ -1,3 +1,4 @@
+import { TOGETHER_WHITE } from "@/lib/bacon-share";
 import {
   TREATED_AXIS_WIDTH,
   TREATED_CAPTION_SIZE,
@@ -31,11 +32,10 @@ import type { OgPoster } from "@/lib/og-card";
 /** "136, 153, 170": `OG.muted`, the axis's line (the plain card's lane is this colour too). */
 const AXIS_RGB = "136, 153, 170";
 const AXIS_ALPHA = 0.7;
-const POSTER_BORDER = "2px solid #ffffff";
 const POSTER_RADIUS = 8;
 
-/** The poster of a film, or its title's first letter on a plain card when there is none (or it would not load). */
-function treatedPoster(poster: OgPoster, src: string | null, left: number, top: number) {
+/** The poster of a film, or its title's first letter on a plain card when there is none (or it would not load). `together` is the colour of the films they made together, which their frame is. */
+function treatedPoster(poster: OgPoster, src: string | null, left: number, top: number, together: string) {
   const { width, height } = TREATED_POSTER;
   const frame = {
     display: "flex",
@@ -45,7 +45,7 @@ function treatedPoster(poster: OgPoster, src: string | null, left: number, top: 
     width,
     height,
     borderRadius: POSTER_RADIUS,
-    border: POSTER_BORDER,
+    border: `2px solid ${together}`,
     overflow: "hidden",
     backgroundColor: OG.surface,
   } as const;
@@ -70,9 +70,11 @@ export interface TreatedPairCardProps {
   people: { name: string; initials: string }[];
   /** The posters' images, by `pair.posters`; null where there is none. */
   posterImages: (string | null)[];
+  /** The colour of the films they made together: their posters' frames, their dots on the axis and the numbers of the count. White, and orange in Kevin Bacon mode (`togetherColor`). */
+  together?: string;
 }
 
-export function TreatedPairCardView({ pair, tiles, people, posterImages }: TreatedPairCardProps) {
+export function TreatedPairCardView({ pair, tiles, people, posterImages, together = TOGETHER_WHITE }: TreatedPairCardProps) {
   const place = treatedPairLayout();
   const lefts = treatedPosterLefts(pair.posters.length);
   const tile = treatedTile(people.length);
@@ -101,7 +103,7 @@ export function TreatedPairCardView({ pair, tiles, people, posterImages }: Treat
         </div>
       ))}
 
-      {pair.posters.map((poster, i) => treatedPoster(poster, posterImages[i] ?? null, lefts[i], place.postersTop))}
+      {pair.posters.map((poster, i) => treatedPoster(poster, posterImages[i] ?? null, lefts[i], place.postersTop, together))}
 
       {/* The axis: one line the width of the column, fading out at both ends, and a dot for every film. */}
       <div
@@ -123,7 +125,7 @@ export function TreatedPairCardView({ pair, tiles, people, posterImages }: Treat
               width: size,
               height: size,
               borderRadius: size,
-              backgroundColor: shared ? "#ffffff" : TREATED_SOLO_COLOR,
+              backgroundColor: shared ? together : TREATED_SOLO_COLOR,
               opacity: dot.opacity,
               ...(shared ? { border: `${TREATED_NODE.ring}px solid ${OG.bg}` } : {}),
             }}
@@ -144,7 +146,7 @@ export function TreatedPairCardView({ pair, tiles, people, posterImages }: Treat
           style={{ display: "flex", alignItems: "baseline", justifyContent: "center", position: "absolute", left: TREATED_LEFT, top: place.captionTop, width: TREATED_WIDTH, fontSize: TREATED_CAPTION_SIZE, lineHeight: 1, letterSpacing: -1.2, whiteSpace: "pre" }}
         >
           {caption.segments.map((segment, i) => (
-            <span key={i} style={{ display: "flex", whiteSpace: "pre", color: segment.accent ? OG.strong : OG.muted }}>
+            <span key={i} style={{ display: "flex", whiteSpace: "pre", color: segment.accent ? together : OG.muted }}>
               {segment.text}
             </span>
           ))}

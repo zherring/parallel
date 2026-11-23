@@ -10,8 +10,9 @@ import { useStagingSurface, usePeopleStaging } from "@/components/people-staging
 import { PersonSearch } from "@/components/person-search/person-search";
 import { cn } from "@/components/timeline/cn";
 import { PersonBio } from "@/components/timeline/person-bio";
+import { BACON_TOGETHER_LEGEND } from "@/lib/bacon-mode";
 import { filmCountLabel, joinNames } from "@/lib/format";
-import { finalPeople, hasRoom, isStagedRemoval, type PendingPeople, type StagedPerson } from "@/lib/pending-people";
+import { canRestore, finalPeople, isStagedRemoval, type PendingPeople, type StagedPerson } from "@/lib/pending-people";
 import { personColor } from "@/lib/person-colors";
 import { pageHeading } from "@/lib/short-name";
 import type { OpenPerson } from "@/lib/side-panel";
@@ -499,6 +500,7 @@ export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible 
                 size="compact"
                 ariaLabel="Add a person"
                 suggestFor={staging.people.length === 1 ? staging.people[0].id : undefined}
+                baconMode={staging.bacon}
                 onIdleEscape={() => close(true)}
                 onPick={staging.addPerson}
               />
@@ -548,7 +550,7 @@ export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible 
                     onlyVisible={staged === null && visible && visibleCount === 1}
                     onRemove={staging.removePerson}
                     onRestore={staging.addPerson}
-                    undoDisabled={!hasRoom(staging.current, staging.pending)}
+                    undoDisabled={!canRestore(staging.current, staging.pending, staging.max)}
                   />
                 );
               })}
@@ -557,8 +559,8 @@ export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible 
             {people.length > 1 && visibleCount > 1 && (
               <p data-fade className="flex items-center gap-1.5 px-2 pb-2 pt-1 text-xs text-muted">
                 {/* A small poster in the ring the films made together have in the scene: a crisp edge, no glow (white on a pair's page, its palette; green otherwise). */}
-                <span aria-hidden className={cn("h-3.5 w-2.5 shrink-0 rounded-[2px] border-2", palette ? "border-white" : "border-lit")} />
-                {palette ? "White: made together by everyone shown" : "Green: made together by everyone shown"}
+                <span aria-hidden className={cn("h-3.5 w-2.5 shrink-0 rounded-[2px] border-2", palette ? "border-(--together)" : "border-lit")} />
+                {staging.baconPage ? BACON_TOGETHER_LEGEND : palette ? "White: made together by everyone shown" : "Green: made together by everyone shown"}
               </p>
             )}
           </div>

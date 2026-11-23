@@ -3,6 +3,7 @@
 import { Check, Share2 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { baconOnPage, shareHref } from "@/lib/bacon-share";
 import { truncateQuote } from "@/lib/clippings-view";
 import { quoteSharePath } from "@/lib/quote-embed";
 
@@ -54,7 +55,8 @@ export function QuoteShareButton({ item }: { item: ShareableQuote }) {
   };
 
   const share = async () => {
-    const url = `${window.location.origin}${quoteSharePath(pathname, item.id)}`;
+    // A quote shared from a page in Kevin Bacon mode opens its pair's page in the mode, as the page's own Share menu does (the quote's card is the quote's: it has no films made together).
+    const url = `${window.location.origin}${shareHref(quoteSharePath(pathname, item.id), baconOnPage(pathname, window.location.search))}`;
 
     if (prefersShareSheet()) {
       try {

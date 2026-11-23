@@ -27,8 +27,8 @@ const entries = sources(APP)
   .filter((path) => REACHES_TMDB.test(readFileSync(join(APP, path), "utf8")));
 
 /**
- * Seconds each entry may run. 20 where one round of TMDB requests is made; 60 on the two routes
- * that make several in turn (a person, then 16 candidates; 50 films, 8 at a time).
+ * Seconds each entry may run. 20 where one round of TMDB requests is made; 60 on the three routes
+ * that make several in turn (a person, then 16 candidates; 50 films, 8 at a time; a person, 80 films' credits, then 24 people).
  */
 const EXPECTED: Record<string, number> = {
   "api/collaborators/[id]/route.ts": 60,
@@ -36,6 +36,7 @@ const EXPECTED: Record<string, number> = {
   "api/film-metrics/route.ts": 60,
   "api/movie/[id]/route.ts": 20,
   "api/search/route.ts": 20,
+  "api/teams/[id]/route.ts": 60,
   "embed/p/[people]/page.tsx": 20,
   "embed/q/[people]/[id]/page.tsx": 20,
   "p/[people]/og/route.tsx": 20,

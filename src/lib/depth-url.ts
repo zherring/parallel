@@ -8,6 +8,7 @@
  * itself writes (a person removed, a switch to the flat page) keep or drop it as they need to.
  */
 
+import { BACON_MODE_VALUE, MODE_PARAM, namesBaconMode } from "@/lib/bacon-mode";
 import { DEPTH_VIEW, VIEW_PARAM, namesView, searchWithView, type PageView } from "@/lib/films-view";
 import { parsePeriodParams, rawPeriodSearch } from "@/lib/period";
 
@@ -43,11 +44,13 @@ export function flatSearch(search: string): string {
 
 /**
  * The query (with its "?") for the Depth view of the page the visitor is on, from that page's `search`: its period and
- * `view=depth`. Nothing else goes along: a sort, a quote and the view it leaves are the other views' own.
+ * `view=depth`. Nothing else goes along: a sort, a quote and the view it leaves are the other views' own. Kevin Bacon mode
+ * (`mode=bacon`, see `bacon-mode.ts`) is the page's, not a view's, and stays.
  */
 export function depthSearch(search: string): string {
   const params = new URLSearchParams(rawPeriodSearch(parsePeriodParams(search)));
   params.set(VIEW_PARAM, DEPTH_VIEW);
+  if (namesBaconMode(search)) params.set(MODE_PARAM, BACON_MODE_VALUE);
   return `?${params.toString()}`;
 }
 

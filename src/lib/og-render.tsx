@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { togetherColor } from "@/lib/bacon-share";
 import { tmdbImage } from "@/lib/images";
 import {
   DIM_DOT_SIZE,
@@ -238,6 +239,8 @@ export interface PairOgImageInput {
   timelines: PersonTimeline[];
   /** Only the films of these years (already resolved against the page's films, see `resolvePeriod`); the whole career without. */
   period?: Period | null;
+  /** Kevin Bacon mode (see `bacon-share.ts`): the pair's films made together are drawn in the mode's orange, not white. A card of one person has none, so it is drawn as it is. */
+  bacon?: boolean;
 }
 
 /**
@@ -251,13 +254,13 @@ export interface PairOgImageInput {
  * front: the renderer throws on one it cannot load, and a missing headshot only means initials, a missing poster a
  * plain card with the title's first letter.
  */
-export async function renderPairOgImage({ timelines, period = null }: PairOgImageInput): Promise<ImageResponse> {
+export async function renderPairOgImage({ timelines, period = null, bacon = false }: PairOgImageInput): Promise<ImageResponse> {
   const today = todayIso();
   const card = buildOgCard(timelines, today, period);
-  // A pair's colours are its landing ones, three's and four's the palette's (`portraitPersonHexes`); null for one person.
-  const hexes = portraitPersonHexes(timelines.map(({ person }) => person.id));
+  // A pair's colours are its landing ones, three's and four's the palette's (`portraitPersonHexes`), in Kevin Bacon mode none of them its orange; null for one person.
+  const hexes = portraitPersonHexes(timelines.map(({ person }) => person.id), { bacon });
   const pair = buildTreatedPair(card, timelines, today, period);
-  if (pair) return renderTreatedPairOgImage({ timelines, card, pair, hexes });
+  if (pair) return renderTreatedPairOgImage({ timelines, card, pair, hexes, together: togetherColor(bacon) });
   const [avatars, posterImages, fonts, treatments] = await Promise.all([
     Promise.all(card.people.map((person) => loadImage(person.profilePath))),
     Promise.all(card.posters.map((poster) => loadImage(poster.posterPath))),
@@ -284,18 +287,21 @@ const cacheControl = (timelines: readonly PersonTimeline[]) => (timelines.some((
 
 /**
  * The pair's treated card (see `og-treated.ts`): the people's portraits in full colour down the left edge, the posters of the films
- * they made together, an axis with a dot for every film (white for a shared one, grey for a person's own), the names and the count.
+ * they made together, an axis with a dot for every film (white for a shared one, grey for a person's own; orange for a shared one in Kevin Bacon mode), the names and the count.
  */
 async function renderTreatedPairOgImage({
   timelines,
   card,
   pair,
   hexes,
+  together,
 }: {
   timelines: PersonTimeline[];
   card: OgCard;
   pair: NonNullable<ReturnType<typeof buildTreatedPair>>;
   hexes: readonly string[] | null;
+  /** The colour of the films they made together (`togetherColor`). */
+  together: string;
 }): Promise<ImageResponse> {
   const [photos, posterImages, fonts, treatments] = await Promise.all([
     Promise.all(timelines.map(({ person }) => loadImage(person.profilePath))),
@@ -315,6 +321,7 @@ async function renderTreatedPairOgImage({
         tiles={tiles}
         people={card.people.map(({ name, initials }) => ({ name, initials }))}
         posterImages={posterImages}
+        together={together}
       />
     ),
     { ...OG_SIZE, fonts, headers: { "Cache-Control": cacheControl(timelines) } },

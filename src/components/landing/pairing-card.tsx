@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CardPortraits } from "@/components/landing/card-portraits";
 import { PairingCount } from "@/components/landing/pairing-count";
+import { isBaconPage } from "@/lib/bacon-mode";
 import type { ExampleCardData } from "@/lib/example-cards";
 import { joinNames } from "@/lib/format";
 import { CELL_BLEED_PX, CELL_CQW } from "@/lib/pairing-card";
@@ -19,7 +20,9 @@ interface Props {
  */
 export function PairingCard({ card }: Props) {
   const names = card.people.map((person) => person.name);
-  const colors = portraitPersonHexes(card.people.map((person) => person.id)) ?? [];
+  // A card that opens its pair in Kevin Bacon mode (the Kevin Bacon tab's: `?mode=bacon` in its link) is drawn in the mode's colours: nobody in its orange.
+  const ids = card.people.map((person) => person.id);
+  const colors = portraitPersonHexes(ids, { bacon: isBaconPage(card.href.split("?")[1] ?? "", ids) }) ?? [];
   return (
     <Link
       href={card.href}

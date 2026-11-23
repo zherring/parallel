@@ -4,6 +4,7 @@ import {
   MIN_GRAPH_ROW,
   buildCollaboratorRows,
   membersFromCredits,
+  membersOfGroups,
   notabilityScore,
   pickCandidates,
   rankCollaborators,
@@ -79,6 +80,23 @@ describe("membersFromCredits", () => {
   it("treats missing credits as an empty film", () => {
     expect(membersFromCredits(null).size).toBe(0);
     expect(membersFromCredits({}).size).toBe(0);
+  });
+});
+
+describe("membersOfGroups", () => {
+  it("keeps the people who hold one of the groups, each with only those groups, and drops the crew", () => {
+    const members = film([1, "acting"], [2, "directing"], [3, "music"], [4, "other"], [5, "camera"], [6, "acting"], [6, "music"], [7, "directing"], [7, "writing"]);
+    const kept = membersOfGroups(members, ["acting", "directing"]);
+    expect([...kept.keys()]).toEqual([1, 2, 6, 7]);
+    expect([...kept.get(6)!]).toEqual(["acting"]);
+    expect([...kept.get(7)!]).toEqual(["directing"]);
+  });
+
+  it("makes a film's crew uncounted: a restricted list ranks only the people who acted or directed", () => {
+    const films = [film([1, "acting"], [2, "music"], [3, "acting"]), film([1, "acting"], [2, "music"], [3, "acting"])];
+    const restricted = films.map((members) => membersOfGroups(members, ["acting", "directing"]));
+    expect(rankCollaborators(1, films, none).map((c) => c.id)).toEqual([2, 3]);
+    expect(rankCollaborators(1, restricted, none).map((c) => c.id)).toEqual([3]);
   });
 });
 

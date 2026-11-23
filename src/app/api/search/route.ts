@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api-error";
+import { MODE_SUBJECT_IDS, allCheckedForMode } from "@/lib/bacon-mode";
 import { loadPeopleMatchIndex } from "@/lib/people-index";
 import { searchIndex, type PersonMatch } from "@/lib/people-match";
 import { mergeSearchResults, MAX_SEARCH_RESULTS } from "@/lib/search-merge";
 import { searchPairings } from "@/lib/search-pairings";
 import { TmdbError, searchPeopleWithPopularity } from "@/lib/tmdb";
 import type { PairingSearchResult } from "@/lib/types";
+import { filmsTogether } from "@/lib/worked-with";
 
 // Seconds this function may run; why this value: see REQUEST_DEADLINE_MS in src/lib/tmdb.ts.
 export const maxDuration = 20;
@@ -14,6 +16,15 @@ const MIN_QUERY = 2;
 const MAX_QUERY = 100;
 /** TMDB's person search only adds names the local index lacks; it never holds the answer up. */
 const TMDB_TIMEOUT_MS = 1500;
+const PERSON_ID = /^[1-9]\d{0,9}$/;
+/**
+ * A `with` search also loads the filmography of every result (up to 8, two TMDB requests each, a day in the fetch cache):
+ * what is not loaded by then is answered as "not checked" (`together: null`), not waited for.
+ */
+const WITH_BUDGET_MS = 8000;
+const COMPLETE_CACHE = "public, s-maxage=300, stale-while-revalidate=3600";
+/** A mode's answer with a result that was not checked is kept as /api/teams keeps a partial list: for a minute at most, so asking again can heal it. */
+const PARTIAL_CACHE = "public, s-maxage=60, stale-while-revalidate=60";
 
 /** The local matcher. An index that cannot be loaded counts as "found nothing". */
 async function searchLocal(q: string): Promise<PersonMatch[]> {
@@ -44,6 +55,15 @@ export async function GET(request: Request) {
       { status: 400 },
     );
   }
+  // A mode's search (Kevin Bacon mode, src/lib/bacon-mode.ts): every result says how many films it shares with this person.
+  const withId = new URL(request.url).searchParams.get("with");
+  if (withId !== null && !PERSON_ID.test(withId)) {
+    return NextResponse.json({ error: "with must be a positive integer" }, { status: 400 });
+  }
+  // Each result costs two TMDB requests, so only the people a mode is about (`MODE_SUBJECT_IDS`) are asked for.
+  if (withId !== null && !MODE_SUBJECT_IDS.includes(Number(withId))) {
+    return NextResponse.json({ error: "with must be a person a mode is about" }, { status: 400 });
+  }
 
   // Both start at once: the local matcher answers in milliseconds, TMDB in a few hundred.
   const [local, tmdb] = await Promise.all([
@@ -62,6 +82,15 @@ export async function GET(request: Request) {
   }
 
   const results = mergeSearchResults(q, local, "hits" in tmdb ? tmdb.hits : []);
+  if (withId !== null) {
+    const together = await filmsTogether(Number(withId), results.map((result) => result.id), AbortSignal.timeout(WITH_BUDGET_MS));
+    // No pairing shortcuts: a mode adds one person to the one it already has.
+    const checked = results.map((result) => ({ ...result, together: together.get(result.id) ?? null }));
+    return NextResponse.json(
+      { results: checked, pairings: [] },
+      { headers: { "Cache-Control": allCheckedForMode(checked, Number(withId)) ? COMPLETE_CACHE : PARTIAL_CACHE } },
+    );
+  }
   // Pairing shortcuts are optional: a stale curated corpus must not break people search.
   let pairings: PairingSearchResult[] = [];
   try {
@@ -71,6 +100,6 @@ export async function GET(request: Request) {
   }
   return NextResponse.json(
     { results, pairings },
-    { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" } },
+    { headers: { "Cache-Control": COMPLETE_CACHE } },
   );
 }

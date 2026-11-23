@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { QuoteEmbed } from "@/components/embed/quote-embed";
+import { isBaconPage } from "@/lib/bacon-mode";
+import { shareHref } from "@/lib/bacon-share";
 import { canonicalPeoplePath } from "@/lib/canonical-people";
 import { criticAbout } from "@/lib/critics-view";
 import { loadPeople } from "@/lib/people";
@@ -14,7 +16,8 @@ import { embedQuoteText, peopleSocial, quoteImagePath } from "@/lib/seo";
 // Seconds this function may run; why this value: see REQUEST_DEADLINE_MS in src/lib/tmdb.ts.
 export const maxDuration = 20;
 
-type Props = { params: Promise<{ people: string; id: string }> };
+type Query = Record<string, string | string[] | undefined>;
+type Props = { params: Promise<{ people: string; id: string }>; searchParams: Promise<Query> };
 
 /**
  * The share URL of one quote, `/p/<people>/q/<id>`: what a post on X links to, and the page a visitor who follows the link
@@ -24,9 +27,12 @@ type Props = { params: Promise<{ people: string; id: string }> };
  * address (200, no redirect), so a spelling of the people other than the canonical one, which the share button never makes,
  * is the only thing that redirects. A quote the pair does not have is a 404. With player cards switched off (`PLAYER_CARDS`)
  * it is the plain large-image card, with the same image.
+ *
+ * A quote shared from a page in Kevin Bacon mode (see `bacon-mode.ts`) carries `?mode=bacon`: its `og:url` is that link, and the page's two links to the pair
+ * lead to the pair in the mode. The quote's words, card and player are the quote's own, which have no films made together to colour, so they are the same.
  */
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { people, id } = await params;
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
+  const [{ people, id }, query] = await Promise.all([params, searchParams]);
   const { timelines, canonical } = await loadPeople(people);
   const quotes = pairQuotes(timelines);
   const index = findQuoteIndex(quotes, id);
@@ -40,27 +46,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description,
     // The quote is a view of the pair's page, not another page: search engines are pointed at the whole one.
     alternates: { canonical: canonicalPeoplePath(timelines.map((t) => t.person)) },
-    ...peopleSocial(title, description, quotePath(canonical, quote.id), image, quotePlayer(canonical, quote.id)),
+    ...peopleSocial(title, description, shareHref(quotePath(canonical, quote.id), isBaconPage(query, timelines.map((t) => t.person.id))), image, quotePlayer(canonical, quote.id)),
   };
 }
 
-export default async function QuotePage({ params }: Props) {
-  const { people, id } = await params;
+export default async function QuotePage({ params, searchParams }: Props) {
+  const [{ people, id }, query] = await Promise.all([params, searchParams]);
   const { timelines, canonical, isCanonical } = await loadPeople(people);
   const quotes = pairQuotes(timelines);
   const start = findQuoteIndex(quotes, id);
   if (start < 0) notFound();
-  if (!isCanonical) redirect(quotePath(canonical, quotes[start].id));
+  const bacon = isBaconPage(query, timelines.map((t) => t.person.id));
+  if (!isCanonical) redirect(shareHref(quotePath(canonical, quotes[start].id), bacon));
 
   const pair = criticAbout(timelines.map((t) => t.person));
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-14">
       <QuoteEmbed slug={canonical} pair={pair} quotes={quotes} start={start} variant="card" people={timelines.map(({ person, films }) => ({ id: person.id, name: person.name, profilePath: person.profilePath, posters: montagePosters(films) }))} />
       <p className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted">
-        <Link href={quoteInPairPath(canonical, quotes[start].id)} className="underline decoration-border underline-offset-4 hover:decoration-strong">
+        <Link href={shareHref(quoteInPairPath(canonical, quotes[start].id), bacon)} className="underline decoration-border underline-offset-4 hover:decoration-strong">
           Every quote on {pair}
         </Link>
-        <Link href={`/p/${canonical}`} className="underline decoration-border underline-offset-4 hover:decoration-strong">
+        <Link href={shareHref(`/p/${canonical}`, bacon)} className="underline decoration-border underline-offset-4 hover:decoration-strong">
           Their films on a timeline
         </Link>
       </p>
