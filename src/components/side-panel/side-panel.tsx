@@ -14,6 +14,7 @@ import {
 import { createPortal } from "react-dom";
 import { pickOpener } from "@/lib/panel-opener";
 import { trapTab, useModalPage } from "./modal-page";
+import { SHEET_BACKDROP_CLASS, SHEET_GRABBER_CLASS, prefersReducedMotion, sidePanelEdge, slideSheetIn, slideSheetOut } from "./sheet";
 import { useSwipeDismiss } from "./use-swipe-dismiss";
 import { useSwipeStep, type PanelStepper } from "./use-swipe-step";
 
@@ -165,20 +166,11 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
   // Slide in from the right (md and up) or up from the bottom, and fade the backdrop. Skipped entirely
   // for visitors who prefer reduced motion.
   useLayoutEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const fromSide = window.matchMedia("(min-width: 48rem)").matches;
-    backdropRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], {
-      duration: 180,
-      easing: "ease-out",
-    });
-    panelRef.current?.animate(
-      [{ transform: fromSide ? "translateX(100%)" : "translateY(100%)" }, { transform: "none" }],
-      { duration: 240, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
-    );
+    if (!prefersReducedMotion()) slideSheetIn(panelRef.current, backdropRef.current, sidePanelEdge());
   }, []);
 
   // A finger can drag it away the way it came; let go far enough, it closes like any other way of closing it.
-  const flung = useSwipeDismiss({ panelRef, backdropRef, enabled: !closing, onDismiss: () => onCloseRef.current() });
+  const flung = useSwipeDismiss({ panelRef, backdropRef, edge: sidePanelEdge, enabled: !closing, onDismiss: () => onCloseRef.current() });
 
   // What it shows can be swiped sideways to what comes before or after it, where there is such a thing (a phone's sheet only).
   useSwipeStep({ panelRef, contentRef: scrollRef, contentKey, enabled: !closing, stepper });
@@ -187,22 +179,12 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
   // The dialog stays until the animation ends and `onExited` removes it; with reduced motion that is at once.
   useLayoutEffect(() => {
     if (!closing) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (prefersReducedMotion()) {
       onExitedRef.current?.();
       return;
     }
-    const toSide = window.matchMedia("(min-width: 48rem)").matches;
-    // Only where it ends: it starts from where it is, which is at rest unless a finger dragged it part of the way
-    // (then it is already moving, so it eases out instead of in).
-    const dragged = flung.current;
-    const animations = [
-      backdropRef.current?.animate([{ opacity: 0 }], { duration: 160, easing: dragged ? "ease-out" : "ease-in", fill: "forwards" }),
-      panelRef.current?.animate([{ transform: toSide ? "translateX(100%)" : "translateY(100%)" }], {
-        duration: 200,
-        easing: dragged ? "cubic-bezier(0.2, 0.8, 0.2, 1)" : "cubic-bezier(0.4, 0, 1, 1)",
-        fill: "forwards",
-      }),
-    ].filter((animation) => animation !== undefined);
+    // From where it is: at rest, or where a finger left it (`slideSheetOut`).
+    const animations = slideSheetOut(panelRef.current, backdropRef.current, sidePanelEdge(), flung.current);
     let cancelled = false;
     // A cancelled animation (reopened, unmounted) rejects: nothing to do then.
     Promise.all(animations.map((animation) => animation.finished)).then(
@@ -270,7 +252,7 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
         ref={backdropRef}
         aria-hidden="true"
         onClick={onClose}
-        className="absolute inset-0 bg-black/70"
+        className={`absolute inset-0 ${SHEET_BACKDROP_CLASS}`}
       />
       <div
         ref={panelRef}
@@ -283,7 +265,7 @@ function SidePanelDialog({ label, closeLabel, onClose, busy, contentKey, closing
         className="absolute inset-x-0 bottom-0 flex max-h-[90dvh] flex-col rounded-t-2xl border-t border-border bg-canvas shadow-2xl shadow-black/60 outline-none! max-md:overflow-x-clip md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-[30rem] md:rounded-none md:border-l md:border-t-0"
       >
         {/* The bottom sheet's grabber: it can be pulled down from anywhere, and this says so. */}
-        <span aria-hidden="true" data-side-panel-grabber className="pointer-events-none absolute left-1/2 top-1.5 h-1 w-9 -translate-x-1/2 rounded-full bg-muted/40 md:hidden" />
+        <span aria-hidden="true" data-side-panel-grabber className={`${SHEET_GRABBER_CLASS} top-1.5 md:hidden`} />
         <div className="flex shrink-0 items-center justify-between border-b border-border py-1.5 pl-4 pr-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</span>
           {stepper && (

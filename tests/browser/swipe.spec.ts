@@ -441,6 +441,44 @@ test.describe("the gear's settings on a phone", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
+  test("are modal: the page behind is inert and Tab stays in the sheet, and closing them gives focus back to the gear", async ({ page }) => {
+    await openSettings(page);
+    await expect(settings(page)).toHaveAttribute("aria-modal", "true");
+    // Everything on the body but the sheet's own box is out of reach, and the page does not scroll behind it.
+    expect(await page.evaluate(() => [...document.body.children].filter((child) => !child.matches("[data-settings-root], script, style, link, template, noscript") && !child.tagName.includes("-")).every((child) => child.hasAttribute("inert")))).toBe(true);
+    expect(await page.evaluate(() => document.body.style.overflow)).toBe("hidden");
+    for (const key of ["Tab", "Shift+Tab"]) {
+      for (let step = 0; step < 14; step++) {
+        await page.keyboard.press(key);
+        expect(await settings(page).evaluate((element) => element.contains(document.activeElement))).toBe(true);
+      }
+    }
+    await page.keyboard.press("Escape");
+    await expect(settings(page)).toBeHidden();
+    await expect(gear(page)).toBeFocused();
+    await expect(page.locator("[inert]:not([data-people-bar] [inert])")).toHaveCount(0);
+    expect(await page.evaluate(() => document.body.style.overflow)).toBe("");
+  });
+
+  test("a sheet that has scrolled takes the pull itself, the sheet being its own scroller", async ({ page }) => {
+    await openSettings(page);
+    // The bar's settings never scroll (nothing in them is clipped): make this one a short scroller, as `scrollable` does, and scroll it.
+    await settings(page).evaluate((element) => {
+      element.style.maxHeight = "220px";
+      element.style.overflowY = "auto";
+      element.scrollTop = 60;
+    });
+    expect(await settings(page).evaluate((element) => element.scrollTop)).toBe(60);
+    const rest = await boxOf(settings(page));
+    const touch = await finger(page);
+    await touch.down(195, rest.y + 100);
+    await touch.move(195, rest.y + 150);
+    expect((await boxOf(settings(page))).y).toBe(rest.y);
+    expect(await settings(page).evaluate((element) => element.scrollTop)).toBeLessThan(60);
+    await touch.up(160);
+    await expect(settings(page)).toBeVisible();
+  });
+
   test("a checkbox in them still works, and the sheet stays open", async ({ page }) => {
     await openSettings(page);
     const minor = settings(page).getByRole("checkbox", { name: /shorts/i });

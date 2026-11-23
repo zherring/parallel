@@ -2,10 +2,8 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 import { releaseVelocity, swipeAxis, swipeOutcome, type SwipeSample } from "@/lib/swipe";
+import { SHEET_EASE_OUT, prefersReducedMotion, type SheetEdge } from "./sheet";
 
-/** The width from which the panel is a sheet on the right, not one from the bottom (Tailwind's `md`). */
-const SIDE_QUERY = "(min-width: 48rem)";
-const REDUCED_QUERY = "(prefers-reduced-motion: reduce)";
 /** A touch has to move this far before it is read as a drag. Small on purpose: the browser's own scroll must not start first. */
 const SLOP = 4;
 /** How much of the backdrop's dimming is left when the panel has been dragged all the way out. */
@@ -14,6 +12,8 @@ const BACKDROP_FLOOR = 0.35;
 interface Options {
   panelRef: RefObject<HTMLElement | null>;
   backdropRef: RefObject<HTMLElement | null>;
+  /** The edge the sheet came from, asked when a touch begins (a panel that is at the bottom on a phone and on the right of a wider screen says which it is now): it is dragged back that way. */
+  edge: () => SheetEdge;
   /** False while the panel slides away: a drag neither starts nor carries on. */
   enabled: boolean;
   /** Let go past the point of no return (see `swipeOutcome`): close the panel. It slides on from where the finger left it. */
@@ -30,11 +30,13 @@ interface Options {
  *
  * Returns a ref that is true once a drag closed the panel, so the exit animation can carry on from the finger's speed.
  */
-export function useSwipeDismiss({ panelRef, backdropRef, enabled, onDismiss }: Options): RefObject<boolean> {
+export function useSwipeDismiss({ panelRef, backdropRef, edge, enabled, onDismiss }: Options): RefObject<boolean> {
   const flung = useRef(false);
   const latest = useRef(onDismiss);
+  const edgeNow = useRef(edge);
   useEffect(() => {
     latest.current = onDismiss;
+    edgeNow.current = edge;
   });
 
   useEffect(() => {
@@ -61,18 +63,16 @@ export function useSwipeDismiss({ panelRef, backdropRef, enabled, onDismiss }: O
     /** Back to rest from wherever it is. */
     const settle = (axis: "x" | "y", offset: number, extent: number) => {
       apply(axis, 0, extent);
-      if (offset <= 0 || window.matchMedia(REDUCED_QUERY).matches) return;
-      panel.animate([{ transform: transformOf(axis, offset) }, { transform: "none" }], {
-        duration: 260,
-        easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
-      });
+      if (offset <= 0 || prefersReducedMotion()) return;
+      panel.animate([{ transform: transformOf(axis, offset) }, { transform: "none" }], { duration: 260, easing: SHEET_EASE_OUT });
       backdropRef.current?.animate([{ opacity: dimOf(offset, extent) }, { opacity: 1 }], { duration: 200, easing: "ease-out" });
     };
 
-    /** Whether something between the finger and the panel is scrolled away from its start, so the pull belongs to it. */
+    /** Whether something from the finger up to the panel, the panel included (a sheet may be its own scroller), is scrolled away from its start, so the pull belongs to it. */
     const scrolledUnder = (target: EventTarget | null, axis: "x" | "y") => {
-      for (let element = target instanceof Element ? target : null; element && element !== panel; element = element.parentElement) {
+      for (let element = target instanceof Element ? target : null; element; element = element.parentElement) {
         if ((axis === "y" ? element.scrollTop : element.scrollLeft) > 0) return true;
+        if (element === panel) break;
       }
       return false;
     };
@@ -92,7 +92,7 @@ export function useSwipeDismiss({ panelRef, backdropRef, enabled, onDismiss }: O
       gesture = {
         mode: "pending",
         id: touch.identifier,
-        axis: window.matchMedia(SIDE_QUERY).matches ? "x" : "y",
+        axis: edgeNow.current() === "right" ? "x" : "y",
         startX: touch.clientX,
         startY: touch.clientY,
         startT: event.timeStamp,

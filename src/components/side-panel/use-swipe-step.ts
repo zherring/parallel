@@ -2,10 +2,8 @@
 
 import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { releaseVelocity, swipeAxis, swipeOutcome, type SwipeSample } from "@/lib/swipe";
+import { SHEET_EASE_OUT, prefersReducedMotion, sidePanelEdge } from "./sheet";
 
-/** The width from which the panel is a sheet on the right: a sideways drag there puts it away (`useSwipeDismiss`), so it does not step. */
-const SIDE_QUERY = "(min-width: 48rem)";
-const REDUCED_QUERY = "(prefers-reduced-motion: reduce)";
 /** The same as the pull to dismiss, so the two read a touch the same way and only one of them takes it. */
 const SLOP = 4;
 /** How much of the finger's travel the content follows when there is nothing that way: it gives a little, and goes back. */
@@ -74,10 +72,10 @@ export function useSwipeStep({ panelRef, contentRef, contentKey, enabled, steppe
       const content = contentRef.current;
       const x = shown(offset);
       apply(0, extent);
-      if (!content || !x || window.matchMedia(REDUCED_QUERY).matches) return;
+      if (!content || !x || prefersReducedMotion()) return;
       content.animate([{ transform: `translateX(${x}px)`, opacity: fadeOf(x, extent) }, { transform: "none", opacity: 1 }], {
         duration: 240,
-        easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+        easing: SHEET_EASE_OUT,
       });
     };
 
@@ -96,7 +94,8 @@ export function useSwipeStep({ panelRef, contentRef, contentKey, enabled, steppe
         return;
       }
       gesture = null;
-      if (event.touches.length !== 1 || window.matchMedia(SIDE_QUERY).matches) return;
+      // A sheet on the right is put away by a sideways drag (`useSwipeDismiss`), so it does not step.
+      if (event.touches.length !== 1 || sidePanelEdge() === "right") return;
       const target = event.target;
       if (target instanceof Element && target.closest("input, textarea, select, [contenteditable='true']")) return;
       const touch = event.touches[0];
@@ -148,7 +147,7 @@ export function useSwipeStep({ panelRef, contentRef, contentKey, enabled, steppe
         settle(ended.offset, ended.extent);
         return;
       }
-      if (window.matchMedia(REDUCED_QUERY).matches) {
+      if (prefersReducedMotion()) {
         apply(0, ended.extent);
         step();
         return;
@@ -196,7 +195,7 @@ export function useSwipeStep({ panelRef, contentRef, contentKey, enabled, steppe
     const from = -swiped.dir * content.getBoundingClientRect().width * 0.4;
     content.animate([{ transform: `translateX(${from}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], {
       duration: 240,
-      easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+      easing: SHEET_EASE_OUT,
     });
   }, [contentKey, contentRef]);
 }
