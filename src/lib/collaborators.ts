@@ -24,6 +24,16 @@ const VERIFY_CANDIDATES = GRAPH_CANDIDATES;
 const CONCURRENCY = 6;
 /** The live fallback looks at the person's best-known films only. */
 const LIVE_FILMS = 25;
+/**
+ * A thin graph row means the person's films were barely crawled, so the top-up looks at more of them (the teams' list reads as many, and shares their credits through
+ * the fetch cache): someone with eleven small films with them, who is billed on none of their best-known twenty-five, is still among their most frequent.
+ */
+const TOP_UP_FILMS = 80;
+/**
+ * A graph row with fewer candidates than this is thin: the crawl saw few of the person's films, and the dropdown lists up to 8 (see
+ * `SUGGESTION_LIMIT`). It is topped up with the live candidates, so the list is as long as the person's own films make it.
+ */
+const THIN_GRAPH_ROW = 8;
 
 const CACHE_TTL_MS = 3 * 60 * 60 * 1000;
 /** A list that is missing candidates is kept only briefly: long enough to spare TMDB, short enough to heal. */
@@ -50,7 +60,7 @@ export function resetSuggestionCache(): void {
   running.clear();
 }
 
-/** The graph's candidates for a person, best first, or null when the graph has no (or a thin) row. */
+/** The graph's candidates for a person, best first, or null when the graph has no row (or one under MIN_GRAPH_ROW). */
 async function graphCandidates(personId: number): Promise<number[] | null> {
   try {
     const row = (await loadCollaboratorGraph()).get(personId);
@@ -80,14 +90,14 @@ export function fulfilledOrThrow<T>(settled: PromiseSettledResult<T>[]): T[] {
 
 /**
  * Candidates counted live: who is credited next to the person on their best-known released
- * films (their top 25 by vote count), by the same counting as the graph. Credits of films that
+ * films (their top `filmCount`, 25 unless said, by vote count), by the same counting as the graph. Credits of films that
  * fail to load are skipped; if none load, this throws.
  */
-async function liveCandidates(subject: PersonTimeline, today: string, signal?: AbortSignal): Promise<number[]> {
+async function liveCandidates(subject: PersonTimeline, today: string, signal?: AbortSignal, filmCount: number = LIVE_FILMS): Promise<number[]> {
   const films = subject.films
     .filter((film) => !film.minor && isReleased(film.releaseDate, today))
     .sort((a, b) => b.voteCount - a.voteCount || b.releaseDate.localeCompare(a.releaseDate) || a.id - b.id)
-    .slice(0, LIVE_FILMS);
+    .slice(0, filmCount);
 
   const credits = fulfilledOrThrow(await mapLimited(films, CONCURRENCY, (film) => getFilmCredits(film.id, signal)));
 
@@ -109,8 +119,26 @@ async function compute(personId: number, signal?: AbortSignal): Promise<Suggesti
   const today = todayIso();
 
   const fromGraph = await graphCandidates(personId);
-  const source = fromGraph ? "graph" : "live";
-  const candidateIds = fromGraph ?? (await liveCandidates(subject, today, signal));
+  let source: CollaboratorSuggestions["source"] = fromGraph ? "graph" : "live";
+  let candidateIds: number[];
+  // Whether the live candidates a thin row wanted were found: without them the list is the graph's alone, and is kept briefly.
+  let toppedUp = true;
+  if (fromGraph && fromGraph.length >= THIN_GRAPH_ROW) {
+    candidateIds = fromGraph;
+  } else if (fromGraph) {
+    // A thin row: the graph's candidates first, then the live ones the graph lacks.
+    try {
+      const live = await liveCandidates(subject, today, signal, TOP_UP_FILMS);
+      candidateIds = [...new Set([...fromGraph, ...live])].slice(0, VERIFY_CANDIDATES);
+      source = "live";
+    } catch (error) {
+      console.warn(error instanceof Error ? `Live collaborators unavailable, using the graph's: ${error.message}` : "Live collaborators unavailable, using the graph's");
+      candidateIds = fromGraph;
+      toppedUp = false;
+    }
+  } else {
+    candidateIds = await liveCandidates(subject, today, signal);
+  }
 
   // Candidates skip the short-film lookup. A film counts as shared only if both people have a
   // non-minor credit on it, and the subject's own lookup (above) already marks the shorts they
@@ -120,14 +148,15 @@ async function compute(personId: number, signal?: AbortSignal): Promise<Suggesti
   const timelines = fulfilledOrThrow(settled);
   const results = suggestFromTimelines(subject, timelines, { today });
   // Incomplete too when the subject's short-film lookup was cut short or capped: the counts then include a few shorts.
-  const complete = timelines.length === candidateIds.length && !subject.shortsIncomplete;
+  const complete = toppedUp && timelines.length === candidateIds.length && !subject.shortsIncomplete;
   return { suggestions: { source, results }, complete };
 }
 
 /**
  * The people `personId` has worked with most, ready to suggest: candidates from the
  * precomputed collaborator graph (or, for someone the graph does not know, counted live over
- * their best-known films), each one then counted exactly from the two filmographies and made
+ * their best-known films; a row the graph has but thin, under THIN_GRAPH_ROW, is topped up with the
+ * live ones), each one then counted exactly from the two filmographies and made
  * varied by role. Throws a TmdbError when TMDB cannot answer (404 for an unknown person).
  *
  * Remembered for a few hours; when some candidates could not be loaded (or a short-film lookup

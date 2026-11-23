@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CREW_GROUP_ORDER,
+  countsForPeople,
   filmMetaLine,
   formatRuntime,
   groupFilmCredits,
@@ -175,5 +176,56 @@ describe("filmMetaLine", () => {
 describe("tmdbMovieUrl", () => {
   it("links to the TMDB movie page", () => {
     expect(tmdbMovieUrl(550)).toBe("https://www.themoviedb.org/movie/550");
+  });
+});
+
+describe("countsForPeople", () => {
+  const TODAY = "2026-11-22";
+  const film = (overrides: Partial<Parameters<typeof countsForPeople>[0]> = {}): Parameters<typeof countsForPeople>[0] => ({
+    releaseDate: "1995-06-30",
+    runtime: 140,
+    genres: ["Drama"],
+    cast: [cast(1, "Kevin Bacon", "Jack Swigert", 2), cast(2, "Tom Hanks", "Jim Lovell", 0)],
+    crew: [crew(3, "Ron Howard", "Director", "director")],
+    ...overrides,
+  });
+
+  it("counts a released film in which every one of them has a credit that is not minor", () => {
+    expect(countsForPeople(film(), [1, 2], TODAY)).toBe(true);
+    // A crew credit counts as well as a cast one.
+    expect(countsForPeople(film(), [1, 3], TODAY)).toBe(true);
+    expect(countsForPeople(film(), [1], TODAY)).toBe(true);
+  });
+
+  it("does not count one of them who is not credited on it, or the film when it is not out yet", () => {
+    expect(countsForPeople(film(), [1, 999], TODAY)).toBe(false);
+    expect(countsForPeople(film({ releaseDate: "2026-12-18" }), [1, 2], TODAY)).toBe(false);
+    expect(countsForPeople(film({ releaseDate: "2026-11-22" }), [1, 2], TODAY)).toBe(true);
+    expect(countsForPeople(film({ releaseDate: null }), [1, 2], TODAY)).toBe(false);
+  });
+
+  it("does not count a cast credit that is minor: billed from the 16th, or a walk-on, archive or self part", () => {
+    expect(countsForPeople(film({ cast: [cast(1, "Kevin Bacon", "Jack", 1), cast(2, "Late Billed", "Guest", 15)] }), [1, 2], TODAY)).toBe(false);
+    expect(countsForPeople(film({ cast: [cast(1, "Kevin Bacon", "Jack", 1), cast(2, "Late Billed", "Guest", 14)] }), [1, 2], TODAY)).toBe(true);
+    expect(countsForPeople(film({ cast: [cast(1, "Kevin Bacon", "Jack", 1), cast(2, "Cameo", "Himself", 3)] }), [1, 2], TODAY)).toBe(false);
+    expect(countsForPeople(film({ cast: [cast(1, "Kevin Bacon", "Jack", 1), cast(2, "Cameo", "Mover (uncredited)", 3)] }), [1, 2], TODAY)).toBe(false);
+  });
+
+  it("does not count a crew credit that is not a key role, nor a cast one on a documentary with no character", () => {
+    expect(countsForPeople(film({ crew: [crew(3, "Caterer", "Catering", "other")] }), [1, 3], TODAY)).toBe(false);
+    // One minor credit is enough to hold them out only when they have no other: a director who also has a walk-on counts.
+    expect(
+      countsForPeople(film({ cast: [cast(1, "Kevin Bacon", "Jack", 1), cast(3, "Ron Howard", "Himself", 40)], crew: [crew(3, "Ron Howard", "Director", "director")] }), [1, 3], TODAY),
+    ).toBe(true);
+    const documentary = film({ genres: ["Documentary"], cast: [cast(1, "Kevin Bacon", undefined, 0), cast(2, "Tom Hanks", "Narrator", 1)] });
+    expect(countsForPeople(documentary, [2], TODAY)).toBe(true);
+    expect(countsForPeople(documentary, [1, 2], TODAY)).toBe(false);
+  });
+
+  it("does not count anything on a short film", () => {
+    expect(countsForPeople(film({ runtime: 39 }), [1, 2], TODAY)).toBe(false);
+    expect(countsForPeople(film({ runtime: 40 }), [1, 2], TODAY)).toBe(true);
+    // An unknown runtime is not a short.
+    expect(countsForPeople(film({ runtime: null }), [1, 2], TODAY)).toBe(true);
   });
 });

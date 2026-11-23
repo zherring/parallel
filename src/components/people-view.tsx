@@ -29,9 +29,10 @@ import type { PairCritics } from "@/lib/critics";
 import { pageViewHref } from "@/lib/depth-url";
 import { effectiveTrackMode } from "@/lib/film-prefs";
 import { personRows, sharedRows } from "@/lib/film-rows";
+import { hasClippingsTab, quoteIdsOf, showingMessage, type PageView } from "@/lib/films-view";
 import { carryBaconMode } from "@/lib/bacon-mode";
-import { carryView, hasClippingsTab, quoteIdsOf, showingMessage, type PageView } from "@/lib/films-view";
 import { laneSummary } from "@/lib/lanes";
+import { carriedPeopleHref } from "@/lib/people-nav";
 import { quoteHref, type HeroNote } from "@/lib/pair-hero";
 import { periodLabel, resolvePeriod, spanOfYears } from "@/lib/period";
 import { personColorCss } from "@/lib/person-colors";
@@ -64,18 +65,19 @@ interface Props {
   baconMode?: boolean;
 }
 
-/** The flat page keeps the view the visitor is on (Timeline, Table; Films is another page) in the address that staged changes to the people lead to: read from the address bar when they are applied. */
-const carryCurrentView = (href: string) => carryBaconMode(carryView(href, window.location.search), window.location.search);
 
 export function PeopleView(props: Props) {
   // A different set of people is a different page: start over (zoom, selection, scroll, and the people staged while a panel was open).
   const key = props.timelines.map((t) => t.person.id).join("+");
   const people = useMemo(() => props.timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [props.timelines]);
+  // The flat page keeps the view the visitor is on (Timeline, Table; Films is another page) in the address that staged changes to the people lead to, and Kevin Bacon mode
+  // while he is on the page: read from the address bar when they are applied.
+  const carry = useCallback((href: string) => carriedPeopleHref(href, window.location.search, people), [people]);
   // Two to four people take the page's colours (`portraitPersonHexes`: a pair, the landing page's); one person keeps the palette as it is (null).
   const paletteHexes = usePortraitPersonHexes(props.timelines.map((t) => t.person.id));
   return (
     <PersonPaletteProvider hexes={paletteHexes}>
-      <PeopleStagingProvider key={key} people={people} carry={carryCurrentView} bacon={props.baconMode}>
+      <PeopleStagingProvider key={key} people={people} carry={carry} bacon={props.baconMode}>
         <PeopleViewInner key={key} {...props} />
       </PeopleStagingProvider>
     </PersonPaletteProvider>
@@ -225,6 +227,9 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
   // The page bar's views are links to this page's addresses (the period kept): the Timeline, Table and Clippings are panels of this page, which the
   // bar chooses in place with a plain click; Focus (the same page on `?view=depth`) is another render of it, so a link that navigates.
   const hrefFor = useCallback((next: PageView) => pageViewHref(pathname, search, next), [pathname, search]);
+  // A link to another page of people keeps Kevin Bacon mode while he is on that page (a name's own page), and the view this page is on too when it is this page without someone (a person removed).
+  const carryHref = useCallback((href: string) => carriedPeopleHref(href, search, people), [search, people]);
+  const carryModeHref = useCallback((href: string) => carryBaconMode(href, search, people.map((person) => person.id)), [search, people]);
   const selectView = useCallback(
     (next: PageView) => {
       if (next === view || next === "depth") return;
@@ -322,6 +327,8 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       combined={combined}
       showAll={showAll}
       people={people}
+      carryHref={carryHref}
+      carryModeHref={carryModeHref}
       includeMinor={includeMinor}
       today={today}
       selectedId={filmIdOf(panel)}
@@ -414,6 +421,7 @@ function PeopleViewInner({ timelines, shared, pairwise, today, clippings, critic
       <PersonPanel
         entry={personPanel.entries.find((entry) => entry.person.id === personIdOf(panel)) ?? null}
         peopleInView={people}
+        carryHref={carryModeHref}
         onClose={handleClose}
       />
     </>

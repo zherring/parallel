@@ -242,3 +242,143 @@ test("the empty field lists the teams he has worked with most, and a team opens 
   await expect(page).toHaveURL("/p/4724-kevin-bacon+90000001-scroll-alpha+90000002-scroll-beta?mode=bacon");
   await expect(bar(page)).toHaveAttribute("data-bacon-page", "");
 });
+
+// ---- Review follow-ups ---------------------------------------------------------------------------------------------------------------
+
+test("a search answer with a result that could not be checked is not kept: typing it again asks again", async ({ page }) => {
+  let asked = 0;
+  await page.route("**/api/search?*", (route) => {
+    const inMode = new URL(route.request().url()).searchParams.get("with") === "4724";
+    if (!inMode) return route.fulfill({ json: { results: [kevin, costner], pairings: [] } });
+    asked += 1;
+    // The first answer could not check Tom Cruise's filmography in time (null); the second can.
+    return route.fulfill({ json: { results: [hanks, asked === 1 ? { ...cruise, together: null } : cruise], pairings: [] } });
+  });
+  await openHomeSearch(page);
+  const field = page.getByRole("combobox");
+  await field.fill("kevin bacon");
+  await page.getByRole("option", { name: /Kevin Bacon mode/ }).click();
+
+  await field.fill("tom");
+  const options = page.getByRole("option");
+  await expect(options).toHaveCount(2);
+  await expect(options.nth(1)).toContainText("Could not check for films with Kevin Bacon");
+  await expect(options.nth(1)).toHaveAttribute("aria-disabled", "true");
+
+  await field.fill("");
+  await field.fill("tom");
+  await expect(options.nth(1)).toContainText("1 film with Kevin Bacon");
+  await expect(options.nth(1)).not.toHaveAttribute("aria-disabled", "true");
+  expect(asked).toBe(2);
+});
+
+test("the teams that fail to load say so, with a Retry that asks again", async ({ page }) => {
+  let asked = 0;
+  await page.route("**/api/teams/4724", (route) => {
+    asked += 1;
+    if (asked === 1) return route.fulfill({ status: 502, json: { error: "TMDB is unavailable, try again shortly" } });
+    return route.fulfill({
+      json: {
+        results: [
+          {
+            people: [{ id: 90000001, name: "Scroll Alpha", profilePath: null }, { id: 90000002, name: "Scroll Beta", profilePath: null }],
+            sharedCount: 9,
+            titles: ["Scroll Film 100"],
+          },
+        ],
+      },
+    });
+  });
+  await openHomeSearch(page);
+  const field = page.getByRole("combobox");
+  await field.fill("kevin bacon");
+  await page.getByRole("option", { name: /Kevin Bacon mode/ }).click();
+
+  const failed = page.locator("[data-teams-error]");
+  await expect(failed).toContainText("Couldn’t load teams");
+  await failed.getByRole("button", { name: "Retry", exact: true }).click();
+  const team = page.getByRole("group", { name: "Teams with Kevin Bacon", exact: true }).getByRole("option");
+  await expect(team).toHaveCount(1);
+  await expect(team).toContainText("Scroll Alpha × Scroll Beta");
+  await expect(failed).toHaveCount(0);
+  expect(asked).toBe(2);
+});
+
+/** Waits until the page is live: the gear's sheet opens and closes, which only a hydrated page does (a press before that does nothing). */
+async function waitUntilLive(page: Page) {
+  const gear = page.getByRole("button", { name: "Settings", exact: true });
+  await gear.click();
+  await expect(page.getByRole("dialog", { name: "Settings", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(gear).toBeFocused();
+}
+
+// A name's own page (the person panel's "View their timeline") keeps the mode where he is on it, and takes no view along, as before. (The lane header's remove link and
+// name link are the separate-lanes layout's, which is parked: `LANES_ENABLED`; the remove link keeps the view and the mode by `carriedPeopleHref`, which bacon-mode.test.ts covers.)
+test("on a page in the mode, a person panel's link to their own page keeps the mode on his page only", async ({ page, next }) => {
+  void next;
+  await page.goto(`${BACON_PAIR}?mode=bacon&view=timeline`);
+  await expect(bar(page)).toHaveAttribute("data-bacon-page", "");
+  await waitUntilLive(page);
+
+  await page.getByRole("button", { name: "Kevin Bacon", exact: true }).first().click();
+  const panel = page.getByRole("dialog", { name: "Kevin Bacon", exact: true });
+  await expect(panel.getByRole("link", { name: /View their timeline/ })).toHaveAttribute("href", "/p/4724-kevin-bacon?mode=bacon");
+  await page.keyboard.press("Escape");
+  await expect(panel).toBeHidden();
+
+  await page.getByRole("button", { name: "Scroll Alpha", exact: true }).first().click();
+  const other = page.getByRole("dialog", { name: "Scroll Alpha", exact: true });
+  await expect(other.getByRole("link", { name: /View their timeline/ })).toHaveAttribute("href", "/p/90000001-scroll-alpha");
+});
+
+test("a stale ?mode=bacon on a page without him is dropped by the canonical redirect, and does not carry anywhere", async ({ page, next }) => {
+  void next;
+  // A shorthand slug with an address that names the mode, and he is not on the page: the redirect keeps the view and drops the word.
+  await page.goto("/p/90000001+90000002?mode=bacon&view=timeline");
+  await expect(page).toHaveURL("/p/90000001-scroll-alpha+90000002-scroll-beta?view=timeline");
+  await expect(bar(page)).not.toHaveAttribute("data-bacon-page");
+
+  // The same word with him on the page is kept.
+  await page.goto("/p/4724+90000001?mode=bacon&view=timeline");
+  await expect(page).toHaveURL("/p/4724-kevin-bacon+90000001-scroll-alpha?view=timeline&mode=bacon");
+  await expect(bar(page)).toHaveAttribute("data-bacon-page", "");
+});
+
+// A film's panel in the mode: the cast of a film he is in can be added only where the pair page would count the film for him and them.
+const FILM = {
+  id: 100,
+  title: "Scroll Film 100",
+  year: 2000,
+  releaseDate: "2000-01-01",
+  posterPath: null,
+  backdropPath: null,
+  runtime: 120,
+  tagline: null,
+  overview: "A film for the mode's panel.",
+  genres: ["Drama"],
+  cast: [
+    { id: 4724, name: "Kevin Bacon", profilePath: null, job: "Actor", role: "actor", character: "Lead", order: 0 },
+    { id: 90000003, name: "Scroll Gamma", profilePath: null, job: "Actor", role: "actor", character: "Second", order: 1 },
+    { id: 90000009, name: "Scroll Walkon", profilePath: null, job: "Actor", role: "actor", character: "Himself", order: 30 },
+  ],
+  crew: [],
+};
+
+test("in a film's panel, a person who is only a cameo there cannot be added: the row is dimmed with the search's note", async ({ page, next }) => {
+  void next;
+  await page.route("**/api/movie/100", (route) => route.fulfill({ json: FILM }));
+  await page.goto("/p/4724-kevin-bacon?mode=bacon&view=timeline");
+  await expect(bar(page)).toHaveAttribute("data-bacon-page", "");
+  await waitUntilLive(page);
+  await page.getByRole("button", { name: /^Scroll Film 100, 2000\./ }).click();
+  const dialog = page.getByRole("dialog", { name: "Scroll Film 100", exact: true });
+  await expect(dialog).toBeVisible();
+
+  await expect(dialog.getByRole("button", { name: "Add Scroll Gamma to timeline", exact: true })).toBeEnabled();
+  const walkon = dialog.getByRole("listitem").filter({ hasText: "Scroll Walkon" });
+  await expect(walkon).toHaveAttribute("data-mode-blocked", "");
+  await expect(walkon).toContainText("No films with Kevin Bacon");
+  await expect(walkon.getByRole("button", { name: "Add Scroll Walkon to timeline", exact: true })).toBeDisabled();
+  await expect(dialog.locator("[data-film-blocked]")).toHaveCount(0);
+});

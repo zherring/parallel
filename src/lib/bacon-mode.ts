@@ -20,6 +20,12 @@ import type { PairingSearchResult, PersonSearchResult, TeamSuggestion } from "@/
 /** The person the mode is about, by TMDB id. The name is TMDB's own, so a slug built from it is the canonical one. */
 export const BACON = { id: 4724, name: "Kevin Bacon" } as const;
 
+/**
+ * The people a mode may be about: what the server's routes that take a mode's person (`/api/search?with=`, `/api/teams/{id}`) accept. Each costs
+ * TMDB requests (a team list about 130 on a cold cache), so the routes answer 400 for anyone else.
+ */
+export const MODE_SUBJECT_IDS: readonly number[] = [BACON.id];
+
 /** The mode holds Kevin Bacon and one other person. */
 export const BACON_MODE_MAX = 2;
 
@@ -45,6 +51,15 @@ export function baconModeOffer(
 /** A search result can be added in the mode only when it is known to share a film with him. */
 export function workedWithBacon(result: Pick<PersonSearchResult, "together">): boolean {
   return (result.together ?? 0) > 0;
+}
+
+/**
+ * Whether every result of a mode's search was checked for films with him (`together` is a number): an answer that is missing some is
+ * one the visitor should be able to ask again, so it is neither remembered nor kept by a shared cache. He is not his own co-worker, so his
+ * own row (null) does not count.
+ */
+export function allCheckedForMode(results: readonly Pick<PersonSearchResult, "id" | "together">[], subjectId: number = BACON.id): boolean {
+  return results.every((result) => result.id === subjectId || (result.together !== null && result.together !== undefined));
 }
 
 /** The mode's results: the people who can be added first, each group in the order the search ranked it. */
@@ -127,11 +142,12 @@ export function withBaconMode(href: string): string {
 
 /**
  * `href` for a navigation from a page in the mode to another page of people (a person added or removed): the mode goes
- * along when the page left (`currentSearch`, its query) is in it and he is still on the page arrived at; a page without him
- * is an ordinary page.
+ * along when the page left is in it (`isBaconPage`: its query, `currentSearch`, names the mode and he is one of its people,
+ * `currentPeople`) and he is still on the page arrived at; a page without him is an ordinary page, and so is the page a stale
+ * `?mode=bacon` on a page without him leads to.
  */
-export function carryBaconMode(href: string, currentSearch: string): string {
-  return namesBaconMode(currentSearch) && hasBacon(href) ? withBaconMode(href) : href;
+export function carryBaconMode(href: string, currentSearch: string, currentPeople: readonly number[]): string {
+  return isBaconPage(currentSearch, currentPeople) && hasBacon(href) ? withBaconMode(href) : href;
 }
 
 /** The query (with its "?", or "") of the same page out of the mode: what the bar's "leave" link writes. */
@@ -156,8 +172,8 @@ export function baconFullRule(page: boolean): string {
 
 /** What the people pill's legend says of the mode's colour. */
 export const BACON_TOGETHER_LEGEND = "Orange: made together by everyone shown";
-/** Why a film's cast cannot be added from: he is not in the film, so its people may never have worked with him. */
-export const BACON_FILM_TITLE = `${BACON_MODE_LABEL}: only people from his own films can be added`;
+/** Why a film's cast and crew cannot be added from, or one of them cannot: the pair page would not count the film for the two of them (he is not credited on it, or the person is only a cameo). */
+export const BACON_FILM_TITLE = `${BACON_MODE_LABEL}: only people who share this film with him can be added`;
 
 // ---------------------------------------------------------------------------------------------
 // Teams
@@ -165,6 +181,8 @@ export const BACON_FILM_TITLE = `${BACON_MODE_LABEL}: only people from his own f
 
 /** The heading of the teams the empty field lists in the mode. */
 export const BACON_TEAMS_LABEL = `Teams with ${BACON.name}`;
+/** What the teams' place says when they could not be loaded (it has a retry beside it). */
+export const BACON_TEAMS_ERROR = "Couldn’t load teams";
 
 /**
  * A team as an option of the field: a row like a curated pairing's (the two names, the count, the films), which opens the

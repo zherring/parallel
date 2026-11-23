@@ -50,13 +50,25 @@ export function hasRoom(current: readonly PersonRef[], pending: PendingPeople, m
 }
 
 /**
- * Stages adding a person. A person who is on the page and staged to leave is taken back (their place in the order is the one they had); anyone else joins at the end.
+ * Whether a person staged to leave can be taken back. That is up to `max` people, and up to the people the page has now when it has more (a team page of
+ * three, in Kevin Bacon mode, whose `max` is two: it can be put back as it was), as long as no one new has been staged to join it: the new person is the mode's
+ * second one, and a page of three is only ever the team that was there.
+ */
+export function canRestore(current: readonly PersonRef[], pending: PendingPeople, max: number = MAX_PEOPLE): boolean {
+  const cap = pending.added.length === 0 ? Math.max(max, current.length) : max;
+  return finalPeople(current, pending).length < cap;
+}
+
+/**
+ * Stages adding a person. A person who is on the page and staged to leave is taken back (their place in the order is the one they had; `canRestore`); anyone else joins at the end.
  * Nothing changes for a person the page will already have, or when it is full (`max` people: 4, or the two of Kevin Bacon mode).
  */
 export function stageAdd(current: readonly PersonRef[], pending: PendingPeople, person: StagedPerson, max: number = MAX_PEOPLE): PendingPeople {
   const final = finalPeople(current, pending);
+  if (isStagedRemoval(pending, person.id)) {
+    return canRestore(current, pending, max) ? { ...pending, removed: pending.removed.filter((id) => id !== person.id) } : pending;
+  }
   if (final.length >= max) return pending;
-  if (isStagedRemoval(pending, person.id)) return { ...pending, removed: pending.removed.filter((id) => id !== person.id) };
   if (final.some((onPage) => onPage.id === person.id)) return pending;
   return { ...pending, added: [...pending.added, person] };
 }

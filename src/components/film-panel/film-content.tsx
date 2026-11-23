@@ -3,6 +3,7 @@
 import type { ReactNode, RefObject } from "react";
 import { PersonAvatar } from "@/components/person-avatar";
 import { Portrait } from "@/components/portrait";
+import { BACON_FILM_TITLE } from "@/lib/bacon-mode";
 import { joinNames } from "@/lib/format";
 import { filmMetaLine, groupFilmCredits, tmdbMovieUrl, type PersonRow } from "@/lib/film-people";
 import { tmdbImage } from "@/lib/images";
@@ -19,8 +20,15 @@ interface Props {
   added: readonly { id: number; name: string }[];
   /** The page will be full (`MAX_PEOPLE`) once the staged people join: no one else can be added. */
   full: boolean;
-  /** Why no one can be added, when it is not the usual four (Kevin Bacon mode's two, or a film he is not in). */
+  /** Why no one can be added, when it is not the usual four (Kevin Bacon mode's two). */
   fullTitle?: string;
+  /**
+   * A mode's rule for one person (Kevin Bacon mode, see `bacon-mode.ts`): the muted note that says why they cannot be added, or undefined when they can. Their row is
+   * dimmed and its button disabled, as a search result the mode does not let in is.
+   */
+  blockedNote?: (person: PersonRow) => string | undefined;
+  /** What the mode says of the film as a whole, when it is one nobody can be added from (a banner above the people). */
+  blockedFilmNote?: string;
   /** Stages adding a person, or takes it back for one already staged. Nothing is redrawn until the panel closes. */
   onToggleAdd: (person: PersonRow) => void;
   /** The panel's scroll container, for the sticky cast/crew tabs. */
@@ -29,7 +37,7 @@ interface Props {
 
 const FULL_TITLE = `A timeline holds up to ${MAX_PEOPLE} people`;
 
-export function FilmContent({ film, titleId, peopleInView, added, full, fullTitle = FULL_TITLE, onToggleAdd, scrollRef }: Props) {
+export function FilmContent({ film, titleId, peopleInView, added, full, fullTitle = FULL_TITLE, blockedNote, blockedFilmNote, onToggleAdd, scrollRef }: Props) {
   const credits = groupFilmCredits(film, peopleInView);
   const addedIds = new Set(added.map((person) => person.id));
   const poster = tmdbImage(film.posterPath, "w342");
@@ -38,6 +46,8 @@ export function FilmContent({ film, titleId, peopleInView, added, full, fullTitl
   function row(person: PersonRow, inTimelineGroup = false) {
     const state = addState(peopleInView, person.id);
     let action: ReactNode = null;
+    // Someone the mode does not let in, from this film: dimmed like a search result with no film with him. Those on the page and those staged to join are not asked.
+    const blocked = !inTimelineGroup && state !== "in-view" && !addedIds.has(person.id) ? blockedNote?.(person) : undefined;
 
     if (!inTimelineGroup) {
       if (state === "in-view") {
@@ -64,8 +74,8 @@ export function FilmContent({ film, titleId, peopleInView, added, full, fullTitl
           <button
             type="button"
             aria-label={`Add ${person.name} to timeline`}
-            title={full ? fullTitle : undefined}
-            disabled={full}
+            title={blocked !== undefined ? BACON_FILM_TITLE : full ? fullTitle : undefined}
+            disabled={full || blocked !== undefined}
             onClick={() => onToggleAdd(person)}
             className="shrink-0 rounded bg-accent-green px-3 py-1 text-xs font-semibold text-on-accent hover:bg-accent-green-hover disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-accent-green"
           >
@@ -76,12 +86,18 @@ export function FilmContent({ film, titleId, peopleInView, added, full, fullTitl
     }
 
     return (
-      <li key={person.id} className="flex items-center gap-3 py-1.5">
-        <PersonAvatar name={person.name} profilePath={person.profilePath} size={40} />
+      <li key={person.id} data-mode-blocked={blocked !== undefined ? "" : undefined} className="flex items-center gap-3 py-1.5">
+        <PersonAvatar name={person.name} profilePath={person.profilePath} size={40} className={blocked !== undefined ? "opacity-60" : undefined} />
         <div className="min-w-0 flex-1">
-          <p className="break-words text-sm font-medium text-strong">{person.name}</p>
-          {person.detail && (
-            <p className="line-clamp-2 text-xs leading-snug text-muted">{person.detail}</p>
+          <p className={`break-words text-sm font-medium ${blocked !== undefined ? "text-strong/60" : "text-strong"}`}>{person.name}</p>
+          {blocked !== undefined ? (
+            // The role stays readable beside the note, as a search result's department does.
+            <p className="line-clamp-2 text-xs leading-snug text-muted">
+              {person.detail && <span className="text-body">{person.detail} · </span>}
+              {blocked}
+            </p>
+          ) : (
+            person.detail && <p className="line-clamp-2 text-xs leading-snug text-muted">{person.detail}</p>
           )}
         </div>
         {action}
@@ -125,7 +141,13 @@ export function FilmContent({ film, titleId, peopleInView, added, full, fullTitl
 
       {full && (
         <p className="mt-5 rounded-md border border-border bg-surface px-3 py-2 text-sm text-body">
-          {FULL_TITLE}, so no one else can be added.
+          {fullTitle}, so no one else can be added.
+        </p>
+      )}
+
+      {blockedFilmNote && !full && (
+        <p data-film-blocked className="mt-5 rounded-md border border-border bg-surface px-3 py-2 text-sm text-body">
+          {blockedFilmNote}
         </p>
       )}
 

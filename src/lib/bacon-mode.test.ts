@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   BACON,
   BACON_MODE_MAX,
+  MODE_SUBJECT_IDS,
+  allCheckedForMode,
   baconFullRule,
   baconModeOffer,
   baconPageHref,
@@ -16,9 +18,9 @@ import {
   workedWithBacon,
 } from "@/lib/bacon-mode";
 import { depthSearch } from "@/lib/depth-url";
-import { NOTHING_PENDING, hasRoom, stageAdd } from "@/lib/pending-people";
+import { NOTHING_PENDING, canRestore, hasRoom, stageAdd } from "@/lib/pending-people";
 import { addChip } from "@/lib/chip-input";
-import { addState, isTimelineFull } from "@/lib/people-nav";
+import { addState, carriedPeopleHref, isTimelineFull } from "@/lib/people-nav";
 import { searchSections } from "@/lib/search-sections";
 import type { PairingSearchResult, PersonSearchResult } from "@/lib/types";
 
@@ -126,14 +128,36 @@ describe("the mode in a page's address", () => {
   });
 
   it("goes along to another page of people while he stays, and not to a page without him", () => {
-    expect(carryBaconMode("/p/4724-kevin-bacon+31-tom-hanks", "?mode=bacon")).toBe("/p/4724-kevin-bacon+31-tom-hanks?mode=bacon");
-    expect(carryBaconMode("/p/31-tom-hanks+4724-kevin-bacon?view=table", "mode=bacon&view=table")).toBe("/p/31-tom-hanks+4724-kevin-bacon?view=table&mode=bacon");
-    expect(carryBaconMode("/p/4724?view=depth#x", "?mode=bacon")).toBe("/p/4724?view=depth&mode=bacon#x");
-    expect(carryBaconMode("/p/31-tom-hanks", "?mode=bacon")).toBe("/p/31-tom-hanks");
+    const here = [BACON.id, 31];
+    expect(carryBaconMode("/p/4724-kevin-bacon+31-tom-hanks", "?mode=bacon", here)).toBe("/p/4724-kevin-bacon+31-tom-hanks?mode=bacon");
+    expect(carryBaconMode("/p/31-tom-hanks+4724-kevin-bacon?view=table", "mode=bacon&view=table", here)).toBe("/p/31-tom-hanks+4724-kevin-bacon?view=table&mode=bacon");
+    expect(carryBaconMode("/p/4724?view=depth#x", "?mode=bacon", here)).toBe("/p/4724?view=depth&mode=bacon#x");
+    expect(carryBaconMode("/p/31-tom-hanks", "?mode=bacon", here)).toBe("/p/31-tom-hanks");
     // 47240 and 14724 are other people.
-    expect(carryBaconMode("/p/47240-someone+14724-other", "?mode=bacon")).toBe("/p/47240-someone+14724-other");
-    expect(carryBaconMode("/", "?mode=bacon")).toBe("/");
-    expect(carryBaconMode("/p/4724-kevin-bacon+31-tom-hanks", "?view=table")).toBe("/p/4724-kevin-bacon+31-tom-hanks");
+    expect(carryBaconMode("/p/47240-someone+14724-other", "?mode=bacon", here)).toBe("/p/47240-someone+14724-other");
+    expect(carryBaconMode("/", "?mode=bacon", here)).toBe("/");
+    expect(carryBaconMode("/p/4724-kevin-bacon+31-tom-hanks", "?view=table", here)).toBe("/p/4724-kevin-bacon+31-tom-hanks");
+  });
+
+  it("is not carried from a page he is not on, whatever its address says: a stale ?mode=bacon does not start the mode", () => {
+    expect(carryBaconMode("/p/4724-kevin-bacon+31-tom-hanks", "?mode=bacon", [31, 488])).toBe("/p/4724-kevin-bacon+31-tom-hanks");
+    expect(carryBaconMode("/p/4724-kevin-bacon+31-tom-hanks", "?mode=bacon", [])).toBe("/p/4724-kevin-bacon+31-tom-hanks");
+  });
+
+  it("goes along with the view when a lane's person is removed, and stays out of the home page", () => {
+    const team = [{ id: BACON.id, name: BACON.name }, { id: 6159, name: "Ron Howard" }, { id: 339, name: "Brian Grazer" }];
+    // Removing the other person keeps the mode and the view; removing him takes the mode with him.
+    expect(carriedPeopleHref("/p/4724-kevin-bacon+339-brian-grazer", "view=table&mode=bacon", team)).toBe("/p/4724-kevin-bacon+339-brian-grazer?view=table&mode=bacon");
+    expect(carriedPeopleHref("/p/6159-ron-howard+339-brian-grazer", "view=table&mode=bacon", team)).toBe("/p/6159-ron-howard+339-brian-grazer?view=table");
+    // A page with a stale mode in its address and no Bacon in it is an ordinary page.
+    expect(carriedPeopleHref("/p/6159-ron-howard", "view=table&mode=bacon", [team[1], team[2]])).toBe("/p/6159-ron-howard?view=table");
+    expect(carriedPeopleHref("/", "view=table&mode=bacon", [team[0]])).toBe("/");
+  });
+
+  it("opens a name's own page in the mode only for him, and takes no view along", () => {
+    const team = [BACON.id, 6159, 339];
+    expect(carryBaconMode("/p/4724-kevin-bacon", "view=depth&mode=bacon", team)).toBe("/p/4724-kevin-bacon?mode=bacon");
+    expect(carryBaconMode("/p/6159-ron-howard", "view=depth&mode=bacon", team)).toBe("/p/6159-ron-howard");
   });
 
   it("is written once, and taken out without touching the rest of the query", () => {
@@ -149,6 +173,29 @@ describe("the mode in a page's address", () => {
 
   it("opens the field's chips as a page in the mode", () => {
     expect(baconPageHref([BACON, { id: 31, name: "Tom Hanks" }])).toBe("/p/4724-kevin-bacon+31-tom-hanks?mode=bacon");
+  });
+
+  it("puts a team page back as it was: the one removed can be restored up to the three, but no one new joins it", () => {
+    const team = [{ id: BACON.id, name: BACON.name }, { id: 6159, name: "Ron Howard" }, { id: 339, name: "Brian Grazer" }];
+    const newcomer = { id: 500, name: "Tom Cruise", profilePath: null };
+    const without = { added: [], removed: [339] };
+    // The mode's cap is two, and the page has two left: a new person is refused, the one who left can come back.
+    expect(hasRoom(team, without, BACON_MODE_MAX)).toBe(false);
+    expect(canRestore(team, without, BACON_MODE_MAX)).toBe(true);
+    expect(stageAdd(team, without, newcomer, BACON_MODE_MAX)).toBe(without);
+    expect(stageAdd(team, without, { id: 339, name: "Brian Grazer", profilePath: null }, BACON_MODE_MAX).removed).toEqual([]);
+    // Nothing to restore past the three: the page itself is not over its size.
+    expect(canRestore(team, NOTHING_PENDING, BACON_MODE_MAX)).toBe(false);
+    // A new person staged in place of one who left is the second person: the one who left cannot come back beside them.
+    const swapped = { added: [newcomer], removed: [6159, 339] };
+    expect(canRestore(team, swapped, BACON_MODE_MAX)).toBe(false);
+    expect(stageAdd(team, swapped, { id: 339, name: "Brian Grazer", profilePath: null }, BACON_MODE_MAX)).toBe(swapped);
+    // A pair's page is as before: both may come back, never more than two.
+    const pair = team.slice(0, 2);
+    expect(canRestore(pair, { added: [], removed: [6159] }, BACON_MODE_MAX)).toBe(true);
+    expect(canRestore(pair, { added: [newcomer], removed: [6159] }, BACON_MODE_MAX)).toBe(false);
+    // The ordinary page: four.
+    expect(canRestore(team, without)).toBe(true);
   });
 
   it("holds two people on the page too", () => {
@@ -168,6 +215,20 @@ describe("the mode in a page's address", () => {
     expect(baconPlaceholder(1, true).long).toBe("Who has worked with Kevin Bacon?");
     expect(baconFullRule(true)).toContain("Remove the other person");
     expect(baconFullRule(false)).toContain("Press Enter");
+  });
+});
+
+describe("the people a mode is about", () => {
+  it("are the ones the server answers for: Kevin Bacon alone", () => {
+    expect(MODE_SUBJECT_IDS).toEqual([4724]);
+  });
+
+  it("have every result of a search checked unless one has no count; he has none of his own", () => {
+    expect(allCheckedForMode([person(31, "Tom Hanks", 2), person(500, "Tom Cruise", 0)])).toBe(true);
+    expect(allCheckedForMode([person(31, "Tom Hanks", 2), person(500, "Tom Cruise", null)])).toBe(false);
+    expect(allCheckedForMode([person(31, "Tom Hanks", 2), person(500, "Tom Cruise")])).toBe(false);
+    expect(allCheckedForMode([kevin, person(31, "Tom Hanks", 2)])).toBe(true);
+    expect(allCheckedForMode([{ id: 7, together: null }], 7)).toBe(true);
   });
 });
 

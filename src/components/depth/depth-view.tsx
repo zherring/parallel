@@ -62,9 +62,6 @@ interface Props {
   baconMode?: boolean;
 }
 
-/** Staged changes to the people lead to the Films view of the final people (`view=depth`, always named), in Kevin Bacon mode still if the page is and he stays. */
-const carryDepth = (href: string) => carryBaconMode(withDepth(href), window.location.search);
-
 /** No film is minor: the usual scene. */
 const NO_MINOR: ReadonlySet<number> = new Set();
 /** No film is left without a poster: every film of the page is in the scene. */
@@ -79,12 +76,16 @@ export function DepthView(props: Props) {
   // A different set of people is a different page: start over (selection, scroll, and the people staged while a panel was open).
   const key = props.timelines.map((t) => t.person.id).join("+");
   const people = useMemo(() => props.timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [props.timelines]);
-  // Staged changes to the people lead to the Films view of the final people (`view=depth`, always named), as the pill's links always did.
+  // Staged changes to the people lead to the Films view of the final people (`view=depth`, always named), as the pill's links always did, in Kevin Bacon mode still if the page is and he stays.
+  const carry = useCallback(
+    (href: string) => carryBaconMode(withDepth(href), window.location.search, people.map((person) => person.id)),
+    [people],
+  );
   // Two to four people take the page's colours (`portraitPersonHexes`: a pair, the landing page's); one person keeps the palette as it is (null).
   const paletteHexes = usePortraitPersonHexes(props.timelines.map((t) => t.person.id));
   return (
     <PersonPaletteProvider hexes={paletteHexes}>
-      <PeopleStagingProvider key={key} people={people} carry={carryDepth} bacon={props.baconMode}>
+      <PeopleStagingProvider key={key} people={people} carry={carry} bacon={props.baconMode}>
         <DepthViewInner key={key} {...props} />
       </PeopleStagingProvider>
     </PersonPaletteProvider>
@@ -244,6 +245,8 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
   // ---- the pair hero ------------------------------------------------------------------------------------------------------------------
   const pathname = usePathname();
   const search = useSearchParams().toString();
+  // A name's own page (the person panel's link) keeps Kevin Bacon mode, where he is on it.
+  const carryHref = useCallback((href: string) => carryBaconMode(href, search, people.map((person) => person.id)), [search, people]);
   const { subtitle, chips } = usePairHero({ timelines, rows, includeMinor, today });
   // The scene is the main scroller. It opens on the first collaboration (see `openingScrollTop`), so the hero collapses once it has moved 48px from where it landed.
   // Where it landed is read off the scroller a frame after it opened, not given as `openingTop`: the browser clamps that to the scene's end, which a short scene on a tall screen
@@ -342,6 +345,7 @@ function DepthViewInner({ timelines, shared, today, clippings, critics, heroNote
       <PersonPanel
         entry={personEntries.find((entry) => entry.person.id === personIdOf(panel)) ?? null}
         peopleInView={people}
+        carryHref={carryHref}
         onClose={handleClose}
       />
     </>

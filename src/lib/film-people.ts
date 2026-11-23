@@ -1,3 +1,6 @@
+import { isReleased } from "@/lib/released";
+import { isMinorCast, isMinorCrewRole } from "@/lib/roles";
+import { SHORT_MAX_MINUTES } from "@/lib/short-film";
 import type { FilmDetails, FilmPerson, RoleKey } from "@/lib/types";
 
 /** One person in one group of the film panel: credits for the same TMDB person are merged. */
@@ -151,3 +154,24 @@ export function filmMetaLine(
 export const tmdbMovieUrl = (id: number) => `https://www.themoviedb.org/movie/${id}`;
 
 export const tmdbPersonUrl = (id: number) => `https://www.themoviedb.org/person/${id}`;
+
+/**
+ * Whether the pair page would count this film among the films `personIds` made together (`sharedFilms`, minor credits off): it is out by `today`
+ * (`yyyy-mm-dd`, see `isReleased`), and every one of them has a credit on it that is not minor. A credit is minor by the rules a person's filmography gives
+ * it (`normalizeMovieCredits`, src/lib/normalize.ts), as far as the film's own details show them: any credit on a short film (a known runtime of 39 minutes or
+ * less; TMDB's "video" flag is not in the details), a cast credit billed from the 16th, a walk-on, archive or self part, or a documentary appearance
+ * without a character, and a crew job that is not one of the key roles.
+ */
+export function countsForPeople(
+  film: Pick<FilmDetails, "releaseDate" | "runtime" | "genres" | "cast" | "crew">,
+  personIds: readonly number[],
+  today: string,
+): boolean {
+  if (!isReleased(film.releaseDate, today)) return false;
+  if (typeof film.runtime === "number" && film.runtime <= SHORT_MAX_MINUTES) return false;
+  const documentary = film.genres.includes("Documentary");
+  const credited = (id: number) =>
+    film.cast.some((person) => person.id === id && !isMinorCast(person.order, person.character) && !(documentary && !person.character)) ||
+    film.crew.some((person) => person.id === id && !isMinorCrewRole(person.role));
+  return personIds.every(credited);
+}

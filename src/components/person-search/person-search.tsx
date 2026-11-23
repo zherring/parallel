@@ -33,7 +33,9 @@ import {
   BACON_MODE_MAX,
   BACON_MODE_RULE,
   BACON_SUGGESTIONS_LABEL,
+  BACON_TEAMS_ERROR,
   BACON_TEAMS_LABEL,
+  allCheckedForMode,
   baconAddedMessage,
   baconFullRule,
   baconModeOffer,
@@ -285,7 +287,8 @@ export function PersonSearch({
         // A newer keystroke aborts this controller, so late responses never overwrite newer state.
         if (controller.signal.aborted) return;
         const response = { results: body.results, pairings: body.pairings ?? [] };
-        remember(cacheKey, response);
+        // A mode's answer with a result that could not be checked is shown but not kept: typing it again asks again.
+        if (!bacon || allCheckedForMode(body.results)) remember(cacheKey, response);
         setData({ query: q, ...response, error: null });
       } catch (error) {
         if (controller.signal.aborted || isAbortError(error)) return;
@@ -391,7 +394,7 @@ export function PersonSearch({
     // The query of this page, read now: the new page opens on the tab (Timeline or Table) this one shows.
     const extended = extendedPeopleHref(peopleInView, { id: result.id, name: result.name }, window.location.search);
     if (!extended) return;
-    const href = carryBaconMode(extended, window.location.search);
+    const href = carryBaconMode(extended, window.location.search, peopleInView.map((person) => person.id));
     setOpen(false);
     setQuery("");
     setActiveIndex(-1);
@@ -485,7 +488,7 @@ export function PersonSearch({
   }
 
   const searchStatus = onSuggestions
-    ? suggestionsAnnouncement(collaborators.status, suggestions.length)
+    ? [suggestionsAnnouncement(collaborators.status, suggestions.length), teamsListed && teams.status === "error" ? `${BACON_TEAMS_ERROR}.` : ""].filter(Boolean).join(" ")
     : failure
       ? errorMessage(failure, "search")
       : loading
@@ -864,6 +867,22 @@ export function PersonSearch({
                     })}
                   </ul>
                 )}
+              </div>
+            )}
+
+            {teamsListed && teams.status === "error" && (
+              <div data-teams-error role="group" aria-label={BACON_TEAMS_LABEL} className="border-t border-border">
+                <p className="px-3 pb-1 pt-2.5 text-xs font-medium text-muted">{BACON_TEAMS_LABEL}</p>
+                <div className="flex items-center justify-between gap-3 px-3 pb-3 pt-1">
+                  <p className="text-body">{BACON_TEAMS_ERROR}</p>
+                  <button
+                    type="button"
+                    onClick={teams.retry}
+                    className="shrink-0 rounded-md border border-border px-3 py-1.5 font-medium text-strong hover:bg-border"
+                  >
+                    Retry
+                  </button>
+                </div>
               </div>
             )}
 

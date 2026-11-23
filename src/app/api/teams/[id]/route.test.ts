@@ -35,8 +35,17 @@ describe("GET /api/teams/[id]", () => {
     expect(suggest).not.toHaveBeenCalled();
   });
 
-  it("answers 404 for a person TMDB does not know", async () => {
+  it("answers only for the people a mode is about: another person's list would cost about 130 TMDB requests", async () => {
+    for (const id of ["31", "999999", "47240", "14724"]) {
+      const res = await get(id);
+      expect(res.status, id).toBe(400);
+      expect(await res.json()).toEqual({ error: "id must be a person a mode is about" });
+    }
+    expect(suggest).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 when TMDB does not know the person", async () => {
     suggest.mockRejectedValue(new TmdbError(404, "not found"));
-    expect((await get("999999")).status).toBe(404);
+    expect((await get("4724")).status).toBe(404);
   });
 });

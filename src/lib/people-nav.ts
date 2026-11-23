@@ -1,3 +1,4 @@
+import { carryBaconMode } from "@/lib/bacon-mode";
 import { carryView } from "@/lib/films-view";
 import { buildPeopleSlug } from "@/lib/slug";
 
@@ -58,4 +59,15 @@ export function extendedPeopleHref(
   if (!people) return null;
   const href = `/p/${buildPeopleSlug(people)}`;
   return currentSearch === undefined ? href : carryView(href, currentSearch);
+}
+
+/**
+ * `href` for a navigation from the page of `currentPeople` to another page of people (one of them removed, or only one of them): what the page the
+ * visitor is on carries to the next, its view (`carryView`) and Kevin Bacon mode (`carryBaconMode`, while he is still on the page arrived at).
+ * `currentSearch` is that page's query, read from the address (`window.location.search`, or the router's `useSearchParams`). The home page
+ * (no one is left) has neither a view nor a mode, and is returned as it is.
+ */
+export function carriedPeopleHref(href: string, currentSearch: string, currentPeople: readonly PersonRef[]): string {
+  if (!href.startsWith("/p/")) return href;
+  return carryBaconMode(carryView(href, currentSearch), currentSearch, currentPeople.map((person) => person.id));
 }

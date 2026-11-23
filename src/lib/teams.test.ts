@@ -2,7 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/collaborators-index", () => ({ loadCollaboratorGraph: vi.fn() }));
-vi.mock("@/lib/tmdb", () => ({ getPersonMovieCredits: vi.fn(), getFilmCredits: vi.fn() }));
+vi.mock("@/lib/tmdb", () => ({
+  ROUTE_BUDGET_MS: 45_000,
+  TmdbError: class TmdbError extends Error {
+    constructor(readonly status: number, message: string) {
+      super(message);
+    }
+  },
+  getPersonMovieCredits: vi.fn(),
+  getFilmCredits: vi.fn(),
+}));
 
 import { resetTeamCache, suggestTeamsChecked } from "@/lib/teams";
 import { getFilmCredits, getPersonMovieCredits } from "@/lib/tmdb";
@@ -86,6 +95,42 @@ describe("suggestTeamsChecked", () => {
     const calls = loadCredits.mock.calls.length;
     await suggestTeamsChecked(1);
     expect(loadCredits.mock.calls.length).toBe(calls);
+  });
+
+  it("runs on a time budget of its own: a caller's signal ends that caller's wait, not the work the others share", async () => {
+    // The first caller's request gives up while the film credits are still loading; a second request joined the same work.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    loadCredits.mockImplementation(async (id) => {
+      await gate;
+      return { cast: CAST[id].map((person, order) => ({ id: person, order, character: "Lead", popularity: 100 - person })) };
+    });
+    const first = new AbortController();
+    const early = suggestTeamsChecked(1, first.signal);
+    const later = suggestTeamsChecked(1, new AbortController().signal);
+
+    first.abort();
+    await expect(early).rejects.toMatchObject({ status: 504 });
+
+    release();
+    const { teams, complete } = await later;
+    expect(complete).toBe(true);
+    expect(teams.results.map((team) => team.people.map((person) => person.id))).toEqual([[10, 11], [20, 21], [30, 31]]);
+    // None of the work was given the first caller's signal.
+    const signals = [...loadCredits.mock.calls.map(([, signal]) => signal), ...loadPerson.mock.calls.map(([, options]) => options?.signal)];
+    expect(signals.length).toBeGreaterThan(0);
+    for (const signal of signals) expect(signal).not.toBe(first.signal);
+    // ...and it is remembered, so a later request is answered at once.
+    const calls = loadCredits.mock.calls.length;
+    await suggestTeamsChecked(1);
+    expect(loadCredits.mock.calls.length).toBe(calls);
+  });
+
+  it("answers a caller whose signal is already aborted with a timeout, and still finishes the work for the list's cache", async () => {
+    const gone = new AbortController();
+    gone.abort();
+    await expect(suggestTeamsChecked(1, gone.signal)).rejects.toMatchObject({ status: 504 });
+    await expect(suggestTeamsChecked(1)).resolves.toMatchObject({ complete: true });
   });
 
   it("fails when no film's credits can be loaded, and for an unknown person", async () => {

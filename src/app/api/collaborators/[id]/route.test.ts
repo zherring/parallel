@@ -107,13 +107,18 @@ describe("GET /api/collaborators/[id]: request handling", () => {
   });
 });
 
+/** Five more candidates, so that the row is a full one (a row under 8 is topped up with live candidates): each shares one film only, and drops out. */
+const FILLER = range(13, 17);
+const fullRow = (...pairs: [id: number, count: number][]) => row(...pairs, ...FILLER.map((id): [number, number] => [id, 2]));
+
 describe("GET /api/collaborators/[id]: graph path", () => {
   beforeEach(() => {
+    for (const id of FILLER) timelines.set(id, timeline(id, `Filler ${id}`, films("actor", [1])));
     timelines.set(SUBJECT, timeline(SUBJECT, "Harrison Ford", films("actor", range(1, 12))));
     timelines.set(10, timeline(10, "George Lucas", [film(1, ["director"]), film(2, ["director", "writer"]), film(3, ["writer"])]));
     timelines.set(11, timeline(11, "Mark Hamill", films("actor", [2, 3, 4, 5])));
     timelines.set(12, timeline(12, "Steven Spielberg", films("director", [6, 7, 8, 9, 10])));
-    graph.set(SUBJECT, row([10, 3], [11, 4], [12, 5]));
+    graph.set(SUBJECT, fullRow([10, 3], [11, 4], [12, 5]));
   });
 
   it("answers { source, results } with exact counts, roles and titles and the cache headers", async () => {
@@ -155,8 +160,8 @@ describe("GET /api/collaborators/[id]: graph path", () => {
   it("makes no film-credit calls: the graph needs no live counting", async () => {
     await get(String(SUBJECT));
     expect(filmCredits).not.toHaveBeenCalled();
-    // The person, plus each of the three candidates, once.
-    expect(personCredits.mock.calls.map(([id]) => id).sort((a, b) => a - b)).toEqual([1, 10, 11, 12]);
+    // The person, plus each of the eight candidates, once.
+    expect(personCredits.mock.calls.map(([id]) => id).sort((a, b) => a - b)).toEqual([1, 10, 11, 12, ...FILLER]);
   });
 
   it("recounts: the graph's number is a hint, the pair page's number is shown", async () => {
@@ -193,7 +198,8 @@ describe("GET /api/collaborators/[id]: graph path", () => {
 
   it("does the work once for a burst of simultaneous requests", async () => {
     await Promise.all([get(String(SUBJECT)), get(String(SUBJECT)), get(String(SUBJECT))]);
-    expect(personCredits).toHaveBeenCalledTimes(4);
+    // The person and the eight candidates, once.
+    expect(personCredits).toHaveBeenCalledTimes(9);
   });
 
   it("never loads more than six filmographies at once", async () => {
@@ -350,6 +356,33 @@ describe("GET /api/collaborators/[id]: live fallback", () => {
     const data = await body(await get(String(SUBJECT)));
     expect(data.source).toBe("live");
     expect(filmCredits).toHaveBeenCalled();
+  });
+
+  it("tops up a thin graph row (under 8 candidates) with the live candidates: the graph's come first, the list is as long as the films make it", async () => {
+    // The crawl saw only three of the person's candidates, two of whom share a single film with them; the live count adds the others.
+    timelines.set(70, timeline(70, "Thin A", films("actor", [100])));
+    timelines.set(71, timeline(71, "Thin B", films("actor", [101])));
+    graph.set(SUBJECT, row([41, 2], [70, 2], [71, 2]));
+    const res = await get(String(SUBJECT));
+    const data = await body(res);
+    expect(data.source).toBe("live");
+    expect(filmCredits).toHaveBeenCalled();
+    expect(data.results.map((r) => r.id)).toEqual([40, 41, 50]);
+    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=3600, stale-while-revalidate=86400");
+    // Each candidate once, the graph's and the live ones together.
+    const loaded = personCredits.mock.calls.map(([id]) => id).filter((id) => id !== SUBJECT);
+    expect(loaded.sort((a, b) => a - b)).toEqual([40, 41, 50, 60, 70, 71]);
+  });
+
+  it("keeps a thin row's own candidates when the live count cannot be made, and says the list is incomplete", async () => {
+    graph.set(SUBJECT, row([40, 6], [41, 3], [50, 2]));
+    filmCredits.mockRejectedValue(new TmdbError(500, "boom"));
+    const res = await get(String(SUBJECT));
+    expect(res.status).toBe(200);
+    const data = await body(res);
+    expect(data.source).toBe("graph");
+    expect(data.results.map((r) => r.id)).toEqual([40, 41, 50]);
+    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=60");
   });
 
   it("falls back to live counting when the graph cannot be loaded", async () => {

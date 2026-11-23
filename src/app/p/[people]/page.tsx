@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { userAgent } from "next/server";
 import { DepthView } from "@/components/depth/depth-view";
 import { PeopleView } from "@/components/people-view";
-import { BACON_MODE_VALUE, MODE_PARAM, isBaconPage, namesBaconMode } from "@/lib/bacon-mode";
+import { BACON_MODE_VALUE, MODE_PARAM, isBaconPage } from "@/lib/bacon-mode";
 import { cardFilms } from "@/lib/card-films";
 import { canonicalPeoplePath } from "@/lib/canonical-people";
 import { getPairClippingSet } from "@/lib/clippings";
@@ -103,11 +103,14 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   };
 }
 
-/** The query a redirect to the canonical address keeps: the link's period (in canonical order), then its view, sort and quote as written, and Kevin Bacon mode. Nothing else is the page's. */
-function redirectSearch(query: Query): string {
+/**
+ * The query a redirect to the canonical address keeps: the link's period (in canonical order), then its view, sort and quote as written, and Kevin Bacon mode when
+ * the page is in it (`isBaconPage`: he is one of `personIds`; the word on a page without him means nothing, and is not carried on). Nothing else is the page's.
+ */
+function redirectSearch(query: Query, personIds: readonly number[]): string {
   const params = new URLSearchParams(rawPeriodSearch(parsePeriodParams(query)));
   for (const [name, value] of viewParams(query)) params.set(name, value);
-  if (namesBaconMode(query)) params.set(MODE_PARAM, BACON_MODE_VALUE);
+  if (isBaconPage(query, personIds)) params.set(MODE_PARAM, BACON_MODE_VALUE);
   const text = params.toString();
   return text ? `?${text}` : "";
 }
@@ -124,7 +127,7 @@ export default async function PeoplePage({ params, searchParams }: Props) {
   const [{ people }, query, requestHeaders] = await Promise.all([params, searchParams, headers()]);
   const { timelines, canonical, isCanonical } = await loadPeople(people);
   // A link typed with a shorthand slug still opens on its period, view (the Depth view too), sort and quote.
-  if (!isCanonical) redirect(`/p/${canonical}${redirectSearch(query)}`);
+  if (!isCanonical) redirect(`/p/${canonical}${redirectSearch(query, timelines.map((t) => t.person.id))}`);
 
   // Computed once, here, and handed to the client: only released films count as shared or connected,
   // and the browser must draw the same timeline the server did, so it never reads the clock itself.

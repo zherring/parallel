@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api-error";
+import { MODE_SUBJECT_IDS } from "@/lib/bacon-mode";
 import { suggestTeamsChecked } from "@/lib/teams";
 import { ROUTE_BUDGET_MS } from "@/lib/tmdb";
 
@@ -19,6 +20,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   if (!PERSON_ID.test(id)) {
     return NextResponse.json({ error: "id must be a positive integer" }, { status: 400 });
+  }
+  // A cold list is about 130 TMDB requests: only the people a mode is about (`MODE_SUBJECT_IDS`) are asked for.
+  if (!MODE_SUBJECT_IDS.includes(Number(id))) {
+    return NextResponse.json({ error: "id must be a person a mode is about" }, { status: 400 });
   }
 
   try {

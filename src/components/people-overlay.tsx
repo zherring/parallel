@@ -10,7 +10,7 @@ import { usePeopleStaging, useStagingSurface } from "@/components/people-staging
 import { PersonSearch } from "@/components/person-search/person-search";
 import { useSearchSurface } from "@/components/search-provider";
 import { trapTab, useModalPage } from "@/components/side-panel/modal-page";
-import { hasRoom } from "@/lib/pending-people";
+import { canRestore } from "@/lib/pending-people";
 import { PEOPLE_DIALOG_ATTRIBUTE, isApplePlatform, platformName, shortcutHint, shortcutKeys } from "@/lib/people-shortcut";
 import type { OpenPerson } from "@/lib/side-panel";
 
@@ -174,7 +174,7 @@ function PeopleDialog({ people, onOpenPerson, opener, onClose }: Omit<PeopleOver
               visible
               onRemove={staging.removePerson}
               onRestore={staging.addPerson}
-              undoDisabled={!hasRoom(staging.current, staging.pending, staging.max)}
+              undoDisabled={!canRestore(staging.current, staging.pending, staging.max)}
             />
           ))}
         </ul>

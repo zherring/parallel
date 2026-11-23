@@ -305,6 +305,36 @@ describe("GET /api/search: a mode's search (with)", () => {
     expect(body.results[0].together).toBeNull();
   });
 
+  it("is cached for five minutes when every result was checked, and for a minute when one was not", async () => {
+    together.mockResolvedValue(new Map<number, number | null>([[488, 2], [1884, 0]]));
+    expect((await getWith("steven", "4724")).headers.get("Cache-Control")).toBe("public, s-maxage=300, stale-while-revalidate=3600");
+
+    // A result with no count (its filmography did not load in time) must not be kept: asking again may check it.
+    together.mockResolvedValue(new Map<number, number | null>([[488, 2], [1884, null]]));
+    expect((await getWith("steven", "4724")).headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=60");
+  });
+
+  it("does not count his own row, which has no count of its own, as one that was not checked", async () => {
+    const withBacon = [hit(4724, "Kevin Bacon", 50), hit(900, "Kevin Other", 1)];
+    tmdbSearch.mockResolvedValue(withBacon);
+    together.mockResolvedValue(new Map<number, number | null>([[4724, null], [900, 3]]));
+    const res = await getWith("kevin", "4724");
+    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=300, stale-while-revalidate=3600");
+    const body = (await res.json()) as PeopleSearchResponse;
+    expect(body.results.find((result) => result.id === 4724)?.together).toBeNull();
+  });
+
+  it("answers only for the people a mode is about", async () => {
+    // A person id, but not one of MODE_SUBJECT_IDS: each result would cost two TMDB requests.
+    for (const other of ["31", "488", "47240", "14724"]) {
+      const res = await getWith("spielberg", other);
+      expect(res.status, other).toBe(400);
+      expect(await res.json()).toEqual({ error: "with must be a person a mode is about" });
+    }
+    expect(together).not.toHaveBeenCalled();
+    expect(tmdbSearch).not.toHaveBeenCalled();
+  });
+
   it("rejects a with that is not a person id, and leaves plain searches without the field", async () => {
     for (const bad of ["", "0", "abc", "4724x", "-1"]) {
       const res = await getWith("spielberg", bad);

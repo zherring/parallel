@@ -12,7 +12,7 @@ import { cn } from "@/components/timeline/cn";
 import { PersonBio } from "@/components/timeline/person-bio";
 import { BACON_TOGETHER_LEGEND } from "@/lib/bacon-mode";
 import { filmCountLabel, joinNames } from "@/lib/format";
-import { finalPeople, hasRoom, isStagedRemoval, type PendingPeople, type StagedPerson } from "@/lib/pending-people";
+import { canRestore, finalPeople, isStagedRemoval, type PendingPeople, type StagedPerson } from "@/lib/pending-people";
 import { personColor } from "@/lib/person-colors";
 import { pageHeading } from "@/lib/short-name";
 import type { OpenPerson } from "@/lib/side-panel";
@@ -550,7 +550,7 @@ export function PeoplePill({ people, onOpenPerson, scrollerRef, onToggleVisible 
                     onlyVisible={staged === null && visible && visibleCount === 1}
                     onRemove={staging.removePerson}
                     onRestore={staging.addPerson}
-                    undoDisabled={!hasRoom(staging.current, staging.pending, staging.max)}
+                    undoDisabled={!canRestore(staging.current, staging.pending, staging.max)}
                   />
                 );
               })}

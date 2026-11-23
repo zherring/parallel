@@ -5,7 +5,7 @@ import { mapLimited } from "@/lib/map-limited";
 import { isReleased, todayIso } from "@/lib/released";
 import { sharedFilms } from "@/lib/shared";
 import { pickTeams, rankTeams, MIN_TEAM_FILMS } from "@/lib/teams-rank";
-import { getFilmCredits, getPersonMovieCredits } from "@/lib/tmdb";
+import { ROUTE_BUDGET_MS, TmdbError, getFilmCredits, getPersonMovieCredits } from "@/lib/tmdb";
 import { TtlCache } from "@/lib/ttl-cache";
 import type { PersonTimeline, TeamSuggestion, TeamSuggestions } from "@/lib/types";
 
@@ -98,7 +98,10 @@ async function compute(personId: number, signal?: AbortSignal): Promise<TeamResu
  *
  * A cold request reads up to 80 film credits and 24 filmographies (about 130 TMDB requests, kept for a day by the fetch
  * cache); the list is then remembered for three hours, or for a few minutes when something it needed did not load.
- * `signal` is the route's time budget.
+ *
+ * The work is shared by everyone who asks while it is under way, and runs on a time budget of its own (ROUTE_BUDGET_MS), not on the
+ * signal of whoever asked first: `signal` is the caller's, and ends only that caller's wait (a TmdbError 504), so a request that
+ * gave up does not take the list from the ones that joined it.
  */
 export function suggestTeamsChecked(personId: number, signal?: AbortSignal): Promise<TeamResult> {
   const done = finished.get(personId);
@@ -108,7 +111,7 @@ export function suggestTeamsChecked(personId: number, signal?: AbortSignal): Pro
 
   let pending = running.get(personId);
   if (!pending) {
-    pending = compute(personId, signal)
+    pending = compute(personId, AbortSignal.timeout(ROUTE_BUDGET_MS))
       .then((result) => {
         (result.complete ? finished : partial).set(personId, result.teams);
         return result;
@@ -116,5 +119,15 @@ export function suggestTeamsChecked(personId: number, signal?: AbortSignal): Pro
       .finally(() => running.delete(personId));
     running.set(personId, pending);
   }
-  return pending;
+  return signal ? waitFor(pending, signal) : pending;
+}
+
+/** `work`, or a TmdbError 504 once `signal` aborts first: the caller stops waiting, the work goes on for the others. */
+function waitFor<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(new TmdbError(504, "Teams request timed out"));
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new TmdbError(504, "Teams request timed out"));
+    signal.addEventListener("abort", onAbort, { once: true });
+    work.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+  });
 }
