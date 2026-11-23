@@ -20,6 +20,9 @@ async function openHomeSearch(page: Page) {
   await expect(page.getByRole("dialog", { name: "Search people", exact: true })).toBeVisible();
 }
 
+/** The query of each request for his collaborators in this test. */
+let collaboratorUrls: string[] = [];
+
 const ORANGE = "rgb(255, 128, 0)";
 const GREEN = "rgb(0, 224, 84)";
 
@@ -30,7 +33,12 @@ test.beforeEach(async ({ page, next }) => {
     // The server's order: Hardy (no film with him) ranks above Cruise.
     return route.fulfill({ json: inMode ? { results: [hanks, hardy, cruise], pairings: [] } : { results: [kevin, costner], pairings: [] } });
   });
-  await page.route("**/api/collaborators/4724", (route) => route.fulfill({ json: { source: "graph", results: often } }));
+  // With or without `?fill=` (the mode asks for his list to be filled: his graph row is thin); the addresses asked for are kept to check the mode does.
+  collaboratorUrls = [];
+  await page.route(/\/api\/collaborators\/4724(\?.*)?$/, (route) => {
+    collaboratorUrls.push(new URL(route.request().url()).search);
+    return route.fulfill({ json: { source: "graph", results: often } });
+  });
   // No teams unless a test has some (a later route for the same address wins).
   await page.route("**/api/teams/4724", (route) => route.fulfill({ json: { results: [] } }));
 });
@@ -59,6 +67,8 @@ test("a search for Kevin Bacon offers the mode after him; choosing it turns the 
   const suggested = page.getByRole("group", { name: "Often with Kevin Bacon", exact: true }).getByRole("option");
   await expect(suggested).toHaveCount(2);
   await expect(suggested.first()).toContainText("Tom Sizemore");
+  // The mode asks for the list to be filled to what the dropdown shows (SUGGESTION_LIMIT), once.
+  expect(collaboratorUrls).toEqual(["?fill=8"]);
 });
 
 test("in the mode only his co-workers can be added, one at a time, and the pair opens with Enter", async ({ page }) => {

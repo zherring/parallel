@@ -25,15 +25,11 @@ const CONCURRENCY = 6;
 /** The live fallback looks at the person's best-known films only. */
 const LIVE_FILMS = 25;
 /**
- * A thin graph row means the person's films were barely crawled, so the top-up looks at more of them (the teams' list reads as many, and shares their credits through
- * the fetch cache): someone with eleven small films with them, who is billed on none of their best-known twenty-five, is still among their most frequent.
+ * When a caller asks for a thin graph row to be topped up (`minCandidates`), the crawl barely saw the person's films, so the top-up looks at more of them (the
+ * teams' list reads as many, and shares their credits through the fetch cache): someone with eleven small films with them, who is billed on none of their
+ * best-known twenty-five, is still among their most frequent. Up to this many credit requests on a cold cache, which is why only the callers that ask pay it.
  */
 const TOP_UP_FILMS = 80;
-/**
- * A graph row with fewer candidates than this is thin: the crawl saw few of the person's films, and the dropdown lists up to 8 (see
- * `SUGGESTION_LIMIT`). It is topped up with the live candidates, so the list is as long as the person's own films make it.
- */
-const THIN_GRAPH_ROW = 8;
 
 const CACHE_TTL_MS = 3 * 60 * 60 * 1000;
 /** A list that is missing candidates is kept only briefly: long enough to spare TMDB, short enough to heal. */
@@ -41,11 +37,30 @@ const PARTIAL_TTL_MS = 5 * 60 * 1000;
 const CACHE_SIZE = 200;
 
 /** Finished lists, for a few hours. TMDB's own responses are cached for a day by the fetch cache. */
-const finished = new TtlCache<number, CollaboratorSuggestions>(CACHE_SIZE, CACHE_TTL_MS);
+const finished = new TtlCache<string, CollaboratorSuggestions>(CACHE_SIZE, CACHE_TTL_MS);
 /** Lists some of whose candidates could not be loaded, for a few minutes. */
-const partial = new TtlCache<number, CollaboratorSuggestions>(CACHE_SIZE, PARTIAL_TTL_MS);
+const partial = new TtlCache<string, CollaboratorSuggestions>(CACHE_SIZE, PARTIAL_TTL_MS);
 /** Lists being computed right now, so a burst of requests for one person does the work once. */
-const running = new Map<number, Promise<SuggestionResult>>();
+const running = new Map<string, Promise<SuggestionResult>>();
+
+/** What a caller may ask of `suggestCollaboratorsChecked` besides the person. */
+export interface SuggestionOptions {
+  /**
+   * Fill a graph row with fewer candidates than this with the live ones (the crawl saw few of the person's films, and the caller lists that many). Off by
+   * default: the top-up costs up to TOP_UP_FILMS credit requests on a cold cache, so a caller that wants it has to say so. Rounded down, and at most the
+   * candidates that are counted (GRAPH_CANDIDATES); under 1 is off.
+   */
+  minCandidates?: number;
+}
+
+/** `minCandidates` as it is used: a whole number from 0 (off) to VERIFY_CANDIDATES. */
+function fillTarget(minCandidates: number | undefined): number {
+  if (minCandidates === undefined || !Number.isFinite(minCandidates)) return 0;
+  return Math.min(Math.max(Math.trunc(minCandidates), 0), VERIFY_CANDIDATES);
+}
+
+/** The remembered list is per person and per fill: a topped-up list is not the graph's list, and each is kept apart. */
+const cacheKey = (personId: number, fill: number): string => (fill > 0 ? `${personId}+fill${fill}` : String(personId));
 
 /** A list, and whether every candidate made it into it (false: some filmographies failed to load). */
 export interface SuggestionResult {
@@ -60,7 +75,7 @@ export function resetSuggestionCache(): void {
   running.clear();
 }
 
-/** The graph's candidates for a person, best first, or null when the graph has no row (or one under MIN_GRAPH_ROW). */
+/** The graph's candidates for a person, best first, or null when the graph has no (or a thin) row. */
 async function graphCandidates(personId: number): Promise<number[] | null> {
   try {
     const row = (await loadCollaboratorGraph()).get(personId);
@@ -114,7 +129,7 @@ async function liveCandidates(subject: PersonTimeline, today: string, signal?: A
   );
 }
 
-async function compute(personId: number, signal?: AbortSignal): Promise<SuggestionResult> {
+async function compute(personId: number, signal: AbortSignal | undefined, fill: number): Promise<SuggestionResult> {
   const subject = await getPersonMovieCredits(personId, { signal });
   const today = todayIso();
 
@@ -123,10 +138,10 @@ async function compute(personId: number, signal?: AbortSignal): Promise<Suggesti
   let candidateIds: number[];
   // Whether the live candidates a thin row wanted were found: without them the list is the graph's alone, and is kept briefly.
   let toppedUp = true;
-  if (fromGraph && fromGraph.length >= THIN_GRAPH_ROW) {
+  if (fromGraph && fromGraph.length >= fill) {
     candidateIds = fromGraph;
   } else if (fromGraph) {
-    // A thin row: the graph's candidates first, then the live ones the graph lacks.
+    // A row under the asked-for fill: the graph's candidates first, then the live ones the graph lacks.
     try {
       const live = await liveCandidates(subject, today, signal, TOP_UP_FILMS);
       candidateIds = [...new Set([...fromGraph, ...live])].slice(0, VERIFY_CANDIDATES);
@@ -155,9 +170,9 @@ async function compute(personId: number, signal?: AbortSignal): Promise<Suggesti
 /**
  * The people `personId` has worked with most, ready to suggest: candidates from the
  * precomputed collaborator graph (or, for someone the graph does not know, counted live over
- * their best-known films; a row the graph has but thin, under THIN_GRAPH_ROW, is topped up with the
- * live ones), each one then counted exactly from the two filmographies and made
- * varied by role. Throws a TmdbError when TMDB cannot answer (404 for an unknown person).
+ * their best-known films; a row the graph has but under `options.minCandidates`, which is asked for and
+ * never the default, is topped up with the live ones), each one then counted exactly from the two
+ * filmographies and made varied by role. Throws a TmdbError when TMDB cannot answer (404 for an unknown person).
  *
  * Remembered for a few hours; when some candidates could not be loaded (or a short-film lookup
  * was cut short) the list is incomplete and is remembered for a few minutes only, after which the
@@ -168,21 +183,23 @@ async function compute(personId: number, signal?: AbortSignal): Promise<Suggesti
  * not loaded by the time it aborts are left out, so the list is partial. (A computation already
  * under way for the same person keeps the signal of the request that started it.)
  */
-export function suggestCollaboratorsChecked(personId: number, signal?: AbortSignal): Promise<SuggestionResult> {
-  const done = finished.get(personId);
+export function suggestCollaboratorsChecked(personId: number, signal?: AbortSignal, options: SuggestionOptions = {}): Promise<SuggestionResult> {
+  const fill = fillTarget(options.minCandidates);
+  const key = cacheKey(personId, fill);
+  const done = finished.get(key);
   if (done) return Promise.resolve({ suggestions: done, complete: true });
-  const incomplete = partial.get(personId);
+  const incomplete = partial.get(key);
   if (incomplete) return Promise.resolve({ suggestions: incomplete, complete: false });
 
-  let pending = running.get(personId);
+  let pending = running.get(key);
   if (!pending) {
-    pending = compute(personId, signal)
+    pending = compute(personId, signal, fill)
       .then((result) => {
-        (result.complete ? finished : partial).set(personId, result.suggestions);
+        (result.complete ? finished : partial).set(key, result.suggestions);
         return result;
       })
-      .finally(() => running.delete(personId));
-    running.set(personId, pending);
+      .finally(() => running.delete(key));
+    running.set(key, pending);
   }
   return pending;
 }

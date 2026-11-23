@@ -68,6 +68,7 @@ import {
 import {
   SKELETON_ROWS,
   SUGGESTIONS_LABEL,
+  SUGGESTION_LIMIT,
   listedSuggestions,
   panelSection,
   suggestionDetail,
@@ -201,8 +202,10 @@ export function PersonSearch({
   const [isNavigating, startNavigation] = useTransition();
   // The suggestions are asked for the first time the field is focused, never before.
   const [asked, setAsked] = useState(false);
-  // In the mode the empty field offers the people he works with most, as a one-person page's field does.
-  const collaborators = useCollaborators(suggestFor ?? (bacon ? BACON.id : null), asked || entered);
+  // In the mode the empty field offers the people he works with most, as a one-person page's field does. His graph row is thin (3), so the mode asks for
+  // the list to be filled to what the dropdown shows; nobody else's list is, and neither is his outside the mode.
+  const suggestionsFor = suggestFor ?? (bacon ? BACON.id : null);
+  const collaborators = useCollaborators(suggestionsFor, asked || entered, bacon && suggestionsFor === BACON.id ? SUGGESTION_LIMIT : undefined);
   // The teams (two people who made films with him together) are the landing field's, with him alone in it: a team opens the page of the three.
   const teams = useTeams(entered ? BACON.id : null, entered);
 

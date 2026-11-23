@@ -9,6 +9,7 @@ vi.mock("@/lib/tmdb", async (importOriginal) => ({
 }));
 
 import { GET } from "@/app/api/collaborators/[id]/route";
+import { BACON } from "@/lib/bacon-mode";
 import { resetSuggestionCache } from "@/lib/collaborators";
 import { loadCollaboratorGraph } from "@/lib/collaborators-index";
 import type { GraphEntry } from "@/lib/collaborators-format";
@@ -55,7 +56,8 @@ const row = (...pairs: [id: number, count: number][]): GraphEntry => ({
   counts: pairs.map((p) => p[1]),
 });
 
-const get = (id: string) => GET(new Request(`http://localhost/api/collaborators/${id}`), { params: Promise.resolve({ id }) });
+const get = (id: string, query = "") =>
+  GET(new Request(`http://localhost/api/collaborators/${id}${query}`), { params: Promise.resolve({ id }) });
 
 const body = async (res: Response) => (await res.json()) as CollaboratorSuggestions;
 
@@ -107,18 +109,13 @@ describe("GET /api/collaborators/[id]: request handling", () => {
   });
 });
 
-/** Five more candidates, so that the row is a full one (a row under 8 is topped up with live candidates): each shares one film only, and drops out. */
-const FILLER = range(13, 17);
-const fullRow = (...pairs: [id: number, count: number][]) => row(...pairs, ...FILLER.map((id): [number, number] => [id, 2]));
-
 describe("GET /api/collaborators/[id]: graph path", () => {
   beforeEach(() => {
-    for (const id of FILLER) timelines.set(id, timeline(id, `Filler ${id}`, films("actor", [1])));
     timelines.set(SUBJECT, timeline(SUBJECT, "Harrison Ford", films("actor", range(1, 12))));
     timelines.set(10, timeline(10, "George Lucas", [film(1, ["director"]), film(2, ["director", "writer"]), film(3, ["writer"])]));
     timelines.set(11, timeline(11, "Mark Hamill", films("actor", [2, 3, 4, 5])));
     timelines.set(12, timeline(12, "Steven Spielberg", films("director", [6, 7, 8, 9, 10])));
-    graph.set(SUBJECT, fullRow([10, 3], [11, 4], [12, 5]));
+    graph.set(SUBJECT, row([10, 3], [11, 4], [12, 5]));
   });
 
   it("answers { source, results } with exact counts, roles and titles and the cache headers", async () => {
@@ -160,8 +157,8 @@ describe("GET /api/collaborators/[id]: graph path", () => {
   it("makes no film-credit calls: the graph needs no live counting", async () => {
     await get(String(SUBJECT));
     expect(filmCredits).not.toHaveBeenCalled();
-    // The person, plus each of the eight candidates, once.
-    expect(personCredits.mock.calls.map(([id]) => id).sort((a, b) => a - b)).toEqual([1, 10, 11, 12, ...FILLER]);
+    // The person, plus each of the three candidates, once.
+    expect(personCredits.mock.calls.map(([id]) => id).sort((a, b) => a - b)).toEqual([1, 10, 11, 12]);
   });
 
   it("recounts: the graph's number is a hint, the pair page's number is shown", async () => {
@@ -198,8 +195,7 @@ describe("GET /api/collaborators/[id]: graph path", () => {
 
   it("does the work once for a burst of simultaneous requests", async () => {
     await Promise.all([get(String(SUBJECT)), get(String(SUBJECT)), get(String(SUBJECT))]);
-    // The person and the eight candidates, once.
-    expect(personCredits).toHaveBeenCalledTimes(9);
+    expect(personCredits).toHaveBeenCalledTimes(4);
   });
 
   it("never loads more than six filmographies at once", async () => {
@@ -358,33 +354,6 @@ describe("GET /api/collaborators/[id]: live fallback", () => {
     expect(filmCredits).toHaveBeenCalled();
   });
 
-  it("tops up a thin graph row (under 8 candidates) with the live candidates: the graph's come first, the list is as long as the films make it", async () => {
-    // The crawl saw only three of the person's candidates, two of whom share a single film with them; the live count adds the others.
-    timelines.set(70, timeline(70, "Thin A", films("actor", [100])));
-    timelines.set(71, timeline(71, "Thin B", films("actor", [101])));
-    graph.set(SUBJECT, row([41, 2], [70, 2], [71, 2]));
-    const res = await get(String(SUBJECT));
-    const data = await body(res);
-    expect(data.source).toBe("live");
-    expect(filmCredits).toHaveBeenCalled();
-    expect(data.results.map((r) => r.id)).toEqual([40, 41, 50]);
-    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=3600, stale-while-revalidate=86400");
-    // Each candidate once, the graph's and the live ones together.
-    const loaded = personCredits.mock.calls.map(([id]) => id).filter((id) => id !== SUBJECT);
-    expect(loaded.sort((a, b) => a - b)).toEqual([40, 41, 50, 60, 70, 71]);
-  });
-
-  it("keeps a thin row's own candidates when the live count cannot be made, and says the list is incomplete", async () => {
-    graph.set(SUBJECT, row([40, 6], [41, 3], [50, 2]));
-    filmCredits.mockRejectedValue(new TmdbError(500, "boom"));
-    const res = await get(String(SUBJECT));
-    expect(res.status).toBe(200);
-    const data = await body(res);
-    expect(data.source).toBe("graph");
-    expect(data.results.map((r) => r.id)).toEqual([40, 41, 50]);
-    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=60");
-  });
-
   it("falls back to live counting when the graph cannot be loaded", async () => {
     loadGraph.mockRejectedValue(new Error("Cannot find module"));
     const res = await get(String(SUBJECT));
@@ -413,6 +382,136 @@ describe("GET /api/collaborators/[id]: live fallback", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ source: "live", results: [] });
     expect(filmCredits).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/collaborators/[id]: ?fill (the top-up of a thin graph row)", () => {
+  /** A person a mode is about (MODE_SUBJECT_IDS): the only one a top-up is made for. */
+  const MODE = BACON.id;
+  const OTHER = SUBJECT;
+
+  /** Film credits where `people` are top-billed cast. */
+  const castOf = (...ids: number[]): RawFilmCredits => ({
+    cast: ids.map((id, order) => ({ id, order, character: "Role", popularity: id })),
+  });
+
+  const COMPLETE = "public, s-maxage=3600, stale-while-revalidate=86400";
+  const PARTIAL = "public, s-maxage=60, stale-while-revalidate=60";
+
+  /** The ids loaded other than the person's own. */
+  const candidatesLoaded = (person: number) =>
+    personCredits.mock.calls
+      .map(([id]) => id)
+      .filter((id) => id !== person)
+      .sort((a, b) => a - b);
+
+  beforeEach(() => {
+    // Both people have 30 films (100-129), 40 and 41 are co-stars on the first films, 50 is the director of two: the same people for either.
+    for (const [id, name] of [[MODE, "Kevin Bacon"], [OTHER, "Jeff Cronenweth"]] as const) {
+      timelines.set(id, timeline(id, name, range(100, 129).map((film_id, i) => film(film_id, ["actor"], { voteCount: 1000 - i }))));
+      // The crawl saw three of their candidates, two of whom share a single film with them; the live count adds the others.
+      graph.set(id, row([41, 2], [70, 2], [71, 2]));
+    }
+    timelines.set(40, timeline(40, "Costar A", films("actor", range(100, 105))));
+    timelines.set(41, timeline(41, "Costar B", films("actor", range(100, 102))));
+    timelines.set(50, timeline(50, "David Fincher", films("director", [100, 101])));
+    timelines.set(60, timeline(60, "Seen Once", films("actor", [100])));
+    timelines.set(70, timeline(70, "Thin A", films("actor", [100])));
+    timelines.set(71, timeline(71, "Thin B", films("actor", [101])));
+    filmCredits.mockImplementation(async (id) => {
+      if (id >= 100 && id <= 105) return { ...castOf(40, 41, 60), crew: [{ id: 50, job: "Director" }] };
+      return castOf(900 + id);
+    });
+  });
+
+  it("does not top up without it: a thin graph row is answered as the graph has it, with no film-credit calls", async () => {
+    const res = await get(String(MODE));
+    const data = await body(res);
+    expect(data.source).toBe("graph");
+    expect(data.results.map((r) => r.id)).toEqual([41]);
+    expect(filmCredits).not.toHaveBeenCalled();
+    expect(candidatesLoaded(MODE)).toEqual([41, 70, 71]);
+    expect(res.headers.get("Cache-Control")).toBe(COMPLETE);
+  });
+
+  it("tops up a thin row with the live candidates for a person a mode is about: the graph's come first, from more than 25 films", async () => {
+    const res = await get(String(MODE), "?fill=8");
+    const data = await body(res);
+    expect(data.source).toBe("live");
+    expect(data.results.map((r) => r.id)).toEqual([40, 41, 50]);
+    expect(res.headers.get("Cache-Control")).toBe(COMPLETE);
+    // All thirty of the person's films, not the usual 25.
+    expect(filmCredits).toHaveBeenCalledTimes(30);
+    // Each candidate once, the graph's and the live ones together.
+    expect(candidatesLoaded(MODE)).toEqual([40, 41, 50, 60, 70, 71]);
+  });
+
+  it("leaves a row that is already long enough alone", async () => {
+    graph.set(MODE, row([40, 6], [41, 3], [50, 2]));
+    const data = await body(await get(String(MODE), "?fill=3"));
+    expect(data.source).toBe("graph");
+    expect(filmCredits).not.toHaveBeenCalled();
+  });
+
+  it("ignores it for anyone a mode is not about: the usual answer, no 400, no film-credit calls", async () => {
+    for (const query of ["?fill=8", "?fill=16"]) {
+      resetSuggestionCache();
+      personCredits.mockClear();
+      const res = await get(String(OTHER), query);
+      expect(res.status, query).toBe(200);
+      const data = await body(res);
+      expect(data.source, query).toBe("graph");
+      expect(data.results.map((r) => r.id), query).toEqual([41]);
+      expect(res.headers.get("Cache-Control"), query).toBe(COMPLETE);
+      expect(filmCredits, query).not.toHaveBeenCalled();
+      expect(candidatesLoaded(OTHER), query).toEqual([41, 70, 71]);
+    }
+  });
+
+  it("ignores a value that is not a whole number of one or two digits, with the usual answer and no 400", async () => {
+    for (const query of ["?fill=", "?fill=abc", "?fill=0", "?fill=-8", "?fill=8.5", "?fill=1e1", "?fill=008", "?fill=100", "?fill=%208"]) {
+      resetSuggestionCache();
+      filmCredits.mockClear();
+      const res = await get(String(MODE), query);
+      expect(res.status, query).toBe(200);
+      expect((await body(res)).source, query).toBe("graph");
+      expect(filmCredits, query).not.toHaveBeenCalled();
+    }
+  });
+
+  it("keeps the answer with it and the answer without it apart: each is computed once and kept under its own address", async () => {
+    const plain = await body(await get(String(MODE)));
+    expect(plain.source).toBe("graph");
+    expect(filmCredits).not.toHaveBeenCalled();
+
+    const filled = await body(await get(String(MODE), "?fill=8"));
+    expect(filled.source).toBe("live");
+    expect(filmCredits).toHaveBeenCalledTimes(30);
+
+    // Both remembered: neither asks TMDB again, and neither gives the other's answer.
+    const calls = personCredits.mock.calls.length;
+    expect(await body(await get(String(MODE)))).toEqual(plain);
+    expect(await body(await get(String(MODE), "?fill=8"))).toEqual(filled);
+    expect(personCredits).toHaveBeenCalledTimes(calls);
+    expect(filmCredits).toHaveBeenCalledTimes(30);
+  });
+
+  it("does the work once for a burst of simultaneous requests, with it or without", async () => {
+    await Promise.all([get(String(MODE), "?fill=8"), get(String(MODE), "?fill=8"), get(String(MODE)), get(String(MODE))]);
+    // The top-up ran once (its thirty films), and candidate 41, in both lists, was loaded once for each of the two.
+    expect(filmCredits).toHaveBeenCalledTimes(30);
+    expect(candidatesLoaded(MODE).filter((id) => id === 41)).toHaveLength(2);
+  });
+
+  it("keeps the graph's own candidates when the live count cannot be made, and says the list is incomplete", async () => {
+    graph.set(MODE, row([40, 6], [41, 3], [50, 2]));
+    filmCredits.mockRejectedValue(new TmdbError(500, "boom"));
+    const res = await get(String(MODE), "?fill=8");
+    expect(res.status).toBe(200);
+    const data = await body(res);
+    expect(data.source).toBe("graph");
+    expect(data.results.map((r) => r.id)).toEqual([40, 41, 50]);
+    expect(res.headers.get("Cache-Control")).toBe(PARTIAL);
   });
 });
 
