@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { userAgent } from "next/server";
 import { DepthView } from "@/components/depth/depth-view";
 import { PeopleView } from "@/components/people-view";
-import { BACON_MODE_VALUE, MODE_PARAM, isBaconPage, namesBaconMode } from "@/lib/bacon-mode";
+import { BACON_MODE_VALUE, MODE_PARAM, isBaconPage, namesBaconMode, withBaconMode } from "@/lib/bacon-mode";
+import { baconDescription, baconImagePath, baconTitle, isBaconCard } from "@/lib/bacon-share";
 import { cardFilms } from "@/lib/card-films";
 import { canonicalPeoplePath } from "@/lib/canonical-people";
 import { getPairClippingSet } from "@/lib/clippings";
@@ -57,6 +58,12 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   // the Clippings, which a valid `quote` opens without `view=clippings` (see `parseView`), but not a link that names
   // another view.
   const ids = timelines.map((t) => t.person.id);
+  // Kevin Bacon mode (`?mode=bacon` on a pair he is on): a link to it opens in the mode and previews as the mode (see `bacon-share.ts`). The canonical link, which says which page
+  // search engines are pointed at, stays the page without the mode; `og:url` is the link as it was shared.
+  const bacon = isBaconCard(query, ids);
+  const inMode = (href: string) => (bacon ? withBaconMode(href) : href);
+  const titled = (text: string) => (bacon ? baconTitle(text) : text);
+  const described = (text: string) => (bacon ? baconDescription(text) : text);
   const clippingSet = getPairClippingSet(ids);
   const criticSet = getPairCritics(ids);
   const opensClippings = parseView(query, quoteIdsOf(clippingSet, criticSet)) === "clippings";
@@ -75,7 +82,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       description: quote.description,
       // The quote is a view of the page, not another page: search engines are pointed at the whole one.
       alternates: { canonical: canonicalUrl },
-      ...peopleSocial(quote.title, quote.description, `${url}${quoteLinkSearch(quote.id)}`, image),
+      ...peopleSocial(quote.title, quote.description, inMode(`${url}${quoteLinkSearch(quote.id)}`), image),
     };
   }
 
@@ -84,22 +91,25 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const span = spanOfYears(cardFilms(timelines, today).films.map((film) => film.year));
   const period = resolvePeriod(parsePeriodParams(query), span);
   if (!period) {
-    const description = peopleDescription(timelines, shared);
+    // In the mode the card is the `/og` route's (the file convention cannot see the query), asked for the mode: the made-together films are drawn orange.
+    const title = titled(baseTitle);
+    const description = described(peopleDescription(timelines, shared));
+    const image = bacon ? { path: baconImagePath(canonical, null), alt: title } : undefined;
     // The plain link to two or more people is a player card on X (see `PLAYER_CARDS`): the pair's card, which opens up into their timeline in the post.
     // A person's page, a shared period and a quote keep the large-image card, which is their own picture.
-    const player = timelines.length > 1 ? pairPlayer(canonical) : undefined;
-    return { title: baseTitle, description, alternates: { canonical: canonicalUrl }, ...peopleSocial(baseTitle, description, url, undefined, player) };
+    const player = timelines.length > 1 ? pairPlayer(canonical, bacon) : undefined;
+    return { title, description, alternates: { canonical: canonicalUrl }, ...peopleSocial(title, description, inMode(url), image, player) };
   }
 
-  const title = periodTitle(baseTitle, period);
-  const description = peopleDescription(timelines, shared, period);
-  const image = { path: periodImagePath(canonical, period), alt: title };
+  const title = titled(periodTitle(baseTitle, period));
+  const description = described(peopleDescription(timelines, shared, period));
+  const image = { path: bacon ? baconImagePath(canonical, period) : periodImagePath(canonical, period), alt: title };
   return {
     title,
     description,
     // The period is a view of the page, not another page: search engines are pointed at the whole one.
     alternates: { canonical: canonicalUrl },
-    ...peopleSocial(title, description, `${url}${searchWithPeriod("", period)}`, image),
+    ...peopleSocial(title, description, inMode(`${url}${searchWithPeriod("", period)}`), image),
   };
 }
 
