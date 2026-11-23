@@ -257,8 +257,8 @@ export interface PairOgImageInput {
 export async function renderPairOgImage({ timelines, period = null, bacon = false }: PairOgImageInput): Promise<ImageResponse> {
   const today = todayIso();
   const card = buildOgCard(timelines, today, period);
-  // A pair's colours are its landing ones, three's and four's the palette's (`portraitPersonHexes`); null for one person.
-  const hexes = portraitPersonHexes(timelines.map(({ person }) => person.id));
+  // A pair's colours are its landing ones, three's and four's the palette's (`portraitPersonHexes`), in Kevin Bacon mode none of them its orange; null for one person.
+  const hexes = portraitPersonHexes(timelines.map(({ person }) => person.id), { bacon });
   const pair = buildTreatedPair(card, timelines, today, period);
   if (pair) return renderTreatedPairOgImage({ timelines, card, pair, hexes, together: togetherColor(bacon) });
   const [avatars, posterImages, fonts, treatments] = await Promise.all([

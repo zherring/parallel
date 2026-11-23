@@ -4,7 +4,7 @@
  */
 
 import { EXAMPLE_PAIRINGS } from "@/lib/examples";
-import { PERSON_COLORS } from "@/lib/person-colors";
+import { BACON_PERSON_COLORS, PERSON_COLORS, clashesWithTogether } from "@/lib/person-colors";
 
 /**
  * The spike's first artists, each picked to stress the cut (see the spike's report). The contact sheet now shows every artist; this list
@@ -97,15 +97,35 @@ function paletteIndex(personId: number): number {
   return Math.floor(((Math.imul(personId, 0x9e3779b1) >>> 0) / 2 ** 32) * PORTRAIT_PALETTE.length);
 }
 
+/** What Kevin Bacon mode changes about a page's colours: the orange is "made together" there, so nobody is drawn in it (see `clashesWithTogether`). */
+export interface PersonColorMode {
+  bacon?: boolean;
+}
+
+/** The palette entries the mode can give a person: all but the ones too near its orange. Everything outside the mode. */
+const BACON_USABLE: readonly boolean[] = PORTRAIT_PALETTE.map((hex) => !clashesWithTogether(hex));
+
+/** `index`, or the next entry (round the palette) the mode can give a person; in the mode only, and `index` itself where it is usable (all of them, outside it). */
+function usableIndex(index: number, bacon: boolean): number {
+  for (let step = 0; step < PORTRAIT_PALETTE.length; step++) {
+    const candidate = (index + step) % PORTRAIT_PALETTE.length;
+    if (!bacon || BACON_USABLE[candidate]) return candidate;
+  }
+  return index;
+}
+
 /**
  * The landing page's colours for a pair, in the order given: each person's own (`paletteIndex`), except that when the two match, the one with
  * the higher id steps to the next entry, so they never share one, whichever order the pair comes in. The hero and the pairing cards both use it.
+ *
+ * In Kevin Bacon mode (`bacon`) the orange is "made together" and nobody is drawn in it: whoever's own entry is the orange (or too near it) takes the next entry
+ * instead, and a step to avoid a match skips it too. Everyone else keeps the colour they have outside the mode.
  */
-export function pairPortraitColors(firstId: number, secondId: number): [string, string] {
-  const first = paletteIndex(firstId);
-  const second = paletteIndex(secondId);
+export function pairPortraitColors(firstId: number, secondId: number, { bacon = false }: PersonColorMode = {}): [string, string] {
+  const first = usableIndex(paletteIndex(firstId), bacon);
+  const second = usableIndex(paletteIndex(secondId), bacon);
   if (first !== second) return [PORTRAIT_PALETTE[first], PORTRAIT_PALETTE[second]];
-  const stepped = PORTRAIT_PALETTE[(first + 1) % PORTRAIT_PALETTE.length];
+  const stepped = PORTRAIT_PALETTE[usableIndex((first + 1) % PORTRAIT_PALETTE.length, bacon)];
   return firstId <= secondId ? [PORTRAIT_PALETTE[first], stepped] : [stepped, PORTRAIT_PALETTE[second]];
 }
 
@@ -113,11 +133,12 @@ export function pairPortraitColors(firstId: number, secondId: number): [string, 
  * The person colours of a page, by slot (the URL order), or null for one person, whose films stay in the app's green. A pair's are `pairPortraitColors`, so the
  * pair page, its embeds and its preview cards match the landing page; three or four people have the `PERSON_COLORS` (blue, amber, orange, rose), the colours their
  * preview cards and embeds draw them in. Either way it is also the gate of the white "made together" (see `PersonPaletteProvider`). From the ids alone, so the
- * server and the hydrating render agree.
+ * server and the hydrating render agree. In Kevin Bacon mode (`bacon`) none of them is the mode's orange: a pair's skip it (`pairPortraitColors`), and three's or
+ * four's are `BACON_PERSON_COLORS`, the palette without its orange.
  */
-export function portraitPersonHexes(personIds: readonly number[]): readonly string[] | null {
-  if (personIds.length === 2) return pairPortraitColors(personIds[0], personIds[1]);
-  return personIds.length >= 3 ? PERSON_COLORS.slice(0, personIds.length).map(({ hex }) => hex) : null;
+export function portraitPersonHexes(personIds: readonly number[], { bacon = false }: PersonColorMode = {}): readonly string[] | null {
+  if (personIds.length === 2) return pairPortraitColors(personIds[0], personIds[1], { bacon });
+  return personIds.length >= 3 ? (bacon ? BACON_PERSON_COLORS : PERSON_COLORS).slice(0, personIds.length).map(({ hex }) => hex) : null;
 }
 
 /**

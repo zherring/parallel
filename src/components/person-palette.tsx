@@ -20,9 +20,12 @@ export function usePersonPalette(): readonly string[] | null {
   return useContext(PersonPaletteContext);
 }
 
-/** The colours of these people (in the URL order): a pair's, or three or four people's, else null. From the ids alone, so the server and the hydrating render agree. */
-export function usePortraitPersonHexes(personIds: readonly number[]): readonly string[] | null {
+/**
+ * The colours of these people (in the URL order): a pair's, or three or four people's, else null. From the ids alone, so the server and the hydrating render agree.
+ * `bacon`: the page is in Kevin Bacon mode, where nobody is drawn in its orange (see `portraitPersonHexes`).
+ */
+export function usePortraitPersonHexes(personIds: readonly number[], bacon = false): readonly string[] | null {
   const key = personIds.join("+");
   // Keyed by the ids, not the array's identity.
-  return useMemo(() => portraitPersonHexes(key.split("+").map(Number)), [key]);
+  return useMemo(() => portraitPersonHexes(key.split("+").map(Number), { bacon }), [key, bacon]);
 }

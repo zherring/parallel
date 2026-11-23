@@ -81,8 +81,8 @@ export function DepthView(props: Props) {
     (href: string) => carryBaconMode(withDepth(href), window.location.search, people.map((person) => person.id)),
     [people],
   );
-  // Two to four people take the page's colours (`portraitPersonHexes`: a pair, the landing page's); one person keeps the palette as it is (null).
-  const paletteHexes = usePortraitPersonHexes(props.timelines.map((t) => t.person.id));
+  // Two to four people take the page's colours (`portraitPersonHexes`: a pair, the landing page's, none of them Kevin Bacon mode's orange in the mode); one person keeps the palette as it is (null).
+  const paletteHexes = usePortraitPersonHexes(props.timelines.map((t) => t.person.id), props.baconMode);
   return (
     <PersonPaletteProvider hexes={paletteHexes}>
       <PeopleStagingProvider key={key} people={people} carry={carry} bacon={props.baconMode}>

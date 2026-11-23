@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { test, expect, bar, viewLink } from "./fixtures";
+import { test, expect, bar, boxOf, intersects, isOnTopAtCentre, viewLink } from "./fixtures";
 
 // Kevin Bacon mode (src/lib/bacon-mode.ts): a search for him offers the mode; in it the field is orange, holds him and one
 // other person, and only people who share a film with him can be added.
@@ -502,4 +502,78 @@ test("the landing page has a Kevin Bacon tab: his pairs as cards, each opening t
   await page.goto("/#classic");
   const classic = page.locator("#pairings-panel-classic [data-landing-card]");
   expect(await classic.evaluateAll((links) => links.filter((link) => (link.getAttribute("href") ?? "").includes("mode=")).length)).toBe(0);
+});
+
+// ---- Nobody is drawn in the mode's orange (src/lib/person-colors.ts, `portraitPersonHexes`) ----------------------------------------------------------------
+
+const SEDGWICK_PAIR = "/p/4724-kevin-bacon+26467-kyra-sedgwick";
+/** The portrait palette's orange, which Kyra Sedgwick's id lands on, and the colour the mode gives her instead (the next entry; the teal before it is Kevin Bacon's). */
+const PALETTE_ORANGE = "#F28C28";
+const PALETTE_PINK = "#E5487D";
+const PALETTE_TEAL = "#1F9E89";
+
+/** The colour of the person in slot `slot` (the URL order), as the page's custom property `--person-N` has it (see `personColorCss`). */
+const personColor = (page: Page, slot: number) =>
+  page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(`--person-${n}`).trim(), slot + 1);
+
+test("in the mode Kyra Sedgwick is not drawn in the orange, which is what 'made together' is: she takes the next colour, and out of the mode she is as she was", async ({ page, next }) => {
+  void next;
+  await page.goto(`${SEDGWICK_PAIR}?view=timeline`);
+  await expect(bar(page)).toBeVisible();
+  expect(await personColor(page, 0)).toBe(PALETTE_TEAL);
+  expect(await personColor(page, 1)).toBe(PALETTE_ORANGE);
+
+  await page.goto(`${SEDGWICK_PAIR}?view=timeline&mode=bacon`);
+  await expect(bar(page)).toHaveAttribute("data-bacon-page", "");
+  expect(await personColor(page, 0)).toBe(PALETTE_TEAL);
+  expect(await personColor(page, 1)).toBe(PALETTE_PINK);
+  expect(await together(page)).toBe("#ff8000");
+
+  // The Films view, which is another page render, has the same colours.
+  await page.goto(`${SEDGWICK_PAIR}?view=depth&mode=bacon`);
+  await expect(bar(page)).toHaveAttribute("data-bacon-page", "");
+  expect(await personColor(page, 1)).toBe(PALETTE_PINK);
+});
+
+test("a page of three in the mode has the person palette without its orange; out of the mode it has it whole", async ({ page, next }) => {
+  void next;
+  const team = `${SEDGWICK_PAIR}+90000001-scroll-alpha`;
+  await page.goto(`${team}?view=timeline`);
+  await expect(bar(page)).toBeVisible();
+  expect(await personColor(page, 2)).toBe("#d27650");
+  await page.goto(`${team}?view=timeline&mode=bacon`);
+  await expect(bar(page)).toHaveAttribute("data-bacon-page", "");
+  expect(await personColor(page, 0)).toBe("#6f9bd1");
+  expect(await personColor(page, 1)).toBe("#d0a845");
+  expect(await personColor(page, 2)).toBe("#c487a6");
+});
+
+test("the pair's embed in the mode has the same colours as the page: none of them orange", async ({ page, next }) => {
+  void next;
+  const embed = `/embed/p${SEDGWICK_PAIR.slice("/p".length)}`;
+  await page.goto(`${embed}?mode=bacon&motion=reduce`);
+  await expect(page.locator("[data-bacon-page]")).toHaveCount(1);
+  expect(await personColor(page, 1)).toBe(PALETTE_PINK);
+  await page.goto(`${embed}?motion=reduce`);
+  expect(await personColor(page, 1)).toBe(PALETTE_ORANGE);
+});
+
+test("the landing page's Kevin Bacon tab draws nobody in the orange; another tab's cards keep their colours", async ({ page }) => {
+  await page.goto("/#bacon");
+  const cards = page.locator("#pairings-panel-bacon [data-landing-card]");
+  await expect(cards.first()).toBeVisible();
+  // The portraits are drawn once the tab's panel has been shown and measured: every card has them before the colours are read.
+  for (let index = 0; index < (await cards.count()); index++) await expect(cards.nth(index).locator("[data-card-portraits] > *").first()).toBeAttached();
+  const colours = await cards.evaluateAll((links) => links.map((link) => ({ href: link.getAttribute("href") ?? "", html: link.innerHTML.toLowerCase() })));
+  expect(colours.length).toBeGreaterThanOrEqual(5);
+  for (const { href, html } of colours) expect(html, href).not.toContain(PALETTE_ORANGE.toLowerCase());
+  // Kyra Sedgwick's card has her next colour.
+  expect(colours.find(({ href }) => href.includes("26467"))?.html).toContain(PALETTE_PINK.toLowerCase());
+
+  // A pair out of the mode keeps the colours it had: Gary Oldman's orange is on no card of the Bacon tab, and the card's link has no mode.
+  await page.goto("/#classic");
+  const classicCards = page.locator("#pairings-panel-classic [data-landing-card]");
+  await expect(classicCards.last().locator("[data-card-portraits] > *").first()).toBeAttached();
+  const classic = await classicCards.evaluateAll((links) => links.map((link) => link.innerHTML.toLowerCase()));
+  expect(classic.some((html) => html.includes(PALETTE_ORANGE.toLowerCase()))).toBe(true);
 });

@@ -165,8 +165,8 @@ export function PairEmbed({ slug, timelines, today, card, count, treated = null,
   const timelineRef = useRef<TimelineHandle>(null);
 
   const people = useMemo(() => timelines.map((t) => ({ id: t.person.id, name: t.person.name })), [timelines]);
-  // The people's colours (`portraitPersonHexes`), as the page and its card have them.
-  const paletteHexes = usePortraitPersonHexes(timelines.map((t) => t.person.id));
+  // The people's colours (`portraitPersonHexes`), as the page and its card have them (in the mode, none of them its orange).
+  const paletteHexes = usePortraitPersonHexes(timelines.map((t) => t.person.id), baconMode);
   const multi = timelines.length > 1;
   // Three or four people crowd the bar in a narrow frame (the panel X opens over a phone): there the wordmark gives way to the people (the way to the site is
   // still the pill's). Two fit with the wordmark down to a very small phone, and then it goes too. On the smallest phones (under 22rem) the people's

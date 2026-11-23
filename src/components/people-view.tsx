@@ -73,8 +73,8 @@ export function PeopleView(props: Props) {
   // The flat page keeps the view the visitor is on (Timeline, Table; Films is another page) in the address that staged changes to the people lead to, and Kevin Bacon mode
   // while he is on the page: read from the address bar when they are applied.
   const carry = useCallback((href: string) => carriedPeopleHref(href, window.location.search, people), [people]);
-  // Two to four people take the page's colours (`portraitPersonHexes`: a pair, the landing page's); one person keeps the palette as it is (null).
-  const paletteHexes = usePortraitPersonHexes(props.timelines.map((t) => t.person.id));
+  // Two to four people take the page's colours (`portraitPersonHexes`: a pair, the landing page's, none of them Kevin Bacon mode's orange in the mode); one person keeps the palette as it is (null).
+  const paletteHexes = usePortraitPersonHexes(props.timelines.map((t) => t.person.id), props.baconMode);
   return (
     <PersonPaletteProvider hexes={paletteHexes}>
       <PeopleStagingProvider key={key} people={people} carry={carry} bacon={props.baconMode}>
