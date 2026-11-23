@@ -242,3 +242,114 @@ test("the empty field lists the teams he has worked with most, and a team opens 
   await expect(page).toHaveURL("/p/4724-kevin-bacon+90000001-scroll-alpha+90000002-scroll-beta?mode=bacon");
   await expect(bar(page)).toHaveAttribute("data-bacon-page", "");
 });
+
+// ---- Sharing a page in the mode (src/lib/bacon-share.ts) -----------------------------------------------------------------------------
+
+/** Opens `path`, then the Share menu of its gear sheet, and shares with every action in turn (the clipboard and the native share sheet are stubbed to keep what they were given): the address each would post. */
+async function sharedLinks(page: Page, path: string) {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __shared: { copied: string[]; shared: string[] } };
+    w.__shared = { copied: [], shared: [] };
+    Object.defineProperty(navigator, "share", { value: async (data: { url: string }) => void w.__shared.shared.push(data.url), configurable: true });
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: async (text: string) => void w.__shared.copied.push(text) }, configurable: true });
+  });
+  await page.goto(path);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const sheet = page.getByRole("dialog", { name: "Settings", exact: true });
+  const share = sheet.getByRole("button", { name: "Share", exact: true });
+  const menu = sheet.getByRole("menu");
+  await share.click();
+  await expect(menu).toBeVisible();
+  const x = new URL((await menu.getByRole("menuitem", { name: /Post on X/ }).getAttribute("href"))!).searchParams.get("url")!;
+  const bluesky = new URL((await menu.getByRole("menuitem", { name: /Post on Bluesky/ }).getAttribute("href"))!).searchParams.get("text")!;
+  await menu.getByRole("menuitem", { name: "More...", exact: true }).click();
+  await expect(menu).toBeHidden();
+  await share.click();
+  await menu.getByRole("menuitem", { name: "Copy link", exact: true }).click();
+  const { copied, shared } = await page.evaluate(() => (window as unknown as { __shared: { copied: string[]; shared: string[] } }).__shared);
+  return { origin: new URL(page.url()).origin, x, bluesky, shared: shared[0], copied: copied[0] };
+}
+
+test("every way of sharing a page in the mode carries the mode: X, Bluesky, the share sheet and Copy link", async ({ page, next }) => {
+  void next;
+  const links = await sharedLinks(page, `${BACON_PAIR}?mode=bacon&view=timeline`);
+  const link = `${links.origin}${BACON_PAIR}?mode=bacon`;
+  expect(links.x).toBe(link);
+  expect(links.bluesky).toContain(link);
+  expect(links.shared).toBe(link);
+  // Copy link is the address as it is, with the view, and the mode in it.
+  expect(links.copied).toBe(`${links.origin}${BACON_PAIR}?mode=bacon&view=timeline`);
+});
+
+test("out of the mode no way of sharing carries it, and a mode in the address of a page without him is not shared", async ({ page, next }) => {
+  void next;
+  const plain = await sharedLinks(page, `${BACON_PAIR}?view=timeline`);
+  expect([plain.x, plain.bluesky, plain.shared, plain.copied].some((link) => link.includes("mode="))).toBe(false);
+  expect(plain.x).toBe(`${plain.origin}${BACON_PAIR}`);
+  expect(plain.copied).toBe(`${plain.origin}${BACON_PAIR}?view=timeline`);
+});
+
+test("a page that names the mode without him shares as the ordinary page it is", async ({ page, next }) => {
+  void next;
+  const path = "/p/90000001-scroll-alpha+90000002-scroll-beta";
+  const links = await sharedLinks(page, `${path}?mode=bacon&view=timeline`);
+  expect(links.x).toBe(`${links.origin}${path}`);
+  expect(links.shared).toBe(`${links.origin}${path}`);
+  expect(links.copied).toBe(`${links.origin}${path}?view=timeline`);
+});
+
+// ---- The pair's embed in the mode (`/embed/p/<people>?mode=bacon`) ---------------------------------------------------------------------
+
+const BACON_EMBED = `/embed/p${BACON_PAIR.slice("/p".length)}`;
+
+test("the pair's embed in the mode draws the films made together orange, with a small mark in its bar; out of the mode it is white and has none", async ({ page, next }) => {
+  void next;
+  await page.goto(`${BACON_EMBED}?mode=bacon&motion=reduce`);
+  const frame = page.locator("[data-bacon-page]");
+  await expect(frame).toHaveCount(1);
+  expect(await together(page)).toBe("#ff8000");
+  // The first frame's shared films are the orange (`data-part="node"`), as the card the link unfurls into draws them.
+  await expect(page.locator('[data-part="node"]').first()).toHaveCSS("background-color", ORANGE);
+  await expect(page.locator('[data-part="poster"]').first()).toHaveCSS("border-top-color", ORANGE);
+  // Once the timeline is up the bar says the mode, and the way to the page leads to it in the mode.
+  const mark = page.locator("[data-bacon-mark]");
+  await expect(mark).toBeVisible();
+  await expect(mark).toHaveText("Kevin Bacon mode");
+  await expect(page.getByRole("link", { name: /Open in Parallel/ })).toHaveAttribute("href", `${BACON_PAIR}?mode=bacon`);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("(Kevin Bacon mode)");
+
+  await page.goto(`${BACON_EMBED}?motion=reduce`);
+  await expect(page.locator("[data-bacon-page]")).toHaveCount(0);
+  await expect(page.locator("[data-bacon-mark]")).toHaveCount(0);
+  expect(await together(page)).toBe("#fff");
+  await expect(page.locator('[data-part="node"]').first()).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(page.getByRole("link", { name: /Open in Parallel/ })).toHaveAttribute("href", BACON_PAIR);
+});
+
+test("the embed still has the frame-ancestors policy of every embed, with or without the mode", async ({ page, next }) => {
+  void next;
+  for (const path of [BACON_EMBED, `${BACON_EMBED}?mode=bacon`]) {
+    const response = await page.goto(path);
+    expect(response!.headers()["content-security-policy"]).toContain("frame-ancestors");
+  }
+});
+
+// ---- The landing page's tab ----------------------------------------------------------------------------------------------------
+
+test("the landing page has a Kevin Bacon tab: his pairs as cards, each opening the pair in the mode", async ({ page }) => {
+  await page.goto("/#bacon");
+  const pill = page.locator("[data-genre-tab='bacon']");
+  await expect(pill).toHaveText("Kevin Bacon");
+  await expect(pill).toHaveAttribute("aria-selected", "true");
+  const cards = page.locator("#pairings-panel-bacon [data-landing-card]");
+  const count = await cards.count();
+  expect(count).toBeGreaterThanOrEqual(5);
+  expect(count).toBeLessThanOrEqual(8);
+  for (let index = 0; index < count; index++) {
+    await expect(cards.nth(index)).toHaveAttribute("href", /^\/p\/4724-kevin-bacon\+\d+-[a-z-]+\?mode=bacon$/);
+  }
+  // The other tabs' cards are untouched: no mode in their links.
+  await page.goto("/#classic");
+  const classic = page.locator("#pairings-panel-classic [data-landing-card]");
+  expect(await classic.evaluateAll((links) => links.filter((link) => (link.getAttribute("href") ?? "").includes("mode=")).length)).toBe(0);
+});
