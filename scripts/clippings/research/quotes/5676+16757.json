@@ -1,0 +1,49 @@
+{
+  "pair": ["Marcello Mastroianni", "Sophia Loren"],
+  "tmdb_ids": [5676, 16757],
+  "clippings": [
+    {
+      "speaker": "Sophia Loren",
+      "about": "Marcello Mastroianni",
+      "quote": "And it was really fun to give Marcello Mastroianni a chance to be terribly funny, as he was, actually. And that was, I think, really the brilliancy of the film.",
+      "film": "Yesterday, Today and Tomorrow",
+      "said_year": 2019,
+      "publication": "Fox News",
+      "via": null,
+      "title": "Sophia Loren recalls striptease scene from 'Yesterday, Today and Tomorrow'",
+      "date": "2019-11-19",
+      "url": "https://www.foxnews.com/entertainment/sophia-loren-recalls-striptease-scene-from-yesterday-today-and-tomorrow",
+      "context": "Asked by Fox News' Stephanie Nolasco about the striptease scene in the 1963 film.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Sophia Loren",
+      "about": "Marcello Mastroianni",
+      "quote": "The two of us, we’re so good together we can do anything. Ours is always a magical encounter.",
+      "film": "Prêt-à-Porter",
+      "said_year": 1994,
+      "publication": "Alain Elkann Interviews",
+      "via": null,
+      "title": "Sophia Loren",
+      "date": "1994-09-03",
+      "url": "https://www.alainelkanninterviews.com/sophia-loren/",
+      "context": "Answering Alain Elkann on the actors she most enjoyed working with, after their reunion on Robert Altman's Prêt-à-Porter; interview held in Geneva on 3 Sept 1994 and republished by the site on 14 Feb 2014.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Sophia Loren",
+      "about": "Marcello Mastroianni",
+      "quote": "Every time I was asked to do a film with Marcello, I said, ‘Yes, yes, yes,’ without reading a script. Because I knew that with him everything was going to be alright.",
+      "film": null,
+      "said_year": 2015,
+      "publication": "Criterion Collection",
+      "via": "Paste Magazine",
+      "title": "Sophia Loren on Working with Marcello Mastroianni",
+      "date": "2015-10-14",
+      "url": "https://www.pastemagazine.com/movies/film-school/film-school-marcello-mastroianni-and-sophia-loren",
+      "context": "Criterion's excerpt from its interview for the Ettore Scola film A Special Day; I read it only as quoted in Paste's 2024 Film School column, and the date is the Criterion YouTube upload date.",
+      "secondhand": true
+    }
+  ],
+  "notes": "Mastroianni-side is thin: his quotes about Loren I could only verify from the 1994 Elkann interview, and a Paste-quoted 1987 remark had no traceable original, so I skipped it. Skipped Haute Living (empty fetch), Cleveland Press 1970 (Loren's joking with a reporter named Mastroianni), and the Criterion page (Cloudflare block; used Paste's copy)."
+}

@@ -265,5 +265,186 @@
         "paywalled": false
       }
     ]
+  },
+  "3098+4415": {
+    "pair": [
+      "Federico Fellini",
+      "Nino Rota"
+    ],
+    "tmdb_ids": [
+      4415,
+      3098
+    ],
+    "critics": [
+      {
+        "id": "critic-rota-would-often-fall-asleep-while",
+        "critic": "Mervyn Cooke",
+        "publication": "BBC Music Magazine",
+        "via": "classical-music.com",
+        "title": "Nino Rota",
+        "date": "2021-12-28",
+        "url": "https://www.classical-music.com/features/composers/rota-nino",
+        "kind": "feature",
+        "quote": "Rota would often fall asleep while viewing a rough cut of the film, and he would mostly ignore Fellini’s suggestions on the nature of the music the director had himself envisaged for a project."
+      },
+      {
+        "id": "critic-in-two-very-different-films-starring",
+        "critic": "Mervyn Cooke",
+        "publication": "BBC Music Magazine",
+        "via": "classical-music.com",
+        "title": "Nino Rota",
+        "date": "2021-12-28",
+        "url": "https://www.classical-music.com/features/composers/rota-nino",
+        "kind": "feature",
+        "quote": "In two very different films starring Fellini’s wife Giulietta Masina – La Strada (1954) and Giulietta degli spiriti (1960) – Rota used quasi-circus music to hint at melancholic depths in Fellini’s female protagonists, deftly combining sad moods with jaunty instrumental gestures to create the bittersweet quality characteristic of so much of his film music."
+      },
+      {
+        "id": "critic-in-fellinis-films-rotas-music-sometimes",
+        "critic": "Francesco Dalla Vecchia",
+        "publication": "EBSCO Research Starters",
+        "via": null,
+        "title": "Nino Rota",
+        "date": "2024",
+        "url": "https://www.ebsco.com/research-starters/history/nino-rota/",
+        "kind": "academic",
+        "quote": "In Fellini’s films Rota’s music sometimes seems disconnected from the visual content, adding a supplementary layer of meaning. Perhaps this disconnection exists because Fellini often added Rota’s music only at a late stage of the editing and because Rota frequently adapted music from other compositions."
+      },
+      {
+        "id": "critic-also-notable-was-the-fact-that",
+        "critic": "Craig Lysy",
+        "publication": "Movie Music UK",
+        "via": null,
+        "title": "Nino Rota – Fathers of Film Music, Part 15",
+        "date": "2016-05-01",
+        "url": "https://moviemusicuk.us/2016/05/01/nino-rota-fathers-of-film-music-part-15/",
+        "kind": "feature",
+        "quote": "Also notable was the fact that Fellini’s musical knowledge was quite limited, as such he trusted in Rota’s talent, and gave him broad creative control of the musical scores. A testimonial to Fellini’s trust was that he often filmed to Rota’s music so as to acquire a certain rhythm, or to create a certain atmosphere for a scene."
+      },
+      {
+        "id": "critic-it-was-in-the-final-analysis",
+        "critic": "Craig Lysy",
+        "publication": "Movie Music UK",
+        "via": null,
+        "title": "Nino Rota – Fathers of Film Music, Part 15",
+        "date": "2016-05-01",
+        "url": "https://moviemusicuk.us/2016/05/01/nino-rota-fathers-of-film-music-part-15/",
+        "kind": "feature",
+        "quote": "It was in the final analysis the power and facility of Rota’s music that unified Fellini’s disjointed, fragmentary narratives so as to achieve a cogent story. Without Rota, I believe Fellini would have been rendered to an obscure footnote in Italian cinematic history."
+      }
+    ],
+    "reading": [
+      {
+        "title": "Party Time in Fellini Land",
+        "author": "Michael Joshua Rowin",
+        "publication": "The Criterion Collection",
+        "date": "2020-06-22",
+        "url": "https://www.criterion.com/current/posts/6997-party-time-in-fellini-land",
+        "paywalled": false
+      },
+      {
+        "title": "La Strada – Nino Rota",
+        "author": "Craig Lysy",
+        "publication": "Movie Music UK",
+        "date": "2024-09-30",
+        "url": "https://moviemusicuk.us/2024/09/30/la-strada-nino-rota/",
+        "paywalled": false
+      }
+    ]
+  },
+  "5026+7450": {
+    "pair": [
+      "Akira Kurosawa",
+      "Toshirō Mifune"
+    ],
+    "tmdb_ids": [
+      5026,
+      7450
+    ],
+    "critics": [
+      {
+        "id": "critic-kurosawa-trusted-mifune-to-be-his",
+        "critic": "Owen Gleiberman",
+        "publication": "Variety",
+        "via": null,
+        "title": "Film Review: 'Mifune: The Last Samurai'",
+        "date": "2016-11-26",
+        "url": "https://variety.com/2016/film/reviews/mifune-the-last-samurai-review-toshiro-mifune-1201926856/",
+        "kind": "review",
+        "quote": "Kurosawa trusted Mifune to be his collaborator, and rarely gave him direction. It was up to the actor to create his own characters, which he did through mountains of preparation, forging these rogues from the inside out."
+      },
+      {
+        "id": "critic-kurosawa-ended-up-designing-some-of",
+        "critic": "Sam Sewell-Peterson",
+        "publication": "The Film Magazine",
+        "via": null,
+        "title": "Akira Kurosawa, Toshiro Mifune: Cinema’s Greatest Collaborations",
+        "date": "2023-09-11",
+        "url": "https://www.thefilmagazine.com/kurosawa-mifune-film-collaborations/",
+        "kind": "essay",
+        "quote": "Kurosawa ended up designing some of the most memorable sequences in his always vivid films around what Mifune was likely to do, even though requiring some flexibility to accommodate his bankable but uncontrollable star could be a real problem for a director who would not budge an inch from his creative vision without good reason."
+      },
+      {
+        "id": "critic-despite-the-success-of-their-collaboration",
+        "critic": "Matsuda Michiko",
+        "publication": "Nippon.com",
+        "via": null,
+        "title": "Mifune Toshirō, a World-Class Act",
+        "date": "2015-11-02",
+        "url": "https://www.nippon.com/en/articles/-/15724",
+        "kind": "feature",
+        "quote": "Despite the success of their collaboration, working for a notoriously demanding perfectionist like Kurosawa was no picnic for Mifune. After a grueling day on the set, the actor was known to get roaring drunk and vent his frustration with the director by howling imprecations into the night."
+      },
+      {
+        "id": "critic-although-mifune-was-cast-in-his",
+        "critic": "Andrea Grunert",
+        "publication": "Senses of Cinema",
+        "via": null,
+        "title": "Toshirō Mifune: Between Extravagance and Subtlety",
+        "date": "2017-03",
+        "url": "https://www.sensesofcinema.com/2017/feature-articles/toshiro-mifune-between-extravagance-and-subtlety/",
+        "kind": "essay",
+        "quote": "Although Mifune was cast in his first films as a gangster, Kurosawa was nevertheless always eager to broaden his acting horizons and offered him the role of a doctor in The Quiet Duel and in their last collaboration, Red Beard."
+      },
+      {
+        "id": "critic-the-documentary-summons-a-few-haunting",
+        "critic": "Owen Gleiberman",
+        "publication": "Variety",
+        "via": null,
+        "title": "Film Review: 'Mifune: The Last Samurai'",
+        "date": "2016-11-26",
+        "url": "https://variety.com/2016/film/reviews/mifune-the-last-samurai-review-toshiro-mifune-1201926856/",
+        "kind": "review",
+        "quote": "The documentary summons a few haunting moments when it confronts the dissolution of Mifune and Kurosawa’s partnership after they had made 16 films together, a quiet breakup that wound up wrecking Kurosawa’s career far more than it did Mifune’s."
+      },
+      {
+        "id": "critic-incredibly-kurosawa-and-mifune-never-worked",
+        "critic": "Allen Gaborro",
+        "publication": "Eclectica Magazine",
+        "via": null,
+        "title": "The Emperor and the Wolf (review)",
+        "date": "2002",
+        "url": "https://www.eclectica.org/v6n4/gaborro.html",
+        "kind": "review",
+        "quote": "Incredibly, Kurosawa and Mifune never worked as director and actor again after Red Beard in 1965. Mifune's launch of his own movie production company created an artistic and personal estrangement between the two men that would not be breached for the rest of their lives."
+      }
+    ],
+    "reading": [
+      {
+        "title": "Who’s That Man? Mifune at 100",
+        "author": "Moeko Fujii",
+        "publication": "The Criterion Collection",
+        "date": "2020-04-03",
+        "url": "https://www.criterion.com/current/posts/6879-who-s-that-man-mifune-at-100",
+        "paywalled": false
+      },
+      {
+        "title": "The Courage of Compassion – Akira Kurosawa’s Red Beard",
+        "author": "Karthick Ram Manoharan",
+        "publication": "Offscreen",
+        "date": "2020-12",
+        "url": "https://offscreen.com/view/The_Courage_of_Compassion_Akira_Kurosawas_Red_Beard",
+        "paywalled": false
+      }
+    ]
   }
 }

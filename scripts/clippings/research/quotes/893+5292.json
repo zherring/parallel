@@ -1,0 +1,77 @@
+{
+  "pair": ["Tony Scott", "Denzel Washington"],
+  "tmdb_ids": [893, 5292],
+  "clippings": [
+    {
+      "speaker": "Denzel Washington",
+      "about": "Tony Scott",
+      "quote": "Tony, like myself, likes research. He always tracks down real guys who do [the jobs portrayed]. We did it with Man on Fire. We did it with Crimson Tide.",
+      "film": "Déjà Vu",
+      "said_year": 2006,
+      "publication": "blackfilm.com",
+      "via": null,
+      "title": "Deja Vu: An Interview with Denzel Washington",
+      "date": "2006-11-20",
+      "url": "https://www.blackfilm.com/20061117/features/denzel.shtml",
+      "context": "Asked how he prepared for the ATF role in Déjà Vu, he describes Scott's research habits.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Denzel Washington",
+      "about": "Tony Scott",
+      "quote": "He knows how I like to work, and I know what he likes to do. For example he knows I like a lot of research so he is going to have a ton of stuff before we start production things like that.",
+      "film": "Unstoppable",
+      "said_year": 2010,
+      "publication": "blackfilm.com",
+      "via": null,
+      "title": "Unstoppable/ Denzel Washington and Rosario Dawson Interview",
+      "date": "2010-11-07",
+      "url": "https://www.blackfilm.com/read/unstoppable-denzel-washington-rosario-dawson-interview/",
+      "context": "Asked about their shorthand after five films together, he explains how Scott prepares ahead of a shoot.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Tony Scott",
+      "about": "Denzel Washington",
+      "quote": "I respect his process and he respects mine, and both of us are insecure in that we're always examining and making what we do better…",
+      "film": "The Taking of Pelham 123",
+      "said_year": 2009,
+      "publication": "CinemaBlend",
+      "via": null,
+      "title": "Interview: Tony Scott",
+      "date": "2009-06-12",
+      "url": "https://www.cinemablend.com/new/Interview-Tony-Scott-13537.html",
+      "context": "In a roundtable with online journalists promoting Pelham, asked about the shorthand after working together so often.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Tony Scott",
+      "about": "Denzel Washington",
+      "quote": "he's always managed to find a different aspect of his personality that we've honed.",
+      "film": null,
+      "said_year": 2010,
+      "publication": "Movie City News",
+      "via": "TheGrio",
+      "title": "Tony Scott on Denzel Washington: 'He delivers'",
+      "date": "2010",
+      "url": "https://thegrio.com/2012/08/20/tony-scott-on-denzel-washington-he-delivers/",
+      "context": "In a 2010 interview with David Poland, asked what connected them across their films; TheGrio quotes it after Scott's death, and the original was not reachable.",
+      "secondhand": true
+    },
+    {
+      "speaker": "Tony Scott",
+      "about": "Denzel Washington",
+      "quote": "He's tough because he's always reaching for a difference. He's always trying not to repeat himself and I do the same.",
+      "film": "Unstoppable",
+      "said_year": 2010,
+      "publication": "Empire",
+      "via": "TheGrio",
+      "title": "Tony Scott on Denzel Washington: 'He delivers'",
+      "date": "2010",
+      "url": "https://thegrio.com/2012/08/20/tony-scott-on-denzel-washington-he-delivers/",
+      "context": "Said to Empire during press junket coverage of Unstoppable, asked why they keep working together; TheGrio quotes it, and the Empire original was not reachable.",
+      "secondhand": true
+    }
+  ],
+  "notes": "Denzel's Unstoppable interview with blackfilm and CinemaBlend's Pelham roundtable were the richest sources. Collider pages and the Phase9 Q&As were blocked (403 or unreachable); the Empire and Movie City News originals were not reachable, so those two Scott quotes come via TheGrio and are marked secondhand. Denzel-side lines are from separate exchanges; only one Scott quote came from each of several interviews."
+}

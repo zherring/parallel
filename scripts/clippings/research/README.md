@@ -5,7 +5,7 @@ research agents, one file per pair, named by the pairingKey (the two TMDB ids, s
 turns them into entries of `src/lib/clippings.json` and `src/lib/essays.json`. They stay in the repo as the record of what
 the agents found and what they said about sources they skipped (`notes`).
 
-The 26 quote files and 2 critics files here are the batches that produced the data currently in the app (the superseded first
+The 131 quote files and 4 critics files here are the batches that produced the data currently in the app (the superseded first
 critics pass is not kept).
 
 A quote only available in another language carries the source's text in `original` and its ISO 639-1 code in
@@ -29,11 +29,16 @@ the current data and comparing):
 | `1045+2636` (critics) | Hitchcock & Herrmann | bring back the dropped Steven C. Smith quote about *Psycho* (the old merge script skipped it because it overlapped another) |
 | `488+491` (critics) | Spielberg & Williams | change the Keegan quote's " — " back to the agent's " -- " |
 
-Every other quotes key round-trips byte-for-byte: `--force` on all of them leaves `src/lib/clippings.json` without a diff.
-That includes the six duos whose inner quotes had the wrong opening mark (`151+137427`, `3186+7467`, `510+531`, `5281+5292`,
+Every other quotes key round-trips byte-for-byte: `--force` on all of them leaves `src/lib/clippings.json` without a diff
+(checked by forcing all 131 quote files and all 4 critics files and diffing both app files: only the four quote keys and two
+critics keys above differ). That includes the 36 duos of clippings batch 3: the owner's cuts and the four replaced passages
+were made in their staged files and re-merged with `--force`, so for those the staged file and the app still agree (a fix to a
+batch 3 quote can go in the staged file and be re-merged, until someone edits the app JSON by hand). It also includes the
+six duos whose inner quotes had the wrong opening mark (`151+137427`, `3186+7467`, `510+531`, `5281+5292`,
 `138+2231`, `1032+6193`), repaired in the app by commit a7601bc, and `380+1032`, `7623+11357`, `1045+2636`, `3146+3151`,
 `4762+74333`, `136495+1419631`, `608+636`, `4185+11218`, `1357+12453`, `564+569`, `1532+5655`, `500+9033`, `20738+21684`,
-`309+955`, `107446+155267`, `880+1892`. Critics key `488+491`'s reading list does too.
+`309+955`, `107446+155267`, `880+1892`. Of the critics keys, `3098+4415` and `5026+7450` round-trip entirely, and the reading
+lists of `488+491` and `1045+2636` do too.
 
 A quote's `id` is the link that has been shared for it (`?quote=<id>`), so `--force` keeps the id of every quote that is
 still in the staged file (matched by `url` and the quote's words, or by `url` and its first six words) and refuses to run

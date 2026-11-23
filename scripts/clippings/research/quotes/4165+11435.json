@@ -1,0 +1,77 @@
+{
+  "pair": ["Howard Hawks", "John Wayne"],
+  "tmdb_ids": [11435, 4165],
+  "clippings": [
+    {
+      "speaker": "Howard Hawks",
+      "about": "John Wayne",
+      "quote": "I told John Wayne when we started to work together, ‘Duke, if you can make two good scenes and not annoy the audience for the rest of the film, you’ll be a star.’",
+      "film": "Red River",
+      "said_year": 1970,
+      "publication": "Sight & Sound",
+      "via": null,
+      "title": "An audience with Howard Hawks",
+      "date": "1971",
+      "url": "https://www.bfi.org.uk/sight-and-sound/interviews/audience-howard-hawks-1971",
+      "context": "Hawks interviewed by Joseph McBride and Michael Wilmington at the Chicago Film Festival in November 1970, printed in the Spring 1971 issue.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Howard Hawks",
+      "about": "John Wayne",
+      "quote": "So I said to Wayne, ‘Now, look, you go out there – if you forget your lines, just say anything, keep talking until I tell you to come on in. We’ll make the sound afterwards.’",
+      "film": "Red River",
+      "said_year": 1970,
+      "publication": "Sight & Sound",
+      "via": null,
+      "title": "An audience with Howard Hawks",
+      "date": "1971",
+      "url": "https://www.bfi.org.uk/sight-and-sound/interviews/audience-howard-hawks-1971",
+      "context": "Hawks describing the burial scene in Red River, where he had Wayne keep talking so the sound could be recorded afterwards while he waited for a cloud to pass.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Howard Hawks",
+      "about": "John Wayne",
+      "quote": "In Rio Bravo, Wayne hit a fellow across the face the most horrible way. Dean Martin said, ‘Hey, take it easy.’ And Wayne said, ‘I’m not gonna hurt him.’ The audience thought it was funny.",
+      "film": "Rio Bravo",
+      "said_year": 1970,
+      "publication": "Sight & Sound",
+      "via": null,
+      "title": "An audience with Howard Hawks",
+      "date": "1971",
+      "url": "https://www.bfi.org.uk/sight-and-sound/interviews/audience-howard-hawks-1971",
+      "context": "Hawks talking in November 1970 about the humour he found in Wayne's violence in Rio Bravo.",
+      "secondhand": false
+    },
+    {
+      "speaker": "John Wayne",
+      "about": "Howard Hawks",
+      "quote": "'You'll win an Academy Award,' [Hawks] said. 'Yeah, yeah,' I said. Instead, I played it as a strong man who was scared.",
+      "film": "Red River",
+      "said_year": null,
+      "publication": "Scott Eyman biography of John Wayne",
+      "via": "SlashFilm",
+      "title": "John Wayne Wasn't A Fan Of The Image Howard Hawks Had In Mind For Him",
+      "date": "2022-12-02",
+      "url": "https://www.slashfilm.com/1124740/john-wayne-wasnt-a-fan-of-the-image-howard-hawks-had-in-mind-for-him/",
+      "context": "Wayne recalling Hawks's pitch for Red River, where Hawks wanted him to play a 'big, blustering coward' and Wayne chose to play a strong man who was scared; quoted by SlashFilm from Scott Eyman's biography.",
+      "secondhand": true
+    },
+    {
+      "speaker": "John Wayne",
+      "about": "Howard Hawks",
+      "quote": "If you say a funeral is funny, I’ll do a funeral.",
+      "film": "Red River",
+      "said_year": null,
+      "publication": "Sight & Sound",
+      "via": null,
+      "title": "An audience with Howard Hawks",
+      "date": "1971",
+      "url": "https://www.bfi.org.uk/sight-and-sound/interviews/audience-howard-hawks-1971",
+      "context": "Wayne's reply, as Hawks recounts it, after Hawks pitched him a comic finger-amputation scene for Red River that Wayne found unfunny.",
+      "secondhand": true
+    }
+  ],
+  "notes": "Hawks side is strong, all from one BFI interview (three separate passages). Wayne side is thin: no direct Wayne interview on Hawks was reachable (Playboy 1971 and Columbia oral history not accessible), so both Wayne quotes are secondhand; the SlashFilm one's original date is unverified. Academy speech db (047-24) has only Hawks's honorary-award speech, no usable Wayne text."
+}

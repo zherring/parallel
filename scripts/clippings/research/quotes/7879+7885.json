@@ -1,0 +1,21 @@
+{
+  "pair": ["John Lasseter", "Randy Newman"],
+  "tmdb_ids": [7879, 7885],
+  "clippings": [
+    {
+      "speaker": "John Lasseter",
+      "about": "Randy Newman",
+      "quote": "He never speaks down to an audience in either the songs or the score. It’s always from an adult point of view.",
+      "film": null,
+      "said_year": 2001,
+      "publication": "LA Weekly",
+      "via": null,
+      "title": "White Man With Attitude",
+      "date": "2001-11-21",
+      "url": "https://www.laweekly.com/white-man-with-attitude/",
+      "context": "Lasseter, a Pixar director and frequent co-worker, explaining in a profile why he chose Newman to score kid-oriented films.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Newman-about-Lasseter is thin: the WOUB 2016 line is junket-level and the Ringer and Oscar speech quotes are not about Newman, so only one usable quote. Skipped the UDiscover citation of a 2001 LA Times quote because the original headline could not be confirmed. The Princess and the Frog DVD interview has no transcript."
+}

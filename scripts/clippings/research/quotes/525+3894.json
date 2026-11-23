@@ -1,0 +1,63 @@
+{
+  "pair": ["Christopher Nolan", "Christian Bale"],
+  "tmdb_ids": [525, 3894],
+  "clippings": [
+    {
+      "speaker": "Christian Bale",
+      "about": "Christopher Nolan",
+      "quote": "He represents the audience for us on the set.",
+      "film": "The Dark Knight Rises",
+      "said_year": 2012,
+      "publication": "Collider",
+      "via": null,
+      "title": "Christian Bale THE DARK KNIGHT RISES Interview",
+      "date": "2012-05-28",
+      "url": "https://collider.com/christian-bale-the-dark-knight-rises-interview/",
+      "context": "Bale explaining, on the Dark Knight Rises shoot, why he values Nolan's sense of how the audience will react.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Christian Bale",
+      "about": "Christopher Nolan",
+      "quote": "He’s remarkably confident at going with his gut and not desiring any safety net or anything to fall back on. There are a number of times when I say to him: \"Are you sure you don’t want me to do a few other variants? … If you want I can give you three or four different ways you can play it.\" He’s like: \"No, no I know what I want.\" That’s exactly the thing that I need, he’s very firm with it.",
+      "film": "The Dark Knight Rises",
+      "said_year": 2012,
+      "publication": "Collider",
+      "via": null,
+      "title": "Christian Bale THE DARK KNIGHT RISES Interview",
+      "date": "2012-05-28",
+      "url": "https://collider.com/christian-bale-the-dark-knight-rises-interview/",
+      "context": "Bale, in a 2012 interview about The Dark Knight Rises, on how Nolan answers his offers of alternative takes: he turns them down, because he knows what he wants.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Christopher Nolan",
+      "about": "Christian Bale",
+      "quote": "He is the first to acknowledge the inherent ridiculousness of what an actor has to do sometimes.",
+      "film": "Batman Begins",
+      "said_year": 2012,
+      "publication": "ABC News",
+      "via": null,
+      "title": "'We're Done': Christopher Nolan Says Ending 'Batman' Trilogy Was 'Emotional'",
+      "date": "2012-07-06",
+      "url": "https://abcnews.com/Entertainment/christopher-nolan-ending-batman-trilogy-emotional/story?id=16727194",
+      "context": "Nolan, at the close of the Batman trilogy in 2012, praising Bale for taking the work seriously without taking himself too seriously.",
+      "secondhand": false
+    },
+    {
+      "speaker": "Christopher Nolan",
+      "about": "Christian Bale",
+      "quote": "I think that what Christian figured out from the script, and what we were able to put into the story was that by the end of the film, I think he makes the film very much his own.",
+      "film": "The Dark Knight",
+      "said_year": 2008,
+      "publication": "Collider",
+      "via": null,
+      "title": "Christopher Nolan Interview",
+      "date": "2008-07-20",
+      "url": "https://collider.com/christopher-nolan-interview-the-dark-knight/",
+      "context": "Nolan in a 2008 interview about The Dark Knight, saying Bale made the film his own by its end.",
+      "secondhand": false
+    }
+  ],
+  "notes": "Two Nolan quotes and the Bale quotes came through a summarizing fetch with a 125-character cap, so re-check wording on the live pages before publishing. Variety, Empire and THR were paywalled or redirected and skipped; NPR timed out. Nolan on Bale is thin, with only the 2008 and 2012 interviews usable."
+}
